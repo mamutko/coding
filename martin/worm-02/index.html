@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worm Game</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #000;
+            font-family: Arial, sans-serif;
+            color: #fff;
+        }
+        #app {
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+        #boardContainer {
+            position: relative;
+        }
+        canvas {
+            border: 2px solid #fff;
+            background-color: #000;
+            display: block;
+        }
+        #scoreboard {
+            position: absolute;
+            top: -30px;
+            right: 0;
+            text-align: right;
+            width: 260px;
+            font-size: 16px;
+            line-height: 1.2;
+        }
+        #leaderboard {
+            width: 220px;
+        }
+        #leaderboard h2 {
+            margin: 0 0 10px;
+            font-size: 18px;
+        }
+        #leaderboard ol {
+            padding-left: 20px;
+            margin: 0;
+        }
+        #leaderboard li {
+            margin-bottom: 6px;
+            font-size: 14px;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 28px;
+            text-align: center;
+            display: none;
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px;
+            border: 2px solid #fff;
+            border-radius: 8px;
+            width: 280px;
+        }
+        #gameOver label {
+            display: block;
+            margin: 12px 0 6px;
+            font-size: 16px;
+        }
+        #playerNameInput {
+            width: 100%;
+            padding: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            border: 1px solid #fff;
+            border-radius: 4px;
+            background: #000;
+            color: #fff;
+        }
+        button {
+            margin-top: 12px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: 1px solid #fff;
+            border-radius: 4px;
+            background: #111;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="boardContainer">
+            <div id="scoreboard"></div>
+            <canvas id="gameCanvas" width="800" height="400"></canvas>
+            <div id="gameOver">
+                <div id="overlayTitle">Worm</div>
+                <label for="playerNameInput">Player name:</label>
+                <input id="playerNameInput" type="text" />
+                <button id="restartBtn">Start Game</button>
+            </div>
+        </div>
+        <div id="leaderboard">
+            <h2>Leaderboard</h2>
+            <ol id="leaderboardList"></ol>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverDiv = document.getElementById('gameOver');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const restartBtn = document.getElementById('restartBtn');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const scoreboardDiv = document.getElementById('scoreboard');
+        const leaderboardList = document.getElementById('leaderboardList');
+
+        const BOARD_WIDTH = 80;
+        const BOARD_HEIGHT = 40;
+        const CELL_SIZE = 10;
+        const INITIAL_WORM_LENGTH = 3;
+        const LEADERBOARD_KEY = 'wormLeaderboard';
+
+        let worm = [];
+        let direction = { x: 0, y: 0 };
+        let food = [];
+        let poison = [];
+        let gameRunning = false;
+        let gameEnded = false;
+        let gameTimeout;
+        let playerName = null;
+        let leaderboard = [];
+
+        function getMoveInterval() {
+            return 1000 / worm.length;
+        }
+
+        function scheduleMove() {
+            clearTimeout(gameTimeout);
+            if (gameRunning && !gameEnded) {
+                gameTimeout = setTimeout(moveWorm, getMoveInterval());
+            }
+        }
+
+        function loadLeaderboard() {
+            const stored = localStorage.getItem(LEADERBOARD_KEY);
+            if (stored) {
+                try {
+                    leaderboard = JSON.parse(stored);
+                } catch (e) {
+                    leaderboard = [];
+                }
+            } else {
+                leaderboard = [];
+            }
+            leaderboard.sort((a, b) => b.score - a.score);
+        }
+
+        function saveLeaderboard() {
+            localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
+        }
+
+        function updateLeaderboardDisplay() {
+            leaderboardList.innerHTML = '';
+            leaderboard.slice(0, 10).forEach(entry => {
+                const item = document.createElement('li');
+                item.textContent = `${entry.name}: ${entry.score}`;
+                leaderboardList.appendChild(item);
+            });
+        }
+
+        function updateScoreboard() {
+            const score = Math.max(worm.length - INITIAL_WORM_LENGTH, 0);
+            scoreboardDiv.textContent = `${playerName}, current score: ${score}`;
+        }
+
+        function resetGame() {
+            const centerX = Math.floor(BOARD_WIDTH / 2);
+            const centerY = Math.floor(BOARD_HEIGHT / 2);
+            worm = [
+                { x: centerX, y: centerY },
+                { x: centerX - 1, y: centerY },
+                { x: centerX - 2, y: centerY }
+            ];
+
+            direction = { x: 0, y: 0 };
+            gameEnded = false;
+
+            food = [];
+            poison = [];
+            for (let i = 0; i < 32; i++) {
+                let pos;
+                do {
+                    pos = {
+                        x: Math.floor(Math.random() * BOARD_WIDTH),
+                        y: Math.floor(Math.random() * BOARD_HEIGHT)
+                    };
+                } while (worm.some(segment => segment.x === pos.x && segment.y === pos.y));
+
+                if (i < 2) {
+                    food.push(pos);
+                } else {
+                    poison.push(pos);
+                }
+            }
+
+            gameRunning = false;
+            updateScoreboard();
+            updateLeaderboardDisplay();
+            draw();
+        }
+
+        function initGame() {
+            loadLeaderboard();
+            resetGame();
+            showOverlay('Worm', 'Start Game');
+        }
+
+        function showOverlay(title, buttonText) {
+            overlayTitle.textContent = title;
+            restartBtn.textContent = buttonText;
+            gameOverDiv.style.display = 'block';
+            playerNameInput.focus();
+        }
+
+        function hideOverlay() {
+            gameOverDiv.style.display = 'none';
+        }
+
+        function drawHeadEyes(head) {
+            const eyeSize = 2;
+            const padding = 2;
+            ctx.fillStyle = '#0f0';
+            let eyePositions = [];
+
+            if (direction.x === 1) {
+                eyePositions = [
+                    { x: head.x * CELL_SIZE + CELL_SIZE - padding - eyeSize, y: head.y * CELL_SIZE + padding },
+                    { x: head.x * CELL_SIZE + CELL_SIZE - padding - eyeSize, y: head.y * CELL_SIZE + CELL_SIZE - padding - eyeSize }
+                ];
+            } else if (direction.x === -1) {
+                eyePositions = [
+                    { x: head.x * CELL_SIZE + padding, y: head.y * CELL_SIZE + padding },
+                    { x: head.x * CELL_SIZE + padding, y: head.y * CELL_SIZE + CELL_SIZE - padding - eyeSize }
+                ];
+            } else if (direction.y === -1) {
+                eyePositions = [
+                    { x: head.x * CELL_SIZE + padding, y: head.y * CELL_SIZE + padding },
+                    { x: head.x * CELL_SIZE + CELL_SIZE - padding - eyeSize, y: head.y * CELL_SIZE + padding }
+                ];
+            } else {
+                eyePositions = [
+                    { x: head.x * CELL_SIZE + padding, y: head.y * CELL_SIZE + CELL_SIZE - padding - eyeSize },
+                    { x: head.x * CELL_SIZE + CELL_SIZE - padding - eyeSize, y: head.y * CELL_SIZE + CELL_SIZE - padding - eyeSize }
+                ];
+            }
+
+            eyePositions.forEach(pos => {
+                ctx.fillRect(pos.x, pos.y, eyeSize, eyeSize);
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#0f0';
+            worm.slice(1).forEach(segment => {
+                ctx.fillRect(segment.x * CELL_SIZE, segment.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            });
+
+            if (worm.length > 0) {
+                ctx.fillStyle = '#ffa500';
+                const head = worm[0];
+                ctx.fillRect(head.x * CELL_SIZE, head.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                drawHeadEyes(head);
+            }
+
+            ctx.fillStyle = '#ff0';
+            food.forEach(f => {
+                ctx.fillRect(f.x * CELL_SIZE, f.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            });
+
+            ctx.fillStyle = '#f00';
+            poison.forEach(p => {
+                ctx.fillRect(p.x * CELL_SIZE, p.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            });
+
+            updateScoreboard();
+        }
+
+        function updateLeaderboard() {
+            const score = Math.max(worm.length - INITIAL_WORM_LENGTH, 0);
+            const entry = leaderboard.find(item => item.name === playerName);
+            if (entry) {
+                if (score > entry.score) {
+                    entry.score = score;
+                }
+            } else {
+                leaderboard.push({ name: playerName, score });
+            }
+            leaderboard.sort((a, b) => b.score - a.score);
+            if (leaderboard.length > 10) {
+                leaderboard = leaderboard.slice(0, 10);
+            }
+            saveLeaderboard();
+            updateLeaderboardDisplay();
+        }
+
+        function moveWorm() {
+            if (!gameRunning || gameEnded) return;
+
+            const head = { x: worm[0].x + direction.x, y: worm[0].y + direction.y };
+
+            if (head.x < 0 || head.x >= BOARD_WIDTH || head.y < 0 || head.y >= BOARD_HEIGHT) {
+                gameOver();
+                return;
+            }
+
+            if (worm.some(segment => segment.x === head.x && segment.y === head.y)) {
+                gameOver();
+                return;
+            }
+
+            if (poison.some(p => p.x === head.x && p.y === head.y)) {
+                gameOver();
+                return;
+            }
+
+            const foodIndex = food.findIndex(f => f.x === head.x && f.y === head.y);
+            if (foodIndex !== -1) {
+                food.splice(foodIndex, 1);
+                let newFood;
+                do {
+                    newFood = {
+                        x: Math.floor(Math.random() * BOARD_WIDTH),
+                        y: Math.floor(Math.random() * BOARD_HEIGHT)
+                    };
+                } while (worm.some(segment => segment.x === newFood.x && segment.y === newFood.y) ||
+                         poison.some(p => p.x === newFood.x && p.y === newFood.y) ||
+                         food.some(f => f.x === newFood.x && f.y === newFood.y));
+                food.push(newFood);
+            } else {
+                worm.pop();
+            }
+
+            worm.unshift(head);
+            draw();
+            scheduleMove();
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            gameEnded = true;
+            clearTimeout(gameTimeout);
+            updateLeaderboard();
+            playerNameInput.value = playerName;
+            showOverlay('Game Over!', 'Restart Game');
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (gameEnded || gameOverDiv.style.display === 'block') return;
+
+            const key = e.key.toLowerCase();
+            let newDirection = null;
+
+            switch (key) {
+                case 'w':
+                    if (direction.y === 0) newDirection = { x: 0, y: -1 };
+                    break;
+                case 's':
+                    if (direction.y === 0) newDirection = { x: 0, y: 1 };
+                    break;
+                case 'a':
+                    if (direction.x === 0) newDirection = { x: -1, y: 0 };
+                    break;
+                case 'd':
+                    if (direction.x === 0) newDirection = { x: 1, y: 0 };
+                    break;
+            }
+
+            if (newDirection) {
+                direction = newDirection;
+                if (!gameRunning) {
+                    gameRunning = true;
+                    scheduleMove();
+                }
+            }
+        });
+
+        restartBtn.addEventListener('click', () => {
+            const name = playerNameInput.value.trim();
+            playerName = name ? name : 'Player';
+            resetGame();
+            hideOverlay();
+            updateScoreboard();
+            draw();
+        });
+
+        initGame();
+    </script>
+</body>
+</html>

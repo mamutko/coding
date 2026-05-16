@@ -1,0 +1,1 @@
+Before modifying any project code, agents must read the README.md in the root of the repository for project rules and AI instructions.
