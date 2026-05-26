@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Worm Game</title>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            font-family: Arial, sans-serif;
+            color: #fff;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #app {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100vw;
+            height: 100vh;
+        }
+        #boardContainer {
+            position: relative;
+        }
+        canvas {
+            border: 2px solid #fff;
+            background-color: #000;
+            display: block;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 22px;
+            text-align: center;
+            display: none;
+            background: rgba(0, 0, 0, 0.92);
+            padding: 20px;
+            border: 2px solid #fff;
+            border-radius: 8px;
+            width: 260px;
+            max-width: 90%;
+            z-index: 20;
+        }
+        #gameOver label {
+            display: block;
+            margin: 10px 0 5px;
+            font-size: 15px;
+        }
+        #controlHint {
+            font-size: 11px;
+            opacity: 0.65;
+            margin: 10px 0 0;
+        }
+        #playerNameInput {
+            width: 100%;
+            padding: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            border: 1px solid #fff;
+            border-radius: 4px;
+            background: #000;
+            color: #fff;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 18px;
+            font-size: 15px;
+            cursor: pointer;
+            border: 1px solid #fff;
+            border-radius: 4px;
+            background: #111;
+            color: #fff;
+        }
+        #leaderboardBtn {
+            position: absolute;
+            bottom: 6px;
+            right: 6px;
+            font-size: 11px;
+            padding: 4px 8px;
+            margin: 0;
+            z-index: 10;
+            opacity: 0.7;
+        }
+        #leaderboardPanel {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #fff;
+            border-radius: 8px;
+            padding: 16px;
+            z-index: 30;
+            min-width: 180px;
+        }
+        #leaderboardPanel h2 {
+            margin: 0 0 10px;
+            font-size: 16px;
+        }
+        #leaderboardPanel ol {
+            padding-left: 18px;
+            margin: 0;
+        }
+        #leaderboardPanel li {
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        #closeLeaderboard {
+            margin-top: 10px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="boardContainer">
+            <canvas id="gameCanvas"></canvas>
+            <div id="gameOver">
+                <div id="overlayTitle">Worm</div>
+                <label for="playerNameInput">Player name:</label>
+                <input id="playerNameInput" type="text" />
+                <button id="restartBtn">Start Game</button>
+                <p id="controlHint">Tap top / bottom / left / right of screen to steer</p>
+            </div>
+            <button id="leaderboardBtn">Leaderboard</button>
+            <div id="leaderboardPanel">
+                <h2>Leaderboard</h2>
+                <ol id="leaderboardList"></ol>
+                <button id="closeLeaderboard">Close</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverDiv = document.getElementById('gameOver');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const restartBtn = document.getElementById('restartBtn');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const leaderboardList = document.getElementById('leaderboardList');
+        const leaderboardBtn = document.getElementById('leaderboardBtn');
+        const leaderboardPanel = document.getElementById('leaderboardPanel');
+        const closeLeaderboard = document.getElementById('closeLeaderboard');
+
+        const BOARD_WIDTH = 80;
+        const BOARD_HEIGHT = 40;
+        const INITIAL_WORM_LENGTH = 3;
+        const LEADERBOARD_KEY = 'wormLeaderboard';
+
+        let CELL_SIZE = 10;
+        let playerName = null;
+
+        function computeCellSize() {
+            const cellW = Math.floor(window.innerWidth / BOARD_WIDTH);
+            const cellH = Math.floor(window.innerHeight / BOARD_HEIGHT);
+            CELL_SIZE = Math.max(1, Math.min(cellW, cellH));
+            canvas.width = BOARD_WIDTH * CELL_SIZE;
+            canvas.height = BOARD_HEIGHT * CELL_SIZE;
+        }
+
+        let worm = [];
+        let direction = { x: 0, y: 0 };
+        let food = [];
+        let poison = [];
+        let gameRunning = false;
+        let gameEnded = false;
+        let gameTimeout;
+        let leaderboard = [];
+
+        function getMoveInterval() {
+            return 1000 / worm.length;
+        }
+
+        function scheduleMove() {
+            clearTimeout(gameTimeout);
+            if (gameRunning && !gameEnded) {
+                gameTimeout = setTimeout(moveWorm, getMoveInterval());
+            }
+        }
+
+        function loadLeaderboard() {
+            const stored = localStorage.getItem(LEADERBOARD_KEY);
+            try {
+                leaderboard = stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                leaderboard = [];
+            }
+            leaderboard.sort((a, b) => b.score - a.score);
+        }
+
+        function saveLeaderboard() {
+            localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
+        }
+
+        function updateLeaderboardDisplay() {
+            leaderboardList.innerHTML = '';
+            leaderboard.slice(0, 10).forEach(entry => {
+                const item = document.createElement('li');
+                item.textContent = `${entry.name}: ${entry.score}`;
+                leaderboardList.appendChild(item);
+            });
+        }
+
+        function drawScore() {
+            const score = Math.max(worm.length - INITIAL_WORM_LENGTH, 0);
+            const text = `${playerName}, current score: ${score}`;
+            const fontSize = Math.max(10, Math.min(16, CELL_SIZE * 1.4));
+            ctx.font = `${fontSize}px Arial`;
+            const textW = ctx.measureText(text).width;
+            const padding = 4;
+            const boxH = fontSize + padding * 2;
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(canvas.width - textW - padding * 2 - 2, 2, textW + padding * 2, boxH);
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'top';
+            ctx.fillText(text, canvas.width - padding - 2, 2 + padding);
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'alphabetic';
+        }
+
+        function resetGame() {
+            const centerX = Math.floor(BOARD_WIDTH / 2);
+            const centerY = Math.floor(BOARD_HEIGHT / 2);
+            worm = [
+                { x: centerX,     y: centerY },
+                { x: centerX - 1, y: centerY },
+                { x: centerX - 2, y: centerY }
+            ];
+
+            direction = { x: 0, y: 0 };
+            gameEnded = false;
+            food = [];
+            poison = [];
+
+            for (let i = 0; i < 32; i++) {
+                let pos;
+                do {
+                    pos = {
+                        x: Math.floor(Math.random() * BOARD_WIDTH),
+                        y: Math.floor(Math.random() * BOARD_HEIGHT)
+                    };
+                } while (worm.some(s => s.x === pos.x && s.y === pos.y));
+
+                if (i < 2) {
+                    food.push(pos);
+                } else {
+                    poison.push(pos);
+                }
+            }
+
+            gameRunning = false;
+            updateLeaderboardDisplay();
+            draw();
+        }
+
+        function initGame() {
+            computeCellSize();
+            loadLeaderboard();
+            resetGame();
+            showOverlay('Worm', 'Start Game');
+        }
+
+        function showOverlay(title, buttonText) {
+            overlayTitle.textContent = title;
+            restartBtn.textContent = buttonText;
+            gameOverDiv.style.display = 'block';
+            playerNameInput.focus();
+        }
+
+        function hideOverlay() {
+            gameOverDiv.style.display = 'none';
+        }
+
+        function drawHeadEyes(head) {
+            const eyeSize = Math.max(1, Math.floor(CELL_SIZE / 5));
+            const padding = Math.max(1, Math.floor(CELL_SIZE / 5));
+            ctx.fillStyle = '#0f0';
+            let eyePositions = [];
+            const cs = CELL_SIZE;
+
+            if (direction.x === 1) {
+                eyePositions = [
+                    { x: head.x * cs + cs - padding - eyeSize, y: head.y * cs + padding },
+                    { x: head.x * cs + cs - padding - eyeSize, y: head.y * cs + cs - padding - eyeSize }
+                ];
+            } else if (direction.x === -1) {
+                eyePositions = [
+                    { x: head.x * cs + padding, y: head.y * cs + padding },
+                    { x: head.x * cs + padding, y: head.y * cs + cs - padding - eyeSize }
+                ];
+            } else if (direction.y === -1) {
+                eyePositions = [
+                    { x: head.x * cs + padding, y: head.y * cs + padding },
+                    { x: head.x * cs + cs - padding - eyeSize, y: head.y * cs + padding }
+                ];
+            } else {
+                eyePositions = [
+                    { x: head.x * cs + padding, y: head.y * cs + cs - padding - eyeSize },
+                    { x: head.x * cs + cs - padding - eyeSize, y: head.y * cs + cs - padding - eyeSize }
+                ];
+            }
+
+            eyePositions.forEach(pos => {
+                ctx.fillRect(pos.x, pos.y, eyeSize, eyeSize);
+            });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = '#0f0';
+            worm.slice(1).forEach(segment => {
+                ctx.fillRect(segment.x * CELL_SIZE, segment.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            });
+
+            if (worm.length > 0) {
+                ctx.fillStyle = '#ffa500';
+                const head = worm[0];
+                ctx.fillRect(head.x * CELL_SIZE, head.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                drawHeadEyes(head);
+            }
+
+            ctx.fillStyle = '#ff0';
+            food.forEach(f => {
+                ctx.fillRect(f.x * CELL_SIZE, f.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            });
+
+            ctx.fillStyle = '#f00';
+            poison.forEach(p => {
+                ctx.fillRect(p.x * CELL_SIZE, p.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+            });
+
+            if (playerName) drawScore();
+        }
+
+        function updateLeaderboard() {
+            const score = Math.max(worm.length - INITIAL_WORM_LENGTH, 0);
+            const entry = leaderboard.find(item => item.name === playerName);
+            if (entry) {
+                if (score > entry.score) entry.score = score;
+            } else {
+                leaderboard.push({ name: playerName, score });
+            }
+            leaderboard.sort((a, b) => b.score - a.score);
+            if (leaderboard.length > 10) leaderboard = leaderboard.slice(0, 10);
+            saveLeaderboard();
+            updateLeaderboardDisplay();
+        }
+
+        function moveWorm() {
+            if (!gameRunning || gameEnded) return;
+
+            const head = { x: worm[0].x + direction.x, y: worm[0].y + direction.y };
+
+            if (head.x < 0 || head.x >= BOARD_WIDTH || head.y < 0 || head.y >= BOARD_HEIGHT) {
+                gameOver();
+                return;
+            }
+
+            if (worm.some(s => s.x === head.x && s.y === head.y)) {
+                gameOver();
+                return;
+            }
+
+            if (poison.some(p => p.x === head.x && p.y === head.y)) {
+                gameOver();
+                return;
+            }
+
+            const foodIndex = food.findIndex(f => f.x === head.x && f.y === head.y);
+            if (foodIndex !== -1) {
+                food.splice(foodIndex, 1);
+                let newFood;
+                do {
+                    newFood = {
+                        x: Math.floor(Math.random() * BOARD_WIDTH),
+                        y: Math.floor(Math.random() * BOARD_HEIGHT)
+                    };
+                } while (
+                    worm.some(s => s.x === newFood.x && s.y === newFood.y) ||
+                    poison.some(p => p.x === newFood.x && p.y === newFood.y) ||
+                    food.some(f => f.x === newFood.x && f.y === newFood.y)
+                );
+                food.push(newFood);
+            } else {
+                worm.pop();
+            }
+
+            worm.unshift(head);
+            draw();
+            scheduleMove();
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            gameEnded = true;
+            clearTimeout(gameTimeout);
+            updateLeaderboard();
+            playerNameInput.value = playerName;
+            showOverlay('Game Over!', 'Restart Game');
+        }
+
+        // Determine which diagonal touch zone (top/bottom/left/right) was tapped.
+        // The canvas is divided into 4 zones by its two diagonals:
+        //   top-left→bottom-right and top-right→bottom-left.
+        function getTouchZone(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const nx = (clientX - rect.left) / rect.width;
+            const ny = (clientY - rect.top) / rect.height;
+            // d1 > 0: below top-left→bottom-right diagonal
+            // d2 > 0: below top-right→bottom-left diagonal
+            const d1 = ny - nx;
+            const d2 = ny - (1 - nx);
+            if (d1 < 0 && d2 < 0) return { x: 0, y: -1 }; // top
+            if (d1 > 0 && d2 > 0) return { x: 0, y: 1 };  // bottom
+            if (d1 > 0 && d2 < 0) return { x: -1, y: 0 }; // left
+            return { x: 1, y: 0 };                          // right
+        }
+
+        function applyDirection(newDir) {
+            // Only allow perpendicular direction changes (same rule as keyboard controls)
+            if (newDir.x !== 0 && direction.x !== 0) return;
+            if (newDir.y !== 0 && direction.y !== 0) return;
+            direction = newDir;
+            if (!gameRunning) {
+                gameRunning = true;
+                scheduleMove();
+            }
+        }
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameEnded || gameOverDiv.style.display === 'block') return;
+            const touch = e.touches[0];
+            applyDirection(getTouchZone(touch.clientX, touch.clientY));
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('keydown', (e) => {
+            if (gameEnded || gameOverDiv.style.display === 'block') return;
+            const key = e.key.toLowerCase();
+            let newDir = null;
+            switch (key) {
+                case 'w': case 'arrowup':    if (direction.y === 0) newDir = { x: 0, y: -1 }; break;
+                case 's': case 'arrowdown':  if (direction.y === 0) newDir = { x: 0, y: 1 };  break;
+                case 'a': case 'arrowleft':  if (direction.x === 0) newDir = { x: -1, y: 0 }; break;
+                case 'd': case 'arrowright': if (direction.x === 0) newDir = { x: 1, y: 0 };  break;
+            }
+            if (newDir) {
+                direction = newDir;
+                if (!gameRunning) {
+                    gameRunning = true;
+                    scheduleMove();
+                }
+            }
+        });
+
+        restartBtn.addEventListener('click', () => {
+            const name = playerNameInput.value.trim();
+            playerName = name || 'Player';
+            resetGame();
+            hideOverlay();
+            draw();
+        });
+
+        leaderboardBtn.addEventListener('click', () => {
+            leaderboardPanel.style.display = 'block';
+        });
+
+        closeLeaderboard.addEventListener('click', () => {
+            leaderboardPanel.style.display = 'none';
+        });
+
+        window.addEventListener('resize', () => {
+            computeCellSize();
+            draw();
+        });
+
+        initGame();
+    </script>
+</body>
+</html>
