@@ -1,10 +1,6 @@
-# Worm
+# Worm (version with leaderboards)
 
 Worm is a simple game where the user directs a worm on a two-dimensional board. The board contains food and poison. If the worm goes across a food cell, it eats the food and grows by one segment. If the worm goes over a poison cell it dies and the game is over. If the worm hits the edge of the board, it dies as well.
-
-## AI Instructions
-
-This `readme.md` files describes this project. It should be kept up to date with all the features of the project. Whenever the user prompts the AI to do updates to the code, this file should be updated as well. Do so by adding the description of the newly implemented feature into the relevant section, or if there is no relevant section, create a new section. The user might mark some features or descriptions in this file as "TODO". That means, the feature is still not implemented in code. If the user asks the AI to implement the feature, the "TODO" label should be removed and the description of the feature updated if necessary. If the feature was implemented only partially, a description of the parts that were not implemented should be retained with a "TODO" label.
 
 ## Gameplay details
 
