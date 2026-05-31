@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Room</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #000; font-family: sans-serif; }
+
+        #overlay {
+            position: fixed;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1.2rem;
+            background: rgba(0, 0, 0, 0.65);
+            z-index: 10;
+        }
+        #overlay h1 {
+            color: #fff;
+            font-size: 2.4rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+        #start-btn {
+            padding: 0.75rem 3rem;
+            font-size: 1.1rem;
+            background: #fff;
+            color: #111;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+        #start-btn:hover { background: #ddd; }
+        #hint {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.82rem;
+            letter-spacing: 0.05em;
+        }
+
+        #crosshair {
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 14px; height: 14px;
+            pointer-events: none;
+            display: none;
+            z-index: 5;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background: rgba(255, 255, 255, 0.8);
+        }
+        #crosshair::before { width: 2px; height: 100%; left: 50%; transform: translateX(-50%); }
+        #crosshair::after  { height: 2px; width: 100%; top: 50%; transform: translateY(-50%); }
+    </style>
+</head>
+<body>
+    <div id="overlay">
+        <h1>The Room</h1>
+        <button id="start-btn">Start Game</button>
+        <span id="hint">WASD — move &nbsp;·&nbsp; Mouse — look &nbsp;·&nbsp; ESC — pause</span>
+    </div>
+    <div id="crosshair"></div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+
+    <script type="module">
+    import * as THREE from 'three';
+    import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
+
+    // ── Renderer ─────────────────────────────────────────────────────────────────
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    document.body.appendChild(renderer.domElement);
+
+    // ── Scene & Camera ────────────────────────────────────────────────────────────
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1510);
+    scene.fog = new THREE.Fog(0x1a1510, 9, 22);
+
+    const camera = new THREE.PerspectiveCamera(75, innerWidth / innerHeight, 0.05, 40);
+    camera.position.set(0, 1.7, 4.5);
+
+    // ── Lights ────────────────────────────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0x8890a0, 0.5));
+
+    const ceilLight = new THREE.PointLight(0xfff4e0, 1.8, 20);
+    ceilLight.position.set(0, 4.85, 0);
+    ceilLight.castShadow = true;
+    ceilLight.shadow.mapSize.setScalar(512);
+    scene.add(ceilLight);
+
+    const lampLight = new THREE.PointLight(0xffcc77, 1.2, 8);
+    lampLight.position.set(4.2, 1.75, -3.5);
+    scene.add(lampLight);
+
+    // ── Room ──────────────────────────────────────────────────────────────────────
+    const W = 12, H = 5, D = 12;
+
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0xb8874a, roughness: 0.9 });
+    const wallMat  = new THREE.MeshStandardMaterial({ color: 0xe0d4be, roughness: 0.85 });
+    const ceilMat  = new THREE.MeshStandardMaterial({ color: 0xf2efe8, roughness: 0.9 });
+
+    function addPlane(w, h, mat, px, py, pz, rx, ry, rz) {
+        const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
+        m.position.set(px, py, pz);
+        m.rotation.set(rx, ry, rz);
+        m.receiveShadow = true;
+        scene.add(m);
+    }
+
+    addPlane(W, D, floorMat,  0,   0,    0,   -Math.PI/2, 0,          0);
+    addPlane(W, D, ceilMat,   0,   H,    0,    Math.PI/2,  0,          0);
+    addPlane(W, H, wallMat,   0,   H/2, -D/2,  0,          0,          0);       // back
+    addPlane(W, H, wallMat,   0,   H/2,  D/2,  0,          Math.PI,    0);       // front
+    addPlane(D, H, wallMat,  -W/2, H/2,  0,    0,          Math.PI/2,  0);       // left
+    addPlane(D, H, wallMat,   W/2, H/2,  0,    0,         -Math.PI/2,  0);       // right
+
+    // ── Cube helper (cx, cy, cz = center of box) ──────────────────────────────────
+    function cube(w, h, d, color, cx, cy, cz, roughness = 0.75) {
+        const mesh = new THREE.Mesh(
+            new THREE.BoxGeometry(w, h, d),
+            new THREE.MeshStandardMaterial({ color, roughness })
+        );
+        mesh.position.set(cx, cy, cz);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        scene.add(mesh);
+        return mesh;
+    }
+
+    // ── Dining table (center-back) ────────────────────────────────────────────────
+    const TX = 0, TZ = -1.5;
+    cube(2.4, 0.07, 1.3, 0x8b5e3c, TX, 0.80, TZ);  // tabletop
+    for (const [lx, lz] of [[-1.1, -0.55], [1.1, -0.55], [-1.1, 0.55], [1.1, 0.55]])
+        cube(0.07, 0.77, 0.07, 0x6b3e26, TX + lx, 0.385, TZ + lz);
+
+    // ── Chairs ────────────────────────────────────────────────────────────────────
+    function makeChair(cx, cz, ry) {
+        const g = new THREE.Group();
+        const seatM = new THREE.MeshStandardMaterial({ color: 0x7a4020, roughness: 0.8 });
+        const legM  = new THREE.MeshStandardMaterial({ color: 0x5a3010, roughness: 0.6 });
+
+        const seat = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.05, 0.50), seatM);
+        seat.position.y = 0.45; seat.castShadow = true; g.add(seat);
+
+        const back = new THREE.Mesh(new THREE.BoxGeometry(0.50, 0.50, 0.05), seatM);
+        back.position.set(0, 0.72, -0.225); back.castShadow = true; g.add(back);
+
+        for (const [lx, lz] of [[-0.2, -0.2], [0.2, -0.2], [-0.2, 0.2], [0.2, 0.2]]) {
+            const leg = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.45, 0.05), legM);
+            leg.position.set(lx, 0.225, lz); leg.castShadow = true; g.add(leg);
+        }
+
+        g.position.set(cx, 0, cz);
+        g.rotation.y = ry;
+        scene.add(g);
+    }
+
+    makeChair(TX,        TZ - 1.2,  0);
+    makeChair(TX,        TZ + 1.2,  Math.PI);
+    makeChair(TX - 1.6,  TZ,        Math.PI / 2);
+    makeChair(TX + 1.6,  TZ,       -Math.PI / 2);
+
+    // ── Bookshelf (left wall) ─────────────────────────────────────────────────────
+    const SX = -5.72, SZ = -2.5;
+    cube(0.28, 2.6, 1.5, 0x6b3e26, SX, 1.3, SZ);
+    for (let i = 0; i < 4; i++)
+        cube(0.24, 0.04, 1.44, 0x7a4f2e, SX, 0.04 + i * 0.70, SZ);
+
+    const BCOLS = [0xcc3333, 0x3366cc, 0x33aa44, 0xddbb22, 0xaa33aa, 0xee7711, 0x119988, 0xff6688];
+    for (let row = 0; row < 3; row++) {
+        let bz = SZ - 0.68;
+        for (let b = 0; bz < SZ + 0.64; b++) {
+            const bw = 0.06 + (b * 17 % 5) * 0.015;
+            const bh = 0.22 + (b * 13 % 7) * 0.025;
+            cube(0.20, bh, bw, BCOLS[(row * 8 + b) % BCOLS.length],
+                 SX + 0.01, 0.08 + row * 0.70 + bh / 2, bz + bw / 2, 0.9);
+            bz += bw + 0.01;
+        }
+    }
+
+    // ── Sofa (right wall) ─────────────────────────────────────────────────────────
+    const SOX = 4.5, SOZ = 2.0;
+    cube(2.6,  0.45, 0.95, 0x4a5fa0, SOX, 0.225,  SOZ);          // seat
+    cube(2.6,  0.62, 0.18, 0x3a4f90, SOX, 0.76,   SOZ - 0.40);   // backrest
+    cube(0.18, 0.58, 0.95, 0x3a4f90, SOX - 1.39,  0.29, SOZ);    // left arm
+    cube(0.18, 0.58, 0.95, 0x3a4f90, SOX + 1.39,  0.29, SOZ);    // right arm
+    cube(1.1,  0.14, 0.88, 0x5a6faa, SOX - 0.65,  0.52, SOZ);    // left cushion
+    cube(1.1,  0.14, 0.88, 0x5a6faa, SOX + 0.65,  0.52, SOZ);    // right cushion
+
+    // ── Coffee table ──────────────────────────────────────────────────────────────
+    const CTX = SOX, CTZ = SOZ + 1.25;
+    cube(1.3, 0.05, 0.65, 0x8b5e3c, CTX, 0.40, CTZ);
+    for (const [lx, lz] of [[-0.55, -0.27], [0.55, -0.27], [-0.55, 0.27], [0.55, 0.27]])
+        cube(0.05, 0.40, 0.05, 0x6b3e26, CTX + lx, 0.20, CTZ + lz);
+
+    // ── Floor lamp (back-right corner) ────────────────────────────────────────────
+    const LPX = 4.2, LPZ = -3.5;
+    cube(0.05, 1.55, 0.05, 0x999999, LPX, 0.775, LPZ, 0.3);
+    const shade = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.22, 0.12, 0.30, 16),
+        new THREE.MeshStandardMaterial({
+            color: 0xffe8b0, emissive: 0x443300, emissiveIntensity: 0.4,
+            roughness: 0.5, side: THREE.DoubleSide
+        })
+    );
+    shade.position.set(LPX, 1.70, LPZ);
+    shade.castShadow = true;
+    scene.add(shade);
+
+    // ── Ceiling light fixture ─────────────────────────────────────────────────────
+    cube(0.35, 0.08, 0.35, 0xf0eee0, 0, 4.96, 0, 0.2);
+
+    // ── Paintings on back wall ────────────────────────────────────────────────────
+    function painting(cx, cy, w, h, frameCol, paintCol) {
+        cube(w + 0.07, h + 0.07, 0.04, frameCol, cx, cy, -D / 2 + 0.03);
+        cube(w, h, 0.02, paintCol, cx, cy, -D / 2 + 0.05);
+    }
+    painting(-2.8, 2.2, 0.90, 0.65, 0x5a3a1a, 0x6699bb);
+    painting( 2.8, 2.2, 0.90, 0.65, 0x5a3a1a, 0xbb9955);
+    painting(  0,  2.4, 0.60, 0.60, 0x5a3a1a, 0x8a9a55);
+
+    // ── Controls ──────────────────────────────────────────────────────────────────
+    const controls = new PointerLockControls(camera, renderer.domElement);
+
+    const overlay   = document.getElementById('overlay');
+    const crosshair = document.getElementById('crosshair');
+
+    document.getElementById('start-btn').addEventListener('click', () => controls.lock());
+
+    controls.addEventListener('lock', () => {
+        overlay.style.display   = 'none';
+        crosshair.style.display = 'block';
+    });
+    controls.addEventListener('unlock', () => {
+        overlay.style.display   = 'flex';
+        crosshair.style.display = 'none';
+    });
+
+    // ── Movement ──────────────────────────────────────────────────────────────────
+    const keys = new Set();
+    addEventListener('keydown', e => keys.add(e.code));
+    addEventListener('keyup',   e => keys.delete(e.code));
+
+    const SPEED  = 4.0;
+    const MARGIN = 0.4;
+    const clock  = new THREE.Clock();
+    const fwd    = new THREE.Vector3();
+    const right  = new THREE.Vector3();
+    const UP     = new THREE.Vector3(0, 1, 0);
+
+    // ── Render loop ───────────────────────────────────────────────────────────────
+    renderer.setAnimationLoop(() => {
+        const dt = Math.min(clock.getDelta(), 0.05);
+
+        if (controls.isLocked) {
+            camera.getWorldDirection(fwd);
+            fwd.y = 0; fwd.normalize();
+            right.crossVectors(fwd, UP).normalize();
+
+            if (keys.has('KeyW')) camera.position.addScaledVector(fwd,    SPEED * dt);
+            if (keys.has('KeyS')) camera.position.addScaledVector(fwd,   -SPEED * dt);
+            if (keys.has('KeyD')) camera.position.addScaledVector(right,  SPEED * dt);
+            if (keys.has('KeyA')) camera.position.addScaledVector(right, -SPEED * dt);
+
+            camera.position.x = Math.max(-W / 2 + MARGIN, Math.min(W / 2 - MARGIN, camera.position.x));
+            camera.position.z = Math.max(-D / 2 + MARGIN, Math.min(D / 2 - MARGIN, camera.position.z));
+            camera.position.y = 1.7;
+        }
+
+        renderer.render(scene, camera);
+    });
+
+    // ── Resize ────────────────────────────────────────────────────────────────────
+    addEventListener('resize', () => {
+        camera.aspect = innerWidth / innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(innerWidth, innerHeight);
+    });
+    </script>
+</body>
+</html>
