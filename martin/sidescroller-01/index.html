@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sidescroller 01</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+
+function resize() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Physics constants
+const GRAVITY   = 0.55;
+const JUMP_VEL  = -13;
+const MOVE_SPD  = 4;
+const PW        = 28;   // player width
+const PH        = 42;   // player height
+const PLAT_H    = 16;   // platform height
+
+// Input
+const keys = {};
+addEventListener('keydown', e => { keys[e.code] = true; });
+addEventListener('keyup',   e => { keys[e.code] = false; });
+
+// State
+let player, platforms, cameraX, gameOver, score;
+let genX, genY;     // right edge X and Y of the last generated platform
+
+function groundY()  { return canvas.height - 80; }
+function charScX()  { return canvas.width / 5; }   // fixed screen X for the character
+
+function genPlat() {
+    const gap = 80 + Math.random() * 100;
+    const dy  = (Math.random() - 0.5) * 160;
+    const y   = Math.max(canvas.height * 0.12, Math.min(groundY(), genY + dy));
+    const w   = 90 + Math.random() * 180;
+    platforms.push({ x: genX + gap, y, w });
+    genX += gap + w;
+    genY = y;
+}
+
+function reset() {
+    gameOver  = false;
+    score     = 0;
+    platforms = [];
+
+    const gy = groundY();
+    platforms.push({ x: -300, y: gy, w: 800 });
+    genX = 500;
+    genY = gy;
+    for (let i = 0; i < 30; i++) genPlat();
+
+    player = {
+        worldX: 60,
+        y: gy - PH,
+        vy: 0,
+        onGround: false,
+        facing: 1,
+        wc: 0       // walk cycle counter
+    };
+    cameraX = player.worldX - charScX();
+}
+reset();
+
+// ─── Update ───────────────────────────────────────────────────────────────────
+
+function update() {
+    if (gameOver) return;
+
+    // Horizontal movement
+    let dx = 0;
+    if (keys['ArrowRight'] || keys['KeyD']) dx =  MOVE_SPD;
+    if (keys['ArrowLeft']  || keys['KeyA']) dx = -MOVE_SPD;
+    if (dx) {
+        player.facing = Math.sign(dx);
+        if (player.onGround) player.wc += 0.18;
+    }
+    player.worldX += dx;
+
+    // Jump
+    if ((keys['ArrowUp'] || keys['Space'] || keys['KeyW']) && player.onGround) {
+        player.vy = JUMP_VEL;
+        player.onGround = false;
+    }
+
+    // Gravity + terminal velocity
+    player.vy = Math.min(player.vy + GRAVITY, 22);
+    player.y += player.vy;
+
+    // Platform collision (land-on-top only)
+    player.onGround = false;
+    const pl = player.worldX - PW / 2;
+    const pr = player.worldX + PW / 2;
+    const pb = player.y + PH;
+    const prevPb = pb - player.vy;
+
+    for (const p of platforms) {
+        if (pr <= p.x || pl >= p.x + p.w) continue;
+        if (prevPb <= p.y + 2 && pb >= p.y) {
+            player.y = p.y - PH;
+            player.vy = 0;
+            player.onGround = true;
+            break;
+        }
+    }
+
+    // Camera: keep player fixed at 1/5 screen width
+    cameraX = player.worldX - charScX();
+
+    // Score = furthest worldX reached
+    score = Math.max(score, Math.round(player.worldX));
+
+    // Generate more platforms ahead of camera
+    while (genX < cameraX + canvas.width * 2.5) genPlat();
+
+    // Prune platforms far behind camera
+    platforms = platforms.filter(p => p.x + p.w > cameraX - canvas.width * 0.5);
+
+    // Game over: fell off bottom
+    if (player.y > canvas.height + 60) gameOver = true;
+}
+
+// ─── Draw ─────────────────────────────────────────────────────────────────────
+
+function drawBg() {
+    const W = canvas.width, H = canvas.height;
+
+    // Sky gradient
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0,    '#080c18');
+    g.addColorStop(0.65, '#102040');
+    g.addColorStop(1,    '#0a150a');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    // Stars — parallax at 0.2x camera speed
+    ctx.fillStyle = '#fff';
+    const so = cameraX * 0.2;
+    for (let i = 0; i < 100; i++) {
+        const x = ((i * 1327 - so) % (W + 200) + W + 200) % (W + 200) - 100;
+        const y = (i * 739) % (H * 0.72);
+        ctx.globalAlpha = 0.25 + (i % 5 === 0 ? 0.5 : 0.15 * (i % 3));
+        ctx.fillRect(x, y, i % 9 === 0 ? 2 : 1, i % 9 === 0 ? 2 : 1);
+    }
+    ctx.globalAlpha = 1;
+
+    // Background hills — parallax at 0.4x camera speed
+    const ho = cameraX * 0.4;
+    ctx.fillStyle = '#152838';
+    for (let i = 0; i < 10; i++) {
+        const hx = ((i * 280 - ho) % (W + 400) + W + 400) % (W + 400) - 200;
+        const hh = 70 + (i * 83 % 110);
+        ctx.beginPath();
+        ctx.moveTo(hx - 140, H);
+        ctx.quadraticCurveTo(hx, H - hh, hx + 140, H);
+        ctx.fill();
+    }
+
+    // Red danger glow at the bottom — signals the fall zone
+    const dg = ctx.createLinearGradient(0, H - 50, 0, H);
+    dg.addColorStop(0, 'rgba(180,20,20,0)');
+    dg.addColorStop(1, 'rgba(180,20,20,0.5)');
+    ctx.fillStyle = dg;
+    ctx.fillRect(0, H - 50, W, 50);
+}
+
+function drawPlatforms() {
+    const W = canvas.width;
+    for (const p of platforms) {
+        const sx = p.x - cameraX;
+        if (sx + p.w < 0 || sx > W) continue;
+
+        // Drop shadow
+        ctx.fillStyle = 'rgba(0,0,0,0.4)';
+        ctx.fillRect(sx + 5, p.y + PLAT_H, p.w, 7);
+
+        // Dirt body
+        ctx.fillStyle = '#2e5e35';
+        ctx.fillRect(sx, p.y + 6, p.w, PLAT_H - 6);
+
+        // Grass top
+        ctx.fillStyle = '#4a9452';
+        ctx.fillRect(sx, p.y, p.w, 8);
+
+        // Highlight edge
+        ctx.fillStyle = '#68c270';
+        ctx.fillRect(sx, p.y, p.w, 2);
+        ctx.fillRect(sx, p.y + 2, 2, 5);
+    }
+}
+
+function drawPlayer() {
+    const sx = player.worldX - cameraX;    // screen center X of player
+    const sy = player.y;
+    const f  = player.facing;
+    const g  = player.onGround;
+
+    // Leg bob amplitude: active while grounded, zero while airborne
+    const lb = Math.sin(player.wc) * (g ? 4 : 0);
+
+    // Drop shadow ellipse
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + PH + 2, 13, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Legs (left bobs down when right bobs up, creating walk cycle)
+    ctx.fillStyle = '#1e3a6e';
+    ctx.fillRect(sx - 12, sy + PH - 14 + lb,  10, 14);
+    ctx.fillRect(sx + 2,  sy + PH - 14 - lb,  10, 14);
+
+    // Shoes
+    ctx.fillStyle = '#111';
+    ctx.fillRect(sx - 13, sy + PH - 3 + lb,  13, 4);
+    ctx.fillRect(sx + 1,  sy + PH - 3 - lb,  13, 4);
+
+    // Body
+    ctx.fillStyle = '#b03028';
+    ctx.fillRect(sx - PW / 2, sy + 14, PW, PH - 26);
+
+    // Arms (counterswing to legs for natural motion)
+    ctx.fillStyle = '#c03030';
+    ctx.fillRect(sx - PW / 2 - 5, sy + 16 - lb, 6, 12);  // left arm
+    ctx.fillRect(sx + PW / 2 - 1, sy + 16 + lb, 6, 12);  // right arm
+
+    // Head
+    ctx.fillStyle = '#f5cba7';
+    ctx.fillRect(sx - 10, sy, 20, 16);
+
+    // Hair + sideburn (flips with facing direction)
+    ctx.fillStyle = '#3d2200';
+    ctx.fillRect(sx - 10, sy, 20, 5);
+    ctx.fillRect(sx + (f > 0 ? 8 : -10), sy + 5, 2, 5);
+
+    // Eye (on the facing side)
+    ctx.fillStyle = '#111';
+    ctx.fillRect(sx + (f > 0 ? 3 : -7), sy + 7, 4, 4);
+}
+
+function drawHUD() {
+    // Distance box
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(10, 10, 205, 40);
+    ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(10, 10, 205, 40);
+    ctx.fillStyle = '#ddd';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText(`Distance: ${Math.max(0, score)}`, 20, 37);
+
+    // Controls hint at the bottom
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '12px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText('← →  Move    ↑ / W / Space  Jump    R  Restart', canvas.width / 2, canvas.height - 12);
+    ctx.textAlign = 'left';
+}
+
+function drawGameOver() {
+    const W = canvas.width, H = canvas.height;
+    ctx.fillStyle = 'rgba(0,0,0,0.75)';
+    ctx.fillRect(0, 0, W, H);
+
+    ctx.textAlign = 'center';
+
+    ctx.shadowColor = '#c0392b';
+    ctx.shadowBlur  = 40;
+    ctx.fillStyle   = '#e74c3c';
+    ctx.font        = 'bold 80px monospace';
+    ctx.fillText('GAME OVER', W / 2, H / 2 - 50);
+    ctx.shadowBlur  = 0;
+
+    ctx.fillStyle = '#eee';
+    ctx.font      = '26px monospace';
+    ctx.fillText(`Distance: ${score}`, W / 2, H / 2 + 15);
+
+    ctx.fillStyle = '#aaa';
+    ctx.font      = '20px monospace';
+    ctx.fillText('Press R to restart', W / 2, H / 2 + 55);
+
+    ctx.textAlign = 'left';
+}
+
+addEventListener('keydown', e => { if (e.code === 'KeyR' && gameOver) reset(); });
+
+// ─── Game loop ────────────────────────────────────────────────────────────────
+
+function loop() {
+    update();
+    drawBg();
+    drawPlatforms();
+    drawPlayer();
+    drawHUD();
+    if (gameOver) drawGameOver();
+    requestAnimationFrame(loop);
+}
+loop();
+</script>
+</body>
+</html>
