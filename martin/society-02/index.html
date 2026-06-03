@@ -654,6 +654,11 @@ function updateNPCs(board, buildingGrid, npcs, facilities, clock) {
 const EDGE_SCROLL_MARGIN = 70;   // px from an edge that triggers scrolling
 const EDGE_SCROLL_PX = 12;       // screen px to scroll per animation frame
 
+// A click selects the nearest object within this many tiles, so a click that
+// misses an object's tile still picks a neighbouring one (helps with small,
+// moving NPCs).
+const SELECT_RADIUS_TILES = 1.5;
+
 const camera = {
   tileSize: 32,         // pixels per tile (starting zoom)
   minTileSize: 2,
@@ -993,9 +998,12 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
     const worldX = camera.offsetX + screenX / ts;
     const worldY = camera.offsetY + screenY / ts;
 
-    // Prefer an NPC (small target, drawn on top): nearest on-board NPC whose
-    // drawn centre is within ~0.45 tile of the point.
-    let picked = null, bestD = 0.45;
+    // Pick the object nearest to the click within SELECT_RADIUS_TILES; a click
+    // that misses an object still selects the closest neighbouring one.
+    let picked = null, bestD = SELECT_RADIUS_TILES;
+
+    // NPCs: distance to the drawn (interpolated) centre. Checked first so an
+    // NPC wins a tie against a facility at the same distance.
     for (const npc of npcs) {
       if (npc.inside || !npc.alive) continue;
       const ix = npc.prevX + (npc.x - npc.prevX) * animT + 0.5;
@@ -1003,18 +1011,21 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
       const d = Math.hypot(worldX - ix, worldY - iy);
       if (d < bestD) { bestD = d; picked = { kind: "npc", ref: npc }; }
     }
-    // Otherwise a facility, if the point landed on its footprint.
-    if (!picked) {
-      const tx = Math.floor(worldX), ty = Math.floor(worldY);
-      if (inBounds(tx, ty) && buildingGrid[ty][tx]) {
-        picked = { kind: "facility", ref: buildingGrid[ty][tx] };
-      }
+    // Facilities: distance to the nearest point of the footprint (0 when the
+    // click is inside it).
+    for (const f of facilities) {
+      const nx = clamp(worldX, f.x, f.x + f.w);
+      const ny = clamp(worldY, f.y, f.y + f.h);
+      const d = Math.hypot(worldX - nx, worldY - ny);
+      if (d < bestD) { bestD = d; picked = { kind: "facility", ref: f }; }
     }
+
     if (picked) {
       selection = picked;
       overlayEl.hidden = false;
       updateOverlay(selection);
     }
+    // Clicking far from any object leaves the current overlay unchanged.
   }
 
   // --- Mouse + pointer lock -------------------------------------------------

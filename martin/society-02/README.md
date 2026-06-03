@@ -199,7 +199,7 @@ While the overlay is open, the inspected object is marked on the board with a pu
 
 Only one overlay is shown at a time: clicking a different object switches the overlay to that object's properties rather than opening a second overlay. Clicking empty terrain leaves the current overlay unchanged. The overlay has an **X** button in its top-right corner to close it, which also removes the focus indicator.
 
-NPC dots are small; a click selects the nearest NPC within about half a tile of the cursor, otherwise it selects a facility if the click landed on a building's footprint.
+Because NPCs are small, moving targets, a click does not need to land exactly on an object. If the clicked tile is empty, the nearest object (NPC or facility) within about 1.5 tiles of the click is selected, with closer objects winning. This effectively searches the neighbouring tiles outward from the click. NPCs win ties against a facility at the same distance.
 
 ## Game Start
 
