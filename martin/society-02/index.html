@@ -17,6 +17,7 @@
     display: block;
     width: 100vw;
     height: 100vh;
+    touch-action: none;   /* we handle pinch/drag/tap ourselves */
   }
   #hud {
     position: fixed;
@@ -91,8 +92,9 @@
     <span style="color:#5fb0e8">&#9679;</span> rest &nbsp;
     <span style="color:#9aa0ad">&#9679;</span> idle
   </div>
-  <div class="keys">Zoom: <b>PageUp</b>/<b>PageDown</b> &nbsp; Pan: <b>WASD</b>/arrows</div>
-  <div class="keys">Click an NPC or building to inspect it</div>
+  <div class="keys">Zoom: <b>PageUp</b>/<b>PageDown</b>, <b>+</b>/<b>-</b>, or wheel &nbsp; Pan: <b>WASD</b>/arrows</div>
+  <div class="keys">Click to inspect &amp; lock the mouse (edges scroll) &middot; <b>ESC</b> to release</div>
+  <div class="keys">Touch: drag to pan &middot; pinch to zoom &middot; tap to inspect</div>
 </div>
 
 <div id="overlay" hidden>
@@ -648,10 +650,14 @@ function updateNPCs(board, buildingGrid, npcs, facilities, clock) {
 /* ------------------------------------------------------------------ *
  * Camera (zoom + pan)
  * ------------------------------------------------------------------ */
+// Edge-scrolling while the mouse is locked to the window.
+const EDGE_SCROLL_MARGIN = 70;   // px from an edge that triggers scrolling
+const EDGE_SCROLL_PX = 12;       // screen px to scroll per animation frame
+
 const camera = {
-  tileSize: 8,          // pixels per tile
+  tileSize: 32,         // pixels per tile (starting zoom)
   minTileSize: 2,
-  maxTileSize: 48,
+  maxTileSize: 96,      // closest zoom
   // Top-left of the viewport, in world tile coordinates (may be fractional).
   offsetX: BOARD_SIZE / 2,
   offsetY: BOARD_SIZE / 2,
@@ -681,20 +687,21 @@ function clampCamera(canvas) {
   }
 }
 
-function zoom(canvas, factor) {
-  const { w, h } = viewportTiles(canvas);
-  const centerX = camera.offsetX + w / 2;       // world tile at screen centre
-  const centerY = camera.offsetY + h / 2;
-
-  camera.tileSize = Math.max(
-    camera.minTileSize,
-    Math.min(camera.maxTileSize, camera.tileSize * factor)
-  );
-
-  const nv = viewportTiles(canvas);
-  camera.offsetX = centerX - nv.w / 2;          // keep centre stable
-  camera.offsetY = centerY - nv.h / 2;
+// Set the zoom so that `newTileSize` is applied while keeping the world point
+// currently under screen pixel (px, py) fixed under that same pixel.
+function zoomAt(canvas, newTileSize, px, py) {
+  const ts0 = camera.tileSize;
+  const worldX = camera.offsetX + px / ts0;
+  const worldY = camera.offsetY + py / ts0;
+  camera.tileSize = Math.max(camera.minTileSize, Math.min(camera.maxTileSize, newTileSize));
+  camera.offsetX = worldX - px / camera.tileSize;
+  camera.offsetY = worldY - py / camera.tileSize;
   clampCamera(canvas);
+}
+
+// Zoom by a factor about the centre of the screen (used by the keyboard).
+function zoom(canvas, factor) {
+  zoomAt(canvas, camera.tileSize * factor, canvas.width / 2, canvas.height / 2);
 }
 
 function pan(canvas, dxTiles, dyTiles) {
@@ -959,6 +966,8 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
     switch (e.key) {
       case "PageUp":     zoom(canvas, 1.25); break;
       case "PageDown":   zoom(canvas, 0.8);  break;
+      case "+": case "=": case "Add":      zoom(canvas, 1.25); break;
+      case "-": case "_": case "Subtract": zoom(canvas, 0.8);  break;
       case "a": case "A": case "ArrowLeft":  pan(canvas, -PAN_STEP, 0); break;
       case "d": case "D": case "ArrowRight": pan(canvas,  PAN_STEP, 0); break;
       case "w": case "W": case "ArrowUp":    pan(canvas, 0, -PAN_STEP); break;
@@ -968,9 +977,10 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
     e.preventDefault();
   });
 
-  // Click-to-inspect: select the NPC or facility under the cursor and show the
-  // overlay. Selecting another object replaces the current selection (only one
-  // overlay at a time); the X button clears it.
+  // Click-to-inspect: select the NPC or facility under a screen point and show
+  // the overlay. Selecting another object replaces the current selection (only
+  // one overlay at a time); the X button clears it. Clicking empty terrain
+  // leaves any existing overlay unchanged.
   let selection = null;
   const overlayEl = document.getElementById("overlay");
   document.getElementById("overlay-close").addEventListener("click", () => {
@@ -978,14 +988,13 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
     overlayEl.hidden = true;
   });
 
-  canvas.addEventListener("click", (e) => {
-    const rect = canvas.getBoundingClientRect();
+  function selectAt(screenX, screenY) {
     const ts = camera.tileSize;
-    const worldX = camera.offsetX + (e.clientX - rect.left) / ts;
-    const worldY = camera.offsetY + (e.clientY - rect.top) / ts;
+    const worldX = camera.offsetX + screenX / ts;
+    const worldY = camera.offsetY + screenY / ts;
 
     // Prefer an NPC (small target, drawn on top): nearest on-board NPC whose
-    // drawn centre is within ~0.45 tile of the click.
+    // drawn centre is within ~0.45 tile of the point.
     let picked = null, bestD = 0.45;
     for (const npc of npcs) {
       if (npc.inside || !npc.alive) continue;
@@ -994,7 +1003,7 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
       const d = Math.hypot(worldX - ix, worldY - iy);
       if (d < bestD) { bestD = d; picked = { kind: "npc", ref: npc }; }
     }
-    // Otherwise a facility, if the click landed on its footprint.
+    // Otherwise a facility, if the point landed on its footprint.
     if (!picked) {
       const tx = Math.floor(worldX), ty = Math.floor(worldY);
       if (inBounds(tx, ty) && buildingGrid[ty][tx]) {
@@ -1006,8 +1015,110 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
       overlayEl.hidden = false;
       updateOverlay(selection);
     }
-    // Clicking empty terrain leaves any existing overlay unchanged.
+  }
+
+  // --- Mouse + pointer lock -------------------------------------------------
+  // Clicking the game locks the mouse to the window; a virtual cursor (vcx,vcy)
+  // then tracks relative movement, and the click selects the object under it.
+  // While locked, moving the cursor near an edge scrolls the map (see drawFrame).
+  // Press ESC to release the lock (handled by the browser).
+  let pointerLocked = false;
+  let vcx = 0, vcy = 0;
+
+  canvas.addEventListener("click", (e) => {
+    if (pointerLocked) {
+      selectAt(vcx, vcy);
+    } else {
+      const rect = canvas.getBoundingClientRect();
+      vcx = e.clientX - rect.left;
+      vcy = e.clientY - rect.top;
+      selectAt(vcx, vcy);
+      // Request the lock; ignore failures (e.g. when not permitted).
+      if (canvas.requestPointerLock) {
+        const req = canvas.requestPointerLock();
+        if (req && typeof req.catch === "function") req.catch(() => {});
+      }
+    }
   });
+
+  document.addEventListener("pointerlockchange", () => {
+    pointerLocked = document.pointerLockElement === canvas;
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!pointerLocked) return;
+    vcx = clamp(vcx + e.movementX, 0, canvas.width);
+    vcy = clamp(vcy + e.movementY, 0, canvas.height);
+  });
+
+  // Mouse wheel zooms, centred on the cursor (the crosshair while locked).
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const px = pointerLocked ? vcx : e.clientX - rect.left;
+    const py = pointerLocked ? vcy : e.clientY - rect.top;
+    zoomAt(canvas, camera.tileSize * Math.exp(-e.deltaY * 0.0015), px, py);
+  }, { passive: false });
+
+  // --- Touch: drag to pan, pinch to zoom, tap to select ---------------------
+  let touchMode = null;     // "pan" | "pinch" | null
+  let panStart = null;      // { x, y, offsetX, offsetY, time, moved }
+  let pinchStart = null;    // { dist, tileSize }
+
+  function touchPoint(t) {
+    const rect = canvas.getBoundingClientRect();
+    return { x: t.clientX - rect.left, y: t.clientY - rect.top };
+  }
+  function pinchMetrics(e) {
+    const a = touchPoint(e.touches[0]), b = touchPoint(e.touches[1]);
+    return { dist: Math.hypot(a.x - b.x, a.y - b.y), midX: (a.x + b.x) / 2, midY: (a.y + b.y) / 2 };
+  }
+
+  canvas.addEventListener("touchstart", (e) => {
+    e.preventDefault();
+    if (e.touches.length === 1) {
+      const p = touchPoint(e.touches[0]);
+      touchMode = "pan";
+      panStart = { x: p.x, y: p.y, offsetX: camera.offsetX, offsetY: camera.offsetY,
+                   time: Date.now(), moved: false };
+    } else if (e.touches.length === 2) {
+      touchMode = "pinch";
+      pinchStart = { dist: pinchMetrics(e).dist, tileSize: camera.tileSize };
+    }
+  }, { passive: false });
+
+  canvas.addEventListener("touchmove", (e) => {
+    e.preventDefault();
+    if (touchMode === "pan" && e.touches.length === 1 && panStart) {
+      const p = touchPoint(e.touches[0]);
+      const dx = p.x - panStart.x, dy = p.y - panStart.y;
+      if (Math.hypot(dx, dy) > 6) panStart.moved = true;
+      camera.offsetX = panStart.offsetX - dx / camera.tileSize;   // drag the map
+      camera.offsetY = panStart.offsetY - dy / camera.tileSize;
+      clampCamera(canvas);
+    } else if (touchMode === "pinch" && e.touches.length === 2 && pinchStart) {
+      const m = pinchMetrics(e);
+      zoomAt(canvas, pinchStart.tileSize * (m.dist / pinchStart.dist), m.midX, m.midY);
+    }
+  }, { passive: false });
+
+  canvas.addEventListener("touchend", (e) => {
+    e.preventDefault();
+    // A short, still single-finger touch is a tap -> select.
+    if (touchMode === "pan" && panStart && !panStart.moved && Date.now() - panStart.time < 300) {
+      selectAt(panStart.x, panStart.y);
+    }
+    if (e.touches.length === 0) {
+      touchMode = null; panStart = null; pinchStart = null;
+    } else if (e.touches.length === 1) {
+      // Dropped from pinch to a single finger: continue as a pan.
+      const p = touchPoint(e.touches[0]);
+      touchMode = "pan";
+      panStart = { x: p.x, y: p.y, offsetX: camera.offsetX, offsetY: camera.offsetY,
+                   time: Date.now(), moved: true };
+      pinchStart = null;
+    }
+  }, { passive: false });
 
   // Turn + animation loop. The board/NPC state only changes once per turn
   // (every TURN_MS). A turn is committed at the start of every FRAMES_PER_TURN
@@ -1034,7 +1145,35 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
 
   // Render loop.
   function drawFrame() {
+    // Edge scrolling while the mouse is locked: scroll when the virtual cursor
+    // is within EDGE_SCROLL_MARGIN of a window edge.
+    if (pointerLocked) {
+      let dx = 0, dy = 0;
+      if (vcx < EDGE_SCROLL_MARGIN) dx = -1;
+      else if (vcx > canvas.width - EDGE_SCROLL_MARGIN) dx = 1;
+      if (vcy < EDGE_SCROLL_MARGIN) dy = -1;
+      else if (vcy > canvas.height - EDGE_SCROLL_MARGIN) dy = 1;
+      if (dx || dy) pan(canvas, dx * EDGE_SCROLL_PX / camera.tileSize,
+                              dy * EDGE_SCROLL_PX / camera.tileSize);
+    }
+
     render(ctx, canvas, board, variants, npcs, facilities, clock, animT, selection);
+
+    // Virtual cursor reticle while the mouse is locked.
+    if (pointerLocked) {
+      ctx.strokeStyle = "rgba(0,0,0,0.7)";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.arc(vcx, vcy, 7, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.arc(vcx, vcy, 7, 0, Math.PI * 2);
+      ctx.moveTo(vcx - 11, vcy); ctx.lineTo(vcx - 4, vcy);
+      ctx.moveTo(vcx + 4, vcy); ctx.lineTo(vcx + 11, vcy);
+      ctx.moveTo(vcx, vcy - 11); ctx.lineTo(vcx, vcy - 4);
+      ctx.moveTo(vcx, vcy + 4); ctx.lineTo(vcx, vcy + 11);
+      ctx.stroke();
+    }
+
     requestAnimationFrame(drawFrame);
   }
   requestAnimationFrame(drawFrame);

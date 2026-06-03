@@ -72,12 +72,32 @@ The script writes all sprite PNGs into the `resources` folder. It builds each sp
 
 ## Keyboar Actions
 
-- zoom-in: PageUp
-- zoom-out: PageDown
+- zoom-in: PageUp or + (plus)
+- zoom-out: PageDown or - (minus)
 - pan left: A or left-arrow
 - pan right: D or right-arrow
 - pan up: W or up-arrow
 - pan down: S or down-arrow
+
+The game starts fairly zoomed in (32 pixels per tile). Zoom ranges from 2 pixels per tile (fully zoomed out) to 96 pixels per tile (closest zoom).
+
+## Mouse Controls
+
+The **mouse wheel** zooms in and out, centred on the cursor position.
+
+Clicking the game window does two things: it selects the NPC or facility under the cursor (see "Inspecting Objects"), and it **locks the mouse** to the window. While the mouse is locked, a crosshair cursor is drawn at the pointer position and the following apply:
+
+- Moving the cursor near an edge of the window scrolls the map in that direction (edge scrolling).
+- Clicking selects the object under the crosshair.
+- Pressing **ESC** releases the mouse lock.
+
+## Touch Controls
+
+On a touch screen:
+
+- **Drag** one finger to pan the map.
+- **Pinch** with two fingers to zoom in and out (the zoom is centred on the midpoint between the fingers).
+- **Tap** to select the NPC or facility you tapped (see "Inspecting Objects").
 
 ## NPCs
 
@@ -114,13 +134,17 @@ The "alertness" of an NPC decreases by one point each turn. If "alertness" falls
 
 #### Day/Night Thresholds
 
-The "below threshold" levels in the hunger and sleep rules are not fixed; they swing with the day/night cycle so that NPCs stay mostly aligned to it without being strictly bound to it:
+The "below threshold" levels in the hunger and sleep rules are not fixed; they swing with the day/night cycle so that NPCs stay mostly aligned to it without being strictly bound to it.
 
-- The **rest** threshold is high at night and low during the day, so NPCs tend to head home to sleep at night.
-- The **food** threshold is high during the day and low at night, so NPCs tend to eat during the day.
-- Both thresholds are floored at 300, so the survival rules above (a need below 300) always apply regardless of the time of day.
+Each threshold is computed as `max(300, 200 + 700 * factor)`, where `factor` runs from 0 to 1 across the cycle. So a threshold swings between **300** (its floor) and **900** (its peak):
+
+- The **rest** threshold uses the "night factor" (0 at noon, 1 at midnight), so it is **900 at midnight** and falls to its **300 floor by noon** - NPCs strongly tend to head to a house to sleep at night.
+- The **food** threshold uses the opposite (1 at noon, 0 at midnight), so it is **900 at noon** and falls to its **300 floor by midnight** - NPCs strongly tend to head to an orchard to eat during the day.
+- Because both thresholds are floored at 300, the survival rules above (a need below 300) always apply regardless of the time of day.
 
 If both needs are below their thresholds at once, the NPC acts on the more depleted one first. When neither need is pressing, the NPC wanders.
+
+Needs start between 700 and 1000 when an NPC is created. An NPC inside a facility leaves once the need being restored reaches **980** (nearly full), or sooner if its other need becomes the more urgent priority.
 
 #### Movement and Facility Use
 
