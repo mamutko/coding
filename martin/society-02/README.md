@@ -89,6 +89,7 @@ Clicking the game window does two things: it selects the NPC or facility under t
 
 - Moving the cursor near an edge of the window scrolls the map in that direction (edge scrolling).
 - Clicking selects the object under the crosshair.
+- Clicking a button in the properties overlay (its close or delete button) while the crosshair is over it activates that button.
 - Pressing **ESC** releases the mouse lock.
 
 ## Touch Controls
@@ -126,11 +127,11 @@ The sections below list the NPC state machine rules.
 
 #### Hunger Rule
 
-The "fullness" of an NPC decreases by one point each turn. If "fullness" falls below the current food threshold, the NPC heads straight for the nearest food source (a facility that can replenish fullness - an orchard). If "fullness" reaches 0, the NPC dies.
+The "fullness" of an NPC decreases by two points each turn. If "fullness" falls below the current food threshold, the NPC heads straight for the nearest food source (a facility that can replenish fullness - an orchard). If "fullness" reaches 0, the NPC dies.
 
 #### Sleep Rule
 
-The "alertness" of an NPC decreases by one point each turn. If "alertness" falls below the current rest threshold, the NPC heads straight for the nearest place to rest (a facility that can replenish alertness - a house). If "alertness" reaches 0, the NPC dies.
+The "alertness" of an NPC decreases by three points each turn. If "alertness" falls below the current rest threshold, the NPC heads straight for the nearest place to rest (a facility that can replenish alertness - a house). If "alertness" reaches 0, the NPC dies.
 
 #### Day/Night Thresholds
 
@@ -151,6 +152,10 @@ Needs start between 700 and 1000 when an NPC is created. An NPC inside a facilit
 When an NPC needs a facility it moves one tile per turn along the shortest path (breadth-first search over terrain and buildings, ignoring other NPCs, which move) toward the nearest facility of the required type. Reaching the facility's entrance it enters if there is spare capacity, otherwise it loiters nearby. While inside, the relevant need is replenished each turn; the NPC leaves once that need is nearly full, or sooner if its other need becomes the more urgent priority.
 
 NPCs that are inside a facility are not drawn on the board; their presence is reflected in the facility's occupancy count. NPCs out on the board are drawn as coloured dots reflecting their state: amber while seeking/eating food, blue while seeking/taking rest, grey while idle (no pressing need).
+
+#### Death
+
+When an NPC's fullness or alertness reaches 0 it dies. A dead villager is not removed from the world: it remains on the board at the tile where it died, drawn as a static grey body with a dark cross, and no longer moves or has needs. The population count in the HUD drops and a "Dead" count appears.
 
 TODO: Only fullness and alertness exist so far. Richer properties (happiness, social needs) and behaviours such as having children are not yet implemented.
 
@@ -200,6 +205,10 @@ While the overlay is open, the inspected object is marked on the board with a pu
 Only one overlay is shown at a time: clicking a different object switches the overlay to that object's properties rather than opening a second overlay. Clicking empty terrain leaves the current overlay unchanged. The overlay has an **X** button in its top-right corner to close it, which also removes the focus indicator.
 
 Because NPCs are small, moving targets, a click does not need to land exactly on an object. If the clicked tile is empty, the nearest object (NPC or facility) within about 1.5 tiles of the click is selected, with closer objects winning. This effectively searches the neighbouring tiles outward from the click. NPCs win ties against a facility at the same distance.
+
+### Deleting Facilities
+
+When a facility is selected, it can be deleted - either by pressing the **Delete** key or by pressing the **🔥** button in the properties overlay. Deletion asks for confirmation first. When a facility is removed, its tiles become walkable land again and any NPCs that were inside it are turned out onto those tiles. (NPCs cannot be deleted.)
 
 ## Game Start
 

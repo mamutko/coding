@@ -24,7 +24,7 @@
     top: 10px;
     left: 10px;
     padding: 8px 12px;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(0, 0, 0, 0.38);
     color: #e9ecef;
     font-size: 12px;
     line-height: 1.5;
@@ -45,7 +45,7 @@
     width: 260px;
     box-sizing: border-box;
     padding: 18px 16px;
-    background: rgba(15, 18, 28, 0.92);
+    background: rgba(15, 18, 28, 0.78);
     color: #e9ecef;
     font-size: 13px;
     line-height: 1.5;
@@ -79,7 +79,48 @@
     margin: 2px 0 12px;
   }
   #overlay .bar > span { display: block; height: 100%; }
+  #overlay-delete {
+    margin-top: 16px;
+    width: 100%;
+    padding: 9px;
+    border: none;
+    border-radius: 4px;
+    background: #7a2f2f;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #overlay-delete:hover { background: #9a3a3a; }
   #game { cursor: pointer; }
+
+  /* Virtual cursor shown while the mouse is locked; sits above the overlay so
+     it stays visible when aiming at the overlay buttons. */
+  #cursor {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 16px;
+    height: 16px;
+    margin-left: -8px;
+    margin-top: -8px;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6), inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+    pointer-events: none;
+    z-index: 30;
+    display: none;
+  }
+  #cursor::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 2px;
+    height: 2px;
+    margin: -1px;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.6);
+  }
 </style>
 </head>
 <body>
@@ -101,6 +142,8 @@
   <button id="overlay-close" aria-label="Close" title="Close">&times;</button>
   <div id="overlay-content"></div>
 </div>
+
+<div id="cursor"></div>
 
 <script>
 "use strict";
@@ -139,7 +182,8 @@ const NUM_ORCHARDS = 5;
 // NPC needs are on a 0..1000 scale. They decay each turn and are replenished
 // inside the matching facility; reaching 0 kills the NPC.
 const NEED_MAX = 1000;
-const NEED_DECAY = 1;          // per turn, for every need
+const FULLNESS_DECAY = 2;      // fullness lost per turn (Hunger Rule)
+const ALERTNESS_DECAY = 3;     // alertness lost per turn (Sleep Rule)
 const NEED_REPLENISH = 15;     // per turn while inside the restoring facility
 const NEED_HARD_FLOOR = 300;   // always seek help below this (survival), any time
 const NEED_THRESHOLD_BASE = 200;   // day/night threshold swings between...
@@ -533,8 +577,8 @@ function wanderStep(npc, board, buildingGrid, occupied) {
 function updateNeeds(npcs) {
   for (const npc of npcs) {
     if (!npc.alive) continue;
-    npc.fullness -= NEED_DECAY;
-    npc.alertness -= NEED_DECAY;
+    npc.fullness -= FULLNESS_DECAY;
+    npc.alertness -= ALERTNESS_DECAY;
     if (npc.inside) {
       if (FACILITY_DEFS[npc.inside.type].restores === "fullness") npc.fullness += NEED_REPLENISH;
       else npc.alertness += NEED_REPLENISH;
@@ -545,6 +589,8 @@ function updateNeeds(npcs) {
       if (npc.inside) { npc.inside.occupants.delete(npc); npc.inside = null; }
       npc.alive = false;
       npc.state = NPC_STATE.DEAD;
+      npc.prevX = npc.x;   // freeze in place: no more movement or interpolation
+      npc.prevY = npc.y;
       continue;
     }
     npc.fullness = Math.min(NEED_MAX, npc.fullness);
@@ -771,7 +817,8 @@ function updateOverlay(sel) {
       `<h2>${def.label}</h2>` +
       overlayProp("Type", def.label) +
       overlayProp("Capacity", f.capacity) +
-      overlayProp("Occupants", f.occupants.size + " / " + f.capacity);
+      overlayProp("Occupants", f.occupants.size + " / " + f.capacity) +
+      `<button id="overlay-delete" title="Delete this facility (or press Delete)">\u{1F525} Delete</button>`;
   }
 }
 
@@ -864,13 +911,13 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
     drawFacility(ctx, f, ts);
   }
 
-  // NPCs (only those out on the board; those inside a facility are hidden and
-  // shown via the facility's occupancy count). Colour reflects their state.
-  ctx.strokeStyle = "#1d1d1d";
-  ctx.lineWidth = Math.max(1, ts * 0.08);
+  // NPCs out on the board (those inside a facility are hidden and shown via the
+  // facility's occupancy count). Living NPCs are coloured by state; deceased
+  // ones remain as a static grey body with a dark cross.
   for (const npc of npcs) {
-    if (npc.inside || !npc.alive) continue;
-    // Interpolate between the previous tile and the current tile.
+    if (npc.inside) continue;
+    // Interpolate between the previous tile and the current tile (a frozen dead
+    // villager has prev == current, so it stays put).
     const ix = npc.prevX + (npc.x - npc.prevX) * animT;
     const iy = npc.prevY + (npc.y - npc.prevY) * animT;
     if (ix < startX - 1 || ix > endX + 1 ||
@@ -878,11 +925,30 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
     const cx = (ix - camera.offsetX) * ts + ts / 2;
     const cy = (iy - camera.offsetY) * ts + ts / 2;
     const r = Math.max(2, ts * 0.35);
-    ctx.fillStyle = NPC_STATE_COLOR[npc.state] || "#e63946";
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-    if (ts >= 6) ctx.stroke();
+
+    if (npc.alive) {
+      ctx.fillStyle = NPC_STATE_COLOR[npc.state] || "#e63946";
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      if (ts >= 6) {
+        ctx.strokeStyle = "#1d1d1d";
+        ctx.lineWidth = Math.max(1, ts * 0.08);
+        ctx.stroke();
+      }
+    } else {
+      ctx.fillStyle = "rgba(110, 110, 110, 0.85)";   // faded grey body
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#2c2c2c";                    // dark cross
+      ctx.lineWidth = Math.max(1, ts * 0.08);
+      const k = r * 0.55;
+      ctx.beginPath();
+      ctx.moveTo(cx - k, cy - k); ctx.lineTo(cx + k, cy + k);
+      ctx.moveTo(cx + k, cy - k); ctx.lineTo(cx - k, cy + k);
+      ctx.stroke();
+    }
   }
 
   // Day/night tint over the whole scene.
@@ -977,6 +1043,10 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
       case "d": case "D": case "ArrowRight": pan(canvas,  PAN_STEP, 0); break;
       case "w": case "W": case "ArrowUp":    pan(canvas, 0, -PAN_STEP); break;
       case "s": case "S": case "ArrowDown":  pan(canvas, 0,  PAN_STEP); break;
+      case "Delete":
+        if (selection && selection.kind === "facility") deleteSelectedFacility();
+        else return;
+        break;
       default: return;
     }
     e.preventDefault();
@@ -991,6 +1061,44 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
   document.getElementById("overlay-close").addEventListener("click", () => {
     selection = null;
     overlayEl.hidden = true;
+  });
+
+  // Remove a facility: free its footprint tiles, evict anyone inside onto those
+  // (now walkable) tiles, and drop it from the facilities list.
+  function removeFacility(f) {
+    const spots = [];
+    for (let yy = f.y; yy < f.y + f.h; yy++) {
+      for (let xx = f.x; xx < f.x + f.w; xx++) {
+        if (buildingGrid[yy][xx] === f) buildingGrid[yy][xx] = null;
+        spots.push([xx, yy]);
+      }
+    }
+    let i = 0;
+    for (const npc of f.occupants) {
+      const [sx, sy] = spots[i++] || [f.entrance.x, f.entrance.y];
+      npc.inside = null;
+      npc.x = npc.prevX = sx;
+      npc.y = npc.prevY = sy;
+      npc.state = NPC_STATE.WANDERING;
+    }
+    f.occupants.clear();
+    const idx = facilities.indexOf(f);
+    if (idx >= 0) facilities.splice(idx, 1);
+  }
+
+  // Delete the selected facility after confirmation (from the button or Delete).
+  function deleteSelectedFacility() {
+    if (!selection || selection.kind !== "facility") return;
+    const f = selection.ref;
+    if (!window.confirm(`Delete this ${FACILITY_DEFS[f.type].label}?`)) return;
+    removeFacility(f);
+    selection = null;
+    overlayEl.hidden = true;
+  }
+
+  // The 🔥 button lives in the (re-rendered) overlay content, so delegate.
+  overlayEl.addEventListener("click", (e) => {
+    if (e.target.closest("#overlay-delete")) deleteSelectedFacility();
   });
 
   function selectAt(screenX, screenY) {
@@ -1033,12 +1141,44 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
   // then tracks relative movement, and the click selects the object under it.
   // While locked, moving the cursor near an edge scrolls the map (see drawFrame).
   // Press ESC to release the lock (handled by the browser).
+  const cursorEl = document.getElementById("cursor");
   let pointerLocked = false;
   let vcx = 0, vcy = 0;
 
+  function moveCursor() {
+    cursorEl.style.left = vcx + "px";
+    cursorEl.style.top = vcy + "px";
+  }
+
+  // While locked the mouse is bound to the canvas, so a click can't reach the
+  // overlay's DOM buttons. Activate the button under the virtual cursor instead.
+  function activateOverlayButtonAt(x, y) {
+    for (const id of ["overlay-close", "overlay-delete"]) {
+      const btn = document.getElementById(id);
+      if (!btn) continue;
+      const r = btn.getBoundingClientRect();
+      if (r.width && x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+        btn.click();
+        return;
+      }
+    }
+  }
+
+  function overOverlay(x, y) {
+    if (overlayEl.hidden) return false;
+    const r = overlayEl.getBoundingClientRect();
+    return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+  }
+
   canvas.addEventListener("click", (e) => {
     if (pointerLocked) {
-      selectAt(vcx, vcy);
+      // Over the overlay: activate a button if the cursor is on one; otherwise
+      // ignore (don't select the world behind the panel).
+      if (overOverlay(vcx, vcy)) {
+        activateOverlayButtonAt(vcx, vcy);
+      } else {
+        selectAt(vcx, vcy);
+      }
     } else {
       const rect = canvas.getBoundingClientRect();
       vcx = e.clientX - rect.left;
@@ -1054,12 +1194,15 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
 
   document.addEventListener("pointerlockchange", () => {
     pointerLocked = document.pointerLockElement === canvas;
+    cursorEl.style.display = pointerLocked ? "block" : "none";
+    if (pointerLocked) moveCursor();
   });
 
   document.addEventListener("mousemove", (e) => {
     if (!pointerLocked) return;
     vcx = clamp(vcx + e.movementX, 0, canvas.width);
     vcy = clamp(vcy + e.movementY, 0, canvas.height);
+    moveCursor();
   });
 
   // Mouse wheel zooms, centred on the cursor (the crosshair while locked).
@@ -1169,22 +1312,6 @@ function render(ctx, canvas, board, variants, npcs, facilities, clock, animT, se
     }
 
     render(ctx, canvas, board, variants, npcs, facilities, clock, animT, selection);
-
-    // Virtual cursor reticle while the mouse is locked.
-    if (pointerLocked) {
-      ctx.strokeStyle = "rgba(0,0,0,0.7)";
-      ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.arc(vcx, vcy, 7, 0, Math.PI * 2); ctx.stroke();
-      ctx.strokeStyle = "#ffffff";
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.arc(vcx, vcy, 7, 0, Math.PI * 2);
-      ctx.moveTo(vcx - 11, vcy); ctx.lineTo(vcx - 4, vcy);
-      ctx.moveTo(vcx + 4, vcy); ctx.lineTo(vcx + 11, vcy);
-      ctx.moveTo(vcx, vcy - 11); ctx.lineTo(vcx, vcy - 4);
-      ctx.moveTo(vcx, vcy + 4); ctx.lineTo(vcx, vcy + 11);
-      ctx.stroke();
-    }
-
     requestAnimationFrame(drawFrame);
   }
   requestAnimationFrame(drawFrame);
