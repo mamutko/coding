@@ -16,7 +16,7 @@ The game is played on a board of 100x100 tiles. The user sees a portion of this 
 
 The board consists of landscape tiles and the board is generated at the begining of the game (see "Board Generation" section). Characters (NPCs) can move over these tiles and facilities (building) can be built over them. Each board tile is one of these. A NPC takes-up a single tile. Facilities can take up multiple tiles. Two NPCs cannot occupy the same tile at the same time. NPCs can enter a facility. Facilities have "capacity" which is the maximum number of NPCs that can be in the facility at the same time.
 
-Each NPC can move one tile per game turn (horisontaly or vertically). The movement of the NPC is dictated by the NPC state machine.
+Each NPC can move one tile per game turn (horisontaly or vertically). The movement of the NPC is dictated by the NPC state machine, documented in [npc-state-machine.md](npc-state-machine.md).
 
 ## Landscape Tiles
 
@@ -102,62 +102,17 @@ On a touch screen:
 
 ## NPCs
 
-The board state (including NPC tile positions) only updates once per turn (every 400ms). The movement of an NPC from its previous tile to its new tile is animated in between turns: the screen is redrawn every 80ms (5 animation frames per turn) and the NPC's drawn position is linearly interpolated from its previous tile to its new tile across those frames.
+Each NPC occupies a single tile and moves at most one tile per game turn (horizontally or vertically). The board state (including NPC tile positions) only updates once per turn (every 400ms). The movement of an NPC from its previous tile to its new tile is animated in between turns: the screen is redrawn every 80ms (5 animation frames per turn) and the NPC's drawn position is linearly interpolated from its previous tile to its new tile across those frames.
 
 Two NPCs cannot occupy the same tile. If an NPC's intended move is blocked by another NPC, it waits that turn.
 
-### Game Clock and Day Cycle
+What an NPC decides to do each turn - its needs, motivations, movement goals, and death - is governed by a state machine documented separately in [npc-state-machine.md](npc-state-machine.md).
+
+## Game Clock and Day Cycle
 
 The game keeps a clock measured in turns. A full day is 120 turns (48 seconds of real time). The current day number and an in-game time of day (HH:MM) are shown in the on-screen HUD, along with a population breakdown. A day/night tint darkens the whole scene, deepest at midnight and absent at noon.
 
-The day/night cycle does not control NPC behaviour directly; instead it modulates the thresholds at which the needs in the NPC state machine trigger (see "NPC State Machine"). This keeps NPCs mostly - but not strictly - aligned to the cycle: they tend to eat by day and sleep at night, but a pressing need is acted on whatever the time.
-
-### NPC State Machine
-
-An NPC has multiple properties, each with a value from 0 to 1000. The values of these properties drive the NPC's behaviour. They change according to the rules in this state machine and through interactions with facilities around the map.
-
-**NPC Properties**
-
-- fullness
-- alertness
-
-The values are shown as a percentage (0-100%) when an NPC is inspected (see "Inspecting Objects").
-
-The sections below list the NPC state machine rules.
-
-#### Hunger Rule
-
-The "fullness" of an NPC decreases by two points each turn. If "fullness" falls below the current food threshold, the NPC heads straight for the nearest food source (a facility that can replenish fullness - an orchard). If "fullness" reaches 0, the NPC dies.
-
-#### Sleep Rule
-
-The "alertness" of an NPC decreases by three points each turn. If "alertness" falls below the current rest threshold, the NPC heads straight for the nearest place to rest (a facility that can replenish alertness - a house). If "alertness" reaches 0, the NPC dies.
-
-#### Day/Night Thresholds
-
-The "below threshold" levels in the hunger and sleep rules are not fixed; they swing with the day/night cycle so that NPCs stay mostly aligned to it without being strictly bound to it.
-
-Each threshold is computed as `max(300, 200 + 700 * factor)`, where `factor` runs from 0 to 1 across the cycle. So a threshold swings between **300** (its floor) and **900** (its peak):
-
-- The **rest** threshold uses the "night factor" (0 at noon, 1 at midnight), so it is **900 at midnight** and falls to its **300 floor by noon** - NPCs strongly tend to head to a house to sleep at night.
-- The **food** threshold uses the opposite (1 at noon, 0 at midnight), so it is **900 at noon** and falls to its **300 floor by midnight** - NPCs strongly tend to head to an orchard to eat during the day.
-- Because both thresholds are floored at 300, the survival rules above (a need below 300) always apply regardless of the time of day.
-
-If both needs are below their thresholds at once, the NPC acts on the more depleted one first. When neither need is pressing, the NPC wanders.
-
-Needs start between 700 and 1000 when an NPC is created. An NPC inside a facility leaves once the need being restored reaches **980** (nearly full), or sooner if its other need becomes the more urgent priority.
-
-#### Movement and Facility Use
-
-When an NPC needs a facility it moves one tile per turn along the shortest path (breadth-first search over terrain and buildings, ignoring other NPCs, which move) toward the nearest facility of the required type. Reaching the facility's entrance it enters if there is spare capacity, otherwise it loiters nearby. While inside, the relevant need is replenished each turn; the NPC leaves once that need is nearly full, or sooner if its other need becomes the more urgent priority.
-
-NPCs that are inside a facility are not drawn on the board; their presence is reflected in the facility's occupancy count. NPCs out on the board are drawn as coloured dots reflecting their state: amber while seeking/eating food, blue while seeking/taking rest, grey while idle (no pressing need).
-
-#### Death
-
-When an NPC's fullness or alertness reaches 0 it dies. A dead villager is not removed from the world: it remains on the board at the tile where it died, drawn as a static grey body with a dark cross, and no longer moves or has needs. The population count in the HUD drops and a "Dead" count appears.
-
-TODO: Only fullness and alertness exist so far. Richer properties (happiness, social needs) and behaviours such as having children are not yet implemented.
+The day/night cycle also influences NPC behaviour: it modulates the thresholds at which NPC needs trigger, so villagers tend to eat by day and sleep at night. See [npc-state-machine.md](npc-state-machine.md) for details.
 
 ## Facilities and Buildings
 
