@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Worm Game</title>
+    <!-- PeerJS provides the WebRTC signaling broker used only at connection time.
+         Requires internet; if it fails to load, single-player still works. -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <style>
+        html, body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: #000;
+            font-family: Arial, sans-serif;
+            color: #fff;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #app {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100vw;
+            height: 100vh;
+        }
+        #boardContainer {
+            position: relative;
+        }
+        canvas {
+            border: 2px solid #fff;
+            background-color: #000;
+            display: block;
+        }
+        #gameOver {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #fff;
+            font-size: 22px;
+            text-align: center;
+            display: none;
+            background: rgba(0, 0, 0, 0.92);
+            padding: 20px;
+            border: 2px solid #fff;
+            border-radius: 8px;
+            width: 280px;
+            max-width: 90%;
+            z-index: 20;
+        }
+        #gameOver label {
+            display: block;
+            margin: 10px 0 5px;
+            font-size: 15px;
+        }
+        #controlHint {
+            font-size: 11px;
+            opacity: 0.65;
+            margin: 10px 0 0;
+        }
+        #playerNameInput, #joinCodeInput {
+            width: 100%;
+            padding: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+            border: 1px solid #fff;
+            border-radius: 4px;
+            background: #000;
+            color: #fff;
+        }
+        button {
+            margin-top: 10px;
+            padding: 10px 18px;
+            font-size: 15px;
+            cursor: pointer;
+            border: 1px solid #fff;
+            border-radius: 4px;
+            background: #111;
+            color: #fff;
+        }
+        button:disabled {
+            opacity: 0.4;
+            cursor: default;
+        }
+        #mpArea {
+            margin-top: 16px;
+            border-top: 1px solid #444;
+            padding-top: 12px;
+        }
+        #yourCodeLine {
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        #yourCode {
+            font-size: 20px;
+            letter-spacing: 3px;
+            color: #3aa0ff;
+            font-weight: bold;
+        }
+        #mpStatus {
+            font-size: 12px;
+            opacity: 0.8;
+            margin-top: 8px;
+            min-height: 16px;
+        }
+        #leaderboardBtn {
+            position: absolute;
+            bottom: 6px;
+            right: 6px;
+            font-size: 11px;
+            padding: 4px 8px;
+            margin: 0;
+            z-index: 10;
+            opacity: 0.7;
+        }
+        #leaderboardPanel {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #fff;
+            border-radius: 8px;
+            padding: 16px;
+            z-index: 30;
+            min-width: 180px;
+        }
+        #leaderboardPanel h2 {
+            margin: 0 0 10px;
+            font-size: 16px;
+        }
+        #leaderboardPanel ol {
+            padding-left: 18px;
+            margin: 0;
+        }
+        #leaderboardPanel li {
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+        #closeLeaderboard {
+            margin-top: 10px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="boardContainer">
+            <canvas id="gameCanvas"></canvas>
+            <div id="gameOver">
+                <div id="overlayTitle">Worm</div>
+                <label for="playerNameInput">Player name:</label>
+                <input id="playerNameInput" type="text" />
+                <button id="restartBtn">Start Game</button>
+                <p id="controlHint">Tap top / bottom / left / right of screen to steer</p>
+                <div id="mpArea">
+                    <div id="yourCodeLine">Your code: <span id="yourCode">----</span></div>
+                    <label for="joinCodeInput">Join a friend &mdash; enter their 4-digit code:</label>
+                    <input id="joinCodeInput" type="text" inputmode="numeric" maxlength="4" placeholder="0000" />
+                    <button id="joinBtn" disabled>Join Game</button>
+                    <div id="mpStatus"></div>
+                </div>
+            </div>
+            <button id="leaderboardBtn">Leaderboard</button>
+            <div id="leaderboardPanel">
+                <h2>Leaderboard</h2>
+                <ol id="leaderboardList"></ol>
+                <button id="closeLeaderboard">Close</button>
+            </div>
+        </div>
+    </div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const gameOverDiv = document.getElementById('gameOver');
+        const overlayTitle = document.getElementById('overlayTitle');
+        const restartBtn = document.getElementById('restartBtn');
+        const playerNameInput = document.getElementById('playerNameInput');
+        const leaderboardList = document.getElementById('leaderboardList');
+        const leaderboardBtn = document.getElementById('leaderboardBtn');
+        const leaderboardPanel = document.getElementById('leaderboardPanel');
+        const closeLeaderboard = document.getElementById('closeLeaderboard');
+        const mpArea = document.getElementById('mpArea');
+        const yourCodeEl = document.getElementById('yourCode');
+        const joinCodeInput = document.getElementById('joinCodeInput');
+        const joinBtn = document.getElementById('joinBtn');
+        const mpStatus = document.getElementById('mpStatus');
+
+        const BOARD_WIDTH = 80;
+        const BOARD_HEIGHT = 40;
+        const INITIAL_WORM_LENGTH = 3;
+        const LEADERBOARD_KEY = 'wormLeaderboard';
+
+        // Per-player visual identity, indexed by player slot.
+        // Slot 0 = host / single player (original look), slot 1 = joiner.
+        const PLAYER_STYLES = [
+            { headColor: '#ffa500', bodyColor: '#0f0', eyeColor: '#0f0', startX: 12,               trail: -1 },
+            { headColor: '#0066ff', bodyColor: '#33ccff', eyeColor: '#fff', startX: BOARD_WIDTH - 13, trail: 1 }
+        ];
+
+        let CELL_SIZE = 10;
+
+        // mode: 'single' | 'host' | 'joiner'
+        let mode = 'single';
+        // gamePhase: 'lobby' | 'playing' | 'over'
+        let gamePhase = 'lobby';
+        // which player slot this browser controls (0 for single/host, 1 for joiner)
+        let localPlayerIndex = 0;
+        let playerName = null;
+        let gameOverShown = false;
+
+        // Authoritative on host/single; a mirror of received state on the joiner.
+        let players = [];
+        let food = [];
+        let poison = [];
+        let leaderboard = [];
+
+        // Networking (PeerJS)
+        let peer = null;
+        let conn = null;
+        let myCode = null;
+        let peerReady = false;
+
+        function computeCellSize() {
+            const cellW = Math.floor(window.innerWidth / BOARD_WIDTH);
+            const cellH = Math.floor(window.innerHeight / BOARD_HEIGHT);
+            CELL_SIZE = Math.max(1, Math.min(cellW, cellH));
+            canvas.width = BOARD_WIDTH * CELL_SIZE;
+            canvas.height = BOARD_HEIGHT * CELL_SIZE;
+        }
+
+        function getMoveInterval(player) {
+            return 1000 / Math.max(1, player.worm.length);
+        }
+
+        // ---------- Leaderboard ----------
+
+        function loadLeaderboard() {
+            const stored = localStorage.getItem(LEADERBOARD_KEY);
+            try {
+                leaderboard = stored ? JSON.parse(stored) : [];
+            } catch (e) {
+                leaderboard = [];
+            }
+            leaderboard.sort((a, b) => b.score - a.score);
+        }
+
+        function saveLeaderboard() {
+            localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
+        }
+
+        function updateLeaderboardDisplay() {
+            leaderboardList.innerHTML = '';
+            leaderboard.slice(0, 10).forEach(entry => {
+                const item = document.createElement('li');
+                item.textContent = `${entry.name}: ${entry.score}`;
+                leaderboardList.appendChild(item);
+            });
+        }
+
+        function recordScore(player) {
+            const score = Math.max(player.worm.length - INITIAL_WORM_LENGTH, 0);
+            const entry = leaderboard.find(item => item.name === player.name);
+            if (entry) {
+                if (score > entry.score) entry.score = score;
+            } else {
+                leaderboard.push({ name: player.name, score });
+            }
+            leaderboard.sort((a, b) => b.score - a.score);
+            if (leaderboard.length > 10) leaderboard = leaderboard.slice(0, 10);
+            saveLeaderboard();
+            updateLeaderboardDisplay();
+        }
+
+        // ---------- State construction (host/single) ----------
+
+        function makePlayer(slot, name) {
+            const style = PLAYER_STYLES[slot];
+            const row = Math.floor(BOARD_HEIGHT / 2);
+            const worm = [];
+            for (let s = 0; s < INITIAL_WORM_LENGTH; s++) {
+                worm.push({ x: style.startX + style.trail * s, y: row });
+            }
+            return {
+                name: name,
+                worm: worm,
+                direction: { x: 0, y: 0 },
+                alive: true,
+                started: false,
+                timer: null,
+                headColor: style.headColor,
+                bodyColor: style.bodyColor,
+                eyeColor: style.eyeColor
+            };
+        }
+
+        function buildPlayers(names) {
+            players = names.map((name, slot) => makePlayer(slot, name));
+        }
+
+        function cellOccupied(pos) {
+            if (players.some(p => p.worm.some(s => s.x === pos.x && s.y === pos.y))) return true;
+            if (food.some(f => f.x === pos.x && f.y === pos.y)) return true;
+            if (poison.some(p => p.x === pos.x && p.y === pos.y)) return true;
+            return false;
+        }
+
+        function randomFreeCell() {
+            let pos;
+            do {
+                pos = {
+                    x: Math.floor(Math.random() * BOARD_WIDTH),
+                    y: Math.floor(Math.random() * BOARD_HEIGHT)
+                };
+            } while (cellOccupied(pos));
+            return pos;
+        }
+
+        function spawnFoodAndPoison() {
+            food = [];
+            poison = [];
+            for (let i = 0; i < 32; i++) {
+                const pos = randomFreeCell();
+                if (i < 2) food.push(pos);
+                else poison.push(pos);
+            }
+        }
+
+        // ---------- Rendering ----------
+
+        function drawHeadEyes(head, dir, color) {
+            const eyeSize = Math.max(1, Math.floor(CELL_SIZE / 5));
+            const padding = Math.max(1, Math.floor(CELL_SIZE / 5));
+            ctx.fillStyle = color;
+            const cs = CELL_SIZE;
+            let eyePositions;
+
+            if (dir.x === 1) {
+                eyePositions = [
+                    { x: head.x * cs + cs - padding - eyeSize, y: head.y * cs + padding },
+                    { x: head.x * cs + cs - padding - eyeSize, y: head.y * cs + cs - padding - eyeSize }
+                ];
+            } else if (dir.x === -1) {
+                eyePositions = [
+                    { x: head.x * cs + padding, y: head.y * cs + padding },
+                    { x: head.x * cs + padding, y: head.y * cs + cs - padding - eyeSize }
+                ];
+            } else if (dir.y === -1) {
+                eyePositions = [
+                    { x: head.x * cs + padding, y: head.y * cs + padding },
+                    { x: head.x * cs + cs - padding - eyeSize, y: head.y * cs + padding }
+                ];
+            } else {
+                eyePositions = [
+                    { x: head.x * cs + padding, y: head.y * cs + cs - padding - eyeSize },
+                    { x: head.x * cs + cs - padding - eyeSize, y: head.y * cs + cs - padding - eyeSize }
+                ];
+            }
+
+            eyePositions.forEach(pos => ctx.fillRect(pos.x, pos.y, eyeSize, eyeSize));
+        }
+
+        function drawLabelBox(text, side) {
+            const fontSize = Math.max(10, Math.min(16, CELL_SIZE * 1.4));
+            ctx.font = `${fontSize}px Arial`;
+            const textW = ctx.measureText(text).width;
+            const padding = 4;
+            const boxH = fontSize + padding * 2;
+            const boxX = side === 'right'
+                ? canvas.width - textW - padding * 2 - 2
+                : 2;
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(boxX, 2, textW + padding * 2, boxH);
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(text, boxX + padding, 2 + padding);
+            ctx.textBaseline = 'alphabetic';
+        }
+
+        function score(player) {
+            return Math.max(player.worm.length - INITIAL_WORM_LENGTH, 0);
+        }
+
+        function drawScores() {
+            if (mode === 'single') {
+                const me = players[0];
+                if (me) drawLabelBox(`${me.name}, current score: ${score(me)}`, 'right');
+                return;
+            }
+            const me = players[localPlayerIndex];
+            const op = players[1 - localPlayerIndex];
+            if (me) drawLabelBox(`${me.name} (you): ${score(me)}`, 'right');
+            if (op) drawLabelBox(`${op.name}: ${score(op)}`, 'left');
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            players.forEach(p => {
+                if (!p.worm || p.worm.length === 0) return;
+                ctx.fillStyle = p.bodyColor;
+                p.worm.slice(1).forEach(segment => {
+                    ctx.fillRect(segment.x * CELL_SIZE, segment.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                });
+                const head = p.worm[0];
+                ctx.fillStyle = p.alive ? p.headColor : '#555';
+                ctx.fillRect(head.x * CELL_SIZE, head.y * CELL_SIZE, CELL_SIZE, CELL_SIZE);
+                drawHeadEyes(head, p.direction, p.eyeColor);
+            });
+
+            ctx.fillStyle = '#ff0';
+            food.forEach(f => ctx.fillRect(f.x * CELL_SIZE, f.y * CELL_SIZE, CELL_SIZE, CELL_SIZE));
+
+            ctx.fillStyle = '#f00';
+            poison.forEach(p => ctx.fillRect(p.x * CELL_SIZE, p.y * CELL_SIZE, CELL_SIZE, CELL_SIZE));
+
+            if (gamePhase !== 'lobby') drawScores();
+        }
+
+        // ---------- Simulation (host/single only) ----------
+
+        function schedulePlayerMove(index) {
+            const p = players[index];
+            clearTimeout(p.timer);
+            if (gamePhase === 'playing' && p.alive && p.started) {
+                p.timer = setTimeout(() => movePlayer(index), getMoveInterval(p));
+            }
+        }
+
+        function stopAllTimers() {
+            players.forEach(p => {
+                clearTimeout(p.timer);
+                p.timer = null;
+            });
+        }
+
+        function movePlayer(index) {
+            const p = players[index];
+            if (gamePhase !== 'playing' || !p.alive || !p.started) return;
+
+            const head = { x: p.worm[0].x + p.direction.x, y: p.worm[0].y + p.direction.y };
+
+            const hitsWall = head.x < 0 || head.x >= BOARD_WIDTH || head.y < 0 || head.y >= BOARD_HEIGHT;
+            const hitsWorm = players.some(q => q.worm.some(s => s.x === head.x && s.y === head.y));
+            const hitsPoison = poison.some(pz => pz.x === head.x && pz.y === head.y);
+
+            if (hitsWall || hitsWorm || hitsPoison) {
+                p.alive = false;
+                clearTimeout(p.timer);
+                draw();
+                broadcastState();
+                checkGameEnd();
+                return;
+            }
+
+            const foodIndex = food.findIndex(f => f.x === head.x && f.y === head.y);
+            if (foodIndex !== -1) {
+                food.splice(foodIndex, 1);
+                food.push(randomFreeCell());
+            } else {
+                p.worm.pop();
+            }
+            p.worm.unshift(head);
+
+            draw();
+            broadcastState();
+            schedulePlayerMove(index);
+        }
+
+        function checkGameEnd() {
+            if (mode === 'single') {
+                if (!players[0].alive) finishGame();
+                return;
+            }
+            // Multiplayer: the game ends the moment either worm dies.
+            if (players.some(p => !p.alive)) finishGame();
+        }
+
+        function finishGame() {
+            gamePhase = 'over';
+            stopAllTimers();
+            broadcastState();
+            presentGameOver();
+        }
+
+        // Applies a direction change to a player slot, enforcing the
+        // perpendicular-only rule (a worm cannot reverse into itself).
+        function applyInput(index, newDir) {
+            const p = players[index];
+            if (!p || gamePhase !== 'playing' || !p.alive) return;
+            if (newDir.x !== 0 && p.direction.x !== 0) return;
+            if (newDir.y !== 0 && p.direction.y !== 0) return;
+            p.direction = newDir;
+            if (!p.started) {
+                p.started = true;
+                schedulePlayerMove(index);
+            }
+        }
+
+        // ---------- Local input ----------
+
+        function handleLocalDirection(newDir) {
+            if (gamePhase !== 'playing') return;
+            if (mode === 'joiner') {
+                if (conn && conn.open) conn.send({ t: 'input', dir: newDir });
+            } else {
+                applyInput(localPlayerIndex, newDir);
+            }
+        }
+
+        function getTouchZone(clientX, clientY) {
+            const rect = canvas.getBoundingClientRect();
+            const nx = (clientX - rect.left) / rect.width;
+            const ny = (clientY - rect.top) / rect.height;
+            const d1 = ny - nx;
+            const d2 = ny - (1 - nx);
+            if (d1 < 0 && d2 < 0) return { x: 0, y: -1 }; // top
+            if (d1 > 0 && d2 > 0) return { x: 0, y: 1 };  // bottom
+            if (d1 > 0 && d2 < 0) return { x: -1, y: 0 }; // left
+            return { x: 1, y: 0 };                         // right
+        }
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            if (gameOverDiv.style.display === 'block') return;
+            const touch = e.touches[0];
+            handleLocalDirection(getTouchZone(touch.clientX, touch.clientY));
+        }, { passive: false });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+        }, { passive: false });
+
+        document.addEventListener('keydown', (e) => {
+            if (gameOverDiv.style.display === 'block') return;
+            const me = players[localPlayerIndex];
+            if (!me) return;
+            const dir = me.direction;
+            const key = e.key.toLowerCase();
+            let newDir = null;
+            switch (key) {
+                case 'w': case 'arrowup':    if (dir.y === 0) newDir = { x: 0, y: -1 }; break;
+                case 's': case 'arrowdown':  if (dir.y === 0) newDir = { x: 0, y: 1 };  break;
+                case 'a': case 'arrowleft':  if (dir.x === 0) newDir = { x: -1, y: 0 }; break;
+                case 'd': case 'arrowright': if (dir.x === 0) newDir = { x: 1, y: 0 };  break;
+            }
+            if (newDir) handleLocalDirection(newDir);
+        });
+
+        // ---------- Overlay ----------
+
+        function showOverlay(title, buttonText, showMultiplayer) {
+            overlayTitle.textContent = title;
+            restartBtn.textContent = buttonText;
+            restartBtn.disabled = false;
+            mpArea.style.display = showMultiplayer ? 'block' : 'none';
+            gameOverDiv.style.display = 'block';
+            playerNameInput.focus();
+        }
+
+        function hideOverlay() {
+            gameOverDiv.style.display = 'none';
+        }
+
+        function resultText() {
+            if (mode === 'single') return 'Game Over!';
+            const me = players[localPlayerIndex];
+            const other = players[1 - localPlayerIndex];
+            if (me && other && !me.alive && !other.alive) return 'Draw!';
+            if (me && !me.alive) return 'You lose!';
+            return 'You win!';
+        }
+
+        function presentGameOver() {
+            if (gameOverShown) return;
+            gameOverShown = true;
+            stopAllTimers();
+            const me = players[localPlayerIndex];
+            if (me) {
+                recordScore(me);
+                playerNameInput.value = me.name;
+            }
+            showOverlay(resultText(), 'Restart Game', false);
+        }
+
+        // ---------- Game start / restart ----------
+
+        function startSingle() {
+            mode = 'single';
+            localPlayerIndex = 0;
+            gameOverShown = false;
+            playerName = playerNameInput.value.trim() || 'Player';
+            buildPlayers([playerName]);
+            spawnFoodAndPoison();
+            gamePhase = 'playing';
+            hideOverlay();
+            draw();
+        }
+
+        function startHostGame() {
+            mode = 'host';
+            localPlayerIndex = 0;
+            gameOverShown = false;
+            playerName = playerNameInput.value.trim() || 'Host';
+            // Joiner's real name arrives via the 'hello' message and updates slot 1.
+            buildPlayers([playerName, 'Player 2']);
+            spawnFoodAndPoison();
+            gamePhase = 'playing';
+            hideOverlay();
+            broadcastState();
+            draw();
+        }
+
+        function restartMultiplayer() {
+            // Host rebuilds shared state, keeping both names, and broadcasts it.
+            const names = players.map(p => p.name);
+            gameOverShown = false;
+            buildPlayers(names);
+            spawnFoodAndPoison();
+            gamePhase = 'playing';
+            hideOverlay();
+            broadcastState();
+            draw();
+        }
+
+        function showLobbyPreview() {
+            mode = 'single';
+            localPlayerIndex = 0;
+            gamePhase = 'lobby';
+            gameOverShown = false;
+            buildPlayers([playerNameInput.value.trim() || 'Player']);
+            spawnFoodAndPoison();
+            draw();
+            showOverlay('Worm', 'Start Game', true);
+        }
+
+        restartBtn.addEventListener('click', () => {
+            if (gamePhase === 'lobby') {
+                startSingle();
+                return;
+            }
+            // gamePhase === 'over'
+            if (mode === 'single') {
+                startSingle();
+            } else if (mode === 'host') {
+                restartMultiplayer();
+            } else { // joiner asks the host to start a new round
+                if (conn && conn.open) {
+                    conn.send({ t: 'restart-request' });
+                    overlayTitle.textContent = 'Waiting for host…';
+                    restartBtn.disabled = true;
+                }
+            }
+        });
+
+        leaderboardBtn.addEventListener('click', () => {
+            leaderboardPanel.style.display = 'block';
+        });
+
+        closeLeaderboard.addEventListener('click', () => {
+            leaderboardPanel.style.display = 'none';
+        });
+
+        window.addEventListener('resize', () => {
+            computeCellSize();
+            draw();
+        });
+
+        // ---------- Networking (PeerJS) ----------
+
+        function applyStyles(playerList) {
+            playerList.forEach((p, slot) => {
+                const style = PLAYER_STYLES[slot] || PLAYER_STYLES[0];
+                p.headColor = style.headColor;
+                p.bodyColor = style.bodyColor;
+                p.eyeColor = style.eyeColor;
+            });
+        }
+
+        function broadcastState() {
+            if (mode !== 'host' || !conn || !conn.open) return;
+            conn.send({
+                t: 'state',
+                phase: gamePhase,
+                players: players.map(p => ({
+                    name: p.name,
+                    worm: p.worm,
+                    direction: p.direction,
+                    alive: p.alive,
+                    started: p.started
+                })),
+                food: food,
+                poison: poison
+            });
+        }
+
+        // Joiner: render whatever the host sends and react to phase changes.
+        function applyRemoteState(msg) {
+            const wasOver = gamePhase === 'over';
+            players = msg.players;
+            applyStyles(players);
+            food = msg.food;
+            poison = msg.poison;
+            gamePhase = msg.phase;
+
+            if (gamePhase === 'playing') {
+                gameOverShown = false;
+                hideOverlay();
+            }
+            draw();
+            if (gamePhase === 'over' && !wasOver) {
+                presentGameOver();
+            }
+        }
+
+        function onOpponentLeft() {
+            if (mode === 'single') return;
+            stopAllTimers();
+            conn = null;
+            mpStatus.textContent = '';
+            playerName = playerName || 'Player';
+            playerNameInput.value = playerName;
+            // Drop back to the lobby so the player can start over or rematch.
+            showLobbyPreview();
+            overlayTitle.textContent = 'Opponent left';
+        }
+
+        // Host side: a peer connected to our code.
+        function setupHostConnection(c) {
+            conn = c;
+            c.on('open', () => {
+                mpStatus.textContent = '';
+                startHostGame();
+            });
+            c.on('data', (msg) => {
+                if (!msg || typeof msg !== 'object') return;
+                if (msg.t === 'input') {
+                    applyInput(1, msg.dir);
+                } else if (msg.t === 'hello') {
+                    if (players[1]) players[1].name = (msg.name || 'Player 2');
+                    draw();
+                    broadcastState();
+                } else if (msg.t === 'restart-request') {
+                    restartMultiplayer();
+                }
+            });
+            c.on('close', onOpponentLeft);
+            c.on('error', onOpponentLeft);
+        }
+
+        // Joiner side: we connected to someone else's code.
+        function setupJoinerConnection(c) {
+            conn = c;
+            mode = 'joiner';
+            localPlayerIndex = 1;
+            c.on('open', () => {
+                c.send({ t: 'hello', name: playerName });
+                mpStatus.textContent = 'Connected! Waiting for host…';
+            });
+            c.on('data', (msg) => {
+                if (msg && msg.t === 'state') applyRemoteState(msg);
+            });
+            c.on('close', onOpponentLeft);
+            c.on('error', onOpponentLeft);
+        }
+
+        function createPeer() {
+            if (typeof Peer === 'undefined') {
+                mpStatus.textContent = 'Multiplayer unavailable (could not reach broker).';
+                yourCodeEl.textContent = 'N/A';
+                return;
+            }
+            myCode = String(Math.floor(1000 + Math.random() * 9000));
+            peer = new Peer(myCode, { debug: 0 });
+
+            peer.on('open', (id) => {
+                peerReady = true;
+                myCode = id;
+                yourCodeEl.textContent = id;
+                joinBtn.disabled = false;
+            });
+
+            peer.on('connection', (c) => {
+                // Already in a game? Refuse extra connections (1-on-1 only).
+                if (conn) {
+                    c.on('open', () => c.close());
+                    return;
+                }
+                setupHostConnection(c);
+            });
+
+            peer.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    // Our random code collided with an existing peer; pick another.
+                    try { peer.destroy(); } catch (e) {}
+                    createPeer();
+                } else if (err.type === 'peer-unavailable') {
+                    mpStatus.textContent = 'No game found for that code.';
+                } else {
+                    mpStatus.textContent = 'Network error: ' + err.type;
+                }
+            });
+        }
+
+        joinBtn.addEventListener('click', () => {
+            if (!peerReady) return;
+            const code = joinCodeInput.value.trim();
+            if (!/^\d{4}$/.test(code)) {
+                mpStatus.textContent = 'Enter a 4-digit code.';
+                return;
+            }
+            if (code === myCode) {
+                mpStatus.textContent = "That's your own code — share it instead.";
+                return;
+            }
+            playerName = playerNameInput.value.trim() || 'Player';
+            mpStatus.textContent = 'Connecting…';
+            const c = peer.connect(code, { reliable: true });
+            setupJoinerConnection(c);
+        });
+
+        // ---------- Init ----------
+
+        function initGame() {
+            computeCellSize();
+            loadLeaderboard();
+            updateLeaderboardDisplay();
+            createPeer();
+            showLobbyPreview();
+        }
+
+        initGame();
+    </script>
+</body>
+</html>
