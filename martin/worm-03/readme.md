@@ -54,10 +54,18 @@ Two players can play together on a single shared board, with their browsers conn
 - The player who is connected to becomes the **host**; the player who joins becomes the **joiner**. The match is one-on-one — additional connection attempts to a player already in a game are refused.
 - Codes are random 4-digit numbers. If a generated code happens to already be in use, a new one is generated automatically.
 
+### Random matchmaking
+
+- The start panel also has a **"Join Random Game"** button that pairs the player with anyone else who is currently searching, without exchanging a code.
+- Matchmaking uses a **single well-known rendezvous peer ID** (a fixed lobby ID, namespaced so it cannot collide with the 4-digit game codes). The first searcher to find the lobby empty **claims** the lobby ID and waits; the next searcher **finds** the waiter there.
+- When a searcher reaches a waiter, the waiter sends back its own 4-digit game code over the lobby connection, and the searcher then joins that code through the normal code-based flow. The waiter becomes the host, the searcher becomes the joiner.
+- The lobby ID is only used to introduce the two players; the actual game runs over each player's persistent game peer. As soon as a match forms, the host **releases the lobby ID** so the next pair of searchers can use it.
+- While searching, the button changes to **"Cancel Search"**. Because the lobby is a single slot, only one pair can be forming a match at a time; this is suitable for a small number of concurrent players (e.g. a class), not for large-scale matchmaking.
+
 ### Networking
 
 - Connections use **WebRTC data channels** established via **PeerJS**. PeerJS is loaded from a CDN and its public broker is used only at connection setup; once connected, game traffic flows directly between the two browsers.
-- The player's 4-digit code is used as their PeerJS peer ID, so joining is simply a connection to that ID.
+- The player's 4-digit code is used as their PeerJS peer ID, so joining is simply a connection to that ID. Each player keeps this game peer (and its signaling link) alive for the whole session, which is what makes reconnection possible.
 - Internet access is required to load PeerJS and complete the handshake. If PeerJS cannot be reached, the multiplayer controls report that multiplayer is unavailable and solo play still works.
 
 ### Host-authoritative model
@@ -76,10 +84,14 @@ Two players can play together on a single shared board, with their browsers conn
 - Each player's current score (and their opponent's) is shown on the canvas; the local player's score is labeled "(you)".
 - Each browser records its own player's best score to its local leaderboard, exactly as in solo play.
 
-### Restarting and disconnects
+### Restarting, reconnecting and disconnects
 
 - After a multiplayer round ends, the **host** can click "Restart Game" to deal a new board and broadcast it. The **joiner's** "Restart Game" button sends a restart request to the host, which starts the new round for both players; while waiting, the joiner sees "Waiting for host…".
-- If the connection is lost, the remaining player is returned to the start panel with an "Opponent left" message and can start a new solo game or rematch.
+- If the WebRTC connection drops mid-session, the game attempts to **reconnect** rather than ending immediately, using the still-alive game peers:
+  - The simulation pauses and both players see a "Reconnecting…" / "Opponent disconnected — waiting to reconnect…" message.
+  - The **joiner** re-initiates the connection to the host's game code (a few timed attempts); the **host** waits for the joiner to return. On success, the host resumes the paused simulation and resyncs the state, and play continues.
+  - If reconnection does not succeed within the retry window, the remaining player is returned to the start panel and can start a new solo game or rematch.
+- Reconnection is best-effort: it recovers from brief WebRTC drops, but a network change that requires fresh signaling, or a player closing the tab for too long, ends the session.
 
 ## Mobile Screen Scaling
 
@@ -104,3 +116,4 @@ Two players can play together on a single shared board, with their browsers conn
 - The game is implemented in JavaScript as a single HTML5 file index.html.
 - PeerJS is included via a CDN `<script>` tag for the WebRTC peer-to-peer connection used by multiplayer.
 - Game state is held in a `players` array so the same rendering and simulation code serves both solo (one worm) and two-player (two worms) games.
+- Random matchmaking uses a transient second PeerJS peer that claims a fixed lobby ID only while waiting; it is destroyed once a match forms, leaving the game running on the persistent per-player game peers.

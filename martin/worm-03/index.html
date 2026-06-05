@@ -85,6 +85,9 @@
             opacity: 0.4;
             cursor: default;
         }
+        #joinBtn, #randomBtn {
+            width: 100%;
+        }
         #mpArea {
             margin-top: 16px;
             border-top: 1px solid #444;
@@ -102,7 +105,7 @@
         }
         #mpStatus {
             font-size: 12px;
-            opacity: 0.8;
+            opacity: 0.85;
             margin-top: 8px;
             min-height: 16px;
         }
@@ -153,16 +156,19 @@
             <canvas id="gameCanvas"></canvas>
             <div id="gameOver">
                 <div id="overlayTitle">Worm</div>
-                <label for="playerNameInput">Player name:</label>
-                <input id="playerNameInput" type="text" />
-                <button id="restartBtn">Start Game</button>
-                <p id="controlHint">Tap top / bottom / left / right of screen to steer</p>
-                <div id="mpArea">
-                    <div id="yourCodeLine">Your code: <span id="yourCode">----</span></div>
-                    <label for="joinCodeInput">Join a friend &mdash; enter their 4-digit code:</label>
-                    <input id="joinCodeInput" type="text" inputmode="numeric" maxlength="4" placeholder="0000" />
-                    <button id="joinBtn" disabled>Join Game</button>
-                    <div id="mpStatus"></div>
+                <div id="startControls">
+                    <label for="playerNameInput">Player name:</label>
+                    <input id="playerNameInput" type="text" />
+                    <button id="restartBtn">Start Game</button>
+                    <p id="controlHint">Tap top / bottom / left / right of screen to steer</p>
+                    <div id="mpArea">
+                        <div id="yourCodeLine">Your code: <span id="yourCode">----</span></div>
+                        <label for="joinCodeInput">Join a friend &mdash; enter their 4-digit code:</label>
+                        <input id="joinCodeInput" type="text" inputmode="numeric" maxlength="4" placeholder="0000" />
+                        <button id="joinBtn" disabled>Join Game</button>
+                        <button id="randomBtn" disabled>Join Random Game</button>
+                        <div id="mpStatus"></div>
+                    </div>
                 </div>
             </div>
             <button id="leaderboardBtn">Leaderboard</button>
@@ -178,6 +184,7 @@
         const ctx = canvas.getContext('2d');
         const gameOverDiv = document.getElementById('gameOver');
         const overlayTitle = document.getElementById('overlayTitle');
+        const startControls = document.getElementById('startControls');
         const restartBtn = document.getElementById('restartBtn');
         const playerNameInput = document.getElementById('playerNameInput');
         const leaderboardList = document.getElementById('leaderboardList');
@@ -188,12 +195,19 @@
         const yourCodeEl = document.getElementById('yourCode');
         const joinCodeInput = document.getElementById('joinCodeInput');
         const joinBtn = document.getElementById('joinBtn');
+        const randomBtn = document.getElementById('randomBtn');
         const mpStatus = document.getElementById('mpStatus');
 
         const BOARD_WIDTH = 80;
         const BOARD_HEIGHT = 40;
         const INITIAL_WORM_LENGTH = 3;
         const LEADERBOARD_KEY = 'wormLeaderboard';
+
+        // Well-known PeerJS ID used as a one-slot random-match rendezvous. It is
+        // namespaced so it cannot collide with the 4-digit game codes or with
+        // other apps sharing the public broker.
+        const LOBBY_ID = 'worm03-random-lobby-v1-566231993';
+        const MAX_RECONNECT = 5;
 
         // Per-player visual identity, indexed by player slot.
         // Slot 0 = host / single player (original look), slot 1 = joiner.
@@ -219,11 +233,27 @@
         let poison = [];
         let leaderboard = [];
 
-        // Networking (PeerJS)
-        let peer = null;
-        let conn = null;
-        let myCode = null;
+        // --- Networking state ---
+        let peer = null;          // this client's persistent game peer (ID = myCode)
+        let conn = null;          // the active game DataConnection
+        let myCode = null;        // our 4-digit game code / peer ID
         let peerReady = false;
+        let remotePeerId = null;  // opponent's game peer ID (used to reconnect)
+        let sessionActive = false;// true while a 2-player session is meant to be live
+        let intentionalLeave = false; // suppress reconnect when we close on purpose
+
+        // Reconnect bookkeeping
+        let reconnecting = false;
+        let reconnectAttempts = 0;
+        let reconnectTimer = null;
+        let hostGiveupTimer = null;
+
+        // Random-match lobby state
+        let lobbyPeer = null;     // transient peer that claims LOBBY_ID when we wait
+        let lobbyConn = null;     // transient connection while probing the lobby
+        let lobbyProbeTimer = null;
+        let lobbyProbeSettled = false;
+        let randomState = 'idle'; // 'idle' | 'probing' | 'waiting'
 
         function computeCellSize() {
             const cellW = Math.floor(window.innerWidth / BOARD_WIDTH);
@@ -263,12 +293,12 @@
         }
 
         function recordScore(player) {
-            const score = Math.max(player.worm.length - INITIAL_WORM_LENGTH, 0);
+            const value = Math.max(player.worm.length - INITIAL_WORM_LENGTH, 0);
             const entry = leaderboard.find(item => item.name === player.name);
             if (entry) {
-                if (score > entry.score) entry.score = score;
+                if (value > entry.score) entry.score = value;
             } else {
-                leaderboard.push({ name: player.name, score });
+                leaderboard.push({ name: player.name, score: value });
             }
             leaderboard.sort((a, b) => b.score - a.score);
             if (leaderboard.length > 10) leaderboard = leaderboard.slice(0, 10);
@@ -439,6 +469,13 @@
             });
         }
 
+        // Restart movement for worms already underway (used after a reconnect pause).
+        function resumeTimers() {
+            players.forEach((p, i) => {
+                if (p.alive && p.started) schedulePlayerMove(i);
+            });
+        }
+
         function movePlayer(index) {
             const p = players[index];
             if (gamePhase !== 'playing' || !p.alive || !p.started) return;
@@ -558,6 +595,7 @@
             overlayTitle.textContent = title;
             restartBtn.textContent = buttonText;
             restartBtn.disabled = false;
+            startControls.style.display = 'block';
             mpArea.style.display = showMultiplayer ? 'block' : 'none';
             gameOverDiv.style.display = 'block';
             playerNameInput.focus();
@@ -565,6 +603,13 @@
 
         function hideOverlay() {
             gameOverDiv.style.display = 'none';
+        }
+
+        // A bare status overlay (no inputs/buttons), used for reconnect notices.
+        function showMessage(title) {
+            overlayTitle.textContent = title;
+            startControls.style.display = 'none';
+            gameOverDiv.style.display = 'block';
         }
 
         function resultText() {
@@ -591,6 +636,7 @@
         // ---------- Game start / restart ----------
 
         function startSingle() {
+            leaveSession();
             mode = 'single';
             localPlayerIndex = 0;
             gameOverShown = false;
@@ -606,6 +652,7 @@
             mode = 'host';
             localPlayerIndex = 0;
             gameOverShown = false;
+            sessionActive = true;
             playerName = playerNameInput.value.trim() || 'Host';
             // Joiner's real name arrives via the 'hello' message and updates slot 1.
             buildPlayers([playerName, 'Player 2']);
@@ -671,7 +718,7 @@
             draw();
         });
 
-        // ---------- Networking (PeerJS) ----------
+        // ---------- Networking: shared state sync ----------
 
         function applyStyles(playerList) {
             playerList.forEach((p, slot) => {
@@ -718,24 +765,24 @@
             }
         }
 
-        function onOpponentLeft() {
-            if (mode === 'single') return;
-            stopAllTimers();
-            conn = null;
-            mpStatus.textContent = '';
-            playerName = playerName || 'Player';
-            playerNameInput.value = playerName;
-            // Drop back to the lobby so the player can start over or rematch.
-            showLobbyPreview();
-            overlayTitle.textContent = 'Opponent left';
-        }
+        // ---------- Networking: connection lifecycle ----------
 
-        // Host side: a peer connected to our code.
+        // Host side: a peer connected to our game code.
         function setupHostConnection(c) {
             conn = c;
             c.on('open', () => {
                 mpStatus.textContent = '';
-                startHostGame();
+                reconnecting = false;
+                reconnectAttempts = 0;
+                clearTimeout(hostGiveupTimer);
+                if (gamePhase === 'playing') {
+                    // Reconnect mid-session: resume the paused simulation and resync.
+                    hideOverlay();
+                    resumeTimers();
+                    broadcastState();
+                } else {
+                    startHostGame();
+                }
             });
             c.on('data', (msg) => {
                 if (!msg || typeof msg !== 'object') return;
@@ -749,25 +796,232 @@
                     restartMultiplayer();
                 }
             });
-            c.on('close', onOpponentLeft);
-            c.on('error', onOpponentLeft);
+            c.on('close', onConnClose);
+            c.on('error', () => {});
         }
 
-        // Joiner side: we connected to someone else's code.
+        // Joiner side: we connected to a host's game code.
         function setupJoinerConnection(c) {
             conn = c;
             mode = 'joiner';
             localPlayerIndex = 1;
             c.on('open', () => {
-                c.send({ t: 'hello', name: playerName });
+                reconnecting = false;
+                reconnectAttempts = 0;
+                sessionActive = true;
+                randomState = 'idle';
+                randomBtn.textContent = 'Join Random Game';
                 mpStatus.textContent = 'Connected! Waiting for host…';
+                try { c.send({ t: 'hello', name: playerName }); } catch (e) {}
+                hideOverlay();
             });
             c.on('data', (msg) => {
                 if (msg && msg.t === 'state') applyRemoteState(msg);
             });
-            c.on('close', onOpponentLeft);
-            c.on('error', onOpponentLeft);
+            c.on('close', onConnClose);
+            c.on('error', () => {});
         }
+
+        function onConnClose() {
+            if (intentionalLeave) return;
+            if (reconnecting) return; // a reconnect attempt is already in flight
+            if (!sessionActive) {
+                onOpponentLeft('Could not connect. Try again.');
+                return;
+            }
+            stopAllTimers();
+            if (mode === 'joiner') startJoinerReconnect();
+            else startHostReconnectWait();
+        }
+
+        function startJoinerReconnect() {
+            reconnecting = true;
+            reconnectAttempts = 0;
+            joinerReconnectAttempt();
+        }
+
+        function joinerReconnectAttempt() {
+            if (!sessionActive) { reconnecting = false; return; }
+            if (reconnectAttempts >= MAX_RECONNECT) {
+                reconnecting = false;
+                sessionActive = false;
+                onOpponentLeft('Lost connection to opponent.');
+                return;
+            }
+            reconnectAttempts++;
+            showMessage(`Reconnecting… (${reconnectAttempts}/${MAX_RECONNECT})`);
+            conn = null;
+            const c = peer.connect(remotePeerId, { reliable: true });
+            setupJoinerConnection(c);
+            // Watchdog: if this attempt hasn't opened, try again.
+            reconnectTimer = setTimeout(() => {
+                if (reconnecting && (!conn || !conn.open)) joinerReconnectAttempt();
+            }, 3000);
+        }
+
+        function startHostReconnectWait() {
+            reconnecting = true;
+            conn = null;
+            showMessage('Opponent disconnected — waiting to reconnect…');
+            clearTimeout(hostGiveupTimer);
+            hostGiveupTimer = setTimeout(() => {
+                if (!conn || !conn.open) {
+                    reconnecting = false;
+                    sessionActive = false;
+                    onOpponentLeft('Opponent left.');
+                }
+            }, 20000);
+        }
+
+        function onOpponentLeft(message) {
+            reconnecting = false;
+            clearTimeout(hostGiveupTimer);
+            clearTimeout(reconnectTimer);
+            reconnectAttempts = 0;
+            sessionActive = false;
+            if (conn) { try { conn.close(); } catch (e) {} }
+            conn = null;
+            releaseLobby();
+            mode = 'single';
+            localPlayerIndex = 0;
+            playerName = playerName || 'Player';
+            playerNameInput.value = playerName;
+            showLobbyPreview();
+            if (message) mpStatus.textContent = message;
+        }
+
+        // Tear down an active session without triggering reconnect (e.g. when the
+        // user deliberately starts a solo game).
+        function leaveSession() {
+            intentionalLeave = true;
+            reconnecting = false;
+            sessionActive = false;
+            clearTimeout(hostGiveupTimer);
+            clearTimeout(reconnectTimer);
+            reconnectAttempts = 0;
+            if (conn) { try { conn.close(); } catch (e) {} }
+            conn = null;
+            releaseLobby();
+            setTimeout(() => { intentionalLeave = false; }, 500);
+        }
+
+        // ---------- Networking: code-based join ----------
+
+        function joinByCode(code) {
+            mpStatus.textContent = 'Connecting…';
+            randomState = 'idle';
+            randomBtn.textContent = 'Join Random Game';
+            remotePeerId = code;
+            const c = peer.connect(code, { reliable: true });
+            setupJoinerConnection(c);
+        }
+
+        joinBtn.addEventListener('click', () => {
+            if (!peerReady) return;
+            const code = joinCodeInput.value.trim();
+            if (!/^\d{4}$/.test(code)) {
+                mpStatus.textContent = 'Enter a 4-digit code.';
+                return;
+            }
+            if (code === myCode) {
+                mpStatus.textContent = "That's your own code — share it instead.";
+                return;
+            }
+            playerName = playerNameInput.value.trim() || 'Player';
+            joinByCode(code);
+        });
+
+        // ---------- Networking: random matchmaking (fixed-ID lobby) ----------
+        //
+        // The lobby is a one-slot rendezvous on a well-known ID. Whoever holds it
+        // is "waiting". A searcher first probes the lobby:
+        //   - If someone is waiting, the waiter sends back its 4-digit game code,
+        //     and the searcher joins it normally (becoming the joiner).
+        //   - If nobody is waiting, the searcher claims the lobby ID and waits.
+        // When a match forms the waiter releases the lobby ID so the next pair can
+        // use it; the game itself runs over the persistent per-client game peers.
+
+        function closeLobbyConn() {
+            if (lobbyConn) { try { lobbyConn.close(); } catch (e) {} lobbyConn = null; }
+        }
+
+        function releaseLobby() {
+            clearTimeout(lobbyProbeTimer);
+            closeLobbyConn();
+            if (lobbyPeer) { try { lobbyPeer.destroy(); } catch (e) {} lobbyPeer = null; }
+            randomState = 'idle';
+            randomBtn.textContent = 'Join Random Game';
+        }
+
+        function cancelRandom() {
+            releaseLobby();
+            mpStatus.textContent = '';
+        }
+
+        function probeLobby() {
+            randomState = 'probing';
+            lobbyProbeSettled = false;
+            mpStatus.textContent = 'Looking for an opponent…';
+            lobbyConn = peer.connect(LOBBY_ID, { reliable: true });
+            lobbyProbeTimer = setTimeout(onLobbyProbeFailed, 3000);
+            lobbyConn.on('open', () => {
+                mpStatus.textContent = 'Opponent found, connecting…';
+            });
+            lobbyConn.on('data', (msg) => {
+                if (lobbyProbeSettled) return;
+                if (msg && msg.type === 'rendezvous' && msg.code) {
+                    lobbyProbeSettled = true;
+                    clearTimeout(lobbyProbeTimer);
+                    closeLobbyConn();
+                    playerName = playerNameInput.value.trim() || 'Player';
+                    joinByCode(msg.code);
+                }
+            });
+            lobbyConn.on('error', onLobbyProbeFailed);
+        }
+
+        function onLobbyProbeFailed() {
+            if (lobbyProbeSettled || randomState !== 'probing') return;
+            lobbyProbeSettled = true;
+            clearTimeout(lobbyProbeTimer);
+            closeLobbyConn();
+            claimLobby();
+        }
+
+        function claimLobby() {
+            randomState = 'waiting';
+            mpStatus.textContent = 'Waiting for an opponent to join…';
+            lobbyPeer = new Peer(LOBBY_ID, { debug: 0 });
+            lobbyPeer.on('connection', (c) => {
+                // A searcher reached us; hand them our game code so they can join.
+                c.on('open', () => {
+                    try { c.send({ type: 'rendezvous', code: myCode }); } catch (e) {}
+                });
+                // The lobby peer is released once the real game connection arrives
+                // (see peer.on('connection') -> releaseLobby()).
+            });
+            lobbyPeer.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    // Someone else claimed the lobby a moment ago — go probe them.
+                    try { lobbyPeer.destroy(); } catch (e) {}
+                    lobbyPeer = null;
+                    if (randomState === 'waiting') probeLobby();
+                } else {
+                    mpStatus.textContent = 'Lobby error: ' + err.type;
+                    cancelRandom();
+                }
+            });
+        }
+
+        randomBtn.addEventListener('click', () => {
+            if (randomState !== 'idle') { cancelRandom(); return; }
+            if (!peerReady) { mpStatus.textContent = 'Still connecting…'; return; }
+            playerName = playerNameInput.value.trim() || 'Player';
+            randomBtn.textContent = 'Cancel Search';
+            probeLobby();
+        });
+
+        // ---------- Networking: our persistent game peer ----------
 
         function createPeer() {
             if (typeof Peer === 'undefined') {
@@ -783,46 +1037,35 @@
                 myCode = id;
                 yourCodeEl.textContent = id;
                 joinBtn.disabled = false;
+                randomBtn.disabled = false;
             });
 
             peer.on('connection', (c) => {
-                // Already in a game? Refuse extra connections (1-on-1 only).
-                if (conn) {
-                    c.on('open', () => c.close());
+                // Reject extra connections while a game connection is live.
+                if (conn && conn.open) {
+                    c.on('open', () => { try { c.close(); } catch (e) {} });
                     return;
                 }
+                releaseLobby();
+                remotePeerId = c.peer;
                 setupHostConnection(c);
             });
 
             peer.on('error', (err) => {
                 if (err.type === 'unavailable-id') {
-                    // Our random code collided with an existing peer; pick another.
+                    // Our random code collided; pick another (only happens at startup).
                     try { peer.destroy(); } catch (e) {}
                     createPeer();
                 } else if (err.type === 'peer-unavailable') {
+                    if (randomState === 'probing') { onLobbyProbeFailed(); return; }
+                    if (reconnecting) return; // a reconnect attempt will retry
                     mpStatus.textContent = 'No game found for that code.';
                 } else {
+                    if (reconnecting) return;
                     mpStatus.textContent = 'Network error: ' + err.type;
                 }
             });
         }
-
-        joinBtn.addEventListener('click', () => {
-            if (!peerReady) return;
-            const code = joinCodeInput.value.trim();
-            if (!/^\d{4}$/.test(code)) {
-                mpStatus.textContent = 'Enter a 4-digit code.';
-                return;
-            }
-            if (code === myCode) {
-                mpStatus.textContent = "That's your own code — share it instead.";
-                return;
-            }
-            playerName = playerNameInput.value.trim() || 'Player';
-            mpStatus.textContent = 'Connecting…';
-            const c = peer.connect(code, { reliable: true });
-            setupJoinerConnection(c);
-        });
 
         // ---------- Init ----------
 
