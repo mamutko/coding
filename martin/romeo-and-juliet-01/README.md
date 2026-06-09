@@ -33,6 +33,28 @@ revealed below, labelled with the speaker and the act/scene reference.
 The options for both questions are shuffled each time, and a fresh random set of 20 quotes
 is generated whenever the test is (re)started, so the test is replayable.
 
+### Outsider character decoys
+
+Fifteen of the quotes carry an optional `altChar` field — a character from *outside*
+Romeo and Juliet that is injected as one of the four choices in the "who speaks this line"
+question (placed at random; it is always a wrong answer, since the real speaker is from the
+play). Each outsider was chosen so the line could plausibly suit them in modern English.
+
+- **From other Shakespeare plays (10):** *These violent delights have violent ends* →
+  **Macbeth**; *Tempt not a desperate man* → **Richard III**; *What, drawn, and talk of
+  peace? I hate the word* → **Hotspur** (*Henry IV*); *O, swear not by the moon, the
+  inconstant moon* → **Cleopatra**; *Dreamers often lie* → **Puck** (*A Midsummer Night's
+  Dream*); *O, she doth teach the torches to burn bright* → **Orlando** (*As You Like It*);
+  *My bounty is as boundless as the sea* → **Portia** (*The Merchant of Venice*); *Wisely
+  and slow; they stumble that run fast* → **Polonius** (*Hamlet*); *He jests at scars that
+  never felt a wound* → **Benedick** (*Much Ado About Nothing*); *Death lies on her like an
+  untimely frost* → **Laertes** (*Hamlet*).
+- **Contemporary characters (5):** *I am too sore enpierced with his shaft…* → **Eeyore**
+  (*Winnie the Pooh*); *Eyes, look your last! Arms, take your last embrace!* → **Tony Stark
+  / Iron Man**; *A plague o' both your houses!* → **Katniss Everdeen** (*The Hunger
+  Games*); *Give me my Romeo… cut him out in little stars* → **Simba** (*The Lion King*);
+  *What's in a name?… a rose by any other name* → **Hermione Granger** (*Harry Potter*).
+
 ### Funny decoys
 
 Ten of the 50 quotes carry an optional `funny` field — a deliberately silly, Captain
