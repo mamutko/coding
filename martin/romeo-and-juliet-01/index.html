@@ -1,0 +1,823 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Romeo &amp; Juliet &mdash; Quote Test</title>
+<style>
+  :root{
+    --bg:#080b11;
+    --ink:#e4ebf2;
+    --muted:#93a1b1;
+    --accent:#4fd1e0;
+    --accent2:#76a8e6;
+    --good:#5fe0a6;
+    --bad:#e0764f;
+    --line:rgba(150,175,200,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .mono{font-family:"Consolas","SF Mono",ui-monospace,Menlo,monospace}
+  .serif{font-family:Georgia,"Times New Roman",serif}
+
+  /* ---------- engineering background ---------- */
+  .bg{position:fixed;inset:0;z-index:0;pointer-events:none}
+  .bg-grid{position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(120,150,180,.05) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,150,180,.05) 1px,transparent 1px),
+      linear-gradient(rgba(120,150,180,.10) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,150,180,.10) 1px,transparent 1px);
+    background-size:26px 26px,26px 26px,130px 130px,130px 130px;
+    background-position:var(--gx,0px) 0,var(--gx,0px) 0,var(--gx,0px) 0,var(--gx,0px) 0;
+    transition:background-position .72s cubic-bezier(.76,0,.24,1);
+    mask-image:radial-gradient(120% 110% at 50% 40%,#000 55%,transparent 100%);}
+  .bg-vignette{position:absolute;inset:0;
+    background:radial-gradient(130% 120% at 50% 30%,transparent 40%,rgba(0,0,0,.55) 100%),
+               radial-gradient(80% 80% at 80% 90%,rgba(40,70,90,.18),transparent 60%);}
+  .bg-schem{position:absolute;inset:0;width:100%;height:100%;opacity:.92}
+
+  /* ---------- deck ---------- */
+  .deck{position:relative;z-index:2;height:100%;width:100%;
+    display:flex;transition:transform .72s cubic-bezier(.76,0,.24,1)}
+  .slide{position:relative;min-width:100%;height:100vh;flex:0 0 100%;overflow-y:auto}
+  .inner{min-height:100%;max-width:1000px;margin:0 auto;padding:11vh 7vw 14vh;
+    display:flex;flex-direction:column;justify-content:center}
+
+  .eyebrow{font-size:13px;letter-spacing:.42em;text-transform:uppercase;color:var(--accent);
+    margin:0 0 18px;font-weight:600;opacity:.95}
+  h1{font-size:clamp(34px,5.4vw,68px);line-height:1.04;margin:0;font-weight:700;letter-spacing:-.01em}
+  h2{font-size:clamp(22px,3.1vw,38px);line-height:1.12;margin:0 0 6px;font-weight:700;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:clamp(15px,1.6vw,20px);margin:14px 0 0;max-width:60ch;line-height:1.5}
+  .lead{font-size:clamp(16px,1.7vw,21px);line-height:1.55;max-width:64ch;margin:6px 0 0;color:#cdd8e3}
+  .gradtext{background:linear-gradient(92deg,#dfe9f2,#7fb4ea 60%,#4fd1e0);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+
+  /* ---------- quote + questions ---------- */
+  .qtag{font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--accent);
+    margin:0 0 14px;font-weight:600}
+  .quote{position:relative;margin:0 0 8px;padding:22px 26px;border-radius:16px;
+    font-family:Georgia,"Times New Roman",serif;font-style:italic;
+    font-size:clamp(20px,2.7vw,32px);line-height:1.3;color:#eef4fa;max-width:24ch;
+    background:linear-gradient(155deg,rgba(140,162,184,.20),rgba(34,42,52,.62));
+    border:1px solid rgba(150,172,194,.22);border-top-color:rgba(206,220,234,.5);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 12px 34px rgba(0,0,0,.42)}
+  .quote::before{content:"\201C";position:absolute;top:-14px;left:14px;font-size:64px;
+    color:var(--accent);opacity:.5;font-family:Georgia,serif}
+
+  .qlabel{font-size:clamp(15px,1.7vw,19px);font-weight:700;margin:26px 0 0;color:#e7eef5}
+  .qlabel .num{color:var(--accent);font-weight:700;margin-right:8px}
+  .options{list-style:none;margin:14px 0 0;padding:0;display:grid;gap:11px;max-width:760px}
+  .opt{position:relative;display:flex;align-items:center;gap:14px;
+    padding:13px 18px 13px 15px;border-radius:13px;cursor:pointer;
+    background:linear-gradient(155deg,rgba(140,162,184,.16),rgba(30,38,48,.55));
+    border:1px solid rgba(150,172,194,.20);border-top-color:rgba(206,220,234,.42);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 8px 22px rgba(0,0,0,.35);
+    font-size:16px;line-height:1.38;color:#d8e2ec;
+    transition:transform .2s,border-color .25s,box-shadow .3s,background .3s}
+  .opt:hover{transform:translateY(-2px);border-color:rgba(79,209,224,.5);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 26px rgba(79,209,224,.20)}
+  .opt .badge{flex:0 0 30px;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;
+    font-weight:700;font-size:14px;color:#cfe7ee;
+    background:linear-gradient(135deg,rgba(120,150,180,.3),rgba(40,50,62,.7));
+    border:1px solid rgba(150,172,194,.3);transition:all .3s}
+  .opt .txt{flex:1 1 auto}
+  .opt .mark{flex:0 0 auto;font-size:19px;font-weight:700;opacity:0;transition:opacity .3s}
+  .options.locked .opt{cursor:default}
+  .options.locked .opt:hover{transform:none;border-color:rgba(150,172,194,.20);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 8px 22px rgba(0,0,0,.35)}
+  .opt.correct{border-color:rgba(95,224,166,.7);
+    background:linear-gradient(155deg,rgba(95,224,166,.2),rgba(30,48,42,.6));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 26px rgba(95,224,166,.28)}
+  .opt.correct .badge{background:linear-gradient(135deg,#5fe0a6,#3bbf86);color:#06120d;border-color:transparent}
+  .opt.correct .mark{opacity:1;color:var(--good)}
+  .opt.wrong{border-color:rgba(224,118,79,.7);
+    background:linear-gradient(155deg,rgba(224,118,79,.18),rgba(48,32,28,.6));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 26px rgba(224,118,79,.25)}
+  .opt.wrong .badge{background:linear-gradient(135deg,#e0764f,#bf553b);color:#150805;border-color:transparent}
+  .opt.wrong .mark{opacity:1;color:var(--bad)}
+  .opt.dim{opacity:.5}
+
+  .passage{margin-top:26px;max-width:780px;border-radius:13px;
+    padding:0 20px;max-height:0;overflow:hidden;opacity:0;
+    background:linear-gradient(155deg,rgba(79,209,224,.10),rgba(30,38,48,.5));
+    border:1px solid rgba(79,209,224,0);
+    transition:max-height .55s ease,opacity .5s ease,padding .55s ease,border-color .5s ease}
+  .passage.show{max-height:600px;opacity:1;padding:18px 20px;border-color:rgba(79,209,224,.22)}
+  .passage .ptag{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);
+    font-weight:600;margin:0 0 8px}
+  .passage .ptag b{color:#fff}
+  .passage .ptext{font-family:Georgia,"Times New Roman",serif;font-style:italic;
+    font-size:15.5px;line-height:1.6;color:#dde7f0;margin:0}
+
+  /* ---------- results ---------- */
+  .scorewrap{display:flex;flex-direction:column;align-items:center;text-align:center;gap:8px}
+  .ring{position:relative;width:230px;height:230px;margin:14px auto 6px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .num{position:absolute;inset:0;display:grid;place-items:center}
+  .ring .num .big{font-size:46px;font-weight:700;line-height:1;
+    background:linear-gradient(92deg,#eaf2fa,#5fd6e4);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .ring .num .pct{position:absolute;bottom:50px;left:0;right:0;color:var(--muted);font-size:14px;letter-spacing:.18em}
+  .verdict{font-size:clamp(22px,3vw,36px);font-weight:700;margin:6px 0 0}
+  .btn{display:inline-flex;align-items:center;gap:10px;margin-top:28px;cursor:pointer;
+    padding:14px 26px;border-radius:13px;font-size:16px;font-weight:600;color:#eaf3f7;
+    background:linear-gradient(155deg,rgba(140,162,184,.24),rgba(30,38,48,.6));
+    border:1px solid rgba(150,172,194,.3);border-top-color:rgba(206,220,234,.55);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 12px 30px rgba(0,0,0,.4);
+    transition:transform .2s,box-shadow .3s,border-color .3s}
+  .btn:hover{transform:translateY(-2px);border-color:rgba(79,209,224,.6);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 30px rgba(79,209,224,.3)}
+
+  /* reveal for slide content */
+  .reveal{opacity:0;transform:translateY(20px);
+    transition:opacity .6s ease,transform .6s ease;transition-delay:var(--d,0s)}
+  .slide.active .reveal{opacity:1;transform:none}
+
+  /* ---------- top overlay (headline + score) ---------- */
+  .topbar{position:fixed;top:0;left:0;right:0;z-index:6;display:flex;align-items:center;
+    justify-content:space-between;padding:18px 30px;pointer-events:none;
+    background:transparent;transition:background .3s}
+  .brand{display:flex;align-items:center;gap:12px;pointer-events:auto}
+  .brand .dot{width:11px;height:11px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#9cf3ff,#2aa6b6);
+    box-shadow:0 0 14px rgba(79,209,224,.8)}
+  .brand .t{font-size:14px;letter-spacing:.3em;font-weight:700}
+  .brand .s{font-size:11px;letter-spacing:.16em;color:var(--muted)}
+  .hud{display:flex;align-items:center;gap:18px;pointer-events:auto}
+  .counter{font-size:13px;letter-spacing:.18em;color:var(--muted)}
+  .counter b{color:var(--ink)}
+  .scorepill{font-size:13px;letter-spacing:.1em;color:var(--accent);font-weight:600;
+    padding:5px 12px;border-radius:9px;border:1px solid rgba(79,209,224,.28);
+    background:rgba(79,209,224,.08)}
+  .scorepill.empty{display:none}
+
+  /* ---------- bottom controls ---------- */
+  .bottombar{position:fixed;left:0;right:0;bottom:0;height:0;z-index:5;pointer-events:none;
+    background:transparent;transition:background .3s}
+  .progress{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:6;
+    display:flex;gap:6px;align-items:center;max-width:62vw;flex-wrap:wrap;justify-content:center}
+  .tick{position:relative;width:18px;height:6px;border-radius:4px;cursor:pointer;
+    background:rgba(150,175,200,.18);transition:background .3s,box-shadow .3s,width .3s}
+  .tick:hover{background:rgba(150,175,200,.4)}
+  .tick.on{width:32px;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    box-shadow:0 0 calc(8px + var(--p,0)*14px) rgba(79,209,224,.6)}
+  .tick.done{background:rgba(95,224,166,.5)}
+  .tick.on.done{background:linear-gradient(90deg,var(--accent),var(--accent2))}
+
+  .nav{position:fixed;top:50%;z-index:6;transform:translateY(-50%);
+    width:60px;height:84px;display:grid;place-items:center;cursor:pointer;
+    border-radius:14px;border:1px solid rgba(150,175,200,calc(.18 + var(--p,0)*.5));
+    background:linear-gradient(155deg,rgba(140,162,184,calc(.10 + var(--p,0)*.22)),rgba(30,38,48,.5));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 calc(var(--p,0)*34px) rgba(79,209,224,calc(var(--p,0)*.7));
+    transition:opacity .35s,transform .25s,background .3s;backdrop-filter:blur(2px)}
+  .nav:hover{transform:translateY(-50%) scale(1.05)}
+  .nav svg{width:24px;height:24px;stroke:#dbe6f1;stroke-width:2.2;fill:none;
+    filter:drop-shadow(0 0 calc(var(--p,0)*6px) rgba(79,209,224,.9))}
+  .nav.next{right:30px}
+  .nav.prev{left:30px}
+  .nav.hide{opacity:0;pointer-events:none}
+  .hint{position:fixed;right:34px;bottom:26px;z-index:6;color:var(--muted);font-size:12px;letter-spacing:.05em}
+
+  /* ============ MOBILE / CELL PHONE ============ */
+  @media (max-width:760px){
+    .inner{padding:108px 22px 118px;justify-content:flex-start}
+    .quote{max-width:none;font-size:21px;padding:18px 20px}
+    .qlabel{font-size:16px}
+    .options{max-width:none}
+    .opt{font-size:15px;padding:12px 14px}
+
+    /* top: semi-opaque overlay with headline + score */
+    .topbar{padding:12px 16px;
+      background:linear-gradient(180deg,rgba(8,11,17,.86),rgba(8,11,17,.5) 78%,transparent);
+      backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+    .brand .t{font-size:13px;letter-spacing:.22em}
+    .brand .s{display:none}
+    .hud{gap:10px}
+    .counter{font-size:12px}
+    .scorepill{font-size:12px;padding:4px 9px}
+
+    /* bottom: semi-opaque bar holding prev / progress / next */
+    .bottombar{height:74px;
+      background:linear-gradient(0deg,rgba(8,11,17,.9),rgba(8,11,17,.55) 70%,transparent);
+      backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px)}
+    .nav{top:auto;bottom:14px;transform:none;width:46px;height:46px;border-radius:12px;
+      background:linear-gradient(155deg,rgba(140,162,184,.22),rgba(30,38,48,.7));
+      border-color:rgba(150,175,200,.4)}
+    .nav:hover{transform:none}
+    .nav.prev{left:16px}
+    .nav.next{right:16px}
+    .nav svg{width:22px;height:22px}
+    .progress{bottom:28px;max-width:calc(100vw - 140px);gap:5px;flex-wrap:nowrap;overflow:hidden}
+    .tick{width:7px;height:5px}
+    .tick.on{width:16px}
+    .hint{display:none}
+  }
+  @media (max-width:380px){
+    .tick{width:5px} .tick.on{width:13px} .progress{gap:4px}
+  }
+</style>
+</head>
+<body>
+
+<div class="bg">
+  <div class="bg-grid"></div>
+  <canvas class="bg-schem" id="schem"></canvas>
+  <div class="bg-vignette"></div>
+</div>
+
+<header class="topbar">
+  <div class="brand">
+    <div class="dot"></div>
+    <div>
+      <div class="t mono">ROMEO &amp; JULIET</div>
+      <div class="s mono">QUOTE TEST</div>
+    </div>
+  </div>
+  <div class="hud mono">
+    <span class="counter"><b id="curNo">01</b> / <span id="totNo">--</span></span>
+    <span class="scorepill empty" id="scorePill"></span>
+  </div>
+</header>
+
+<div class="deck" id="deck"></div>
+
+<div class="bottombar"></div>
+
+<div class="nav prev reactive hide" id="prev" title="Previous">
+  <svg viewBox="0 0 24 24"><polyline points="15 5 8 12 15 19"/></svg>
+</div>
+<div class="nav next reactive" id="next" title="Next">
+  <svg viewBox="0 0 24 24"><polyline points="9 5 16 12 9 19"/></svg>
+</div>
+
+<div class="progress" id="progress"></div>
+<div class="hint mono">&larr; &rarr; / 1&ndash;4</div>
+
+<script>
+/* ============================================================
+   ROMEO & JULIET — QUOTE TEST
+   50 quotes (speaker · modern meaning · source passage).
+   Each run draws 20 at random; per quote the player answers
+   (1) who said it and (2) what it means — 1 point each, then
+   the source passage is revealed.
+   ============================================================ */
+
+const CHARACTERS=["Romeo","Juliet","Mercutio","Friar Laurence","Nurse","Tybalt",
+  "Benvolio","Lord Capulet","Lady Capulet","Prince Escalus","Paris","Chorus"];
+
+const QUOTES=[
+ {speaker:"Romeo",ref:"Act 2, Scene 2",
+  text:"But soft! What light through yonder window breaks? It is the east, and Juliet is the sun.",
+  meaning:"Wait — what is that light in the window? It is like sunrise, and Juliet is the sun.",
+  passage:"But soft! what light through yonder window breaks? / It is the east, and Juliet is the sun. / Arise, fair sun, and kill the envious moon, / Who is already sick and pale with grief."},
+ {speaker:"Juliet",ref:"Act 2, Scene 2",
+  text:"O Romeo, Romeo! wherefore art thou Romeo?",
+  meaning:"Why do you have to be Romeo — a Montague, the son of my family's enemy?",
+  passage:"O Romeo, Romeo! wherefore art thou Romeo? / Deny thy father and refuse thy name; / Or, if thou wilt not, be but sworn my love, / And I'll no longer be a Capulet."},
+ {speaker:"Juliet",ref:"Act 2, Scene 2",
+  text:"What's in a name? That which we call a rose by any other name would smell as sweet.",
+  meaning:"A name means nothing — a rose smells just as sweet whatever it is called, and Romeo is perfect whatever his family name.",
+  passage:"'Tis but thy name that is my enemy; / Thou art thyself, though not a Montague. / What's in a name? that which we call a rose / By any other name would smell as sweet."},
+ {speaker:"Juliet",ref:"Act 2, Scene 2",
+  text:"Good night, good night! Parting is such sweet sorrow, that I shall say good night till it be morrow.",
+  meaning:"Saying goodbye hurts but is also sweet; I could keep saying good night until morning.",
+  passage:"Good night, good night! parting is such sweet sorrow, / That I shall say good night till it be morrow."},
+ {speaker:"Mercutio",ref:"Act 3, Scene 1",
+  text:"A plague o' both your houses!",
+  meaning:"A curse on both the Montagues and the Capulets — your feud has gotten me killed.",
+  passage:"I am hurt. / A plague o' both your houses! I am sped. / Is he gone, and hath nothing? ... they have made worms' meat of me."},
+ {speaker:"Romeo",ref:"Act 3, Scene 1",
+  text:"O, I am fortune's fool!",
+  meaning:"I am a plaything of fate — luck has turned cruelly against me.",
+  passage:"This day's black fate on more days doth depend; / This but begins the woe others must end. ... O, I am fortune's fool!"},
+ {speaker:"Prince Escalus",ref:"Act 5, Scene 3",
+  text:"For never was a story of more woe than this of Juliet and her Romeo.",
+  meaning:"There has never been a sadder story than the one of Juliet and Romeo.",
+  passage:"A glooming peace this morning with it brings; / The sun, for sorrow, will not show his head. / For never was a story of more woe / Than this of Juliet and her Romeo."},
+ {speaker:"Friar Laurence",ref:"Act 2, Scene 6",
+  text:"These violent delights have violent ends.",
+  meaning:"Passions this intense tend to end in disaster; love this wild can destroy itself.",
+  passage:"These violent delights have violent ends / And in their triumph die, like fire and powder, / Which, as they kiss, consume. ... therefore love moderately."},
+ {speaker:"Friar Laurence",ref:"Act 2, Scene 3",
+  text:"Wisely and slow; they stumble that run fast.",
+  meaning:"Act carefully and slowly — people who rush end up falling.",
+  passage:"Young men's love then lies / Not truly in their hearts, but in their eyes. ... Be plain, good son, and homely in thy drift. / ... Wisely and slow; they stumble that run fast."},
+ {speaker:"Romeo",ref:"Act 5, Scene 3",
+  text:"Thus with a kiss I die.",
+  meaning:"I die kissing Juliet, joining her in death.",
+  passage:"Here's to my love! [Drinks] O true apothecary! / Thy drugs are quick. Thus with a kiss I die."},
+ {speaker:"Juliet",ref:"Act 5, Scene 3",
+  text:"O happy dagger! This is thy sheath; there rust, and let me die.",
+  meaning:"Welcome, dagger — my body will be your sheath; stay in me and let me die beside Romeo.",
+  passage:"Yea, noise? then I'll be brief. O happy dagger! / This is thy sheath; [Stabs herself] there rust, and let me die."},
+ {speaker:"Juliet",ref:"Act 1, Scene 5",
+  text:"My only love sprung from my only hate!",
+  meaning:"The only man I love comes from the one family I am supposed to hate.",
+  passage:"My only love sprung from my only hate! / Too early seen unknown, and known too late! / Prodigious birth of love it is to me, / That I must love a loathed enemy."},
+ {speaker:"Chorus",ref:"Prologue",
+  text:"A pair of star-cross'd lovers take their life.",
+  meaning:"Two lovers doomed by fate will end up killing themselves.",
+  passage:"From forth the fatal loins of these two foes / A pair of star-cross'd lovers take their life; / Whose misadventured piteous overthrows / Do with their death bury their parents' strife."},
+ {speaker:"Chorus",ref:"Prologue",
+  text:"Two households, both alike in dignity, in fair Verona, where we lay our scene.",
+  meaning:"Two equally respected families in Verona, where this play takes place.",
+  passage:"Two households, both alike in dignity, / In fair Verona, where we lay our scene, / From ancient grudge break to new mutiny, / Where civil blood makes civil hands unclean."},
+ {speaker:"Romeo",ref:"Act 2, Scene 2",
+  text:"He jests at scars that never felt a wound.",
+  meaning:"It is easy for Mercutio to mock love's pain — he has never truly been hurt by it.",
+  passage:"He jests at scars that never felt a wound. / [Juliet appears above at a window] / But, soft! what light through yonder window breaks?"},
+ {speaker:"Tybalt",ref:"Act 1, Scene 1",
+  text:"What, drawn, and talk of peace? I hate the word, as I hate hell, all Montagues, and thee.",
+  meaning:"Your sword is out and you talk of peace? I hate that word as much as I hate hell, the Montagues, and you.",
+  passage:"What, drawn, and talk of peace! I hate the word, / As I hate hell, all Montagues, and thee: / Have at thee, coward!"},
+ {speaker:"Benvolio",ref:"Act 1, Scene 1",
+  text:"Part, fools! Put up your swords; you know not what you do.",
+  meaning:"Stop, idiots! Put your swords away — you don't realize what you are doing.",
+  passage:"Part, fools! / Put up your swords; you know not what you do. [Beats down their swords]"},
+ {speaker:"Romeo",ref:"Act 1, Scene 5",
+  text:"O, she doth teach the torches to burn bright!",
+  meaning:"She is so beautiful she could teach the torches how to shine — she outshines everything around her.",
+  passage:"O, she doth teach the torches to burn bright! / It seems she hangs upon the cheek of night / Like a rich jewel in an Ethiope's ear."},
+ {speaker:"Romeo",ref:"Act 1, Scene 5",
+  text:"Did my heart love till now? Forswear it, sight! For I ne'er saw true beauty till this night.",
+  meaning:"Have I ever truly been in love before? No — I never saw real beauty until tonight.",
+  passage:"Did my heart love till now? forswear it, sight! / For I ne'er saw true beauty till this night."},
+ {speaker:"Romeo",ref:"Act 1, Scene 5",
+  text:"Is she a Capulet? O dear account! my life is my foe's debt.",
+  meaning:"She is a Capulet? What a terrible price — now my life is owed to my enemy.",
+  passage:"Is she a Capulet? / O dear account! my life is my foe's debt."},
+ {speaker:"Juliet",ref:"Act 2, Scene 2",
+  text:"My bounty is as boundless as the sea, my love as deep.",
+  meaning:"My generosity and my love are as endless and deep as the ocean.",
+  passage:"My bounty is as boundless as the sea, / My love as deep; the more I give to thee, / The more I have, for both are infinite."},
+ {speaker:"Romeo",ref:"Act 5, Scene 3",
+  text:"Tempt not a desperate man.",
+  meaning:"Don't push someone who has nothing left to lose — I am dangerous right now.",
+  passage:"Good gentle youth, tempt not a desperate man; / Fly hence, and leave me ... put not another sin upon my head."},
+ {speaker:"Tybalt",ref:"Act 3, Scene 1",
+  text:"Romeo, the love I bear thee can afford no better term than this — thou art a villain.",
+  meaning:"The kindest thing I can possibly call you, Romeo, is a villain.",
+  passage:"Well, peace be with you, sir: here comes my man. ... Romeo, the love I bear thee can afford / No better term than this,—thou art a villain."},
+ {speaker:"Romeo",ref:"Act 1, Scene 4",
+  text:"I am too sore enpierced with his shaft to soar with his light feathers.",
+  meaning:"Love (Cupid's arrow) has wounded me too deeply for me to dance or feel light-hearted.",
+  passage:"I am too sore enpierced with his shaft / To soar with his light feathers, and so bound, / I cannot bound a pitch above dull woe."},
+ {speaker:"Mercutio",ref:"Act 1, Scene 4",
+  text:"If love be rough with you, be rough with love; prick love for pricking, and you beat love down.",
+  meaning:"If love treats you harshly, fight back against it — don't let it get the better of you.",
+  passage:"If love be rough with you, be rough with love; / Prick love for pricking, and you beat love down. / Give me a case to put my visage in."},
+ {speaker:"Mercutio",ref:"Act 1, Scene 4",
+  text:"O, then, I see Queen Mab hath been with you.",
+  meaning:"Ah, then the fairy Queen Mab — who delivers dreams — must have visited you.",
+  passage:"O, then, I see Queen Mab hath been with you. / She is the fairies' midwife, and she comes / In shape no bigger than an agate-stone."},
+ {speaker:"Mercutio",ref:"Act 1, Scene 4",
+  text:"Dreamers often lie.",
+  meaning:"People who dream are often wrong — a pun on lying down and telling lies.",
+  passage:"ROMEO: I dream'd a dream to-night. / MERCUTIO: And so did I. / ROMEO: Well, what was yours? / MERCUTIO: That dreamers often lie."},
+ {speaker:"Paris",ref:"Act 1, Scene 2",
+  text:"Younger than she are happy mothers made.",
+  meaning:"Girls younger than Juliet are already happy mothers, so she is old enough to marry.",
+  passage:"PARIS: Younger than she are happy mothers made. / CAPULET: And too soon marr'd are those so early made."},
+ {speaker:"Lord Capulet",ref:"Act 1, Scene 2",
+  text:"But woo her, gentle Paris, get her heart.",
+  meaning:"Court her, Paris, and win her love — her own agreement matters.",
+  passage:"But woo her, gentle Paris, get her heart, / My will to her consent is but a part; / And she agree, within her scope of choice / Lies my consent."},
+ {speaker:"Lady Capulet",ref:"Act 1, Scene 3",
+  text:"Go, girl, seek happy nights to happy days.",
+  meaning:"Go on, daughter — pursue a marriage that will bring you happy days and happy nights.",
+  passage:"This precious book of love, this unbound lover, / To beautify him, only lacks a cover ... So shall you share all that he doth possess. ... Go, girl, seek happy nights to happy days."},
+ {speaker:"Juliet",ref:"Act 1, Scene 3",
+  text:"I'll look to like, if looking liking move.",
+  meaning:"I will try to like Paris if simply looking at him makes me like him — but no more than that.",
+  passage:"I'll look to like, if looking liking move: / But no more deep will I endart mine eye / Than your consent gives strength to make it fly."},
+ {speaker:"Juliet",ref:"Act 1, Scene 5",
+  text:"You kiss by the book.",
+  meaning:"You kiss skilfully, as if following the rules — teasing Romeo playfully.",
+  passage:"ROMEO: Give me my sin again. / JULIET: You kiss by the book."},
+ {speaker:"Juliet",ref:"Act 1, Scene 5",
+  text:"Too early seen unknown, and known too late!",
+  meaning:"I saw and fell for him before I knew who he was, and learned the truth too late to stop.",
+  passage:"My only love sprung from my only hate! / Too early seen unknown, and known too late! / Prodigious birth of love it is to me, / That I must love a loathed enemy."},
+ {speaker:"Juliet",ref:"Act 3, Scene 2",
+  text:"Give me my Romeo; and, when he shall die, take him and cut him out in little stars.",
+  meaning:"Let me have Romeo, and when he dies, turn him into little stars to light up the sky.",
+  passage:"Give me my Romeo; and, when he shall die, / Take him and cut him out in little stars, / And he will make the face of heaven so fine / That all the world will be in love with night."},
+ {speaker:"Lord Capulet",ref:"Act 4, Scene 5",
+  text:"Death lies on her like an untimely frost upon the sweetest flower of all the field.",
+  meaning:"Death has settled on Juliet like an early frost killing the loveliest flower in the field.",
+  passage:"Death lies on her like an untimely frost / Upon the sweetest flower of all the field. / ... O child! O child! my soul, and not my child!"},
+ {speaker:"Nurse",ref:"Act 3, Scene 2",
+  text:"Ah, well-a-day! he's dead, he's dead, he's dead!",
+  meaning:"Oh what a terrible day — he is dead! (Her wailing makes Juliet fear Romeo is dead, though she means Tybalt.)",
+  passage:"Ah, well-a-day! he's dead, he's dead, he's dead! / We are undone, lady, we are undone! / Alack the day! he's gone, he's kill'd, he's dead!"},
+ {speaker:"Juliet",ref:"Act 3, Scene 2",
+  text:"Is Romeo slaughter'd, and is Tybalt dead?",
+  meaning:"Are you telling me Romeo has been killed, and that Tybalt is dead as well?",
+  passage:"Hath Romeo slain himself? say thou but 'I,' ... / Is Romeo slaughter'd, and is Tybalt dead? / My dear-loved cousin, and my dearer lord?"},
+ {speaker:"Prince Escalus",ref:"Act 3, Scene 1",
+  text:"Mercy but murders, pardoning those that kill.",
+  meaning:"Showing mercy to killers only leads to more killing — so I will not fully pardon Romeo.",
+  passage:"I will be deaf to pleading and excuses; / Nor tears nor prayers shall purchase out abuses: / Therefore use none ... Mercy but murders, pardoning those that kill."},
+ {speaker:"Lord Capulet",ref:"Act 3, Scene 5",
+  text:"Hang thee, young baggage! disobedient wretch!",
+  meaning:"Curse you, you worthless, disobedient girl! — raging at Juliet for refusing to marry Paris.",
+  passage:"Hang thee, young baggage! disobedient wretch! / I tell thee what: get thee to church o' Thursday, / Or never after look me in the face."},
+ {speaker:"Juliet",ref:"Act 3, Scene 5",
+  text:"Is there no pity sitting in the clouds that sees into the bottom of my grief?",
+  meaning:"Is there no compassion up in heaven that understands how deep my sorrow really is?",
+  passage:"Is there no pity sitting in the clouds, / That sees into the bottom of my grief? / O, sweet my mother, cast me not away!"},
+ {speaker:"Juliet",ref:"Act 2, Scene 2",
+  text:"O, swear not by the moon, the inconstant moon, that monthly changes in her circled orb.",
+  meaning:"Don't swear your love by the moon — it keeps changing, and your love might change too.",
+  passage:"O, swear not by the moon, the inconstant moon, / That monthly changes in her circled orb, / Lest that thy love prove likewise variable."},
+ {speaker:"Romeo",ref:"Act 5, Scene 3",
+  text:"Eyes, look your last! Arms, take your last embrace!",
+  meaning:"Look at Juliet one final time, and hold her one last time, before I die.",
+  passage:"Eyes, look your last! / Arms, take your last embrace! and, lips, O you / The doors of breath, seal with a righteous kiss / A dateless bargain to engrossing death!"},
+ {speaker:"Juliet",ref:"Act 3, Scene 2",
+  text:"O, I have bought the mansion of a love, but not possess'd it.",
+  meaning:"I have married Romeo but have not yet been able to be with him as husband and wife.",
+  passage:"O, I have bought the mansion of a love, / But not possess'd it, and, though I am sold, / Not yet enjoy'd: so tedious is this day."},
+ {speaker:"Juliet",ref:"Act 5, Scene 3",
+  text:"What's here? a cup, closed in my true love's hand?",
+  meaning:"What is this — a cup gripped in Romeo's hand? Poison must have killed him before his time.",
+  passage:"What's here? a cup, closed in my true love's hand? / Poison, I see, hath been his timeless end: / O churl! drunk all, and left no friendly drop / To help me after?"},
+ {speaker:"Prince Escalus",ref:"Act 5, Scene 3",
+  text:"See, what a scourge is laid upon your hate, that heaven finds means to kill your joys with love.",
+  meaning:"Look how your hatred has been punished — heaven used your children's love to destroy your happiness.",
+  passage:"Where be these enemies? Capulet! Montague! / See, what a scourge is laid upon your hate, / That heaven finds means to kill your joys with love."},
+ {speaker:"Prince Escalus",ref:"Act 5, Scene 3",
+  text:"All are punished.",
+  meaning:"Everyone has suffered for this feud — no one escapes its consequences.",
+  passage:"And I for winking at your discords too / Have lost a brace of kinsmen: all are punish'd."},
+ {speaker:"Lord Capulet",ref:"Act 1, Scene 5",
+  text:"I would not for the wealth of all the town here in my house do him disparagement.",
+  meaning:"I would not insult Romeo in my own house for all the money in the city — leave him alone.",
+  passage:"He shall be endured: / What, goodman boy! ... Am I the master here, or you? ... I would not for the wealth of all the town / Here in my house do him disparagement."},
+ {speaker:"Nurse",ref:"Act 1, Scene 3",
+  text:"Verona's summer hath not such a flower.",
+  meaning:"There is no finer young man in all of Verona than Paris.",
+  passage:"Nay, he's a flower; in faith, a very flower. ... Verona's summer hath not such a flower."},
+ {speaker:"Juliet",ref:"Act 3, Scene 5",
+  text:"Wilt thou be gone? it is not yet near day: it was the nightingale, and not the lark.",
+  meaning:"Are you leaving already? It is not morning yet — that was a nightingale, not the lark that signals dawn.",
+  passage:"Wilt thou be gone? it is not yet near day: / It was the nightingale, and not the lark, / That pierced the fearful hollow of thine ear."},
+ {speaker:"Romeo",ref:"Act 3, Scene 5",
+  text:"More light and light; more dark and dark our woes!",
+  meaning:"As day grows brighter, our troubles grow darker — I must leave Juliet now that dawn has come.",
+  passage:"More light and light; more dark and dark our woes! ... I must be gone and live, or stay and die."}
+];
+
+/* ---------- helpers ---------- */
+function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.random()*(i+1)|0;[a[i],a[j]]=[a[j],a[i]];}return a;}
+function sample(pool,n,exclude){const p=shuffle(pool.filter(x=>x!==exclude));return p.slice(0,n);}
+function esc(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+const LETTERS=['A','B','C','D'];
+const TEST_SIZE=20;
+
+/* ---------- state ---------- */
+const deck=document.getElementById('deck');
+const prev=document.getElementById('prev'), next=document.getElementById('next');
+const curNo=document.getElementById('curNo'), totNo=document.getElementById('totNo');
+const prog=document.getElementById('progress'), scorePill=document.getElementById('scorePill');
+let slides=[], ticks=[], idx=0, score=0, test=[], maxScore=0;
+
+/* ---------- build a fresh test ---------- */
+function buildOptions(correct,distractPool,kind,qi,part){
+  const opts=shuffle([correct,...sample(distractPool,3,correct)]);
+  const lis=opts.map((o,oi)=>`
+    <li class="opt" data-oi="${oi}"${o===correct?' data-correct="1"':''}>
+      <span class="badge">${LETTERS[oi]}</span>
+      <span class="txt">${esc(o)}</span>
+      <span class="mark"></span>
+    </li>`).join('');
+  return `<ul class="options" data-kind="${kind}" data-qi="${qi}" data-part="${part}">${lis}</ul>`;
+}
+
+function buildDeck(){
+  test=shuffle(QUOTES.slice()).slice(0,TEST_SIZE);
+  maxScore=test.length*2; score=0;
+  const meaningPool=[...new Set(QUOTES.map(q=>q.meaning))];
+
+  let html=`
+  <section class="slide" data-title="Start">
+    <div class="inner" style="align-items:flex-start">
+      <p class="eyebrow reveal" style="--d:.05s">Shakespeare &middot; Quote Test</p>
+      <h1 class="reveal" style="--d:.15s"><span class="gradtext">Romeo</span> &amp; Juliet</h1>
+      <p class="sub reveal" style="--d:.35s">${test.length} famous lines from the play, drawn at random. For each one, answer two questions: <b>who says it</b> and <b>what it means</b> in modern English. One point per correct answer &mdash; ${maxScore} points in all.</p>
+      <p class="lead reveal mono" style="--d:.5s;color:var(--muted);font-size:15px;margin-top:24px">
+        After you answer, the full passage is revealed.<br>Use the chevrons, arrow keys, the dots, or keys 1&ndash;4.</p>
+      <div class="btn reveal" style="--d:.65s" id="startBtn">Begin test &nbsp;&rarr;</div>
+    </div>
+  </section>`;
+
+  test.forEach((q,qi)=>{
+    html+=`
+    <section class="slide" data-title="Q${qi+1}">
+      <div class="inner">
+        <p class="qtag reveal" style="--d:.05s">Quote ${qi+1} of ${test.length}</p>
+        <blockquote class="quote serif reveal" style="--d:.12s">${esc(q.text)}</blockquote>
+        <p class="qlabel reveal" style="--d:.2s"><span class="num">1.</span>Who speaks this line?</p>
+        ${buildOptions(q.speaker,CHARACTERS.slice(),'char',qi,'char')}
+        <p class="qlabel reveal" style="--d:.26s"><span class="num">2.</span>What does it mean in modern English?</p>
+        ${buildOptions(q.meaning,meaningPool,'meaning',qi,'meaning')}
+        <div class="passage" data-pass="${qi}">
+          <p class="ptag">From <b>${esc(q.speaker)}</b> &middot; ${esc(q.ref)}</p>
+          <p class="ptext">${esc(q.passage)}</p>
+        </div>
+      </div>
+    </section>`;
+  });
+
+  html+=`
+  <section class="slide" data-title="Results">
+    <div class="inner">
+      <div class="scorewrap">
+        <p class="eyebrow reveal" style="--d:.05s">Test Complete</p>
+        <div class="ring reveal" style="--d:.15s">
+          <svg width="230" height="230" viewBox="0 0 230 230">
+            <circle cx="115" cy="115" r="100" fill="none" stroke="rgba(150,175,200,.18)" stroke-width="16"/>
+            <circle id="ringFg" cx="115" cy="115" r="100" fill="none" stroke="url(#scoreGrad)"
+                    stroke-width="16" stroke-linecap="round" stroke-dasharray="628" stroke-dashoffset="628"
+                    style="transition:stroke-dashoffset 1.1s cubic-bezier(.7,0,.2,1)"/>
+            <defs><linearGradient id="scoreGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stop-color="#4fd1e0"/><stop offset="1" stop-color="#76a8e6"/>
+            </linearGradient></defs>
+          </svg>
+          <div class="num"><span class="big" id="scoreNum">0</span><span class="pct" id="scorePct"></span></div>
+        </div>
+        <div class="verdict gradtext reveal" id="verdict" style="--d:.4s">&nbsp;</div>
+        <p class="sub reveal" id="resultMsg" style="--d:.5s;text-align:center;max-width:52ch">&nbsp;</p>
+        <div class="btn reveal" style="--d:.65s" id="retryBtn">&#8634; &nbsp;New test</div>
+      </div>
+    </div>
+  </section>`;
+
+  deck.innerHTML=html;
+
+  slides=[...deck.querySelectorAll('.slide')];
+  totNo.textContent=String(slides.length).padStart(2,'0');
+  prog.innerHTML='';
+  slides.forEach((s,i)=>{
+    const t=document.createElement('div');
+    t.className='tick reactive'; t.title=s.dataset.title;
+    t.addEventListener('click',()=>go(i));
+    prog.appendChild(t);
+  });
+  ticks=[...prog.children];
+  scorePill.classList.add('empty'); scorePill.textContent='';
+  idx=0; go(0);
+}
+
+/* ---------- navigation ---------- */
+function go(i){
+  idx=Math.max(0,Math.min(slides.length-1,i));
+  deck.style.transform=`translateX(${-idx*100}%)`;
+  document.documentElement.style.setProperty('--gx',(-idx*100)+'vw');
+  slides.forEach((s,k)=>s.classList.toggle('active',k===idx));
+  ticks.forEach((t,k)=>t.classList.toggle('on',k===idx));
+  curNo.textContent=String(idx+1).padStart(2,'0');
+  prev.classList.toggle('hide',idx===0);
+  next.classList.toggle('hide',idx===slides.length-1);
+  if(slides[idx].dataset.title==='Results') showResults();
+}
+next.addEventListener('click',()=>go(idx+1));
+prev.addEventListener('click',()=>go(idx-1));
+window.addEventListener('keydown',e=>{
+  if(['ArrowRight','PageDown'].includes(e.key)){e.preventDefault();go(idx+1);}
+  else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(idx-1);}
+  else if(e.key==='Home')go(0);
+  else if(e.key==='End')go(slides.length-1);
+  else if(['1','2','3','4'].includes(e.key)){
+    const list=slides[idx].querySelector('.options:not(.locked)');
+    if(list){const o=list.children[+e.key-1]; if(o)o.click();}
+  }
+});
+let tx=0,ty=0;
+window.addEventListener('touchstart',e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY;},{passive:true});
+window.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;
+  if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy))go(idx+(dx<0?1:-1));},{passive:true});
+
+/* ---------- answering (event delegation) ---------- */
+deck.addEventListener('click',e=>{
+  if(e.target.closest('#startBtn')){go(1);return;}
+  if(e.target.closest('#retryBtn')){buildDeck();return;}
+  const opt=e.target.closest('.opt'); if(!opt) return;
+  const list=opt.parentElement;
+  if(list.classList.contains('locked')) return;
+  list.classList.add('locked');
+  const isCorrect=opt.dataset.correct==='1';
+  [...list.children].forEach(li=>{
+    if(li.dataset.correct==='1'){li.classList.add('correct');li.querySelector('.mark').textContent='✓';}
+    else if(li===opt){li.classList.add('wrong');li.querySelector('.mark').textContent='✗';}
+    else li.classList.add('dim');
+  });
+  if(isCorrect) score++;
+  scorePill.classList.remove('empty');
+  scorePill.textContent=`SCORE ${score} / ${maxScore}`;
+
+  const slide=opt.closest('.slide');
+  const lists=slide.querySelectorAll('.options');
+  const lockedAll=[...lists].every(l=>l.classList.contains('locked'));
+  if(lockedAll){
+    const qi=+list.dataset.qi;
+    slide.querySelector(`[data-pass="${qi}"]`).classList.add('show');
+    ticks[qi+1].classList.add('done');
+  }
+});
+
+/* ---------- results ---------- */
+function showResults(){
+  const frac=maxScore?score/maxScore:0, pct=Math.round(frac*100);
+  const ring=document.getElementById('ringFg');
+  const numEl=document.getElementById('scoreNum'), pctEl=document.getElementById('scorePct');
+  ring.style.strokeDashoffset=String(628*(1-frac));
+  pctEl.textContent=`${pct}%`;
+  clearInterval(showResults._t);
+  let cur=0; const target=score; numEl.textContent=`0 / ${maxScore}`;
+  showResults._t=setInterval(()=>{cur++;numEl.textContent=`${cur} / ${maxScore}`;
+    if(cur>=target)clearInterval(showResults._t);},Math.max(20,500/Math.max(1,target)));
+  let v,m;
+  if(pct===100){v="A scholar of Verona!";m="Flawless — you know every voice and every meaning in the play.";}
+  else if(pct>=80){v="Excellently done";m="A strong command of the text. A little revision of the trickier lines and you're perfect.";}
+  else if(pct>=60){v="Well played";m="A solid grasp of the play. Revisit who speaks each line and the wording of the meanings.";}
+  else if(pct>=40){v="Keep reading";m="You're getting there — reread the balcony, the fight, and the final scenes.";}
+  else {v="Back to the play";m="Don't despair — give Romeo and Juliet another read, then try a fresh set of quotes.";}
+  document.getElementById('verdict').textContent=v;
+  document.getElementById('resultMsg').textContent=`You scored ${score} of ${maxScore} points across ${test.length} quotes. ${m}`;
+  scorePill.classList.remove('empty');
+  scorePill.textContent=`SCORE ${score} / ${maxScore}`;
+}
+
+/* ---------- mouse proximity (reactive chrome) ---------- */
+const reactives=()=>document.querySelectorAll('.reactive');
+const mouse={x:-99999,y:-99999};
+window.addEventListener('pointermove',e=>{
+  mouse.x=e.clientX; mouse.y=e.clientY;
+  reactives().forEach(el=>{
+    const r=el.getBoundingClientRect();
+    if(r.width===0)return;
+    const cx=r.left+r.width/2, cy=r.top+r.height/2;
+    const d=Math.hypot(e.clientX-cx,e.clientY-cy);
+    const p=Math.max(0,1-d/240);
+    el.style.setProperty('--p',p.toFixed(3));
+  });
+});
+window.addEventListener('pointerleave',()=>{mouse.x=-99999;mouse.y=-99999;});
+
+/* ---------- reactive schematic network (background) ---------- */
+const schem=document.getElementById('schem'), ctxS=schem.getContext('2d');
+let SW=0,SH=0,DPR=1,net=null,scrollX=0;
+const pulses=[];
+const CHARGE_R=130, CHARGE_RATE=1.45, SPEED=700,
+      HOPDECAY=0.8, MININTEN=0.1, MAXDEPTH=8, MAXP=220,
+      PERSCREEN=6;
+let timeNow=0;
+
+function genPoly(x,y,H){
+  const pts=[{x:Math.round(x),y:Math.round(y)}];
+  const steps=3+(Math.random()*4|0);
+  let horiz=Math.random()<0.5;
+  for(let s=0;s<steps;s++){
+    const len=(60+Math.random()*170)*1.75, dir=Math.random()<0.5?-1:1;
+    let nx=pts[pts.length-1].x, ny=pts[pts.length-1].y;
+    if(horiz) nx+=dir*len; else ny+=dir*len;
+    ny=Math.max(26,Math.min(H-26,ny));
+    if(nx!==pts[pts.length-1].x||ny!==pts[pts.length-1].y) pts.push({x:Math.round(nx),y:Math.round(ny)});
+    horiz=!horiz;
+  }
+  return pts;
+}
+function buildNetwork(){
+  const screens=Math.max(6,slides.length), total=screens*PERSCREEN, polys=[];
+  for(let i=0;i<total;i++){
+    const bx=(Math.floor(i/PERSCREEN)+Math.random())*SW;
+    const by=34+Math.random()*(SH-68);
+    polys.push(genPoly(bx,by,SH));
+  }
+  const plsegs=polys.map(()=>[]), allsegs=[];
+  polys.forEach((pts,pl)=>{
+    for(let i=0;i<pts.length-1;i++){
+      const seg={pl,a:pts[i],b:pts[i+1],horiz:pts[i].y===pts[i+1].y,cuts:[]};
+      plsegs[pl].push(seg); allsegs.push(seg);
+    }
+  });
+  for(let p=0;p<allsegs.length;p++)for(let q=p+1;q<allsegs.length;q++){
+    const A=allsegs[p],B=allsegs[q];
+    if(A.pl===B.pl||A.horiz===B.horiz) continue;
+    const Hs=A.horiz?A:B, Vs=A.horiz?B:A, hy=Hs.a.y, vx=Vs.a.x;
+    const hx1=Math.min(Hs.a.x,Hs.b.x),hx2=Math.max(Hs.a.x,Hs.b.x);
+    const vy1=Math.min(Vs.a.y,Vs.b.y),vy2=Math.max(Vs.a.y,Vs.b.y);
+    if(vx>hx1&&vx<hx2&&hy>vy1&&hy<vy2){ Hs.cuts.push({x:vx,y:hy}); Vs.cuts.push({x:vx,y:hy}); }
+  }
+  const vmap=new Map(), verts=[];
+  const vid=(x,y)=>{const k=x+'_'+y; let id=vmap.get(k);
+    if(id==null){id=verts.length; verts.push({x,y,adj:new Map(),node:false,charge:0,near:false}); vmap.set(k,id);} return id;};
+  plsegs.forEach(segs=>segs.forEach(seg=>{
+    const seq=[seg.a, ...seg.cuts.sort((u,v)=> seg.horiz
+        ? (seg.b.x>seg.a.x? u.x-v.x : v.x-u.x)
+        : (seg.b.y>seg.a.y? u.y-v.y : v.y-u.y)), seg.b];
+    for(let k=0;k<seq.length-1;k++){
+      const u=vid(seq[k].x,seq[k].y), w=vid(seq[k+1].x,seq[k+1].y);
+      if(u===w) continue;
+      const d=Math.hypot(verts[u].x-verts[w].x,verts[u].y-verts[w].y);
+      verts[u].adj.set(w,d); verts[w].adj.set(u,d);
+    }
+  }));
+  polys.forEach(pts=>{ verts[vid(pts[0].x,pts[0].y)].node=true;
+    verts[vid(pts[pts.length-1].x,pts[pts.length-1].y)].node=true; });
+  const edges=[], seen=new Set(), nodes=[];
+  verts.forEach((v,id)=>{ v.adj.forEach((d,w)=>{ const key=id<w?id+'_'+w:w+'_'+id;
+    if(!seen.has(key)){seen.add(key); edges.push([id,w]);} }); if(v.node) nodes.push(id); });
+  return {verts,edges,nodes};
+}
+function emit(id,inten){
+  net.verts[id].adj.forEach((len,w)=>{ if(pulses.length<MAXP)
+    pulses.push({from:id,to:w,d:0,len,inten,depth:0}); });
+}
+function stepPulses(dt){
+  const nx=[];
+  for(const p of pulses){
+    p.d+=SPEED*dt;
+    if(p.d<p.len){ nx.push(p); continue; }
+    const over=p.d-p.len, ni=p.inten*HOPDECAY;
+    if(p.depth>=MAXDEPTH||ni<MININTEN) continue;
+    net.verts[p.to].adj.forEach((len,w)=>{
+      if(w===p.from||nx.length>=MAXP) return;
+      nx.push({from:p.to,to:w,d:over%len,len,inten:ni,depth:p.depth+1});
+    });
+  }
+  pulses.length=0; for(const n of nx) pulses.push(n);
+}
+function updateCharge(dt,mwx,mwy){
+  for(const id of net.nodes){
+    const v=net.verts[id], d=Math.hypot(v.x-mwx,v.y-mwy);
+    if(d<CHARGE_R){ v.near=true; v.charge=Math.min(1, v.charge+dt*CHARGE_RATE*(1-d/CHARGE_R)); }
+    else { if(v.near&&v.charge>0.06){ emit(id, 0.15+Math.pow(v.charge,1.4)*1.3); v.charge=0; } v.near=false;
+      if(v.charge>0){ v.charge-=dt*1.4; if(v.charge<0) v.charge=0; } }
+  }
+}
+function softGlow(x,y,r,col,a){
+  if(a<=0||r<=0) return;
+  const g=ctxS.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0,`rgba(${col},${a})`);
+  g.addColorStop(0.5,`rgba(${col},${a*0.4})`);
+  g.addColorStop(1,`rgba(${col},0)`);
+  ctxS.fillStyle=g; ctxS.beginPath(); ctxS.arc(x,y,r,0,6.2832); ctxS.fill();
+}
+function render(){
+  ctxS.setTransform(DPR,0,0,DPR,0,0);
+  ctxS.clearRect(0,0,SW,SH);
+  ctxS.save(); ctxS.translate(scrollX,0);
+  const xmin=-scrollX-120, xmax=-scrollX+SW+120;
+  ctxS.lineWidth=1.2; ctxS.lineCap='round'; ctxS.strokeStyle='rgba(120,160,190,0.15)';
+  for(const [u,w] of net.edges){ const a=net.verts[u],b=net.verts[w];
+    if(Math.max(a.x,b.x)<xmin||Math.min(a.x,b.x)>xmax) continue;
+    ctxS.beginPath(); ctxS.moveTo(a.x,a.y); ctxS.lineTo(b.x,b.y); ctxS.stroke(); }
+  ctxS.fillStyle='rgba(120,160,190,0.22)';
+  for(const id of net.nodes){ const v=net.verts[id]; if(v.x<xmin||v.x>xmax) continue;
+    ctxS.beginPath(); ctxS.arc(v.x,v.y,2.3,0,6.2832); ctxS.fill(); }
+  ctxS.globalCompositeOperation='lighter';
+  for(const id of net.nodes){ const v=net.verts[id], c=v.charge; if(c<0.03||v.x<xmin||v.x>xmax) continue;
+    let r=6+c*13, a=0.16*c;
+    if(c>=0.985){ const o=0.5+0.5*Math.sin(timeNow*7.5); r+=o*2.5; a*=0.9+0.2*o; }
+    softGlow(v.x,v.y,r,'79,209,224',a);
+    ctxS.fillStyle=`rgba(180,244,255,${0.6*c})`; ctxS.beginPath(); ctxS.arc(v.x,v.y,2.6,0,6.2832); ctxS.fill(); }
+  ctxS.lineCap='round';
+  for(const p of pulses){ const a=net.verts[p.from],b=net.verts[p.to], t=p.d/p.len,
+      px=a.x+(b.x-a.x)*t, py=a.y+(b.y-a.y)*t;
+    if(px<xmin||px>xmax) continue;
+    const al=Math.min(1.3,p.inten), h=(16+al*16)*0.49/2;
+    const ex=(b.x-a.x)/p.len, ey=(b.y-a.y)/p.len;
+    const x1=px-ex*h,y1=py-ey*h,x2=px+ex*h,y2=py+ey*h;
+    softGlow(px,py,8+al*11,'79,209,224',Math.min(0.26,0.13*al));
+    ctxS.strokeStyle=`rgba(180,244,255,${Math.min(0.9,0.5*al)})`; ctxS.lineWidth=1.4+al*1.5;
+    ctxS.beginPath(); ctxS.moveTo(x1,y1); ctxS.lineTo(x2,y2); ctxS.stroke(); }
+  ctxS.globalCompositeOperation='source-over';
+  ctxS.restore();
+}
+let _last=performance.now();
+function frame(now){
+  const dt=Math.min(0.05,(now-_last)/1000); _last=now; timeNow=now/1000;
+  scrollX+=(-idx*SW-scrollX)*Math.min(1,dt*7);
+  updateCharge(dt, mouse.x-scrollX, mouse.y);
+  stepPulses(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+function resizeSchem(){
+  DPR=Math.min(2,window.devicePixelRatio||1); SW=window.innerWidth; SH=window.innerHeight;
+  schem.width=SW*DPR; schem.height=SH*DPR;
+  net=buildNetwork(); scrollX=-idx*SW;
+}
+
+/* ---------- boot ---------- */
+buildDeck();
+resizeSchem();
+let _rt; window.addEventListener('resize',()=>{clearTimeout(_rt);_rt=setTimeout(resizeSchem,200);});
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
