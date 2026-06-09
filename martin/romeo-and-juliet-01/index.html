@@ -270,14 +270,17 @@ const CHARACTERS=["Romeo","Juliet","Mercutio","Friar Laurence","Nurse","Tybalt",
 const QUOTES=[
  {speaker:"Romeo",ref:"Act 2, Scene 2",
   text:"But soft! What light through yonder window breaks? It is the east, and Juliet is the sun.",
+  funny:"Romeo let out a silent-but-deadly fart and is hoping the dark hides who dealt it.",
   meaning:"Wait — what is that light in the window? It is like sunrise, and Juliet is the sun.",
   passage:"But soft! what light through yonder window breaks? / It is the east, and Juliet is the sun. / Arise, fair sun, and kill the envious moon, / Who is already sick and pale with grief."},
  {speaker:"Juliet",ref:"Act 2, Scene 2",
   text:"O Romeo, Romeo! wherefore art thou Romeo?",
+  funny:"Juliet really needs the loo and is yelling for Romeo to hurry up with the toilet paper.",
   meaning:"Why do you have to be Romeo — a Montague, the son of my family's enemy?",
   passage:"O Romeo, Romeo! wherefore art thou Romeo? / Deny thy father and refuse thy name; / Or, if thou wilt not, be but sworn my love, / And I'll no longer be a Capulet."},
  {speaker:"Juliet",ref:"Act 2, Scene 2",
   text:"What's in a name? That which we call a rose by any other name would smell as sweet.",
+  funny:"Juliet insists that whatever you call it, a fart still smells just as bad.",
   meaning:"A name means nothing — a rose smells just as sweet whatever it is called, and Romeo is perfect whatever his family name.",
   passage:"'Tis but thy name that is my enemy; / Thou art thyself, though not a Montague. / What's in a name? that which we call a rose / By any other name would smell as sweet."},
  {speaker:"Juliet",ref:"Act 2, Scene 2",
@@ -286,10 +289,12 @@ const QUOTES=[
   passage:"Good night, good night! parting is such sweet sorrow, / That I shall say good night till it be morrow."},
  {speaker:"Mercutio",ref:"Act 3, Scene 1",
   text:"A plague o' both your houses!",
+  funny:"Mercutio is furious that both families keep clogging every toilet in Verona.",
   meaning:"A curse on both the Montagues and the Capulets — your feud has gotten me killed.",
   passage:"I am hurt. / A plague o' both your houses! I am sped. / Is he gone, and hath nothing? ... they have made worms' meat of me."},
  {speaker:"Romeo",ref:"Act 3, Scene 1",
   text:"O, I am fortune's fool!",
+  funny:"Romeo just realised he sat in something squishy and it definitely wasn't mud.",
   meaning:"I am a plaything of fate — luck has turned cruelly against me.",
   passage:"This day's black fate on more days doth depend; / This but begins the woe others must end. ... O, I am fortune's fool!"},
  {speaker:"Prince Escalus",ref:"Act 5, Scene 3",
@@ -298,6 +303,7 @@ const QUOTES=[
   passage:"A glooming peace this morning with it brings; / The sun, for sorrow, will not show his head. / For never was a story of more woe / Than this of Juliet and her Romeo."},
  {speaker:"Friar Laurence",ref:"Act 2, Scene 6",
   text:"These violent delights have violent ends.",
+  funny:"Friar Laurence warns that eating too many beans always ends with explosive consequences.",
   meaning:"Passions this intense tend to end in disaster; love this wild can destroy itself.",
   passage:"These violent delights have violent ends / And in their triumph die, like fire and powder, / Which, as they kiss, consume. ... therefore love moderately."},
  {speaker:"Friar Laurence",ref:"Act 2, Scene 3",
@@ -338,6 +344,7 @@ const QUOTES=[
   passage:"Part, fools! / Put up your swords; you know not what you do. [Beats down their swords]"},
  {speaker:"Romeo",ref:"Act 1, Scene 5",
   text:"O, she doth teach the torches to burn bright!",
+  funny:"Romeo claims Juliet's burps are so mighty they could relight every torch in the hall.",
   meaning:"She is so beautiful she could teach the torches how to shine — she outshines everything around her.",
   passage:"O, she doth teach the torches to burn bright! / It seems she hangs upon the cheek of night / Like a rich jewel in an Ethiope's ear."},
  {speaker:"Romeo",ref:"Act 1, Scene 5",
@@ -374,10 +381,12 @@ const QUOTES=[
   passage:"O, then, I see Queen Mab hath been with you. / She is the fairies' midwife, and she comes / In shape no bigger than an agate-stone."},
  {speaker:"Mercutio",ref:"Act 1, Scene 4",
   text:"Dreamers often lie.",
+  funny:"Mercutio's golden rule: whoever smelt it, dealt it.",
   meaning:"People who dream are often wrong — a pun on lying down and telling lies.",
   passage:"ROMEO: I dream'd a dream to-night. / MERCUTIO: And so did I. / ROMEO: Well, what was yours? / MERCUTIO: That dreamers often lie."},
  {speaker:"Paris",ref:"Act 1, Scene 2",
   text:"Younger than she are happy mothers made.",
+  funny:"Paris boasts that he was potty-trained earlier than just about any baby in Verona.",
   meaning:"Girls younger than Juliet are already happy mothers, so she is old enough to marry.",
   passage:"PARIS: Younger than she are happy mothers made. / CAPULET: And too soon marr'd are those so early made."},
  {speaker:"Lord Capulet",ref:"Act 1, Scene 2",
@@ -462,6 +471,7 @@ const QUOTES=[
   passage:"Nay, he's a flower; in faith, a very flower. ... Verona's summer hath not such a flower."},
  {speaker:"Juliet",ref:"Act 3, Scene 5",
   text:"Wilt thou be gone? it is not yet near day: it was the nightingale, and not the lark.",
+  funny:"Juliet swears that rumbling noise was Romeo's gurgling tummy, not any bird.",
   meaning:"Are you leaving already? It is not morning yet — that was a nightingale, not the lark that signals dawn.",
   passage:"Wilt thou be gone? it is not yet near day: / It was the nightingale, and not the lark, / That pierced the fearful hollow of thine ear."},
  {speaker:"Romeo",ref:"Act 3, Scene 5",
@@ -485,8 +495,18 @@ const prog=document.getElementById('progress'), scorePill=document.getElementByI
 let slides=[], ticks=[], idx=0, score=0, test=[], maxScore=0;
 
 /* ---------- build a fresh test ---------- */
-function buildOptions(correct,distractPool,kind,qi,part){
-  const opts=shuffle([correct,...sample(distractPool,3,correct)]);
+function buildOptions(correct,distractPool,kind,qi,part,funny){
+  let opts;
+  if(funny){
+    // correct + 2 real distractors fill three slots; the funny answer is
+    // forced into slot A or B so it gets noticed.
+    const rest=shuffle([correct,...sample(distractPool.filter(x=>x!==funny),2,correct)]);
+    const fpos=Math.random()<0.5?0:1;
+    opts=[]; let ri=0;
+    for(let i=0;i<4;i++) opts[i]= (i===fpos? funny : rest[ri++]);
+  } else {
+    opts=shuffle([correct,...sample(distractPool,3,correct)]);
+  }
   const lis=opts.map((o,oi)=>`
     <li class="opt" data-oi="${oi}"${o===correct?' data-correct="1"':''}>
       <span class="badge">${LETTERS[oi]}</span>
@@ -522,7 +542,7 @@ function buildDeck(){
         <p class="qlabel reveal" style="--d:.2s"><span class="num">1.</span>Who speaks this line?</p>
         ${buildOptions(q.speaker,CHARACTERS.slice(),'char',qi,'char')}
         <p class="qlabel reveal" style="--d:.26s"><span class="num">2.</span>What does it mean in modern English?</p>
-        ${buildOptions(q.meaning,meaningPool,'meaning',qi,'meaning')}
+        ${buildOptions(q.meaning,meaningPool,'meaning',qi,'meaning',q.funny)}
         <div class="passage" data-pass="${qi}">
           <p class="ptag">From <b>${esc(q.speaker)}</b> &middot; ${esc(q.ref)}</p>
           <p class="ptext">${esc(q.passage)}</p>

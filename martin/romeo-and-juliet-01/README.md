@@ -33,6 +33,14 @@ revealed below, labelled with the speaker and the act/scene reference.
 The options for both questions are shuffled each time, and a fresh random set of 20 quotes
 is generated whenever the test is (re)started, so the test is replayable.
 
+### Funny decoys
+
+Ten of the 50 quotes carry an optional `funny` field — a deliberately silly, Captain
+Underpants–style potty-humour paraphrase (farts, burps, toilets and the like). When such a
+quote appears in the test, its "what does it mean" question is built from the correct
+answer, two ordinary distractors, and the funny one, and the funny option is forced into
+slot **A or B** so it stands out. The funny option is always a wrong answer.
+
 ## Quote Bank
 
 The page contains 50 quotes. Each entry stores: the quote text, the speaker, the
