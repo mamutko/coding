@@ -1,0 +1,1801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flexible Money Positioning System &mdash; Project BEACON</title>
+<style>
+  :root{
+    --bg:#080b11;
+    --ink:#e4ebf2;
+    --muted:#93a1b1;
+    --accent:#4fd1e0;
+    --accent2:#76a8e6;
+    --line:rgba(150,175,200,.18);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI",system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;}
+  .mono{font-family:"Consolas","SF Mono",ui-monospace,Menlo,monospace}
+
+  /* ---------- engineering background ---------- */
+  .bg{position:fixed;inset:0;z-index:0;pointer-events:none}
+  .bg-grid{position:absolute;inset:0;
+    background-image:
+      linear-gradient(rgba(120,150,180,.05) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,150,180,.05) 1px,transparent 1px),
+      linear-gradient(rgba(120,150,180,.10) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,150,180,.10) 1px,transparent 1px);
+    background-size:26px 26px,26px 26px,130px 130px,130px 130px;
+    background-position:var(--gx,0px) 0,var(--gx,0px) 0,var(--gx,0px) 0,var(--gx,0px) 0;
+    transition:background-position .72s cubic-bezier(.76,0,.24,1);
+    mask-image:radial-gradient(120% 110% at 50% 40%,#000 55%,transparent 100%);}
+  .bg-vignette{position:absolute;inset:0;
+    background:radial-gradient(130% 120% at 50% 30%,transparent 40%,rgba(0,0,0,.55) 100%),
+               radial-gradient(80% 80% at 80% 90%,rgba(40,70,90,.18),transparent 60%);}
+  .bg-schem{position:absolute;inset:0;width:100%;height:100%;opacity:.92}
+
+  /* ---------- deck ---------- */
+  .deck{position:relative;z-index:2;height:100%;width:100%;
+    display:flex;transition:transform .72s cubic-bezier(.76,0,.24,1)}
+  .slide{position:relative;min-width:100%;height:100vh;flex:0 0 100%;overflow:hidden}
+  .slide-off{display:none}   /* hidden slide: preserved in the DOM but excluded from the deck */
+  .inner{height:100%;max-width:1280px;margin:0 auto;padding:8vh 7vw 12vh;
+    display:flex;flex-direction:column;justify-content:center}
+
+  .eyebrow{font-size:13px;letter-spacing:.42em;text-transform:uppercase;color:var(--accent);
+    margin:0 0 18px;font-weight:600;opacity:.95}
+  h1{font-size:clamp(34px,5.4vw,68px);line-height:1.04;margin:0;font-weight:700;letter-spacing:-.01em}
+  h2{font-size:clamp(26px,3.6vw,44px);line-height:1.08;margin:0 0 6px;font-weight:700;letter-spacing:-.01em}
+  .sub{color:var(--muted);font-size:clamp(15px,1.6vw,20px);margin:14px 0 0;max-width:60ch;line-height:1.5}
+  .lead{font-size:clamp(16px,1.7vw,21px);line-height:1.55;max-width:64ch;margin:6px 0 0;color:#cdd8e3}
+  .gradtext{background:linear-gradient(92deg,#dfe9f2,#7fb4ea 60%,#4fd1e0);
+    -webkit-background-clip:text;background-clip:text;color:transparent}
+
+  /* layout helpers */
+  .row{display:flex;gap:38px;align-items:center;margin-top:30px}
+  .row.top{align-items:flex-start}
+  .col-txt{flex:0 0 38%;max-width:38%}
+  .col-dia{flex:1 1 auto;min-width:0}
+  .full-dia{margin-top:26px}
+
+  /* ---------- metallic cards ---------- */
+  .card{position:relative;border-radius:15px;padding:18px 20px;
+    background:linear-gradient(155deg,rgba(140,162,184,.20),rgba(34,42,52,.62));
+    border:1px solid rgba(150,172,194,.22);border-top-color:rgba(206,220,234,.5);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 12px 34px rgba(0,0,0,.42);
+    backdrop-filter:blur(2px)}
+  .card .k{font-size:13px;letter-spacing:.04em;color:var(--accent);margin:0 0 6px;font-weight:600}
+  .card p{margin:0;color:#d6e0ea;font-size:15px;line-height:1.45}
+
+  ul.checks{list-style:none;margin:24px 0 0;padding:0;display:grid;gap:14px;max-width:760px}
+  ul.checks li{position:relative;padding:14px 18px 14px 50px;border-radius:13px;
+    background:linear-gradient(155deg,rgba(140,162,184,.16),rgba(30,38,48,.55));
+    border:1px solid rgba(150,172,194,.20);border-top-color:rgba(206,220,234,.42);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.10),0 8px 22px rgba(0,0,0,.35);
+    font-size:16px;line-height:1.4;color:#d8e2ec}
+  ul.checks li::before{content:"";position:absolute;left:18px;top:50%;width:14px;height:14px;
+    transform:translateY(-50%) rotate(45deg);
+    background:linear-gradient(135deg,var(--accent),var(--accent2));
+    box-shadow:0 0 10px rgba(79,209,224,.55)}
+  ul.checks li b{color:#fff}
+  ul.checks.warn li::before{background:linear-gradient(135deg,#e0a24f,#e0764f);
+    box-shadow:0 0 10px rgba(224,140,79,.55)}
+  ul.checks li .why{display:block;color:var(--muted);font-size:13.5px;margin-top:3px}
+  li.flag{border-color:rgba(79,209,224,.5);box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 24px rgba(79,209,224,.18)}
+
+  .stats{display:flex;gap:22px;margin-top:34px;flex-wrap:wrap}
+  .stat{flex:1 1 200px;border-radius:15px;padding:22px 24px;
+    background:linear-gradient(155deg,rgba(140,162,184,.18),rgba(30,38,48,.6));
+    border:1px solid rgba(150,172,194,.22);border-top-color:rgba(206,220,234,.5);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 12px 30px rgba(0,0,0,.4)}
+  .stat .n{font-size:clamp(26px,3vw,40px);font-weight:700;
+    background:linear-gradient(92deg,#eaf2fa,#5fd6e4);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .stat .l{color:var(--muted);font-size:14px;margin-top:6px;line-height:1.4}
+
+  .closing{font-size:clamp(22px,3vw,40px);line-height:1.3;font-weight:600;max-width:24ch;margin:0 auto;text-align:center}
+  .closing b{color:#fff}
+
+  /* ---------- diagrams ---------- */
+  svg.diagram{width:100%;height:auto;max-height:60vh;display:block;overflow:visible}
+  .diagram .shape{fill:url(#ti);stroke:rgba(178,198,218,.5);stroke-width:1.2;
+    filter:drop-shadow(0 6px 14px rgba(0,0,0,.5))}
+  .diagram .shape-inner{fill:none;stroke:var(--accent);stroke-width:1.1;opacity:.55}
+  .diagram text{fill:#e7eef5;font-size:13px;font-weight:500;text-anchor:middle;
+    dominant-baseline:middle;font-family:"Segoe UI",system-ui,sans-serif}
+  .diagram .ntype-decision text{font-size:12.5px;fill:#dfeaf3}
+  .diagram .ntag{fill:var(--accent);font-size:11px;letter-spacing:.06em;font-weight:600}
+  .diagram .head{fill:#fff;font-size:14.5px;font-weight:700}
+  .diagram .desc{fill:var(--muted);font-size:11.5px;font-weight:500}
+
+  .diagram .edge{fill:none;stroke:rgba(160,184,208,.55);stroke-width:1.7;opacity:0}
+  .diagram .edge.edashed{stroke-dasharray:7 6}
+  .diagram .flow{fill:none;stroke:url(#acc);stroke-width:1.8;stroke-dasharray:2 12;
+    stroke-linecap:round;opacity:0}
+  .diagram .elabel rect{fill:#0c121a;stroke:rgba(150,175,200,.3);rx:5}
+  .diagram .elabel text{fill:#bcd0e2;font-size:11.5px;font-weight:600}
+
+  .diagram .node,.diagram .elabel{opacity:0;transform:translateY(12px)}
+  .diagram.run .node,.diagram.run .elabel{animation:nodeIn .52s cubic-bezier(.2,.7,.3,1) forwards;
+    animation-delay:var(--d,0s)}
+  .diagram.run .edge{animation:edgeDraw .6s ease forwards;animation-delay:var(--d,0s)}
+  .diagram.run .edge.edashed{animation:fadeEdge .5s ease forwards;animation-delay:var(--d,0s)}
+  .diagram.run .flow{opacity:.85;transition:opacity .4s ease var(--d,0s);
+    animation:flowMove 1.15s linear infinite;animation-delay:var(--d,0s)}
+  @keyframes nodeIn{to{opacity:1;transform:translateY(0)}}
+  @keyframes edgeDraw{0%{opacity:1}100%{opacity:1;stroke-dashoffset:0}}
+  @keyframes fadeEdge{to{opacity:.7}}
+  @keyframes flowMove{to{stroke-dashoffset:-14}}
+
+  /* reveal for slide content */
+  .reveal{opacity:0;transform:translateY(20px);
+    transition:opacity .65s ease,transform .65s ease;transition-delay:var(--d,0s)}
+  .slide.active .reveal{opacity:1;transform:none}
+
+  /* ---------- chrome ---------- */
+  .brand{position:fixed;top:26px;left:34px;z-index:6;display:flex;align-items:center;gap:12px}
+  .brand .dot{width:11px;height:11px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#9cf3ff,#2aa6b6);
+    box-shadow:0 0 14px rgba(79,209,224,.8)}
+  .brand .t{font-size:14px;letter-spacing:.32em;font-weight:700}
+  .brand .s{font-size:11px;letter-spacing:.18em;color:var(--muted)}
+
+  .counter{position:fixed;top:26px;right:34px;z-index:6;font-size:13px;letter-spacing:.18em;color:var(--muted)}
+  .counter b{color:var(--ink)}
+
+  .progress{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);z-index:6;
+    display:flex;gap:9px;align-items:center}
+  .tick{position:relative;width:34px;height:6px;border-radius:4px;cursor:pointer;
+    background:rgba(150,175,200,.18);transition:background .3s,box-shadow .3s}
+  .tick:hover{background:rgba(150,175,200,.4)}
+  .tick.on{background:linear-gradient(90deg,var(--accent),var(--accent2));
+    box-shadow:0 0 calc(8px + var(--p,0)*14px) rgba(79,209,224,.6)}
+
+  .nav{position:fixed;top:50%;z-index:6;transform:translateY(-50%);
+    width:60px;height:84px;display:grid;place-items:center;cursor:pointer;
+    border-radius:14px;border:1px solid rgba(150,175,200,calc(.18 + var(--p,0)*.5));
+    background:linear-gradient(155deg,rgba(140,162,184,calc(.10 + var(--p,0)*.22)),rgba(30,38,48,.5));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 calc(var(--p,0)*34px) rgba(79,209,224,calc(var(--p,0)*.7));
+    transition:opacity .35s,transform .25s;backdrop-filter:blur(2px)}
+  .nav:hover{transform:translateY(-50%) scale(1.05)}
+  .nav svg{width:24px;height:24px;stroke:#dbe6f1;stroke-width:2.2;fill:none;
+    filter:drop-shadow(0 0 calc(var(--p,0)*6px) rgba(79,209,224,.9))}
+  .nav.next{right:30px}
+  .nav.prev{left:30px}
+  .nav.hide{opacity:0;pointer-events:none}
+  .hint{position:fixed;right:34px;bottom:26px;z-index:6;color:var(--muted);font-size:12px;letter-spacing:.05em}
+
+  @media (max-width:880px){
+    .row{flex-direction:column;align-items:stretch}
+    .col-txt{flex:none;max-width:100%}
+    .nav{width:48px;height:66px}
+    .inner{padding:11vh 6vw}
+  }
+
+  /* ---------- demo trigger button (on slides) ---------- */
+  .demo-btn{position:absolute;right:30px;bottom:60px;z-index:5;cursor:pointer;
+    display:flex;align-items:center;gap:10px;padding:12px 18px;border-radius:13px;
+    font-size:14px;font-weight:600;letter-spacing:.02em;color:#eaf3fb;
+    border:1px solid rgba(150,175,200,calc(.24 + var(--p,0)*.5));
+    background:linear-gradient(155deg,rgba(140,162,184,calc(.16 + var(--p,0)*.22)),rgba(30,38,48,.62));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 10px 26px rgba(0,0,0,.4),
+      0 0 calc(var(--p,0)*30px) rgba(79,209,224,calc(var(--p,0)*.7));
+    backdrop-filter:blur(2px);transition:transform .25s}
+  .demo-btn:hover{transform:translateY(-2px)}
+  .demo-btn svg{width:18px;height:18px;stroke:var(--accent);stroke-width:2;fill:none}
+
+  /* ---------- demo pull-up panel ---------- */
+  .deck{transition:transform .72s cubic-bezier(.76,0,.24,1),filter .5s ease}
+  body.demo-open .deck{filter:brightness(.5) saturate(.7)}
+  body.demo-open .bg{filter:brightness(.4)}
+
+  .demo-panel{position:fixed;inset:0;z-index:20;transform:translateY(100%);
+    transition:transform .72s cubic-bezier(.76,0,.24,1);
+    display:flex;flex-direction:column;
+    background:
+      radial-gradient(120% 100% at 50% 0%,rgba(40,70,90,.22),transparent 60%),
+      linear-gradient(180deg,#0b1018,#070a10);
+    border-top:1px solid rgba(150,175,200,.25);
+    box-shadow:0 -24px 60px rgba(0,0,0,.6)}
+  .demo-panel::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background-image:
+      linear-gradient(rgba(120,150,180,.05) 1px,transparent 1px),
+      linear-gradient(90deg,rgba(120,150,180,.05) 1px,transparent 1px);
+    background-size:30px 30px;
+    mask-image:radial-gradient(120% 100% at 50% 30%,#000 55%,transparent 100%)}
+  .demo-panel.show{transform:translateY(0)}
+
+  .demo-head{position:relative;z-index:2;display:flex;align-items:center;gap:18px;
+    padding:20px 30px;border-bottom:1px solid rgba(150,175,200,.14)}
+  .demo-title{font-size:20px;font-weight:700;letter-spacing:.01em}
+  .demo-title .sub{display:block;font-size:12px;font-weight:500;color:var(--muted);
+    letter-spacing:.04em;margin-top:3px}
+  .demo-spacer{flex:1 1 auto}
+  .demo-cal{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:12px;
+    border:1px solid rgba(150,175,200,calc(.22 + var(--p,0)*.4));
+    background:linear-gradient(155deg,rgba(140,162,184,.14),rgba(30,38,48,.55));
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 0 calc(var(--p,0)*22px) rgba(79,209,224,calc(var(--p,0)*.5))}
+  .demo-cal svg{width:18px;height:18px;stroke:var(--accent);stroke-width:1.8;fill:none}
+  .demo-cal .dlabel{font-size:14px;font-weight:600;letter-spacing:.03em;white-space:nowrap}
+  .demo-cal .dlabel b{color:#fff;font-variant-numeric:tabular-nums}
+  .demo-chev,.demo-close{cursor:pointer;display:grid;place-items:center;
+    width:34px;height:34px;border-radius:10px;
+    border:1px solid rgba(150,175,200,calc(.22 + var(--p,0)*.5));
+    background:linear-gradient(155deg,rgba(140,162,184,calc(.12 + var(--p,0)*.22)),rgba(30,38,48,.5));
+    box-shadow:0 0 calc(var(--p,0)*22px) rgba(79,209,224,calc(var(--p,0)*.6));transition:transform .2s}
+  .demo-chev:hover,.demo-close:hover{transform:scale(1.08)}
+  .demo-chev svg,.demo-close svg{width:18px;height:18px;stroke:#dbe6f1;stroke-width:2.2;fill:none}
+
+  .demo-stage{position:relative;z-index:1;flex:1 1 auto;min-height:0;display:flex;
+    align-items:center;justify-content:center;padding:10px 26px 6px}
+  #demoSvg{width:100%;height:100%;max-height:100%;display:block;overflow:visible}
+  .demo-foot{position:relative;z-index:2;text-align:center;padding:6px 0 16px;
+    color:var(--muted);font-size:12.5px;letter-spacing:.03em}
+  .demo-foot b{color:#cdd8e3;font-weight:600}
+
+  /* demo nodes */
+  .dnode{cursor:default}
+  .dnode-client,.dnode-bank,.dnode-emp,.dnode-agency{cursor:pointer}
+  .dn-rect{fill:url(#ti);stroke:rgba(178,198,218,.5);stroke-width:1.2;
+    filter:drop-shadow(0 5px 12px rgba(0,0,0,.5));transition:opacity .3s,stroke .25s}
+  .dnode-client .dn-rect{stroke:rgba(118,168,230,.6)}
+  .dnode-client:hover .dn-rect,.dnode-bank:hover .dn-rect,
+  .dnode-emp:hover .dn-rect,.dnode-agency:hover .dn-rect{stroke:var(--accent)}
+  .dnode-agency .dn-rect{fill:url(#tiAgency)}
+  .dn-txt{fill:#e7eef5;font-size:13px;font-weight:600;text-anchor:middle;dominant-baseline:middle;
+    font-family:"Segoe UI",system-ui,sans-serif;pointer-events:none}
+  .dnode-bank .dn-txt{font-size:16px}
+  .dnode-emp .dn-txt,.dnode-agency .dn-txt{font-size:12px}
+  .dnode.inactive .dn-rect{opacity:.28}
+  .dnode.inactive .dn-txt{opacity:.4}
+  .dn-kind{fill:var(--accent);font-size:9.5px;letter-spacing:.14em;text-anchor:middle;
+    text-transform:uppercase;opacity:.7;pointer-events:none}
+
+  /* demo arrows */
+  .darrow{stroke:rgba(150,180,210,.16);stroke-width:1;fill:none;transition:opacity .3s}
+  .darrow.dim{opacity:.25}
+
+  /* ledgers */
+  .ledger{transition:transform .75s cubic-bezier(.65,0,.35,1),opacity .75s ease}
+  .lg-rect{stroke-width:1.2;rx:7;filter:drop-shadow(0 4px 9px rgba(0,0,0,.45));
+    transition:fill .75s cubic-bezier(.65,0,.35,1),stroke .75s cubic-bezier(.65,0,.35,1)}
+  .lg-pending{fill:rgba(224,196,79,.9);stroke:rgba(255,232,150,.9)}
+  .lg-done{fill:rgba(96,196,118,.92);stroke:rgba(170,240,190,.95)}
+  .lg-blocked{fill:rgba(222,80,80,.92);stroke:rgba(255,150,150,.95)}
+  .lg-amt{fill:#10160c;font-size:12.5px;font-weight:800;text-anchor:middle;dominant-baseline:middle;
+    font-family:"Segoe UI",system-ui,sans-serif;pointer-events:none}
+  .lg-due{fill:rgba(20,28,12,.7);font-size:9px;font-weight:700;text-anchor:middle;dominant-baseline:middle;
+    letter-spacing:.04em;pointer-events:none}
+
+  /* payroll overlay */
+  .demo-overlay{position:absolute;inset:0;z-index:5;display:grid;place-items:center;
+    background:rgba(4,7,11,.6);backdrop-filter:blur(3px);opacity:0;pointer-events:none;
+    transition:opacity .3s}
+  .demo-overlay.show{opacity:1;pointer-events:auto}
+  .pay-card{position:relative;width:min(440px,90vw);max-height:84vh;overflow:auto;
+    border-radius:18px;padding:26px 26px 22px;
+    background:linear-gradient(155deg,rgba(140,162,184,.2),rgba(28,36,46,.96));
+    border:1px solid rgba(150,172,194,.3);border-top-color:rgba(206,220,234,.55);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.14),0 24px 60px rgba(0,0,0,.6);
+    transform:translateY(16px) scale(.97);transition:transform .35s cubic-bezier(.2,.7,.3,1)}
+  .demo-overlay.show .pay-card{transform:none}
+  .pay-card h3{margin:0 0 4px;font-size:19px;font-weight:700}
+  .pay-card .pay-sub{margin:0 0 18px;color:var(--muted);font-size:13px}
+  .pay-row{display:flex;align-items:center;gap:12px;margin:10px 0}
+  .pay-row label{flex:1 1 auto;font-size:14.5px;color:#dbe6f1}
+  .pay-row .loc{font-size:11px;color:var(--muted);letter-spacing:.06em;margin-left:6px}
+  .pay-row .amt{display:flex;align-items:center;gap:5px}
+  .pay-row .amt span{color:var(--muted);font-size:14px}
+  .pay-row input{width:104px;padding:8px 10px;border-radius:9px;font-size:14px;text-align:right;
+    color:#fff;background:rgba(10,14,20,.7);border:1px solid rgba(150,175,200,.3);
+    font-family:"Consolas",ui-monospace,monospace}
+  .pay-row input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(79,209,224,.25)}
+  .pay-run{width:100%;margin-top:18px;padding:13px;border-radius:12px;cursor:pointer;
+    font-size:15px;font-weight:700;letter-spacing:.02em;color:#06222a;border:none;
+    background:linear-gradient(92deg,#4fd1e0,#76a8e6);
+    box-shadow:0 10px 24px rgba(79,209,224,.3);transition:transform .2s,box-shadow .2s}
+  .pay-run:hover{transform:translateY(-2px);box-shadow:0 14px 30px rgba(79,209,224,.42)}
+  .pay-x{position:absolute;top:14px;right:14px;cursor:pointer;width:32px;height:32px;
+    display:grid;place-items:center;border-radius:9px;border:1px solid rgba(150,175,200,.25);
+    background:rgba(10,14,20,.5);transition:transform .2s,border-color .2s}
+  .pay-x:hover{transform:scale(1.08);border-color:var(--accent)}
+  .pay-x svg{width:16px;height:16px;stroke:#dbe6f1;stroke-width:2.2;fill:none}
+
+  /* active payroll-run buttons (inside the run-payroll overlay) */
+  .pay-runs:empty{display:none}
+  .pay-runs{margin-top:20px;padding-top:16px;border-top:1px solid rgba(150,175,200,.18)}
+  .pay-runs-h{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);
+    font-weight:600;margin-bottom:10px}
+  .pay-runs-list{display:flex;flex-direction:column;gap:8px}
+  .pay-run-btn{display:flex;align-items:center;gap:8px;width:100%;cursor:pointer;
+    padding:9px 13px;border-radius:10px;font-size:13.5px;color:#dbe6f1;text-align:left;
+    border:1px solid rgba(150,175,200,.24);background:rgba(10,14,20,.5);transition:border-color .2s,transform .15s}
+  .pay-run-btn:hover{border-color:var(--accent);transform:translateX(2px)}
+  .pay-run-btn b{color:#fff;font-variant-numeric:tabular-nums}
+  .pay-run-btn span{margin-left:auto;color:var(--muted);font-size:12px}
+
+  /* ledger-list overlay */
+  #runOverlay{z-index:6}
+  .run-card{width:min(560px,94vw)}
+  .run-table{width:100%;border-collapse:collapse;margin-top:6px;font-size:13.5px}
+  .run-table th{text-align:left;color:var(--muted);font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;font-weight:600;padding:6px 10px;border-bottom:1px solid rgba(150,175,200,.22)}
+  .run-table td{padding:8px 10px;border-bottom:1px solid rgba(150,175,200,.1);color:#dbe6f1;vertical-align:middle}
+  .run-table td.amt{font-variant-numeric:tabular-nums;font-family:"Consolas",ui-monospace,monospace}
+  .run-table td.lg-cell{width:96px}
+  .lg-mini{display:block;overflow:visible}
+
+  /* draggable ledgers */
+  .ledger.mv{cursor:grab}
+  .ledger.dragging{cursor:grabbing}
+
+  /* angry stick figure (blocked-settlement protest) */
+  .stickfig{pointer-events:none}
+  .stickfig .sk2{fill:none;stroke:#ff9a9a;stroke-width:2.4;stroke-linecap:round;stroke-linejoin:round}
+  .stickfig .sk2h{fill:rgba(255,120,120,.18)}
+  .spark{pointer-events:none}
+  .spark path{fill:none;stroke:#ffd27a;stroke-width:2.6;stroke-linecap:round}
+  .bubble .bub-box{fill:#fbf6ef;stroke:#e0764f;stroke-width:1.5}
+  .bubble .bub-txt{fill:#8a1d1d;font-size:12px;font-weight:800;text-anchor:middle;
+    dominant-baseline:middle;font-family:"Segoe UI",system-ui,sans-serif}
+  .stickfig.greet .sk2{stroke:#bcd0e2}
+  .stickfig.greet .sk2h{fill:rgba(160,184,208,.16)}
+  .bubble.greet .bub-box{fill:#eef4fb;stroke:#76a8e6}
+  .bubble.greet .bub-txt{fill:#1d3a5a}
+
+  /* audit-warning overlay */
+  #auditOverlay{z-index:7}
+  .audit-card{width:min(580px,94vw)}
+  .audit-row{display:flex;gap:24px;align-items:center}
+  .audit-fig{flex:0 0 126px;width:126px;height:auto}
+  .audit-fig .sk{fill:none;stroke:#dbe6f1;stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+  .audit-fig .skh{fill:rgba(140,162,184,.16)}
+  .audit-fig .drop{fill:#5fd6e4}
+  .audit-msg h3{margin:0 0 10px;font-size:20px;font-weight:700}
+  .audit-msg p{margin:0 0 18px;font-size:15px;line-height:1.55;color:#dbe6f1}
+  .audit-ok{width:auto;padding:11px 22px}
+
+  /* money-positioning: header buttons */
+  .mp-btn{display:flex;align-items:center;gap:7px;cursor:pointer;padding:8px 12px;border-radius:11px;
+    font-size:13px;font-weight:600;color:#dbe6f1;white-space:nowrap;
+    border:1px solid rgba(150,175,200,calc(.22 + var(--p,0)*.45));
+    background:linear-gradient(155deg,rgba(140,162,184,calc(.12 + var(--p,0)*.16)),rgba(30,38,48,.55));
+    box-shadow:0 0 calc(var(--p,0)*20px) rgba(79,209,224,calc(var(--p,0)*.5));transition:transform .2s}
+  .mp-btn:hover{transform:translateY(-1px)}
+  .mp-btn[hidden]{display:none}
+  .mp-btn svg{width:16px;height:16px;stroke:var(--accent);stroke-width:1.8;fill:none}
+  /* purpose dot on a ledger box */
+  .lg-dot{stroke:#0b1018;stroke-width:1}
+  /* internal-transfer arrows between payroll banks (+ wrap-around "tunnel" portals) */
+  .darrow.xfer{stroke:rgba(120,180,210,.34)}
+  .tunnel-hole{fill:rgba(8,11,17,.92);stroke:rgba(120,180,210,.32);stroke-width:1}
+  .tunnel-rim{fill:none;stroke:rgba(120,180,210,.42);stroke-width:1.4}
+
+  /* "Company Configuration" section + group selector in the payroll overlay */
+  .pay-config{margin-top:20px;padding-top:16px;border-top:1px solid rgba(150,175,200,.18)}
+  .pay-config:empty{display:none}
+  .pay-group{display:flex;align-items:center;gap:9px;margin-top:10px}
+  .pay-group>span{font-size:14px;color:#dbe6f1;flex:1 1 auto}
+  .grp-btn{cursor:pointer;padding:7px 13px;border-radius:9px;font-size:13px;font-weight:600;color:#cdd8e3;
+    border:1px solid rgba(150,175,200,.26);background:rgba(10,14,20,.5);transition:all .18s}
+  .grp-btn.on{color:#06222a;background:linear-gradient(92deg,#4fd1e0,#76a8e6);border-color:transparent}
+
+  /* money-positioning config overlay */
+  .mp-card{width:min(520px,93vw)}
+  .mp-cols{display:flex;gap:24px;margin-top:6px}
+  .mp-col{flex:1 1 50%;min-width:0}
+  .mp-col-h{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);
+    font-weight:600;margin-bottom:8px}
+  .mp-row{display:flex;align-items:center;gap:10px;padding:8px 4px;
+    border-bottom:1px solid rgba(150,175,200,.1)}
+  .mp-swatch{flex:0 0 12px;width:12px;height:12px;border-radius:3px;box-shadow:0 0 0 1px rgba(0,0,0,.35)}
+  .mp-txt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column}
+  .mp-txt b{font-weight:700;font-size:12.5px;color:#eaf3fb}
+  .mp-txt span{color:var(--muted);font-size:11px}
+  .mp-row input[type=checkbox]{flex:0 0 auto;width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+  .mp-sel{flex:0 0 auto;background:rgba(10,14,20,.7);color:#fff;border:1px solid rgba(150,175,200,.3);
+    border-radius:8px;padding:5px 8px;font-size:12.5px;font-family:inherit;cursor:pointer}
+  .mp-auto{display:flex;align-items:center;gap:9px;margin-top:18px;font-size:13.5px;color:#dbe6f1;cursor:pointer}
+  .mp-auto input{width:16px;height:16px;accent-color:var(--accent);cursor:pointer}
+</style>
+</head>
+<body>
+
+<!-- master SVG defs (referenced by all diagrams) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <linearGradient id="ti" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#62707e"/>
+      <stop offset=".5" stop-color="#3b454f"/>
+      <stop offset="1" stop-color="#283038"/>
+    </linearGradient>
+    <linearGradient id="acc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#4fd1e0"/>
+      <stop offset="1" stop-color="#76a8e6"/>
+    </linearGradient>
+    <linearGradient id="tiAgency" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a5566"/>
+      <stop offset=".5" stop-color="#3a3742"/>
+      <stop offset="1" stop-color="#26242c"/>
+    </linearGradient>
+    <marker id="arw" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M1,1 L9,5 L1,9 z" fill="#8fb6d6"/>
+    </marker>
+  </defs>
+</svg>
+
+<div class="bg">
+  <div class="bg-grid"></div>
+  <canvas class="bg-schem" id="schem"></canvas>
+  <div class="bg-vignette"></div>
+</div>
+
+<div class="brand">
+  <div class="dot"></div>
+  <div>
+    <div class="t mono">BEACON</div>
+    <div class="s mono">FLEXIBLE MONEY POSITIONING</div>
+  </div>
+</div>
+<div class="counter mono"><b id="curNo">01</b> / <span id="totNo">10</span></div>
+
+<div class="deck" id="deck">
+
+  <!-- 1 TITLE -->
+  <section class="slide" data-title="Title">
+    <div class="inner" style="align-items:flex-start">
+      <p class="eyebrow reveal" style="--d:.05s">Project BEACON</p>
+      <h1 class="reveal" style="--d:.15s">Flexible <span class="gradtext">Money Positioning</span><br>System</h1>
+      <p class="sub reveal" style="--d:.35s">A layer of indirection for moving money between banks &mdash; safely, transparently, and by configuration rather than by emergency.</p>
+      <p class="lead reveal mono" style="--d:.55s;color:var(--muted);font-size:15px;margin-top:30px">
+        &ldquo;The power of invention lies not only in discovering something entirely new, but in applying<br>existing concepts in novel ways to decompose and simplify complex problems.&rdquo;</p>
+    </div>
+  </section>
+
+  <!-- 2 PROBLEM -->
+  <section class="slide" data-title="The Problem">
+    <div class="inner">
+      <p class="eyebrow reveal" style="--d:.05s">The Problem</p>
+      <h2 class="reveal" style="--d:.12s">A fixed plan of money movements</h2>
+      <p class="lead reveal" style="--d:.2s">We processed payroll for our customers. Each submission generated a <b>plan of money movements</b> &mdash; transactions from account A to account B. It worked well, but lacked flexibility.</p>
+      <div class="full-dia reveal" style="--d:.3s"><div class="dia" data-dia="d2"></div></div>
+    </div>
+    <button class="demo-btn reactive" data-demo-open title="Open the interactive payroll demo">
+      <svg viewBox="0 0 24 24"><polygon points="6 4 19 12 6 20 6 4"/></svg>
+      Payroll Execution Demo
+    </button>
+  </section>
+
+  <!-- 3 SVB -->
+  <section class="slide" data-title="SVB 2023">
+    <div class="inner">
+      <p class="eyebrow reveal" style="--d:.05s">March 2023</p>
+      <h2 class="reveal" style="--d:.12s">Silicon Valley Bank collapses</h2>
+      <p class="lead reveal" style="--d:.2s">By Thursday, March 9 it was unclear whether SVB would process any further transactions. Treasury directed us to move <b>all</b> funds out &mdash; immediately.</p>
+      <div class="row top">
+        <div class="col-dia reveal" style="--d:.3s"><div class="dia" data-dia="d3"></div></div>
+      </div>
+      <div class="stats">
+        <div class="stat card reactive reveal" style="--d:.45s"><div class="n">~1,000,000</div><div class="l">transactions updated to reflect the move</div></div>
+        <div class="stat card reactive reveal" style="--d:.55s"><div class="n">SVB &rarr; SSB</div><div class="l">funds migrated to South State Bank</div></div>
+        <div class="stat card reactive reveal" style="--d:.65s"><div class="n">Days + weekend</div><div class="l">of hand-written scripts under pressure</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 4 FRAGILITY -->
+  <section class="slide" data-title="Fragility">
+    <div class="inner">
+      <p class="eyebrow reveal" style="--d:.05s">The Weakness Exposed</p>
+      <h2 class="reveal" style="--d:.12s">It worked &mdash; but it was fragile</h2>
+      <p class="lead reveal" style="--d:.2s">We mitigated our exposure, but moving money quickly required heavy engineering. The rescue scripts:</p>
+      <ul class="checks warn">
+        <li class="reveal" style="--d:.3s">Lived <b>outside the product</b></li>
+        <li class="reveal" style="--d:.38s">Were <b>not covered by automated testing</b></li>
+        <li class="reveal" style="--d:.46s">Were <b>easy to use wrongly</b></li>
+        <li class="reveal" style="--d:.54s">Lacked proper <b>auditability</b></li>
+      </ul>
+      <p class="lead reveal" style="--d:.64s;margin-top:26px">We needed a simple, configurable system to move funds between banks <b>safely and transparently</b>.</p>
+    </div>
+  </section>
+
+  <!-- 5 COLLECTING REQUIREMENTS (use cases; before The Idea) -->
+  <section class="slide" data-title="Requirements">
+    <div class="inner">
+      <p class="eyebrow reveal" style="--d:.05s">Collecting Requirements</p>
+      <h2 class="reveal" style="--d:.12s">Many uses, <span class="gradtext">one solution</span></h2>
+      <p class="lead reveal" style="--d:.2s">Looking past the immediate crisis, we gathered requirements &mdash; and several distinct use cases kept pointing at the same thing: a flexible system for positioning money across banks.</p>
+      <ul class="checks">
+        <li class="reveal" style="--d:.3s"><b>Crisis Management</b> &mdash; reposition money quickly without engineering involvement</li>
+        <li class="reveal" style="--d:.38s"><b>Risk Grouping</b> &mdash; group customers for independent risk management
+          <span class="why">e.g. &ldquo;group A&rdquo; vs &ldquo;group B&rdquo;</span></li>
+        <li class="reveal" style="--d:.46s"><b>Idle Funds</b> &mdash; sweep idle money into investment accounts</li>
+        <li class="flag reveal" style="--d:.54s"><b>Operational Constraints</b> &mdash; handle the quirks of specific bank accounts
+          <span class="why">&rarr; this one became the driver for taking the idea to production</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 6 THE IDEA (swapped to come after the use cases) -->
+  <section class="slide" data-title="The Idea">
+    <div class="inner">
+      <p class="eyebrow reveal" style="--d:.05s">The Key Idea</p>
+      <h2 class="reveal" style="--d:.12s">Every dollar has a <span class="gradtext">purpose</span></h2>
+      <p class="lead reveal" style="--d:.2s">Decouple the money we hold from the accounts holding it. <b>Classifiers</b> assign a purpose; a separate <b>configuration</b> maps each purpose to a physical account. Change circumstances? Just update the configuration &mdash; the system moves the money.</p>
+      <div class="full-dia reveal" style="--d:.3s"><div class="dia" data-dia="d5"></div></div>
+    </div>
+  </section>
+
+  <!-- INTERLUDE — hidden from the deck (preserved in code), excluded from navigation -->
+  <section class="slide slide-off" data-title="Interlude">
+    <div class="inner">
+      <p class="eyebrow reveal" style="--d:.05s">An Interlude</p>
+      <h2 class="reveal" style="--d:.12s">A pause &mdash; then a new partner</h2>
+      <p class="lead reveal" style="--d:.2s">With SVB out we had a single banking partner, and money positioning is moot with one bank. JPMorgan Chase was chosen as the new partner; integration began (a separate story).</p>
+      <div class="full-dia reveal" style="--d:.3s"><div class="dia" data-dia="d7"></div></div>
+    </div>
+  </section>
+
+  <!-- HACKATHON — hidden from the deck (preserved in code), excluded from navigation -->
+  <section class="slide slide-off" data-title="Hackathon">
+    <div class="inner">
+      <p class="eyebrow reveal" style="--d:.05s">Summer 2025</p>
+      <h2 class="reveal" style="--d:.12s">The Hackathon &mdash; <span class="gradtext">Project BEACON</span></h2>
+      <div class="row top">
+        <div class="col-txt reveal" style="--d:.2s">
+          <p class="lead">A cross-functional team &mdash; engineering, product, and critically <b>Jason, Director of Finance &amp; Risk</b> &mdash; so any prototype met treasury requirements and had a path to production.</p>
+          <div class="card reactive" style="margin-top:22px">
+            <p class="k">My proof-of-concept</p>
+            <p>Classifier rules &middot; a configuration mapping purposes to accounts &middot; a scheduled task moving funds while maintaining consistency. Demo classifiers: wage, tax, cheque, investment. Built &amp; demoed in days.</p>
+          </div>
+        </div>
+        <div class="col-dia reveal" style="--d:.34s"><div class="dia" data-dia="d8"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- PRODUCTION — hidden from the deck (preserved in code), excluded from navigation -->
+  <section class="slide slide-off" data-title="Production">
+    <div class="inner">
+      <p class="eyebrow reveal" style="--d:.05s">September 2025</p>
+      <h2 class="reveal" style="--d:.12s">From hackathon to production priority</h2>
+      <div class="row top">
+        <div class="col-txt reveal" style="--d:.2s">
+          <p class="lead">Wages via JPM already worked, but some tax payment types did not:</p>
+          <div class="card reactive" style="margin-top:18px">
+            <p class="k">The gaps</p>
+            <p><b>Cheques &amp; CTX</b> &mdash; required for NM SIT (New Mexico state income tax).<br><br>
+            <b>NY MCTMT</b> &mdash; one cheque for all client liabilities &rarr; all funds must reside in the <b>same</b> bank.</p>
+          </div>
+          <p class="lead" style="margin-top:18px">Full feature parity on JPM would be expensive. Money positioning solved both, elegantly.</p>
+        </div>
+        <div class="col-dia reveal" style="--d:.34s"><div class="dia" data-dia="d9"></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7 TAKING IT TO PRODUCTION (was "Safe Launch") -->
+  <section class="slide" data-title="To Production">
+    <div class="inner">
+      <h2 class="reveal" style="--d:.08s">Taking it to <span class="gradtext">Production</span></h2>
+      <p class="lead reveal" style="--d:.16s">One engineer hardened the POC, another updated the UI. Three sprints, three classifier rules: <b>NM SIT</b>, <b>cheque payments</b>, <b>NY MCTMT</b>.</p>
+      <p class="eyebrow reveal" style="--d:.24s;margin-top:30px">Design Decisions</p>
+      <ul class="checks">
+        <li class="reveal" style="--d:.3s"><b>Dark Launch</b> &mdash; shipped dormant first / enable / gradual rollout</li>
+        <li class="reveal" style="--d:.38s"><b>Idempotent</b> &mdash; operations can be safely re-run without moving money twice</li>
+        <li class="reveal" style="--d:.46s"><b>Request Cache</b> &mdash; optimizations to make it run in ~20min on the whole corpus</li>
+      </ul>
+      <p class="eyebrow reveal" style="--d:.56s;margin-top:30px">Tradeoffs</p>
+      <ul class="checks">
+        <li class="reveal" style="--d:.62s"><b>No Classifier UI</b> &mdash; consciously avoided; classifiers implemented in Python</li>
+        <li class="reveal" style="--d:.7s"><b>Start Narrow</b> &mdash; begin with classifiers for the immediate needs
+          <span class="why">NM SIT, cheque payments, NY MCTMT</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 8 CLOSING (carries the money-positioning demo button) -->
+  <section class="slide" data-title="Today">
+    <div class="inner" style="align-items:center;text-align:center">
+      <p class="eyebrow reveal" style="--d:.05s">Where it stands</p>
+      <h2 class="reveal" style="--d:.12s">Clean. Predictable. Testable.</h2>
+      <p class="sub reveal" style="--d:.22s;max-width:62ch;margin:14px auto 0">Entirely backend. UI-based classifier config was intentionally kept out of scope to preserve simplicity and testability. Three rules today &mdash; ample room to expand.</p>
+      <p class="closing reveal" style="--d:.42s;margin-top:48px">Introducing the simple concept of <b class="gradtext">&ldquo;purpose&rdquo;</b> let us decompose a complex operational challenge into a set of clear, elegant rules.</p>
+    </div>
+    <button class="demo-btn reactive" data-demo-open data-demo-purpose title="Open the interactive payroll demo with money positioning">
+      <svg viewBox="0 0 24 24"><polygon points="6 4 19 12 6 20 6 4"/></svg>
+      Payroll Execution Demo
+    </button>
+  </section>
+
+</div>
+
+<div class="nav prev reactive hide" id="prev" title="Previous">
+  <svg viewBox="0 0 24 24"><polyline points="15 5 8 12 15 19"/></svg>
+</div>
+<div class="nav next reactive" id="next" title="Next">
+  <svg viewBox="0 0 24 24"><polyline points="9 5 16 12 9 19"/></svg>
+</div>
+
+<div class="progress" id="progress"></div>
+<div class="hint mono">&larr; &rarr; / space</div>
+
+<!-- ===== Payroll Execution Demo (pull-up slide) ===== -->
+<div class="demo-panel" id="demoPanel" aria-hidden="true">
+  <div class="demo-head">
+    <div class="demo-title">Payroll Execution Demo
+      <span class="sub">Run payroll &middot; position funds across banks &middot; watch the ledgers settle</span></div>
+    <div class="demo-spacer"></div>
+    <button class="mp-btn reactive" id="mpClassBtn" title="Configure classifiers" hidden>
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 3.5v2.4M12 18.1v2.4M4.6 7.8l2 1.2M17.4 15l2 1.2M19.4 7.8l-2 1.2M6.6 15l-2 1.2"/></svg>
+      Classifiers
+    </button>
+    <button class="mp-btn reactive" id="mpAcctBtn" title="Configure account usage" hidden>
+      <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/></svg>
+      Account Usage
+    </button>
+    <button class="mp-btn reactive" id="mpRunBtn" title="Run money positioning now" hidden>
+      <svg viewBox="0 0 24 24"><polyline points="6 4 18 12 6 20 6 4"/></svg>
+      Run Money Positioning
+    </button>
+    <div class="demo-cal reactive">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="17" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="16" y1="2" x2="16" y2="6"/></svg>
+      <span class="dlabel">Day <b id="demoDay">1</b></span>
+      <button class="demo-chev reactive" id="demoNext" title="Advance one day">
+        <svg viewBox="0 0 24 24"><polyline points="9 5 16 12 9 19"/></svg>
+      </button>
+    </div>
+    <button class="demo-close reactive" id="demoClose" title="Close demo">
+      <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="demo-stage">
+    <svg id="demoSvg" viewBox="0 0 1200 620" preserveAspectRatio="xMidYMid meet"></svg>
+  </div>
+  <div class="demo-foot">Click a <b>company</b> to run payroll &middot; click a <b>payroll bank</b> to toggle it active &middot; advance the <b>day</b> to settle ledgers</div>
+
+  <div class="demo-overlay" id="payOverlay" aria-hidden="true">
+    <div class="pay-card">
+      <button class="pay-x" id="payClose" title="Close without running">
+        <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+      <h3 id="payTitle">Run Payroll</h3>
+      <p class="pay-sub" id="paySub">Enter gross earnings for each employee.</p>
+      <div id="payBody"></div>
+      <button class="pay-run" id="payRun">Run Payroll</button>
+      <div class="pay-runs" id="payRuns"></div>
+      <div class="pay-config" id="payConfig"></div>
+    </div>
+  </div>
+
+  <div class="demo-overlay" id="runOverlay" aria-hidden="true">
+    <div class="pay-card run-card">
+      <button class="pay-x" id="runClose" title="Close">
+        <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+      <h3 id="runTitle">Payroll</h3>
+      <p class="pay-sub" id="runSub">Ledgers generated by this payroll run.</p>
+      <table class="run-table">
+        <thead><tr><th>From</th><th>To</th><th>Due date</th><th>Amount</th><th>Ledger</th></tr></thead>
+        <tbody id="runBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="demo-overlay" id="auditOverlay" aria-hidden="true">
+    <div class="pay-card audit-card">
+      <button class="pay-x" id="auditClose" title="Close">
+        <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+      <div class="audit-row">
+        <svg class="audit-fig" viewBox="0 0 140 210" aria-hidden="true">
+          <circle class="sk skh" cx="66" cy="40" r="26"/>
+          <path class="sk" d="M52 30 L66 35"/>
+          <path class="sk" d="M80 30 L66 35"/>
+          <circle cx="58" cy="43" r="3" fill="#dbe6f1"/>
+          <circle cx="74" cy="43" r="3" fill="#dbe6f1"/>
+          <path class="sk" d="M54 57 Q66 48 78 57"/>
+          <path class="drop" d="M98 28 q6 9 0 14 q-6 -5 0 -14 z"/>
+          <path class="sk" d="M66 66 V128"/>
+          <path class="sk" d="M66 84 L42 60"/>
+          <path class="sk" d="M66 84 L92 60"/>
+          <path class="sk" d="M66 128 L48 178"/>
+          <path class="sk" d="M66 128 L84 178"/>
+        </svg>
+        <div class="audit-msg">
+          <h3>Hold on&hellip;</h3>
+          <p>Did we actually move the money to support paying out the amount out of the new bank account? And if we did, did we record it in the system? Otherwise our audits will detect that things are not in balance.</p>
+          <button class="pay-run audit-ok" id="auditOk">Got it</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="demo-overlay" id="mpClassOverlay" aria-hidden="true">
+    <div class="pay-card mp-card">
+      <button class="pay-x" id="mpClassClose" title="Close">
+        <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+      <h3>Classifiers</h3>
+      <p class="pay-sub">Activate the classifiers that should assign a purpose to held funds.</p>
+      <div id="mpClassifiers"></div>
+      <label class="mp-auto">Run money positioning automatically:
+        <select id="mpAutoSel" class="mp-sel">
+          <option value="never">Never</option>
+          <option value="day" selected>At Beginning of Day</option>
+          <option value="timer">Every 4 Seconds</option>
+        </select>
+      </label>
+    </div>
+  </div>
+
+  <div class="demo-overlay" id="mpAcctOverlay" aria-hidden="true">
+    <div class="pay-card mp-card">
+      <button class="pay-x" id="mpAcctClose" title="Close">
+        <svg viewBox="0 0 24 24"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+      </button>
+      <h3>Account Usage</h3>
+      <p class="pay-sub">Map each purpose to the payroll bank account its funds should live in.</p>
+      <div id="mpPurposes"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const NS="http://www.w3.org/2000/svg";
+function S(tag,attrs,parent){const e=document.createElementNS(NS,tag);
+  for(const k in attrs)e.setAttribute(k,attrs[k]); if(parent)parent.appendChild(e); return e;}
+
+/* ---------- diagram engine ---------- */
+function defH(t){return t==='decision'?120:t==='db'?92:t==='config'?82:64;}
+function anchor(n,tx,ty){
+  const hw=n.w/2,hh=n.h/2,dx=tx-n.x,dy=ty-n.y;
+  if(n.type==='decision'){ // rhombus edge: |dx|/hw + |dy|/hh = 1
+    const t=1/(Math.abs(dx)/hw+Math.abs(dy)/hh);
+    return [n.x+dx*t, n.y+dy*t];
+  }
+  const sx=dx===0?1e9:hw/Math.abs(dx), sy=dy===0?1e9:hh/Math.abs(dy);
+  const s=Math.min(sx,sy); return [n.x+dx*s, n.y+dy*s];
+}
+function lines(str){return str.split('\n');}
+
+function drawNode(layer,n,delay){
+  const g=S('g',{class:'node ntype-'+(n.type||'box'),style:`--d:${delay}s`},layer);
+  const hw=n.w/2,hh=n.h/2,L=n.x-hw,R=n.x+hw,T=n.y-hh,B=n.y+hh;
+  if(n.type==='db'){
+    const ry=11;
+    S('path',{class:'shape',d:`M ${L} ${T+ry} L ${L} ${B-ry} A ${hw} ${ry} 0 0 0 ${R} ${B-ry} L ${R} ${T+ry} Z`},g);
+    S('ellipse',{class:'shape',cx:n.x,cy:T+ry,rx:hw,ry:ry},g);
+  }else if(n.type==='decision'){
+    S('polygon',{class:'shape',points:`${n.x},${T} ${R},${n.y} ${n.x},${B} ${L},${n.y}`},g);
+  }else if(n.type==='config'){
+    S('rect',{class:'shape',x:L,y:T,width:n.w,height:n.h,rx:13},g);
+    S('rect',{class:'shape-inner',x:L+6,y:T+6,width:n.w-12,height:n.h-12,rx:9},g);
+  }else{
+    S('rect',{class:'shape',x:L,y:T,width:n.w,height:n.h,rx:13},g);
+  }
+  const ls=lines(n.label), startY=n.y-(ls.length-1)*8.5;
+  const t=S('text',{x:n.x,y:startY},g);
+  ls.forEach((ln,i)=>{const ts=S('tspan',{x:n.x,dy:i?17:0},t);ts.textContent=ln;});
+}
+
+function drawEdge(layer,a,b,e,delay){
+  let d,mid;
+  if(e.route==='loop-bottom'){
+    const y=e.loopY,sx=a.x,sy=a.y+a.h/2,tx=b.x,ty=b.y+b.h/2;
+    d=`M ${sx} ${sy} V ${y} H ${tx} V ${ty}`; mid=[(sx+tx)/2,y];
+  }else if(e.route==='loop-right'){
+    const x=e.loopX,sx=a.x+a.w/2,sy=a.y,tx=b.x+b.w/2,ty=b.y;
+    d=`M ${sx} ${sy} H ${x} V ${ty} H ${tx}`; mid=[x,(sy+ty)/2];
+  }else{
+    const s=anchor(a,b.x,b.y),t=anchor(b,a.x,a.y);
+    d=`M ${s[0]} ${s[1]} L ${t[0]} ${t[1]}`; mid=[(s[0]+t[0])/2,(s[1]+t[1])/2];
+  }
+  const base=S('path',{class:'edge'+(e.dashed?' edashed':''),d:d,'marker-end':'url(#arw)',style:`--d:${delay}s`},layer);
+  if(!e.dashed){const len=base.getTotalLength();base.style.strokeDasharray=len;base.style.strokeDashoffset=len;base.style.setProperty('--len',len);}
+  S('path',{class:'flow',d:d,style:`--d:${delay+0.15}s`},layer);
+  if(e.label){
+    const ls=lines(e.label),w=Math.max(...ls.map(s=>s.length))*6.4+14,h=ls.length*14+8;
+    const g=S('g',{class:'elabel',style:`--d:${delay+0.1}s`},layer);
+    S('rect',{x:mid[0]-w/2,y:mid[1]-h/2,width:w,height:h,rx:5},g);
+    const sy=mid[1]-(ls.length-1)*7,tx=S('text',{x:mid[0],y:sy},g);
+    ls.forEach((ln,i)=>{const ts=S('tspan',{x:mid[0],dy:i?14:0},tx);ts.textContent=ln;});
+  }
+}
+
+function buildFlow(host,spec){
+  const svg=S('svg',{class:'diagram',viewBox:spec.vb,preserveAspectRatio:'xMidYMid meet'},host);
+  const eLayer=S('g',{},svg), nLayer=S('g',{},svg);
+  const map={};
+  spec.nodes.forEach(n=>{n.w=n.w||190;n.h=n.h||defH(n.type);map[n.id]=n;});
+  let d=0; const step=0.085;
+  spec.nodes.forEach(n=>{drawNode(nLayer,n,d);d+=step;});
+  let ed=Math.max(0,d-step*0.4);
+  spec.edges.forEach(e=>{drawEdge(eLayer,map[e.from],map[e.to],e,ed);ed+=0.05;});
+  return svg;
+}
+
+function buildTimeline(host){
+  const svg=S('svg',{class:'diagram',viewBox:'0 0 1200 380',preserveAspectRatio:'xMidYMid meet'},host);
+  const eLayer=S('g',{},svg), nLayer=S('g',{},svg);
+  // baseline
+  const d=`M 90 200 H 1110`;
+  const base=S('path',{class:'edge',d:d,style:'--d:0s'},eLayer);
+  const len=base.getTotalLength();base.style.strokeDasharray=len;base.style.strokeDashoffset=len;base.style.setProperty('--len',len);
+  S('path',{class:'flow',d:d,style:'--d:.2s'},eLayer);
+  const ms=[
+    {x:210,up:true ,date:'Mar 2023', head:'SVB collapses', desc:'Emergency migration\nto SSB · idea conceived'},
+    {x:470,up:false,date:'2023 – 2024', head:'Single partner', desc:'Idea on hold ·\nJPM selected & integrated'},
+    {x:730,up:true ,date:'Summer 2025', head:'Hackathon', desc:'Project BEACON\nproof-of-concept'},
+    {x:990,up:false,date:'Sep 2025', head:'Production', desc:'POC hardened over\nthree sprints'},
+  ];
+  ms.forEach((m,i)=>{
+    const g=S('g',{class:'node',style:`--d:${.25+i*.12}s`},nLayer);
+    S('circle',{cx:m.x,cy:200,r:7,fill:'url(#acc)',stroke:'#0a0e14','stroke-width':2},g);
+    const cardH=98,gap=26;
+    const cy=m.up?200-gap-cardH:200+gap;
+    S('line',{x1:m.x,y1:m.up?200-7:200+7,x2:m.x,y2:m.up?cy+cardH:cy,stroke:'rgba(160,184,208,.5)','stroke-width':1.5},g);
+    const w=238,cx=m.x-w/2;
+    S('rect',{class:'shape',x:cx,y:cy,width:w,height:cardH,rx:12},g);
+    let t=S('text',{class:'ntag',x:m.x,y:cy+24},g);t.textContent=m.date.toUpperCase();
+    let h=S('text',{class:'head',x:m.x,y:cy+47},g);h.textContent=m.head;
+    const dl=lines(m.desc),dt=S('text',{class:'desc',x:m.x,y:cy+70},g);
+    dl.forEach((ln,j)=>{const ts=S('tspan',{x:m.x,dy:j?15:0},dt);ts.textContent=ln;});
+  });
+  return svg;
+}
+
+const SPECS={
+  d2:{vb:'0 0 1000 320',nodes:[
+    {id:'C',x:150,y:160,label:'Customer\nsubmits payroll'},
+    {id:'P',x:450,y:160,type:'config',label:'Plan of money\nmovements'},
+    {id:'D',x:830,y:70,label:'Debit clients\nto fund payroll'},
+    {id:'W',x:830,y:160,label:'Remit wages\nto employees'},
+    {id:'T',x:830,y:250,label:'Send taxes to\ngovt. agencies'},
+  ],edges:[{from:'C',to:'P'},{from:'P',to:'D'},{from:'P',to:'W'},{from:'P',to:'T'}]},
+
+  d3:{vb:'0 0 1020 380',nodes:[
+    {id:'SVB',x:150,y:170,type:'db',label:'Silicon Valley\nBank'},
+    {id:'S1',x:500,y:80,label:'Account for\nfunds present'},
+    {id:'S2',x:500,y:170,label:'Create transfer\ntransactions'},
+    {id:'S3',x:500,y:260,label:'Update existing\ntransactions'},
+    {id:'SSB',x:870,y:170,type:'db',label:'South State\nBank'},
+  ],edges:[
+    {from:'SVB',to:'S1'},{from:'S1',to:'S2'},{from:'S2',to:'S3'},{from:'S3',to:'SSB'},
+    {from:'SVB',to:'SSB',route:'loop-bottom',loopY:345,label:'emergency migration',dashed:true}
+  ]},
+
+  d5:{vb:'0 0 1240 440',nodes:[
+    {id:'DOL',x:120,y:220,label:'Every dollar\nwe hold'},
+    {id:'CL',x:360,y:220,type:'decision',w:180,label:'Classifiers'},
+    {id:'P1',x:625,y:90,label:'Purpose:\nwage disbursement'},
+    {id:'P2',x:625,y:220,label:'Purpose:\ntax disbursement'},
+    {id:'P3',x:625,y:350,label:'Purpose:\ninvestment'},
+    {id:'CFG',x:885,y:220,type:'config',w:220,label:'Configuration\npurpose → account'},
+    {id:'A1',x:1115,y:90,type:'db',w:180,label:'Bank\nAccount A'},
+    {id:'A2',x:1115,y:220,type:'db',w:180,label:'Bank\nAccount B'},
+    {id:'A3',x:1115,y:350,type:'db',w:180,label:'Investment\nAccount'},
+  ],edges:[
+    {from:'DOL',to:'CL'},
+    {from:'CL',to:'P1'},{from:'CL',to:'P2'},{from:'CL',to:'P3'},
+    {from:'P1',to:'CFG'},{from:'P2',to:'CFG'},{from:'P3',to:'CFG'},
+    {from:'CFG',to:'A1'},{from:'CFG',to:'A2'},{from:'CFG',to:'A3'}
+  ]},
+
+  d8:{vb:'0 0 580 600',nodes:[
+    {id:'R',x:230,y:70,label:'Classifier rules'},
+    {id:'AS',x:230,y:190,label:'Assign purpose\nto held funds'},
+    {id:'MP',x:230,y:310,type:'config',label:'Configuration\npurpose → account'},
+    {id:'SC',x:230,y:430,label:'Scheduled task'},
+    {id:'BK',x:230,y:540,type:'db',w:200,label:'Physical accounts'},
+  ],edges:[
+    {from:'R',to:'AS'},{from:'AS',to:'MP'},{from:'MP',to:'SC'},{from:'SC',to:'BK'},
+    {from:'BK',to:'R',route:'loop-right',loopX:475,label:'re-evaluate',dashed:true}
+  ]},
+
+  d9:{vb:'0 0 700 660',nodes:[
+    {id:'NEED',x:330,y:62,label:'Need tax handling\nvia JPM'},
+    {id:'Q',x:330,y:200,type:'decision',w:188,label:'Supported\non JPM?'},
+    {id:'JPM',x:560,y:200,type:'db',w:150,label:'JPM'},
+    {id:'OPT',x:330,y:360,type:'decision',w:188,label:'Two options'},
+    {id:'A',x:160,y:505,label:'Full parity\non JPM (costly)'},
+    {id:'B',x:512,y:505,label:'Money positioning:\nroute via partner'},
+    {id:'WIN',x:512,y:602,type:'config',label:'Chosen: elegant'},
+  ],edges:[
+    {from:'NEED',to:'Q'},
+    {from:'Q',to:'JPM',label:'Yes'},
+    {from:'Q',to:'OPT',label:'No'},
+    {from:'OPT',to:'A'},{from:'OPT',to:'B'},{from:'B',to:'WIN'}
+  ]},
+
+  d10:{vb:'0 0 1180 340',nodes:[
+    {id:'DL',x:160,y:100,label:'Dark launch\nlog only'},
+    {id:'V',x:450,y:100,type:'decision',w:180,label:'As expected?'},
+    {id:'EN',x:730,y:100,label:'Enable +\nmonitor volumes'},
+    {id:'M1',x:1010,y:100,label:'Migrate 2\npilot clients'},
+    {id:'CHK',x:1010,y:255,type:'decision',w:180,label:'All as\nexpected?'},
+    {id:'ROLL',x:700,y:268,label:'Continue migrating\nper need'},
+  ],edges:[
+    {from:'DL',to:'V'},
+    {from:'V',to:'EN',label:'Yes — none\nexpected'},
+    {from:'EN',to:'M1'},{from:'M1',to:'CHK'},
+    {from:'CHK',to:'ROLL',label:'Yes'}
+  ]},
+};
+
+document.querySelectorAll('.dia').forEach(host=>{
+  const key=host.dataset.dia;
+  if(key==='d7') buildTimeline(host);
+  else buildFlow(host,SPECS[key]);
+});
+
+/* ---------- deck navigation ---------- */
+const deck=document.getElementById('deck');
+const slides=[...document.querySelectorAll('.slide:not(.slide-off)')];   // hidden slides excluded from the deck
+const prev=document.getElementById('prev'), next=document.getElementById('next');
+const curNo=document.getElementById('curNo'), prog=document.getElementById('progress');
+const totNo=document.getElementById('totNo'); if(totNo) totNo.textContent=slides.length;
+let idx=0, demoOpen=false;
+function deckTransform(){return `translateX(${-idx*100}%) translateY(${demoOpen?-12:0}%)`;}
+
+slides.forEach((s,i)=>{
+  const t=document.createElement('div');
+  t.className='tick reactive'; t.title=s.dataset.title;
+  t.addEventListener('click',()=>go(i));
+  prog.appendChild(t);
+});
+const ticks=[...prog.children];
+
+function runDiagrams(slide){
+  slide.querySelectorAll('svg.diagram').forEach(svg=>{
+    svg.classList.remove('run'); void svg.getBoundingClientRect(); svg.classList.add('run');
+  });
+}
+function go(i){
+  idx=Math.max(0,Math.min(slides.length-1,i));
+  deck.style.transform=deckTransform();
+  document.documentElement.style.setProperty('--gx',(-idx*100)+'vw');
+  slides.forEach((s,k)=>s.classList.toggle('active',k===idx));
+  ticks.forEach((t,k)=>t.classList.toggle('on',k===idx));
+  curNo.textContent=String(idx+1).padStart(2,'0');
+  prev.classList.toggle('hide',idx===0);
+  next.classList.toggle('hide',idx===slides.length-1);
+  runDiagrams(slides[idx]);
+}
+next.addEventListener('click',()=>go(idx+1));
+prev.addEventListener('click',()=>go(idx-1));
+window.addEventListener('keydown',e=>{
+  if(demoOpen)return;
+  if(['ArrowRight','PageDown',' '].includes(e.key)){e.preventDefault();go(idx+1);}
+  else if(['ArrowLeft','PageUp'].includes(e.key)){e.preventDefault();go(idx-1);}
+  else if(e.key==='Home')go(0);
+  else if(e.key==='End')go(slides.length-1);
+});
+// touch swipe
+let tx=0;
+window.addEventListener('touchstart',e=>tx=e.touches[0].clientX,{passive:true});
+window.addEventListener('touchend',e=>{const dx=e.changedTouches[0].clientX-tx;
+  if(Math.abs(dx)>60)go(idx+(dx<0?1:-1));},{passive:true});
+
+/* ---------- mouse proximity ---------- */
+const reactives=()=>document.querySelectorAll('.reactive');
+const mouse={x:-99999,y:-99999};
+window.addEventListener('pointermove',e=>{
+  mouse.x=e.clientX; mouse.y=e.clientY;
+  reactives().forEach(el=>{
+    const r=el.getBoundingClientRect();
+    if(r.width===0)return;
+    const cx=r.left+r.width/2, cy=r.top+r.height/2;
+    const d=Math.hypot(e.clientX-cx,e.clientY-cy);
+    const p=Math.max(0,1-d/240);
+    el.style.setProperty('--p',p.toFixed(3));
+  });
+});
+window.addEventListener('pointerleave',()=>{mouse.x=-99999;mouse.y=-99999;});
+
+/* ---------- reactive schematic network ---------- */
+const schem=document.getElementById('schem'), ctxS=schem.getContext('2d');
+let SW=0,SH=0,DPR=1,net=null,scrollX=0;
+const pulses=[];
+const CHARGE_R=130, CHARGE_RATE=1.45, SPEED=700,
+      HOPDECAY=0.8, MININTEN=0.1, MAXDEPTH=8, MAXP=220,
+      PERSCREEN=6;
+let timeNow=0;
+
+// orthogonal "trace" of several segments, circle nodes at both ends
+function genPoly(x,y,H){
+  const pts=[{x:Math.round(x),y:Math.round(y)}];
+  const steps=3+(Math.random()*4|0);            // 3..6 segments
+  let horiz=Math.random()<0.5;
+  for(let s=0;s<steps;s++){
+    const len=(60+Math.random()*170)*1.75, dir=Math.random()<0.5?-1:1;
+    let nx=pts[pts.length-1].x, ny=pts[pts.length-1].y;
+    if(horiz) nx+=dir*len; else ny+=dir*len;
+    ny=Math.max(26,Math.min(H-26,ny));
+    if(nx!==pts[pts.length-1].x||ny!==pts[pts.length-1].y) pts.push({x:Math.round(nx),y:Math.round(ny)});
+    horiz=!horiz;
+  }
+  return pts;
+}
+
+function buildNetwork(){
+  const screens=slides.length, total=screens*PERSCREEN, polys=[];
+  for(let i=0;i<total;i++){
+    const bx=(Math.floor(i/PERSCREEN)+Math.random())*SW;
+    const by=34+Math.random()*(SH-68);
+    polys.push(genPoly(bx,by,SH));
+  }
+  // segments grouped per polyline (+ cut points from intersections)
+  const plsegs=polys.map(()=>[]), allsegs=[];
+  polys.forEach((pts,pl)=>{
+    for(let i=0;i<pts.length-1;i++){
+      const seg={pl,a:pts[i],b:pts[i+1],horiz:pts[i].y===pts[i+1].y,cuts:[]};
+      plsegs[pl].push(seg); allsegs.push(seg);
+    }
+  });
+  // orthogonal intersections (H vs V from different polylines)
+  for(let p=0;p<allsegs.length;p++)for(let q=p+1;q<allsegs.length;q++){
+    const A=allsegs[p],B=allsegs[q];
+    if(A.pl===B.pl||A.horiz===B.horiz) continue;
+    const Hs=A.horiz?A:B, Vs=A.horiz?B:A, hy=Hs.a.y, vx=Vs.a.x;
+    const hx1=Math.min(Hs.a.x,Hs.b.x),hx2=Math.max(Hs.a.x,Hs.b.x);
+    const vy1=Math.min(Vs.a.y,Vs.b.y),vy2=Math.max(Vs.a.y,Vs.b.y);
+    if(vx>hx1&&vx<hx2&&hy>vy1&&hy<vy2){ Hs.cuts.push({x:vx,y:hy}); Vs.cuts.push({x:vx,y:hy}); }
+  }
+  // unified vertex graph (shared keys make intersections branch points)
+  const vmap=new Map(), verts=[];
+  const vid=(x,y)=>{const k=x+'_'+y; let id=vmap.get(k);
+    if(id==null){id=verts.length; verts.push({x,y,adj:new Map(),node:false,charge:0,near:false}); vmap.set(k,id);} return id;};
+  plsegs.forEach(segs=>segs.forEach(seg=>{
+    const seq=[seg.a, ...seg.cuts.sort((u,v)=> seg.horiz
+        ? (seg.b.x>seg.a.x? u.x-v.x : v.x-u.x)
+        : (seg.b.y>seg.a.y? u.y-v.y : v.y-u.y)), seg.b];
+    for(let k=0;k<seq.length-1;k++){
+      const u=vid(seq[k].x,seq[k].y), w=vid(seq[k+1].x,seq[k+1].y);
+      if(u===w) continue;
+      const d=Math.hypot(verts[u].x-verts[w].x,verts[u].y-verts[w].y);
+      verts[u].adj.set(w,d); verts[w].adj.set(u,d);
+    }
+  }));
+  polys.forEach(pts=>{ verts[vid(pts[0].x,pts[0].y)].node=true;
+    verts[vid(pts[pts.length-1].x,pts[pts.length-1].y)].node=true; });
+  const edges=[], seen=new Set(), nodes=[];
+  verts.forEach((v,id)=>{ v.adj.forEach((d,w)=>{ const key=id<w?id+'_'+w:w+'_'+id;
+    if(!seen.has(key)){seen.add(key); edges.push([id,w]);} }); if(v.node) nodes.push(id); });
+  return {verts,edges,nodes};
+}
+
+function emit(id,inten){
+  net.verts[id].adj.forEach((len,w)=>{ if(pulses.length<MAXP)
+    pulses.push({from:id,to:w,d:0,len,inten,depth:0}); });
+}
+function stepPulses(dt){
+  const next=[];
+  for(const p of pulses){
+    p.d+=SPEED*dt;
+    if(p.d<p.len){ next.push(p); continue; }
+    const over=p.d-p.len, ni=p.inten*HOPDECAY;
+    if(p.depth>=MAXDEPTH||ni<MININTEN) continue;
+    net.verts[p.to].adj.forEach((len,w)=>{
+      if(w===p.from||next.length>=MAXP) return;
+      next.push({from:p.to,to:w,d:over%len,len,inten:ni,depth:p.depth+1});
+    });
+  }
+  pulses.length=0; for(const n of next) pulses.push(n);
+}
+function updateCharge(dt,mwx,mwy){
+  for(const id of net.nodes){
+    const v=net.verts[id], d=Math.hypot(v.x-mwx,v.y-mwy);
+    if(d<CHARGE_R){ v.near=true; v.charge=Math.min(1, v.charge+dt*CHARGE_RATE*(1-d/CHARGE_R)); }
+    else { if(v.near&&v.charge>0.06){ emit(id, 0.15+Math.pow(v.charge,1.4)*1.3); v.charge=0; } v.near=false;
+      if(v.charge>0){ v.charge-=dt*1.4; if(v.charge<0) v.charge=0; } }
+  }
+}
+
+function softGlow(x,y,r,col,a){ // soft radial halo, like the nav elements' glow
+  if(a<=0||r<=0) return;
+  const g=ctxS.createRadialGradient(x,y,0,x,y,r);
+  g.addColorStop(0,`rgba(${col},${a})`);
+  g.addColorStop(0.5,`rgba(${col},${a*0.4})`);
+  g.addColorStop(1,`rgba(${col},0)`);
+  ctxS.fillStyle=g; ctxS.beginPath(); ctxS.arc(x,y,r,0,6.2832); ctxS.fill();
+}
+function render(){
+  ctxS.setTransform(DPR,0,0,DPR,0,0);
+  ctxS.clearRect(0,0,SW,SH);
+  ctxS.save(); ctxS.translate(scrollX,0);
+  const xmin=-scrollX-120, xmax=-scrollX+SW+120;
+  // base traces
+  ctxS.lineWidth=1.2; ctxS.lineCap='round'; ctxS.strokeStyle='rgba(120,160,190,0.15)';
+  for(const [u,w] of net.edges){ const a=net.verts[u],b=net.verts[w];
+    if(Math.max(a.x,b.x)<xmin||Math.min(a.x,b.x)>xmax) continue;
+    ctxS.beginPath(); ctxS.moveTo(a.x,a.y); ctxS.lineTo(b.x,b.y); ctxS.stroke(); }
+  // resting node dots
+  ctxS.fillStyle='rgba(120,160,190,0.22)';
+  for(const id of net.nodes){ const v=net.verts[id]; if(v.x<xmin||v.x>xmax) continue;
+    ctxS.beginPath(); ctxS.arc(v.x,v.y,2.3,0,6.2832); ctxS.fill(); }
+  // glows + pulses, additive
+  ctxS.globalCompositeOperation='lighter';
+  for(const id of net.nodes){ const v=net.verts[id], c=v.charge; if(c<0.03||v.x<xmin||v.x>xmax) continue;
+    let r=6+c*13, a=0.16*c;
+    if(c>=0.985){ const o=0.5+0.5*Math.sin(timeNow*7.5); r+=o*2.5; a*=0.9+0.2*o; } // full: gentle pulse
+    softGlow(v.x,v.y,r,'79,209,224',a);
+    ctxS.fillStyle=`rgba(180,244,255,${0.6*c})`; ctxS.beginPath(); ctxS.arc(v.x,v.y,2.6,0,6.2832); ctxS.fill(); }
+  ctxS.lineCap='round';
+  for(const p of pulses){ const a=net.verts[p.from],b=net.verts[p.to], t=p.d/p.len,
+      px=a.x+(b.x-a.x)*t, py=a.y+(b.y-a.y)*t;
+    if(px<xmin||px>xmax) continue;
+    const al=Math.min(1.3,p.inten), h=(16+al*16)*0.49/2;   // 0.7 of previous (was 0.7) length
+    const ex=(b.x-a.x)/p.len, ey=(b.y-a.y)/p.len;
+    const x1=px-ex*h,y1=py-ey*h,x2=px+ex*h,y2=py+ey*h;
+    softGlow(px,py,8+al*11,'79,209,224',Math.min(0.26,0.13*al));   // halo
+    ctxS.strokeStyle=`rgba(180,244,255,${Math.min(0.9,0.5*al)})`; ctxS.lineWidth=1.4+al*1.5;
+    ctxS.beginPath(); ctxS.moveTo(x1,y1); ctxS.lineTo(x2,y2); ctxS.stroke(); }
+  ctxS.globalCompositeOperation='source-over';
+  ctxS.restore();
+}
+
+let _last=performance.now();
+function frame(now){
+  const dt=Math.min(0.05,(now-_last)/1000); _last=now; timeNow=now/1000;
+  scrollX+=(-idx*SW-scrollX)*Math.min(1,dt*7);
+  updateCharge(dt, mouse.x-scrollX, mouse.y);
+  stepPulses(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+function resizeSchem(){
+  DPR=Math.min(2,window.devicePixelRatio||1); SW=window.innerWidth; SH=window.innerHeight;
+  schem.width=SW*DPR; schem.height=SH*DPR;
+  net=buildNetwork(); scrollX=-idx*SW;
+}
+resizeSchem();
+let _rt; window.addEventListener('resize',()=>{clearTimeout(_rt);_rt=setTimeout(resizeSchem,200);});
+requestAnimationFrame(frame);
+
+/* ===================== Payroll Execution Demo ===================== */
+(function(){
+  const panel=document.getElementById('demoPanel');
+  const svg=document.getElementById('demoSvg');
+  const dayEl=document.getElementById('demoDay');
+  const payOverlay=document.getElementById('payOverlay');
+  const payTitle=document.getElementById('payTitle');
+  const paySub=document.getElementById('paySub');
+  const payBody=document.getElementById('payBody');
+  const payRuns=document.getElementById('payRuns');
+  const payConfig=document.getElementById('payConfig');
+  const runOverlay=document.getElementById('runOverlay');
+  const runTitle=document.getElementById('runTitle');
+  const runSub=document.getElementById('runSub');
+  const runBody=document.getElementById('runBody');
+  const auditOverlay=document.getElementById('auditOverlay');
+  const mpClassOverlay=document.getElementById('mpClassOverlay');
+  const mpAcctOverlay=document.getElementById('mpAcctOverlay');
+  const mpClassBtn=document.getElementById('mpClassBtn');
+  const mpAcctBtn=document.getElementById('mpAcctBtn');
+  const mpRunBtn=document.getElementById('mpRunBtn');
+
+  /* --- static model --- */
+  const BANKS=[
+    {id:'SVB',label:'SVB',x:600,y:150,w:124,h:54,active:true},
+    {id:'ACB',label:'ACB',x:600,y:310,w:124,h:54,active:true},
+    {id:'BSB',label:'BSB',x:600,y:470,w:124,h:54,active:false},
+  ];
+  const CLIENTS=[
+    {id:'Astra',label:'Astra Inc',x:80,y:170,w:150,h:54,bank:'SVB',group:'A',emps:['Aiden','Bianca','Caleb']},
+    {id:'Bexel',label:'Bexel Ltd',x:80,y:310,w:150,h:54,bank:'ACB',group:'B',emps:['Diana','Evan']},
+    {id:'Cyra', label:'Cyra GmbH',x:80,y:450,w:150,h:54,bank:'ACB',group:'A',emps:['Aiden','Evan']},
+  ];
+  const EMPLOYEES=[
+    {id:'Aiden', label:'Aiden Archer', x:1120,y:58, w:156,h:42,loc:'NY'},
+    {id:'Bianca',label:'Bianca Brooks',x:1120,y:120,w:156,h:42,loc:'NY'},
+    {id:'Caleb', label:'Caleb Carter', x:1120,y:182,w:156,h:42,loc:'NM'},
+    {id:'Diana', label:'Diana Drake',  x:1120,y:244,w:156,h:42,loc:'NY'},
+    {id:'Evan',  label:'Evan Ellery',  x:1120,y:306,w:156,h:42,loc:'NM'},
+  ];
+  const AGENCIES=[
+    {id:'FIT',     label:'FIT',     x:1120,y:402,w:156,h:42},
+    {id:'NM_SIT',  label:'NM SIT',  x:1120,y:458,w:156,h:42},
+    {id:'NY_MCTMT',label:'NY MCTMT',x:1120,y:514,w:156,h:42},
+    {id:'NY_SIT',  label:'NY SIT',  x:1120,y:570,w:156,h:42},
+  ];
+  const TAX={ FIT:{rate:.20,due:6}, NY_SIT:{rate:.10,due:10}, NY_MCTMT:{rate:.10,due:12}, NM_SIT:{rate:.20,due:12} };
+  const LOC_TAXES={ NY:['FIT','NY_MCTMT','NY_SIT'], NM:['FIT','NM_SIT'] };
+  const NODES={}; [...CLIENTS,...BANKS,...EMPLOYEES,...AGENCIES].forEach(n=>NODES[n.id]=n);
+
+  /* --- state (persists for the whole presentation) --- */
+  let day=1, seq=0, payrollNo=0;
+  const ledgers=[];
+  const arrows=[];
+  const runs={};   // payrollId -> { client, day } metadata
+
+  /* --- money positioning: classifiers, configuration, feature flags --- */
+  let mpEnabled=false, mpAutoMode='day';   // mpEnabled = opened from a requesting slide; mpAutoMode: 'never'|'day'|'timer'
+  const isEmp=id=>EMPLOYEES.some(e=>e.id===id);
+  const isAgency=id=>AGENCIES.some(a=>a.id===id);
+  const isClient=id=>CLIENTS.some(c=>c.id===id);
+  // a ledger's group = its company's CURRENT group (not a snapshot), so changing a company's group
+  // re-affects all of its ledgers, including those from past payroll runs.
+  const groupOf=l=>{ const r=runs[l.pid]; if(!r) return undefined;
+    const c=CLIENTS.find(x=>x.label===r.client); return c && c.group; };
+  // classifiers, in priority order (first active+applicable one wins). Each has a colour.
+  const CLASSIFIERS=[
+    {purpose:'Investment',              desc:'Long Term Holdings',                 color:'#a78bfa', applies:l=>isBank(l.from)&&l.due>day+6},
+    {purpose:'NM SIT',                  desc:'New Mexico SIT Tax Funds',           color:'#a06a3f', applies:l=>l.to==='NM_SIT'},
+    {purpose:'NY MCTMT',                desc:'New York MCTMT Tax Funds',           color:'#9aa3ad', applies:l=>l.to==='NY_MCTMT'},
+    {purpose:'WageDisbursement-GroupA', desc:'Wage Disbursement for Group A Companies', color:'#6ea8f0', applies:l=>groupOf(l)==='A'&&(isEmp(l.to)||isClient(l.from))},
+    {purpose:'WageDisbursement-GroupB', desc:'Wage Disbursement for Group B Companies', color:'#9bd16a', applies:l=>groupOf(l)==='B'&&(isEmp(l.to)||isClient(l.from))},
+    {purpose:'TaxDisbursement-GroupA',  desc:'Tax Disbursement for Group A Companies',  color:'#e6708a', applies:l=>groupOf(l)==='A'&&(isAgency(l.to)||isClient(l.from))},
+    {purpose:'TaxDisbursement-GroupB',  desc:'Tax Disbursement for Group B Companies',  color:'#e0c44f', applies:l=>groupOf(l)==='B'&&(isAgency(l.to)||isClient(l.from))},
+  ];
+  CLASSIFIERS.forEach(c=>c.active=false);   // all classifiers start inactive
+  // which payroll bank account each purpose should resolve to (editable in the config overlay)
+  const mpConfig={
+    'Investment':'BSB','NM SIT':'SVB','NY MCTMT':'ACB',
+    'WageDisbursement-GroupA':'SVB','WageDisbursement-GroupB':'ACB',
+    'TaxDisbursement-GroupA':'SVB','TaxDisbursement-GroupB':'ACB',
+  };
+
+  /* --- build static diagram --- */
+  const arrowLayer=S('g',{},svg), nodeLayer=S('g',{},svg), ledgerLayer=S('g',{},svg);
+  const figureLayer=S('g',{},svg);   // stick-figure animations draw on top of everything
+
+  function drawNode(n,kind,tag){
+    const g=S('g',{class:'dnode dnode-'+kind,'data-id':n.id},nodeLayer);
+    const L=n.x-n.w/2,T=n.y-n.h/2;
+    S('rect',{class:'dn-rect',x:L,y:T,width:n.w,height:n.h,rx:11},g);
+    if(tag){const tg=S('text',{class:'dn-kind',x:n.x,y:T-8},g);tg.textContent=tag;}
+    const t=S('text',{class:'dn-txt',x:n.x,y:n.y},g);t.textContent=n.label;
+    n.g=g; return g;
+  }
+  function edge(a,b,bankId){
+    const x1=a.x+a.w/2, x2=b.x-b.w/2;
+    const ln=S('line',{class:'darrow',x1,y1:a.y,x2,y2:b.y,'marker-end':'url(#arw)'},arrowLayer);
+    if(bankId)arrows.push({el:ln,bank:bankId});
+  }
+  CLIENTS.forEach((c,i)=>drawNode(c,'client',i===0?'Client':''));
+  BANKS.forEach((b,i)=>drawNode(b,'bank',i===0?'Payroll Banks':''));
+  EMPLOYEES.forEach((e,i)=>drawNode(e,'emp',i===0?'Employees':''));
+  AGENCIES.forEach((a,i)=>drawNode(a,'agency',i===0?'Tax agencies':''));
+  CLIENTS.forEach(c=>edge(c,NODES[c.bank]));
+  BANKS.forEach(b=>[...EMPLOYEES,...AGENCIES].forEach(r=>edge(b,r,b.id)));
+  // internal-transfer arrows between payroll banks (shown only when money positioning is active):
+  //  - adjacent banks (SVB↔ACB, ACB↔BSB): straight double-ended arrows between the facing edges
+  //  - far pair (SVB↔BSB): wraps off the bottom of the diagram and re-enters at the top ("tunnels")
+  const xferArrows=[];
+  (function(){
+    const X=BANKS[0].x, svb=NODES.SVB, acb=NODES.ACB, bsb=NODES.BSB;
+    const dbl=(y1,y2)=>xferArrows.push(S('line',
+      {class:'darrow xfer',x1:X,y1,x2:X,y2,'marker-start':'url(#arw)','marker-end':'url(#arw)'},arrowLayer));
+    dbl(svb.y+svb.h/2, acb.y-acb.h/2);                 // SVB ↔ ACB
+    dbl(acb.y+acb.h/2, bsb.y-bsb.h/2);                 // ACB ↔ BSB
+    const topY=14, botY=606;                           // wrap pair: two stubs into tunnel mouths
+    xferArrows.push(S('line',{class:'darrow xfer',x1:X,y1:botY-2,x2:X,y2:bsb.y+bsb.h/2,'marker-end':'url(#arw)'},arrowLayer));
+    xferArrows.push(S('line',{class:'darrow xfer',x1:X,y1:topY+2,x2:X,y2:svb.y-svb.h/2,'marker-end':'url(#arw)'},arrowLayer));
+    [botY,topY].forEach(y=>{                            // unobtrusive tunnel portals
+      xferArrows.push(S('ellipse',{class:'tunnel-hole',cx:X,cy:y,rx:16,ry:5},arrowLayer));
+      xferArrows.push(S('path',{class:'tunnel-rim',d:`M${X-16} ${y} A 16 10 0 0 1 ${X+16} ${y}`},arrowLayer));
+    });
+    xferArrows.forEach(a=>a.style.display='none');     // shown only when the feature is active
+  })();
+
+  // interactions
+  CLIENTS.forEach(c=>c.g.addEventListener('click',()=>openPay(c)));
+  BANKS.forEach(b=>b.g.addEventListener('click',()=>toggleBank(b)));
+  // clicking a recipient: a friendly figure pops out and waves hello (Bianca en français; agencies wear a hat)
+  EMPLOYEES.forEach(e=>e.g.addEventListener('click',()=>greetFigure(e, e.id==='Bianca'?'Bonjour!':'Hello!', false)));
+  AGENCIES.forEach(a=>a.g.addEventListener('click',()=>greetFigure(a,'Hello!',true)));
+  BANKS.forEach(b=>b.g.classList.toggle('inactive',!b.active));
+  function toggleBank(b){ b.active=!b.active; b.g.classList.toggle('inactive',!b.active); dimArrows(); }
+  function dimArrows(){ arrows.forEach(a=>a.el.classList.toggle('dim',!NODES[a.bank].active)); }
+  dimArrows();
+
+  /* --- ledgers --- */
+  function addLedger(pid,from,to,amount,due,kind){
+    const w=74,h=30;
+    const g=S('g',{class:'ledger'},ledgerLayer);     // appended last → newest paints on top
+    const rect=S('rect',{class:'lg-rect lg-pending',x:-w/2,y:-h/2,width:w,height:h},g);
+    const t1=S('text',{class:'lg-amt',x:0,y:-3},g);t1.textContent='$'+Math.round(amount).toLocaleString();
+    const t2=S('text',{class:'lg-due',x:0,y:10},g);t2.textContent='day '+due;
+    const a=NODES[from];
+    g.style.transform=`translate(${a.x+a.w/2}px,${a.y}px)`; // start near source, then settle
+    // we never reparent g afterwards: re-inserting a <g> resets its CSS transform transition.
+    const led={pid,from,to,amount,due,kind,seq:seq++,g,rect,dueText:t2};
+    g.addEventListener('pointerdown',e=>startDrag(led,e));
+    ledgers.push(led);
+  }
+  function runPayroll(client,earnings){
+    const T=day, bank=NODES[client.bank];
+    const total=client.emps.reduce((s,e)=>s+(earnings[e]||0),0);
+    if(total<=0)return;
+    const pid=++payrollNo; runs[pid]={client:client.label,day:T};   // monotonic payroll id (group is read live from the company)
+    addLedger(pid,client.id,bank.id,total,T+1,'fund');       // funding: client -> configured bank, T+1
+    client.emps.forEach(eid=>{
+      const e=earnings[eid]||0; if(e<=0)return;
+      addLedger(pid,bank.id,eid,e*0.6,T+4,'wage');           // wages: bank -> employee, 60%, T+4
+      LOC_TAXES[NODES[eid].loc].forEach(tx=>{                // taxes: bank -> agency, by jurisdiction
+        const cfg=TAX[tx];
+        addLedger(pid,bank.id,tx,e*cfg.rate,T+cfg.due,'tax');
+      });
+    });
+    requestAnimationFrame(relayout);
+  }
+  const GREEN=[96,196,118], GREEN_S=[170,240,190], GREY=[52,58,66], GREY_S=[74,82,90];
+  function mix(a,b,t){const c=i=>Math.round(a[i]+(b[i]-a[i])*t);return `rgb(${c(0)},${c(1)},${c(2)})`;}
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  // current tint/opacity of a ledger:
+  //   yellow pending → green once settled → green→dark-grey + fade as it ages out;
+  //   a due ledger whose source bank is inactive cannot settle: it stays pending-positioned + red.
+  function ledgerVisual(l){
+    if(l.settled){ const past=day-l.due;        // latched on a day-advance; stays settled thereafter
+      if(past>10){ const k=Math.min(1,(past-10)/7);
+        return {cls:'lg-done',fill:mix(GREEN,GREY,k),stroke:mix(GREEN_S,GREY_S,k),opacity:1-k}; }
+      return {cls:'lg-done',fill:'',stroke:'',opacity:1}; }
+    // due but not settled → red (it missed settlement because its bank was inactive at the advance);
+    // it stays red for the rest of the day even if the bank is reactivated / it's dragged elsewhere
+    if(day>=l.due) return {cls:'lg-blocked',fill:'',stroke:'',opacity:1};
+    return {cls:'lg-pending',fill:'',stroke:'',opacity:1};
+  }
+  // where a transfer ledger box sits: near its current end bank, on the relevant arrow.
+  // adjacent pairs sit in the gap between the boxes; the far pair (SVB↔BSB) sits on the outer
+  // (tunnel) stub of the near bank — above SVB or below BSB.
+  const ORDER=['SVB','ACB','BSB'];
+  function transferPos(l){
+    const nearId=l.done?l.to:l.from, near=NODES[nearId];
+    const adjacent=Math.abs(ORDER.indexOf(l.from)-ORDER.indexOf(l.to))===1;
+    const dir = adjacent ? (NODES[l.done?l.from:l.to].y>near.y?1:-1)   // toward the far bank (in the gap)
+                         : (nearId==='SVB'?-1:1);                       // wrap pair: outward
+    return {x:near.x, y:near.y+dir*(near.h/2+22), out:dir};
+  }
+  function relayout(){
+    // retire SETTLED ledgers 17+ days past due (blocked ones stay until they can finally settle)
+    for(let i=ledgers.length-1;i>=0;i--){
+      if(ledgers[i].settled && day-ledgers[i].due>=17){ ledgers[i].g.remove(); ledgers.splice(i,1); }
+    }
+    const groups={};
+    ledgers.forEach(l=>{
+      l.done = !!l.settled;   // settled ledgers sit on the 'to' side; pending/blocked stay on 'from'
+      const key=l.from+'>'+l.to+'|'+(l.done?'to':'from');
+      (groups[key]=groups[key]||[]).push(l);
+    });
+    for(const key in groups){
+      const arr=groups[key].sort((a,b)=>a.seq-b.seq); // oldest → newest
+      arr.forEach((l,i)=>{
+        // ride the line a quarter of its length from the near node (from-side while pending,
+        // to-side once settled); the CSS transform transition glides it along the line on settle day.
+        // co-located ledgers stack ALONG the line in 2% steps, newest on top (it paints last):
+        //   pending → newest pinned at 25%, older cascade toward 'to' (25, 27, 29…)
+        //   settled → oldest pinned at 75%, newer cascade toward 'from' (75, 73, 71…)
+        // arr is oldest→newest, so i=0 is oldest and i=last is newest.
+        let px,py;
+        if(l.kind==='transfer'){                       // internal transfer: rides the bank↔bank arrow
+          const p=transferPos(l); px=p.x; py=p.y+p.out*i*15;   // stack co-located transfers outward
+        }else{
+          const a=NODES[l.from], b=NODES[l.to];
+          const t = l.done ? 0.75-i*0.02 : 0.25+(arr.length-1-i)*0.02;
+          px=a.x+(b.x-a.x)*t; py=a.y+(b.y-a.y)*t;
+        }
+        l.g.style.transform=`translate(${px}px,${py}px)`;
+        const v=ledgerVisual(l);
+        l.rect.setAttribute('class','lg-rect '+v.cls);
+        l.rect.style.fill=v.fill; l.rect.style.stroke=v.stroke; l.g.style.opacity=v.opacity;
+        l.g.classList.toggle('mv', movable(l)); // draggable: any unsettled, bank-sourced ledger
+      });
+    }
+  }
+
+  /* --- payroll overlay --- */
+  function openPay(client){
+    payTitle.textContent='Run Payroll — '+client.label;
+    paySub.textContent='Enter gross earnings for each employee. Funds settle to '+client.bank+'.';
+    payBody.innerHTML='';
+    const inputs={};
+    client.emps.forEach(eid=>{
+      const e=NODES[eid];
+      const row=document.createElement('div');row.className='pay-row';
+      const lab=document.createElement('label');
+      lab.innerHTML=e.label+' <span class="loc">'+e.loc+'</span>';
+      const amt=document.createElement('div');amt.className='amt';
+      const sp=document.createElement('span');sp.textContent='$';
+      const inp=document.createElement('input');
+      inp.type='number';inp.min='0';inp.step='100';inp.value='1000';
+      inputs[eid]=inp;
+      amt.appendChild(sp);amt.appendChild(inp);
+      row.appendChild(lab);row.appendChild(amt);payBody.appendChild(row);
+    });
+    payOverlay._run=()=>{
+      const earnings={};
+      client.emps.forEach(eid=>earnings[eid]=parseFloat(inputs[eid].value)||0);
+      runPayroll(client,earnings);
+    };
+    renderRuns(client);
+    renderConfig(client);
+    payOverlay.classList.add('show');
+    payOverlay.setAttribute('aria-hidden','false');
+  }
+  // "Company Configuration" section (below Run Payroll / Active payroll runs): company-level group.
+  // The group is a property of the company; changing it re-affects all of that company's ledgers.
+  function renderConfig(client){
+    payConfig.innerHTML='';
+    const h=document.createElement('div');h.className='pay-runs-h';h.textContent='Company Configuration';
+    payConfig.appendChild(h);
+    const grp=document.createElement('div');grp.className='pay-group';
+    const lab=document.createElement('span');lab.textContent='Company group';grp.appendChild(lab);
+    ['A','B'].forEach(G=>{
+      const b=document.createElement('button');b.type='button';
+      b.className='grp-btn'+(client.group===G?' on':'');b.textContent='Group '+G;
+      b.addEventListener('click',()=>{ client.group=G;
+        grp.querySelectorAll('.grp-btn').forEach(x=>x.classList.remove('on')); b.classList.add('on'); });
+      grp.appendChild(b);
+    });
+    payConfig.appendChild(grp);
+  }
+  function closePay(){ closeRun(); payOverlay.classList.remove('show'); payOverlay.setAttribute('aria-hidden','true'); }
+  // dismiss an overlay by clicking outside its card; require the press to also start on the
+  // backdrop so a drag (e.g. selecting text inside the card) that ends outside doesn't close it
+  function dismissable(overlay,close){
+    let onBackdrop=false;
+    overlay.addEventListener('pointerdown',e=>{ onBackdrop = e.target===overlay; });
+    overlay.addEventListener('click',e=>{ if(e.target===overlay && onBackdrop) close(); });
+  }
+  document.getElementById('payRun').addEventListener('click',()=>{ payOverlay._run&&payOverlay._run(); closePay(); });
+  document.getElementById('payClose').addEventListener('click',closePay);
+  dismissable(payOverlay,closePay);
+
+  /* --- active-run buttons + ledger-list overlay --- */
+  // a run is "current" while it still has at least one (not-yet-retired) ledger on the diagram;
+  // only show runs that belong to the company whose overlay is open
+  function renderRuns(client){
+    const present=[...new Set(ledgers.filter(l=>runs[l.pid].client===client.label).map(l=>l.pid))]
+      .sort((a,b)=>a-b);
+    payRuns.innerHTML='';
+    if(!present.length)return;
+    const h=document.createElement('div');h.className='pay-runs-h';h.textContent='Active payroll runs';
+    payRuns.appendChild(h);
+    const list=document.createElement('div');list.className='pay-runs-list';
+    present.forEach(pid=>{
+      const cnt=ledgers.filter(l=>l.pid===pid).length;
+      const b=document.createElement('button');b.className='pay-run-btn';
+      b.innerHTML=`<b>Payroll #${pid}</b> ${runs[pid].client} <span>${cnt} ledger${cnt===1?'':'s'}</span>`;
+      b.addEventListener('click',()=>openRun(pid));
+      list.appendChild(b);
+    });
+    payRuns.appendChild(list);
+  }
+  function miniLedger(l){                       // same box/tint as on the diagram
+    const v=ledgerVisual(l);
+    const svg=S('svg',{class:'lg-mini',viewBox:'0 0 84 34',width:84,height:34});
+    const g=S('g',{},svg);
+    const rect=S('rect',{class:'lg-rect '+v.cls,x:5,y:2,width:74,height:30},g);
+    if(v.fill){rect.style.fill=v.fill;rect.style.stroke=v.stroke;}
+    svg.style.opacity=v.opacity;
+    const t1=S('text',{class:'lg-amt',x:42,y:13},g);t1.textContent='$'+Math.round(l.amount).toLocaleString();
+    const t2=S('text',{class:'lg-due',x:42,y:25},g);t2.textContent='day '+l.due;
+    return svg;
+  }
+  function openRun(pid){
+    runTitle.textContent=`Payroll #${pid} — ${runs[pid].client}`;
+    runSub.textContent=`Ledgers from this run (created on day ${runs[pid].day}).`;
+    const rows=ledgers.filter(l=>l.pid===pid).sort((a,b)=>a.due-b.due); // earliest due on top
+    runBody.innerHTML='';
+    rows.forEach(l=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${NODES[l.from].label}</td><td>${NODES[l.to].label}</td>`+
+        `<td>day ${l.due}</td><td class="amt">$${Math.round(l.amount).toLocaleString()}</td>`;
+      const td=document.createElement('td');td.className='lg-cell';td.appendChild(miniLedger(l));
+      tr.appendChild(td);
+      runBody.appendChild(tr);
+    });
+    runOverlay.classList.add('show');runOverlay.setAttribute('aria-hidden','false');
+  }
+  function closeRun(){ runOverlay.classList.remove('show'); runOverlay.setAttribute('aria-hidden','true'); }
+  document.getElementById('runClose').addEventListener('click',closeRun);
+  dismissable(runOverlay,closeRun);
+
+  /* --- drag a pending, bank-sourced ledger onto another payroll bank --- */
+  function isBank(id){ return BANKS.some(b=>b.id===id); }
+  // any unsettled, bank-sourced ledger can be dragged — including the red (blocked) ones
+  function movable(l){ return isBank(l.from) && !l.settled; }
+  function toSVG(cx,cy){ return new DOMPoint(cx,cy).matrixTransform(svg.getScreenCTM().inverse()); }
+  let drag=null;
+  function startDrag(l,e){
+    if(drag || !movable(l)) return;
+    e.preventDefault();
+    drag={l};
+    l.g.classList.add('dragging');
+    l.g.style.transition='none';      // follow the cursor with no lag
+    l.g.style.pointerEvents='none';   // keep the banks underneath hittable
+    window.addEventListener('pointermove',onDragMove);
+    window.addEventListener('pointerup',onDragUp);
+  }
+  function onDragMove(e){
+    if(!drag) return;
+    const p=toSVG(e.clientX,e.clientY);
+    drag.l.g.style.transform=`translate(${p.x}px,${p.y}px)`;
+  }
+  function onDragUp(e){
+    window.removeEventListener('pointermove',onDragMove);
+    window.removeEventListener('pointerup',onDragUp);
+    const l=drag.l; drag=null;
+    l.g.classList.remove('dragging'); l.g.style.transition=''; l.g.style.pointerEvents='';
+    const p=toSVG(e.clientX,e.clientY);
+    const tgt=BANKS.find(b=>Math.abs(p.x-b.x)<=b.w/2 && Math.abs(p.y-b.y)<=b.h/2);
+    if(tgt && tgt.id!==l.from){ l.from=tgt.id; relayout(); openAudit(); } // reassign source bank
+    else relayout();   // invalid / no-op drop → animate back into place
+  }
+  function openAudit(){ auditOverlay.classList.add('show'); auditOverlay.setAttribute('aria-hidden','false'); }
+  function closeAudit(){ auditOverlay.classList.remove('show'); auditOverlay.setAttribute('aria-hidden','true'); }
+  document.getElementById('auditClose').addEventListener('click',closeAudit);
+  document.getElementById('auditOk').addEventListener('click',closeAudit);
+  dismissable(auditOverlay,closeAudit);
+
+  /* --- angry stick figure: a due ledger can't settle because its source bank is inactive --- */
+  // appears at the destination, gets angry, marches to the deactivated bank, bangs on it, returns, vanishes
+  function angryFigure(dest,src){
+    const dir=Math.sign(dest.x-src.x)||1;          // destination side relative to the bank
+    const toward=-dir;                             // bank direction from the standing spot (for the arm)
+    const A={x:dest.x-dir*(dest.w/2+6), y:dest.y}; // appear just inside the destination
+    const B={x:src.x+dir*(src.w/2+16), y:src.y};   // stand just outside the bank
+    const g=S('g',{class:'stickfig'},figureLayer);
+    S('circle',{class:'sk2 sk2h',cx:0,cy:-32,r:7},g);
+    S('path',{class:'sk2',d:`M${toward*-6} -36 L${toward*-1} -33`},g); // angry brows
+    S('path',{class:'sk2',d:`M${toward*6} -36 L${toward*1} -33`},g);
+    S('path',{class:'sk2',d:'M-3 -27 Q0 -30 3 -27'},g);                // frown
+    const body=S('path',{class:'sk2',d:'M0 -27 V-12'},g);
+    const armBack=S('path',{class:'sk2'},g), armFront=S('path',{class:'sk2'},g);
+    const legL=S('path',{class:'sk2'},g), legR=S('path',{class:'sk2'},g);
+    const marks=S('g',{class:'marks'},g);
+    S('path',{class:'sk2',d:`M${toward*-13} -46 l-4 -4`},marks);
+    S('path',{class:'sk2',d:`M${toward*-18} -41 l-5 -1`},marks);
+    marks.style.opacity=0;
+    const spark=S('g',{class:'spark'},figureLayer);
+    const spx=src.x+dir*(src.w/2), spy=src.y;
+    for(let i=0;i<5;i++){ const ang=(toward>0?0:Math.PI)+(i-2)*0.5;
+      S('path',{d:`M${spx} ${spy} l${Math.cos(ang)*11} ${Math.sin(ang)*11}`},spark); }
+    spark.style.opacity=0;
+    function limbs(walk,bang){
+      const sw=Math.sin(walk)*5;
+      legL.setAttribute('d',`M0 -12 L${sw} 0`);
+      legR.setAttribute('d',`M0 -12 L${-sw} 0`);
+      armBack.setAttribute('d',`M0 -25 L${-toward*6} -16`);
+      armFront.setAttribute('d',`M0 -25 L${toward*(8+bang*9)} ${-20+bang*5}`);
+    }
+    const T={appear:400,angry:600,walk:1200,bang:1500,back:1200,gone:400};
+    const t0=T.appear,t1=t0+T.angry,t2=t1+T.walk,t3=t2+T.bang,t4=t3+T.back,t5=t4+T.gone;
+    const start=performance.now();
+    (function step(now){
+      const e=now-start; let pos=A,scale=1,op=1,walk=0,bang=0,mk=0,sp=0;
+      if(e<t0){ const u=e/t0; scale=0.6+0.4*u; op=u; }
+      else if(e<t1){ mk=1; pos={x:A.x+Math.sin((e-t0)/18)*1.4,y:A.y}; }      // angry shake
+      else if(e<t2){ const u=(e-t1)/T.walk; pos={x:lerp(A.x,B.x,u),y:lerp(A.y,B.y,u)}; walk=e/55; mk=1; }
+      else if(e<t3){ pos=B; bang=Math.max(0,Math.sin((e-t2)/T.bang*Math.PI*8)); mk=1; sp=bang>0.7?1:0; }
+      else if(e<t4){ const u=(e-t3)/T.back; pos={x:lerp(B.x,A.x,u),y:lerp(B.y,A.y,u)}; walk=e/55; }
+      else if(e<t5){ const u=(e-t4)/T.gone; pos=A; op=1-u; scale=1-0.35*u; }
+      else { g.remove(); spark.remove(); return; }
+      limbs(walk,bang); marks.style.opacity=mk; spark.style.opacity=sp; g.style.opacity=op;
+      g.style.transform=`translate(${pos.x}px,${pos.y}px) scale(${scale})`;
+      requestAnimationFrame(step);
+    })(start);
+  }
+  // a little top hat on the head (tax-agency figures wear one)
+  function drawHat(g){
+    S('path',{class:'sk2',d:'M-10 -39 L10 -39'},g);                 // brim
+    S('path',{class:'sk2',d:'M-6 -39 L-6 -50 L6 -50 L6 -39'},g);    // crown
+  }
+  // clicking a recipient: a friendly figure steps out, waves & greets via a speech bubble, then retreats
+  function greetFigure(node,text,hat){
+    if(node._busy) return; node._busy=true;
+    const home={x:node.x,y:node.y};
+    const out={x:node.x-(node.w/2+18), y:node.y};    // step out to the left of the node
+    const g=S('g',{class:'stickfig greet'},figureLayer);
+    S('circle',{class:'sk2 sk2h',cx:0,cy:-32,r:7},g);
+    if(hat) drawHat(g);
+    S('circle',{cx:-3,cy:-33,r:1.5,fill:'#cdd8e3'},g);              // friendly eyes
+    S('circle',{cx:3,cy:-33,r:1.5,fill:'#cdd8e3'},g);
+    S('path',{class:'sk2',d:'M-3 -29 Q0 -26 3 -29'},g);            // smile
+    S('path',{class:'sk2',d:'M0 -27 V-12'},g);                     // body
+    const armWave=S('path',{class:'sk2'},g);                       // waving arm (animated)
+    S('path',{class:'sk2',d:'M0 -24 L-7 -16'},g);                  // other arm
+    S('path',{class:'sk2',d:'M0 -12 L6 0'},g);                     // legs
+    S('path',{class:'sk2',d:'M0 -12 L-6 0'},g);
+    const bub=S('g',{class:'bubble greet'},g);
+    const w=Math.max(48,text.length*6.8+16), h=22, bx=-(w+6), by=-58;
+    S('rect',{class:'bub-box',x:bx,y:by,width:w,height:h,rx:8},bub);
+    S('path',{class:'bub-box',d:`M-13 ${by+h} L-1 -29 L-3 ${by+h} Z`},bub);
+    const tt=S('text',{class:'bub-txt',x:bx+w/2,y:by+h/2+1},bub); tt.textContent=text;
+    bub.style.opacity=0;
+    const start=performance.now();
+    (function step(now){
+      const e=now-start; let pos=out,op=1,scale=1,bo=0,wave=0;
+      if(e<350){ const u=e/350; pos={x:lerp(home.x,out.x,u),y:home.y}; scale=0.5+0.5*u; op=u; } // step out
+      else if(e<1300){ bo=Math.min(1,(e-350)/120); wave=Math.sin((e-350)/90); }                 // greet + wave
+      else if(e<1450){ bo=Math.max(0,1-(e-1300)/150); wave=Math.sin((e-350)/90); }               // bubble fades
+      else if(e<1800){ const u=(e-1450)/350; pos={x:lerp(out.x,home.x,u),y:home.y}; scale=1-0.5*u; op=1-u; } // back in
+      else { g.remove(); node._busy=false; return; }
+      armWave.setAttribute('d',`M0 -24 L${8+wave*2} ${-28+wave*3}`);
+      bub.style.opacity=bo; g.style.opacity=op;
+      g.style.transform=`translate(${pos.x}px,${pos.y}px) scale(${scale})`;
+      requestAnimationFrame(step);
+    })(start);
+  }
+  // a worried/angry figure shows up at a tax agency, gets angry and shouts a penalty, then vanishes
+  function penaltyFigure(dest,text){
+    const A={x:dest.x-(dest.w/2+8), y:dest.y};       // stand just inside the agency node
+    const g=S('g',{class:'stickfig'},figureLayer);
+    S('circle',{class:'sk2 sk2h',cx:0,cy:-32,r:7},g);
+    drawHat(g);                                       // tax-agency figures wear a hat
+    S('path',{class:'sk2',d:'M-6 -36 L-1 -33'},g);   // angry brows
+    S('path',{class:'sk2',d:'M6 -36 L1 -33'},g);
+    S('path',{class:'sk2',d:'M-3 -27 Q0 -30 3 -27'},g);
+    S('path',{class:'sk2',d:'M0 -27 V-12'},g);       // body
+    S('path',{class:'sk2',d:'M0 -25 L9 -30'},g);     // a raised, shaking fist
+    S('path',{class:'sk2',d:'M0 -25 L-7 -18'},g);
+    S('path',{class:'sk2',d:'M0 -12 L5 0'},g);       // legs
+    S('path',{class:'sk2',d:'M0 -12 L-5 0'},g);
+    const marks=S('g',{class:'marks'},g);
+    S('path',{class:'sk2',d:'M-13 -46 l-4 -4'},marks);
+    S('path',{class:'sk2',d:'M-18 -41 l-5 -1'},marks);
+    const bub=S('g',{class:'bubble'},g);
+    const w=Math.max(48,text.length*6.6+16), h=22, bx=-(w+6), by=-58;
+    S('rect',{class:'bub-box',x:bx,y:by,width:w,height:h,rx:8},bub);
+    S('path',{class:'bub-box',d:`M-13 ${by+h} L-1 -29 L-3 ${by+h} Z`},bub); // tail to head
+    const tt=S('text',{class:'bub-txt',x:bx+w/2,y:by+h/2+1},bub); tt.textContent=text;
+    bub.style.opacity=0;
+    const start=performance.now();
+    (function step(now){
+      const e=now-start; let op=1,scale=1,bo=0,mk=0;
+      if(e<300){ const u=e/300; scale=0.6+0.4*u; op=u; }            // appear
+      else if(e<1000){ bo=Math.min(1,(e-300)/120); mk=1; }         // bubble up, visible ~0.7s
+      else if(e<1150){ bo=Math.max(0,1-(e-1000)/150); mk=1; }      // bubble fades after 0.7s
+      else if(e<1550){ const u=(e-1150)/400; op=1-u; scale=1-0.3*u; } // figure vanishes shortly after
+      else { g.remove(); return; }
+      bub.style.opacity=bo; marks.style.opacity=mk; g.style.opacity=op;
+      g.style.transform=`translate(${A.x}px,${A.y}px) scale(${scale})`;
+      requestAnimationFrame(step);
+    })(start);
+  }
+  // a due ledger whose source bank is inactive can't settle → its recipient protests
+  function checkDueBlocked(){
+    const seen=new Set();
+    ledgers.forEach(l=>{
+      if(l.settled || day<l.due || !(isBank(l.from) && !NODES[l.from].active)) return;
+      const key=l.from+'>'+l.to;
+      if(l.kind==='tax'){                  // tax agency: shout a penalty every day it stays blocked
+        if(seen.has('t'+key))return; seen.add('t'+key);
+        penaltyFigure(NODES[l.to], day===l.due?'5% penalty!':'… more penalties!');
+      } else if(l.kind==='wage' && day===l.due){  // employee wage: march to the bank & bang, only on due date
+        if(seen.has('w'+key))return; seen.add('w'+key);
+        angryFigure(NODES[l.to],NODES[l.from]);
+      }
+    });
+  }
+
+  /* --- money positioning: classify ledgers by purpose & move funds to the configured account --- */
+  function setPurpose(l,cls){
+    l.purpose = cls ? cls.purpose : null;
+    if(!l.dot) l.dot=S('circle',{class:'lg-dot',cx:30,cy:-11,r:4},l.g); // marker at the box's top-right
+    if(cls){ l.dot.style.fill=cls.color; l.dot.style.display=''; }
+    else l.dot.style.display='none';
+  }
+  function runMoneyPositioning(){
+    if(!mpEnabled) return;
+    ledgers.slice().forEach(l=>{                 // slice: transfers we add below aren't re-processed
+      if(l.settled || l.kind==='transfer') return;
+      const cls=CLASSIFIERS.find(c=>c.active && c.applies(l));   // first active, applicable classifier
+      setPurpose(l, cls||null);
+      if(!cls) return;
+      const acct=mpConfig[cls.purpose];          // the payroll bank account this purpose should resolve to
+      if(!isBank(acct)) return;
+      if(isBank(l.to) && !isBank(l.from)){        // funding ledger: the 'to' is the payroll bank account → redirect
+        if(l.to!==acct){ const orig=l.to; l.to=acct;
+          // the funding now lands in the purpose account; move it on to where it was originally expected
+          addLedger(l.pid, acct, orig, l.amount, day+1, 'transfer');
+        }
+      } else if(isBank(l.from) && l.from!==acct){ // disbursement: the 'from' is the payroll bank account → move
+        const old=l.from; l.from=acct;
+        // internal transfer (old→new payroll bank account) so the paying account is funded; due next day
+        addLedger(l.pid, old, acct, l.amount, day+1, 'transfer');
+      }
+    });
+    cancelInternalTransfers();
+  }
+  // within a payroll run, an A→B and a B→A transfer of equal amount net to nothing → remove both
+  function cancelInternalTransfers(){
+    const t=ledgers.filter(l=>l.kind==='transfer' && !l.settled), gone=new Set();
+    for(let i=0;i<t.length;i++){ if(gone.has(t[i]))continue;
+      for(let j=i+1;j<t.length;j++){ if(gone.has(t[j]))continue;
+        const a=t[i], b=t[j];
+        if(a.pid===b.pid && a.from===b.to && a.to===b.from && Math.round(a.amount)===Math.round(b.amount)){
+          gone.add(a); gone.add(b); break;
+        }
+      }
+    }
+    if(gone.size) for(let i=ledgers.length-1;i>=0;i--){
+      if(gone.has(ledgers[i])){ ledgers[i].g.remove(); ledgers.splice(i,1); }
+    }
+  }
+  function buildMpUI(){
+    const cl=document.getElementById('mpClassifiers'), pp=document.getElementById('mpPurposes');
+    CLASSIFIERS.forEach(c=>{
+      const row=document.createElement('label');row.className='mp-row';
+      const chk=document.createElement('input');chk.type='checkbox';chk.checked=c.active;
+      chk.addEventListener('change',()=>c.active=chk.checked);
+      const sw=document.createElement('span');sw.className='mp-swatch';sw.style.background=c.color;
+      const txt=document.createElement('span');txt.className='mp-txt';
+      txt.innerHTML=`<b>${c.purpose}</b><span>${c.desc}</span>`;
+      row.append(chk,sw,txt); cl.appendChild(row);
+
+      const prow=document.createElement('div');prow.className='mp-row';
+      const psw=document.createElement('span');psw.className='mp-swatch';psw.style.background=c.color;
+      const ptxt=document.createElement('span');ptxt.className='mp-txt';ptxt.innerHTML=`<b>${c.purpose}</b>`;
+      const sel=document.createElement('select');sel.className='mp-sel';
+      BANKS.forEach(b=>{const o=document.createElement('option');o.value=b.id;o.textContent=b.label;
+        if(mpConfig[c.purpose]===b.id)o.selected=true; sel.appendChild(o);});
+      sel.addEventListener('change',()=>mpConfig[c.purpose]=sel.value);
+      prow.append(psw,ptxt,sel); pp.appendChild(prow);
+    });
+    document.getElementById('mpAutoSel').addEventListener('change',e=>mpAutoMode=e.target.value);
+  }
+  buildMpUI();
+  const showOverlay=o=>{ o.classList.add('show'); o.setAttribute('aria-hidden','false'); };
+  const hideOverlay=o=>{ o.classList.remove('show'); o.setAttribute('aria-hidden','true'); };
+  function closeMp(){ hideOverlay(mpClassOverlay); hideOverlay(mpAcctOverlay); }
+  mpClassBtn.addEventListener('click',()=>showOverlay(mpClassOverlay));
+  mpAcctBtn.addEventListener('click',()=>showOverlay(mpAcctOverlay));
+  mpRunBtn.addEventListener('click',()=>{ runMoneyPositioning(); relayout(); });
+  document.getElementById('mpClassClose').addEventListener('click',()=>hideOverlay(mpClassOverlay));
+  document.getElementById('mpAcctClose').addEventListener('click',()=>hideOverlay(mpAcctOverlay));
+  dismissable(mpClassOverlay,()=>hideOverlay(mpClassOverlay));
+  dismissable(mpAcctOverlay,()=>hideOverlay(mpAcctOverlay));
+  function setMpEnabled(on){
+    mpEnabled=on; mpClassBtn.hidden=!on; mpAcctBtn.hidden=!on; mpRunBtn.hidden=!on;
+    xferArrows.forEach(a=>a.style.display=on?'':'none');
+  }
+  // "Every 4 Seconds" auto mode: run positioning on a 4s interval while the demo is open & active
+  setInterval(()=>{ if(mpEnabled && demoOpen && mpAutoMode==='timer'){ runMoneyPositioning(); relayout(); } }, 4000);
+
+  /* --- day control --- */
+  document.getElementById('demoNext').addEventListener('click',()=>{
+    day++; dayEl.textContent=day;
+    if(mpEnabled && mpAutoMode==='day') runMoneyPositioning();   // beginning-of-day money positioning
+    // settling happens only on day progression: latch any due ledger whose source bank is now active
+    ledgers.forEach(l=>{ if(!l.settled && day>=l.due && (!isBank(l.from)||NODES[l.from].active)) l.settled=true; });
+    // keep still-blocked ledgers' due dates recent (>= T-1) so they settle fresh, not already-expired
+    ledgers.forEach(l=>{ if(!l.settled && l.due<day-1){ l.due=day-1; l.dueText.textContent='day '+l.due; } });
+    relayout(); checkDueBlocked();
+  });
+
+  /* --- open / close panel --- */
+  function openDemo(purpose){
+    setMpEnabled(!!purpose);   // the feature is active only when the opening slide requests it
+    demoOpen=true; document.body.classList.add('demo-open');
+    panel.classList.add('show'); panel.setAttribute('aria-hidden','false');
+    deck.style.transform=deckTransform();
+    requestAnimationFrame(relayout);
+  }
+  function closeDemo(){
+    demoOpen=false; document.body.classList.remove('demo-open');
+    panel.classList.remove('show'); panel.setAttribute('aria-hidden','true');
+    closeMp(); closeAudit(); closePay();
+    deck.style.transform=deckTransform();
+  }
+  document.querySelectorAll('[data-demo-open]').forEach(b=>
+    b.addEventListener('click',()=>openDemo(b.hasAttribute('data-demo-purpose'))));
+  document.getElementById('demoClose').addEventListener('click',closeDemo);
+  window.addEventListener('keydown',e=>{
+    if(!demoOpen)return;
+    if(e.key==='Escape'){ e.preventDefault();
+      if(mpClassOverlay.classList.contains('show'))hideOverlay(mpClassOverlay);
+      else if(mpAcctOverlay.classList.contains('show'))hideOverlay(mpAcctOverlay);
+      else if(auditOverlay.classList.contains('show'))closeAudit();
+      else if(runOverlay.classList.contains('show'))closeRun();
+      else if(payOverlay.classList.contains('show'))closePay();
+      else closeDemo(); }
+  });
+})();
+
+go(0);
+</script>
+</body>
+</html>
