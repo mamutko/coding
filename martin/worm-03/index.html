@@ -61,7 +61,7 @@
             opacity: 0.65;
             margin: 10px 0 0;
         }
-        #playerNameInput, #joinCodeInput {
+        #wellDoneName, #joinCodeInput {
             width: 100%;
             padding: 8px;
             font-size: 16px;
@@ -159,6 +159,48 @@
             margin-top: 10px;
             width: 100%;
         }
+        #nameErrorPanel {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 40;
+            align-items: center;
+            justify-content: center;
+        }
+        .nameErrorCard {
+            background: #1a1a1a;
+            border: 2px solid #fff;
+            border-radius: 8px;
+            padding: 18px 20px;
+            max-width: 280px;
+        }
+        .nameErrorCard h2 { margin: 0 0 8px; font-size: 16px; }
+        .nameErrorCard p { margin: 0 0 6px; font-size: 13px; }
+        .nameErrorCard ul { margin: 0 0 12px; padding-left: 20px; font-size: 13px; }
+        .nameErrorCard li { margin-bottom: 4px; }
+        #closeNameError { width: 100%; }
+        #wellDonePanel {
+            display: none;
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 35;
+            align-items: center;
+            justify-content: center;
+        }
+        .wellDoneCard {
+            background: #1a1a1a;
+            border: 2px solid #fff;
+            border-radius: 8px;
+            padding: 18px 20px;
+            max-width: 280px;
+            text-align: center;
+        }
+        .wellDoneCard h2 { margin: 0 0 8px; font-size: 18px; }
+        .wellDoneCard p { margin: 0 0 12px; font-size: 13px; }
+        .wellDoneActions { display: flex; gap: 8px; margin-top: 12px; }
+        .wellDoneActions button { flex: 1; padding: 8px; }
     </style>
 </head>
 <body>
@@ -168,8 +210,6 @@
             <div id="gameOver">
                 <div id="overlayTitle">Worm</div>
                 <div id="startControls">
-                    <label for="playerNameInput">Player name:</label>
-                    <input id="playerNameInput" type="text" />
                     <button id="restartBtn">Start Game</button>
                     <p id="controlHint">Tap top / bottom / left / right of screen to steer</p>
                     <div id="mpArea">
@@ -188,6 +228,29 @@
                 <ol id="leaderboardList"></ol>
                 <button id="closeLeaderboard">Close</button>
             </div>
+            <div id="wellDonePanel">
+                <div class="wellDoneCard">
+                    <h2>Well done!</h2>
+                    <p>Your score made the leaderboard. Enter a name to publish it.</p>
+                    <input id="wellDoneName" type="text" maxlength="18" placeholder="Your name" />
+                    <div class="wellDoneActions">
+                        <button id="publishBtn">Publish Score</button>
+                        <button id="skipBtn">Skip</button>
+                    </div>
+                </div>
+            </div>
+            <div id="nameErrorPanel">
+                <div class="nameErrorCard">
+                    <h2>Choose a different name</h2>
+                    <p>Your name must be:</p>
+                    <ul>
+                        <li>at most 18 characters long</li>
+                        <li>letters, spaces and dashes only</li>
+                        <li>respectful &mdash; no profanity</li>
+                    </ul>
+                    <button id="closeNameError">OK</button>
+                </div>
+            </div>
         </div>
     </div>
     <script>
@@ -197,11 +260,16 @@
         const overlayTitle = document.getElementById('overlayTitle');
         const startControls = document.getElementById('startControls');
         const restartBtn = document.getElementById('restartBtn');
-        const playerNameInput = document.getElementById('playerNameInput');
+        const wellDonePanel = document.getElementById('wellDonePanel');
+        const wellDoneName = document.getElementById('wellDoneName');
+        const publishBtn = document.getElementById('publishBtn');
+        const skipBtn = document.getElementById('skipBtn');
         const leaderboardList = document.getElementById('leaderboardList');
         const leaderboardBtn = document.getElementById('leaderboardBtn');
         const leaderboardPanel = document.getElementById('leaderboardPanel');
         const closeLeaderboard = document.getElementById('closeLeaderboard');
+        const nameErrorPanel = document.getElementById('nameErrorPanel');
+        const closeNameError = document.getElementById('closeNameError');
         const mpArea = document.getElementById('mpArea');
         const yourCodeEl = document.getElementById('yourCode');
         const joinCodeInput = document.getElementById('joinCodeInput');
@@ -361,16 +429,15 @@
             });
         }
 
-        // Insert every score as its own row, then prune the table back to the
-        // displayed top scores and refresh the shared board. Network failures are
-        // non-fatal so solo play still works offline.
-        async function recordScore(player) {
-            const value = Math.max(player.worm.length - INITIAL_WORM_LENGTH, 0);
+        // Publish a score the player chose to submit: insert a row, prune the
+        // table back to the displayed top scores, and refresh the shared board.
+        // Network failures are non-fatal so solo play still works offline.
+        async function recordScore(name, value) {
             try {
                 const res = await fetch(SUPABASE_URL, {
                     method: 'POST',
                     headers: SUPABASE_HEADERS,
-                    body: JSON.stringify({ name: player.name, score: value })
+                    body: JSON.stringify({ name: name, score: value })
                 });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 await pruneLeaderboard();
@@ -380,6 +447,141 @@
             await loadLeaderboard();
             updateLeaderboardDisplay();
         }
+
+        // ---------- Name validation ----------
+
+        // Names are validated in the browser when the player publishes a score.
+        // Rules: 1..NAME_MAX characters, letters/space/dash only, and no bad
+        // words. The bad-word lists are not stored in clear text — each word is
+        // obfuscated with a Caesar +3 cipher (a->d) and decoded at load time.
+        //   - REGULAR words match as a substring anywhere in the name.
+        //   - BOUNDED words match only as a whole word (word boundaries), so
+        //     they don't flag innocent names (e.g. "cunt" won't block
+        //     "Scunthorpe"). All matching is case-insensitive.
+        const NAME_MAX = 18;
+        const NAME_ALLOWED = /^[A-Za-z -]+$/;
+
+        const BAD_WORDS_REGULAR_ENC = [
+            'vklw', 'exoovklw', 'vklwh', 'fuds', 'slvv', 'slvvhg', 'ixfn',
+            'ixfnhu', 'ixfnlqj', 'prwkhuixfnhu', 'elwfk', 'edvwdug',
+            'dvvkroh', 'duvhkroh', 'glfn', 'glfnkhdg', 'sulfn', 'frfn',
+            'frfnvxfnhu', 'sxvvb', 'wzdw', 'zdqnhu', 'eroorfnv', 'exjjhu',
+            'voxw', 'zkruh', 'grxfkh', 'grxfkhedj', 'mdfndvv', 'gxpedvv',
+            'glsvklw', 'kruvhvklw', 'jrggdpq', 'qljjhu', 'qljjd', 'fklqn',
+            'zhwedfn', 'nlnh', 'qdcl', 'idjjrw', 'gbnh', 'wudqqb', 'uhwdug',
+            'uhwdughg', 'vsdvwlf', 'fulssoh', 'fudfnhu', 'krqnb',
+            'vdqgqljjhu', 'udjkhdg', 'wrzhokhdg', 'ehdqhu', 'clsshukhdg',
+            'jlps', 'prqjrorlg', 'sruq', 'sruqr', 'udsh', 'udslvw', 'prohvw',
+            'shgr', 'shgrskloh', 'sdhgrskloh', 'erqhu', 'eorzmre', 'kdqgmre',
+            'fxpvkrw', 'mlcc', 'glogr', 'kruqb', 'rujdvp', 'pdvwxuedwh',
+            'whvwlfoh', 'vfurwxp', 'vfkhlvvh', 'duvfkorfk', 'kxuhqvrkq',
+            'irwch', 'sxwdlq', 'phugh', 'frqqdug', 'plhugd', 'fdeurq',
+            'pdulfrq', 'nrnrw', 'nxuyd', 'mhedw', 'ifn',
+        ];
+        const BAD_WORDS_BOUNDED_ENC = [
+            'frrq', 'fxqw', 'idj', 'zrs', 'jrrn', 'vslf', 'gdjr', 'sdnl',
+            'frq', 'sxwd', 'slfd', 'ix',
+        ];
+
+        // Reverse the +3 cipher (shift letters back by 3).
+        function decodeWord(s) {
+            let out = '';
+            for (const ch of s) {
+                const c = ch.charCodeAt(0);
+                out += (c >= 97 && c <= 122)
+                    ? String.fromCharCode((c - 97 + 23) % 26 + 97)
+                    : ch;
+            }
+            return out;
+        }
+
+        const BAD_WORDS_REGULAR = BAD_WORDS_REGULAR_ENC.map(decodeWord);
+        const BAD_WORDS_BOUNDED_RE = BAD_WORDS_BOUNDED_ENC
+            .map(decodeWord)
+            .map(w => new RegExp('\\b' + w + '\\b'));
+
+        // True if the (lowercased) name contains a regular bad word as a
+        // substring, or a bounded bad word as a whole word.
+        function containsBadWord(name) {
+            const lower = name.toLowerCase();
+            for (const w of BAD_WORDS_REGULAR) {
+                if (lower.includes(w)) return true;
+            }
+            for (const re of BAD_WORDS_BOUNDED_RE) {
+                if (re.test(lower)) return true;
+            }
+            return false;
+        }
+
+        // True if the name is acceptable for publishing: non-empty after
+        // trimming, at most NAME_MAX chars, letters/space/dash only, no bad word.
+        function isNameValid(rawName) {
+            const name = rawName.trim();
+            if (name.length === 0 || name.length > NAME_MAX) return false;
+            if (!NAME_ALLOWED.test(name)) return false;
+            if (containsBadWord(name)) return false;
+            return true;
+        }
+
+        // Validate the leaderboard name field; show the rules dialog and return
+        // false on failure so the caller keeps the publish prompt open.
+        function ensureValidName() {
+            if (isNameValid(wellDoneName.value)) return true;
+            nameErrorPanel.style.display = 'flex';
+            return false;
+        }
+
+        // ---------- Leaderboard name prompt ----------
+
+        const STORED_NAME_KEY = 'wormPlayerName';
+        let pendingScore = 0;
+
+        function getStoredName() {
+            try { return localStorage.getItem(STORED_NAME_KEY) || ''; }
+            catch (e) { return ''; }
+        }
+        function setStoredName(name) {
+            try { localStorage.setItem(STORED_NAME_KEY, name); } catch (e) {}
+        }
+        // Name used for the worm during play, since no name is entered up front.
+        function activeName(fallback) {
+            return getStoredName() || fallback;
+        }
+
+        // A score makes the board if the board isn't full yet, or it is at least
+        // as high as the current lowest top-20 score.
+        function scoreQualifies(value) {
+            if (value <= 0) return false;
+            if (leaderboard.length < LEADERBOARD_SIZE) return true;
+            return value >= leaderboard[leaderboard.length - 1].score;
+        }
+
+        // On game over, refresh the board and, if the local score qualifies,
+        // prompt the player to publish it under a name.
+        async function maybePromptLeaderboard(player) {
+            const value = Math.max(player.worm.length - INITIAL_WORM_LENGTH, 0);
+            if (value <= 0) return;
+            await loadLeaderboard();
+            updateLeaderboardDisplay();
+            if (!scoreQualifies(value)) return;
+            pendingScore = value;
+            wellDoneName.value = getStoredName();
+            // Not auto-focused: the player may still be tapping steering keys,
+            // which would otherwise type into the name field.
+            wellDonePanel.style.display = 'flex';
+        }
+
+        publishBtn.addEventListener('click', async () => {
+            if (!ensureValidName()) return;
+            const name = wellDoneName.value.trim();
+            setStoredName(name);
+            wellDonePanel.style.display = 'none';
+            await recordScore(name, pendingScore);
+        });
+
+        skipBtn.addEventListener('click', () => {
+            wellDonePanel.style.display = 'none';
+        });
 
         // ---------- State construction (host/single) ----------
 
@@ -666,17 +868,13 @@
 
         // ---------- Overlay ----------
 
-        function showOverlay(title, buttonText, showMultiplayer, focusName = false) {
+        function showOverlay(title, buttonText, showMultiplayer) {
             overlayTitle.textContent = title;
             restartBtn.textContent = buttonText;
             restartBtn.disabled = false;
             startControls.style.display = 'block';
             mpArea.style.display = showMultiplayer ? 'block' : 'none';
             gameOverDiv.style.display = 'block';
-            // Only auto-focus the name field on the initial start panel. On the
-            // game-over overlay the player may still be tapping directional keys,
-            // which would otherwise type into (and corrupt) their name.
-            if (focusName) playerNameInput.focus();
         }
 
         function hideOverlay() {
@@ -703,12 +901,10 @@
             if (gameOverShown) return;
             gameOverShown = true;
             stopAllTimers();
-            const me = players[localPlayerIndex];
-            if (me) {
-                recordScore(me);
-                playerNameInput.value = me.name;
-            }
             showOverlay(resultText(), 'Restart Game', false);
+            // If the local player's score makes the board, prompt to publish it.
+            const me = players[localPlayerIndex];
+            if (me) maybePromptLeaderboard(me);
         }
 
         // ---------- Game start / restart ----------
@@ -718,7 +914,7 @@
             mode = 'single';
             localPlayerIndex = 0;
             gameOverShown = false;
-            playerName = playerNameInput.value.trim() || 'Player';
+            playerName = activeName('Player');
             buildPlayers([playerName]);
             spawnFoodAndPoison();
             gamePhase = 'playing';
@@ -731,7 +927,7 @@
             localPlayerIndex = 0;
             gameOverShown = false;
             sessionActive = true;
-            playerName = playerNameInput.value.trim() || 'Host';
+            playerName = activeName('Host');
             // Joiner's real name arrives via the 'hello' message and updates slot 1.
             buildPlayers([playerName, 'Player 2']);
             spawnFoodAndPoison();
@@ -758,10 +954,10 @@
             localPlayerIndex = 0;
             gamePhase = 'lobby';
             gameOverShown = false;
-            buildPlayers([playerNameInput.value.trim() || 'Player']);
+            buildPlayers([activeName('Player')]);
             spawnFoodAndPoison();
             draw();
-            showOverlay('Worm', 'Start Game', true, true);
+            showOverlay('Worm', 'Start Game', true);
         }
 
         restartBtn.addEventListener('click', () => {
@@ -790,6 +986,11 @@
 
         closeLeaderboard.addEventListener('click', () => {
             leaderboardPanel.style.display = 'none';
+        });
+
+        closeNameError.addEventListener('click', () => {
+            nameErrorPanel.style.display = 'none';
+            wellDoneName.focus();
         });
 
         window.addEventListener('resize', () => {
@@ -964,7 +1165,6 @@
             mode = 'single';
             localPlayerIndex = 0;
             playerName = playerName || 'Player';
-            playerNameInput.value = playerName;
             showLobbyPreview();
             if (message) mpStatus.textContent = message;
         }
@@ -995,7 +1195,7 @@
             setupJoinerConnection(c);
         }
 
-        joinBtn.addEventListener('click', () => {
+        joinBtn.addEventListener('click', async () => {
             if (!peerReady) return;
             const code = joinCodeInput.value.trim();
             if (!/^\d{4}$/.test(code)) {
@@ -1006,7 +1206,7 @@
                 mpStatus.textContent = "That's your own code — share it instead.";
                 return;
             }
-            playerName = playerNameInput.value.trim() || 'Player';
+            playerName = activeName('Player');
             joinByCode(code);
         });
 
@@ -1052,7 +1252,7 @@
                     lobbyProbeSettled = true;
                     clearTimeout(lobbyProbeTimer);
                     closeLobbyConn();
-                    playerName = playerNameInput.value.trim() || 'Player';
+                    playerName = activeName('Player');
                     joinByCode(msg.code);
                 }
             });
@@ -1092,10 +1292,10 @@
             });
         }
 
-        randomBtn.addEventListener('click', () => {
+        randomBtn.addEventListener('click', async () => {
             if (randomState !== 'idle') { cancelRandom(); return; }
             if (!peerReady) { mpStatus.textContent = 'Still connecting…'; return; }
-            playerName = playerNameInput.value.trim() || 'Player';
+            playerName = activeName('Player');
             randomBtn.textContent = 'Cancel Search';
             probeLobby();
         });

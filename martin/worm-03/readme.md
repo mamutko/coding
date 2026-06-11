@@ -20,7 +20,7 @@ The game can be played solo or as a two-player match between two browsers connec
 
 ## Game Start
 
-- At the beginning of the game, the player enters their name in a start panel titled "Worm" and clicks "Start Game" to begin a solo game. If the player is restarting, the player can update their name using the game over panel.
+- At the beginning of the game, the player clicks "Start Game" in a start panel titled "Worm" to begin a solo game. No name is requested up front; the player is only prompted for a name if they achieve a leaderboard-worthy score (see "Scoring and Leaderboard"). During play the worm is labelled with the player's saved name (from a previous publish) or a default ("Player"/"Host").
 - The same start panel also contains the multiplayer controls described in "Two-Player Multiplayer".
 - Prior to the start of the game, the player is shown the board with the worm, food and poison.
 - The worm is placed in the middle of the board.
@@ -28,22 +28,54 @@ The game can be played solo or as a two-player match between two browsers connec
 - The worm is stationary until the player hits one of the direction keys or taps the screen, which starts the game.
 - The worm starts moving based on the input direction and continues to move with the speed mentioned above.
 
+## Name validation
+
+The leaderboard name is validated in the browser when the player clicks **Publish Score** (see "Scoring and Leaderboard"). A name is rejected if it is any of:
+
+- empty, or longer than **18 characters**,
+- anything other than **letters (A–Z, a–z), spaces, and dashes**,
+- or contains a **bad word** (profanity, slur, or sensitive term).
+
+If validation fails, a dialog explains the three rules ("at most 18 characters", "letters, spaces and dashes only", "respectful — no profanity") and the score is not published (the publish prompt stays open).
+
+The same limits are also enforced **at the database** (see "Data constraints").
+
+### Bad-word lists
+
+The check uses **two** bad-word lists embedded in `index.html`: one matched as a substring anywhere in the name, the other matched only as a whole word (to avoid flagging innocent names). The words are stored lightly obfuscated with a reversible Caesar +3 cipher rather than in clear text.
+
+By design, the specific words are **not** documented here — this is the one place the repository's "describe everything in the README" rule intentionally does not apply.
+
+## Data constraints
+
+The `mw3_high_score` table enforces the name rules at the database level, as a backstop to the browser validation:
+
+- `name` length is **1..18** characters.
+- `name` matches `^[A-Za-z *-]+$` — letters, spaces, and dashes, **plus `*`**. The `*` is allowed only so the table owner can manually redact a published name directly in the database; the client never submits `*`.
+
+These are `CHECK` constraints added by a migration under `supabase/migrations/`.
+
 ## Game End
 
 - See gameplay details for conditions of ending the game.
 - Once one of these conditions is met. The game stops, the worm stops moving, and the text "Game Over!" is displayed across the board.
-- Below the "Game Over!" text is an input field pre-populated with the current player's name. The user can edit the name to start a new game as a different player.
-- The name field is **not** auto-focused on the game-over overlay, because the player may still be pressing directional/steering keys as the overlay appears; focusing it would let those keystrokes accidentally edit the name. (The initial "Worm" start panel does auto-focus the name field, since the worm is stationary there.)
-- Below the name input is a button with the label "Restart Game". If the user clicks the button a new game is started.
+- Below the "Game Over!" text is a button with the label "Restart Game". If the user clicks the button a new game is started.
+- If the local player's score qualifies for the leaderboard, a "Well done!" overlay is shown on top of the game-over screen first (see "Scoring and Leaderboard").
 
 ## Scoring and Leaderboard
 
 - The score of the current player is equal to the current length of the worm minus the initial length of the worm. Hence, the score starts at 0 and grows by one every time the worm eats food.
 - The current score is displayed in the top-right corner of the game canvas in the format `PlayerName, current score: 12`.
-- `PlayerName` is the current player's name as entered at the beginning of the game.
+- `PlayerName` is the player's saved name (from a previous publish) or a default; the worm is labelled with it during play.
 - A leaderboard button in the bottom-right corner of the canvas opens a modal listing the **top 20 scores** (highest first). Each entry shows the player name, the score, and the date/time the score was achieved.
 - The leaderboard is **shared across all players**: scores are stored in a public Supabase table (hosted Postgres) accessed over its REST API, so every browser sees the same global board rather than a per-device list. The modal is refreshed from the server both on page load and each time it is opened.
-- Every finished game inserts its final score as its own row, so the same player can appear more than once on the board.
+
+### Publishing a score
+
+- When a game ends, the leaderboard is refreshed and the local player's score is checked. It **qualifies** if the board holds fewer than 20 entries, or the score is at least as high as the current lowest top-20 score (and is greater than 0).
+- If the score qualifies, a **"Well done!"** overlay appears with a name field and two buttons: **Publish Score** and **Skip**. The field is pre-filled with the player's saved name and is **not** auto-focused (so steering keys still being pressed don't type into it).
+- **Publish Score** validates the name (see "Name validation"); on success it inserts the score row, saves the name to `localStorage` so it is pre-filled next time, and refreshes the board. **Skip** dismisses the overlay without publishing.
+- Each published score is its own row, so the same player can appear more than once on the board.
 - Scores do not expire. The table is kept in sync with what the board displays: after each new score is submitted, every row outside the top 20 is deleted, so the table holds only the 20 scores shown in the leaderboard. Ties in score are ranked by most-recently-inserted, and the same ordering is used for both the displayed board and the prune so the rows kept are exactly the rows shown.
 - Leaderboard network calls are best-effort: if Supabase is unreachable, errors are logged to the console and solo play continues normally.
 
