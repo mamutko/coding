@@ -130,7 +130,7 @@
             border-radius: 8px;
             padding: 16px;
             z-index: 30;
-            min-width: 180px;
+            min-width: 220px;
         }
         #leaderboardPanel h2 {
             margin: 0 0 10px;
@@ -141,8 +141,25 @@
             margin: 0;
         }
         #leaderboardPanel li {
-            margin-bottom: 5px;
+            margin-bottom: 6px;
             font-size: 13px;
+        }
+        #leaderboardPanel li .lbName {
+            font-weight: bold;
+        }
+        #leaderboardPanel li .lbScore {
+            margin-left: 6px;
+        }
+        #leaderboardPanel li .lbDate {
+            display: block;
+            font-size: 10px;
+            opacity: 0.7;
+        }
+        #leaderboardNote {
+            margin: 10px 0 0;
+            font-size: 10px;
+            opacity: 0.7;
+            text-align: center;
         }
         #closeLeaderboard {
             margin-top: 10px;
@@ -175,6 +192,7 @@
             <div id="leaderboardPanel">
                 <h2>Leaderboard</h2>
                 <ol id="leaderboardList"></ol>
+                <p id="leaderboardNote">Scores expire after 1 month.</p>
                 <button id="closeLeaderboard">Close</button>
             </div>
         </div>
@@ -201,7 +219,18 @@
         const BOARD_WIDTH = 80;
         const BOARD_HEIGHT = 40;
         const INITIAL_WORM_LENGTH = 3;
-        const LEADERBOARD_KEY = 'wormLeaderboard';
+        // ---------- Leaderboard storage (shared, Supabase-backed) ----------
+        // Scores live in a public Supabase table so the leaderboard is shared
+        // across every player/browser rather than per-device. The publishable
+        // key is designed to ship in client code; the table is intentionally
+        // world read/write with no row-level access control.
+        const SUPABASE_URL = 'https://pfmhdapopetomrynffqt.supabase.co/rest/v1/high_score';
+        const SUPABASE_KEY = 'sb_publishable_nb7HxwhOY_cYO_Je8bKsFA_MQbjeu9X';
+        const SUPABASE_HEADERS = {
+            'apikey': SUPABASE_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_KEY,
+            'Content-Type': 'application/json'
+        };
 
         // Well-known PeerJS ID used as a one-slot random-match rendezvous. It is
         // namespaced so it cannot collide with the 4-digit game codes or with
@@ -269,40 +298,84 @@
 
         // ---------- Leaderboard ----------
 
-        function loadLeaderboard() {
-            const stored = localStorage.getItem(LEADERBOARD_KEY);
-            try {
-                leaderboard = stored ? JSON.parse(stored) : [];
-            } catch (e) {
-                leaderboard = [];
-            }
-            leaderboard.sort((a, b) => b.score - a.score);
+        // ISO cutoff: any score with a timestamp older than one calendar month
+        // is considered expired (hidden from the board and purged server-side).
+        function expiryCutoffISO() {
+            const d = new Date();
+            d.setMonth(d.getMonth() - 1);
+            return d.toISOString();
         }
 
-        function saveLeaderboard() {
-            localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(leaderboard));
+        // Fetch the top 10 non-expired scores (highest first) from Supabase.
+        async function loadLeaderboard() {
+            const cutoff = encodeURIComponent(expiryCutoffISO());
+            const url = `${SUPABASE_URL}?select=name,score,timestamp`
+                + `&timestamp=gte.${cutoff}&order=score.desc&limit=10`;
+            try {
+                const res = await fetch(url, { headers: SUPABASE_HEADERS });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                leaderboard = await res.json();
+            } catch (e) {
+                console.warn('Could not load leaderboard from Supabase:', e);
+            }
+        }
+
+        // Delete rows older than one month so the table cannot grow forever.
+        async function purgeExpiredScores() {
+            const cutoff = encodeURIComponent(expiryCutoffISO());
+            try {
+                await fetch(`${SUPABASE_URL}?timestamp=lt.${cutoff}`, {
+                    method: 'DELETE',
+                    headers: SUPABASE_HEADERS
+                });
+            } catch (e) {
+                console.warn('Could not purge expired scores:', e);
+            }
         }
 
         function updateLeaderboardDisplay() {
             leaderboardList.innerHTML = '';
             leaderboard.slice(0, 10).forEach(entry => {
                 const item = document.createElement('li');
-                item.textContent = `${entry.name}: ${entry.score}`;
+
+                const who = document.createElement('span');
+                who.className = 'lbName';
+                who.textContent = entry.name;
+
+                const pts = document.createElement('span');
+                pts.className = 'lbScore';
+                pts.textContent = entry.score;
+
+                const when = document.createElement('span');
+                when.className = 'lbDate';
+                when.textContent = entry.timestamp
+                    ? new Date(entry.timestamp).toLocaleString()
+                    : '';
+
+                item.appendChild(who);
+                item.appendChild(pts);
+                item.appendChild(when);
                 leaderboardList.appendChild(item);
             });
         }
 
-        function recordScore(player) {
+        // Insert every score as its own row, then purge expired rows and
+        // refresh the shared board. Network failures are non-fatal so solo
+        // play still works offline.
+        async function recordScore(player) {
             const value = Math.max(player.worm.length - INITIAL_WORM_LENGTH, 0);
-            const entry = leaderboard.find(item => item.name === player.name);
-            if (entry) {
-                if (value > entry.score) entry.score = value;
-            } else {
-                leaderboard.push({ name: player.name, score: value });
+            try {
+                const res = await fetch(SUPABASE_URL, {
+                    method: 'POST',
+                    headers: SUPABASE_HEADERS,
+                    body: JSON.stringify({ name: player.name, score: value })
+                });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                await purgeExpiredScores();
+            } catch (e) {
+                console.warn('Could not submit score to Supabase:', e);
             }
-            leaderboard.sort((a, b) => b.score - a.score);
-            if (leaderboard.length > 10) leaderboard = leaderboard.slice(0, 10);
-            saveLeaderboard();
+            await loadLeaderboard();
             updateLeaderboardDisplay();
         }
 
@@ -707,6 +780,7 @@
 
         leaderboardBtn.addEventListener('click', () => {
             leaderboardPanel.style.display = 'block';
+            loadLeaderboard().then(updateLeaderboardDisplay);
         });
 
         closeLeaderboard.addEventListener('click', () => {
@@ -1071,8 +1145,7 @@
 
         function initGame() {
             computeCellSize();
-            loadLeaderboard();
-            updateLeaderboardDisplay();
+            loadLeaderboard().then(updateLeaderboardDisplay);
             createPeer();
             showLobbyPreview();
         }

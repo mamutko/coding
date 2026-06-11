@@ -40,8 +40,11 @@ The game can be played solo or as a two-player match between two browsers connec
 - The score of the current player is equal to the current length of the worm minus the initial length of the worm. Hence, the score starts at 0 and grows by one every time the worm eats food.
 - The current score is displayed in the top-right corner of the game canvas in the format `PlayerName, current score: 12`.
 - `PlayerName` is the current player's name as entered at the beginning of the game.
-- A leaderboard button in the bottom-right corner of the canvas opens a modal listing the top 10 players and their top scores.
-- The leaderboard data persists in the browser using local storage.
+- A leaderboard button in the bottom-right corner of the canvas opens a modal listing the top 10 scores (highest first). Each entry shows the player name, the score, and the date/time the score was achieved.
+- The leaderboard is **shared across all players**: scores are stored in a public Supabase table (hosted Postgres) accessed over its REST API, so every browser sees the same global board rather than a per-device list. The modal is refreshed from the server both on page load and each time it is opened.
+- Every finished game inserts its final score as its own row, so the same player can appear more than once on the board.
+- Scores expire **one month** after they are achieved: expired scores are excluded from the board, and after each new score is submitted the table is purged of rows older than one month so it cannot grow indefinitely. The leaderboard modal shows a "Scores expire after 1 month." note.
+- Leaderboard network calls are best-effort: if Supabase is unreachable, errors are logged to the console and solo play continues normally.
 
 ## Two-Player Multiplayer
 
@@ -117,3 +120,4 @@ Two players can play together on a single shared board, with their browsers conn
 - PeerJS is included via a CDN `<script>` tag for the WebRTC peer-to-peer connection used by multiplayer.
 - Game state is held in a `players` array so the same rendering and simulation code serves both solo (one worm) and two-player (two worms) games.
 - Random matchmaking uses a transient second PeerJS peer that claims a fixed lobby ID only while waiting; it is destroyed once a match forms, leaving the game running on the persistent per-player game peers.
+- The shared leaderboard is backed by a public Supabase REST endpoint (`/rest/v1/high_score`). The table has columns `id`, `name`, `score`, and `timestamp` (a `timestamptz` defaulting to `now()`, used for both display and the one-month expiry). The Supabase publishable key is embedded in `index.html`; this is expected for client-side use, and the table is intentionally world read/write with no row-level security. Reads use `order=score.desc&limit=10` with a `timestamp=gte.<cutoff>` filter; new scores are `POST`ed; expiry purges with `DELETE` where `timestamp=lt.<cutoff>`.
