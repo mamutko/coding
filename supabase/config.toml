@@ -1,0 +1,10 @@
+# For detailed configuration reference documentation, visit:
+# https://supabase.com/docs/guides/local-development/cli/config
+#
+# A string used to distinguish different Supabase projects on the same host.
+# Defaults to the working directory name when running `supabase init`.
+project_id = "coding"
+
+# Migrations under supabase/migrations are applied to the linked Supabase
+# project ("coding", ref qifgxysuhskscrjjwzfm) by the GitHub integration when
+# they are merged into the production branch (main).

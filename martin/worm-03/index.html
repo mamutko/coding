@@ -224,8 +224,8 @@
         // across every player/browser rather than per-device. The publishable
         // key is designed to ship in client code; the table is intentionally
         // world read/write with no row-level access control.
-        const SUPABASE_URL = 'https://pfmhdapopetomrynffqt.supabase.co/rest/v1/high_score';
-        const SUPABASE_KEY = 'sb_publishable_nb7HxwhOY_cYO_Je8bKsFA_MQbjeu9X';
+        const SUPABASE_URL = 'https://qifgxysuhskscrjjwzfm.supabase.co/rest/v1/mw3_high_score';
+        const SUPABASE_KEY = 'sb_publishable_dJ7DGbkXPYOiD4YipTXEog_vx_FhOot';
         const SUPABASE_HEADERS = {
             'apikey': SUPABASE_KEY,
             'Authorization': 'Bearer ' + SUPABASE_KEY,
@@ -664,14 +664,17 @@
 
         // ---------- Overlay ----------
 
-        function showOverlay(title, buttonText, showMultiplayer) {
+        function showOverlay(title, buttonText, showMultiplayer, focusName = false) {
             overlayTitle.textContent = title;
             restartBtn.textContent = buttonText;
             restartBtn.disabled = false;
             startControls.style.display = 'block';
             mpArea.style.display = showMultiplayer ? 'block' : 'none';
             gameOverDiv.style.display = 'block';
-            playerNameInput.focus();
+            // Only auto-focus the name field on the initial start panel. On the
+            // game-over overlay the player may still be tapping directional keys,
+            // which would otherwise type into (and corrupt) their name.
+            if (focusName) playerNameInput.focus();
         }
 
         function hideOverlay() {
@@ -756,7 +759,7 @@
             buildPlayers([playerNameInput.value.trim() || 'Player']);
             spawnFoodAndPoison();
             draw();
-            showOverlay('Worm', 'Start Game', true);
+            showOverlay('Worm', 'Start Game', true, true);
         }
 
         restartBtn.addEventListener('click', () => {
