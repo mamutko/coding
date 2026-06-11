@@ -155,12 +155,6 @@
             font-size: 10px;
             opacity: 0.7;
         }
-        #leaderboardNote {
-            margin: 10px 0 0;
-            font-size: 10px;
-            opacity: 0.7;
-            text-align: center;
-        }
         #closeLeaderboard {
             margin-top: 10px;
             width: 100%;
@@ -192,7 +186,6 @@
             <div id="leaderboardPanel">
                 <h2>Leaderboard</h2>
                 <ol id="leaderboardList"></ol>
-                <p id="leaderboardNote">Scores expire after 1 month.</p>
                 <button id="closeLeaderboard">Close</button>
             </div>
         </div>
@@ -298,19 +291,20 @@
 
         // ---------- Leaderboard ----------
 
-        // ISO cutoff: any score with a timestamp older than one calendar month
-        // is considered expired (hidden from the board and purged server-side).
-        function expiryCutoffISO() {
-            const d = new Date();
-            d.setMonth(d.getMonth() - 1);
-            return d.toISOString();
-        }
+        // Size of the leaderboard: the board shows this many top scores, and the
+        // table is pruned to keep only these rows (everything displayed, nothing
+        // more). Scores never expire; repeated names are allowed.
+        const LEADERBOARD_SIZE = 20;
 
-        // Fetch the top 10 non-expired scores (highest first) from Supabase.
+        // Deterministic ordering shared by the read and the prune so the rows
+        // displayed are exactly the rows kept: highest score first, ties broken
+        // by most-recently-inserted (id descending).
+        const LEADERBOARD_ORDER = 'score.desc,id.desc';
+
+        // Fetch the top scores (highest first) from Supabase.
         async function loadLeaderboard() {
-            const cutoff = encodeURIComponent(expiryCutoffISO());
             const url = `${SUPABASE_URL}?select=name,score,timestamp`
-                + `&timestamp=gte.${cutoff}&order=score.desc&limit=10`;
+                + `&order=${LEADERBOARD_ORDER}&limit=${LEADERBOARD_SIZE}`;
             try {
                 const res = await fetch(url, { headers: SUPABASE_HEADERS });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -320,22 +314,30 @@
             }
         }
 
-        // Delete rows older than one month so the table cannot grow forever.
-        async function purgeExpiredScores() {
-            const cutoff = encodeURIComponent(expiryCutoffISO());
+        // Keep only the displayed top scores in the table: delete every row that
+        // is not among the top LEADERBOARD_SIZE. No-op while the table is not yet
+        // full, so the board fills up before any pruning happens.
+        async function pruneLeaderboard() {
             try {
-                await fetch(`${SUPABASE_URL}?timestamp=lt.${cutoff}`, {
+                const res = await fetch(
+                    `${SUPABASE_URL}?select=id&order=${LEADERBOARD_ORDER}&limit=${LEADERBOARD_SIZE}`,
+                    { headers: SUPABASE_HEADERS });
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const top = await res.json();
+                if (top.length < LEADERBOARD_SIZE) return; // table not full yet
+                const ids = top.map(r => r.id).join(',');
+                await fetch(`${SUPABASE_URL}?id=not.in.(${ids})`, {
                     method: 'DELETE',
                     headers: SUPABASE_HEADERS
                 });
             } catch (e) {
-                console.warn('Could not purge expired scores:', e);
+                console.warn('Could not prune leaderboard:', e);
             }
         }
 
         function updateLeaderboardDisplay() {
             leaderboardList.innerHTML = '';
-            leaderboard.slice(0, 10).forEach(entry => {
+            leaderboard.slice(0, LEADERBOARD_SIZE).forEach(entry => {
                 const item = document.createElement('li');
 
                 const who = document.createElement('span');
@@ -359,9 +361,9 @@
             });
         }
 
-        // Insert every score as its own row, then purge expired rows and
-        // refresh the shared board. Network failures are non-fatal so solo
-        // play still works offline.
+        // Insert every score as its own row, then prune the table back to the
+        // displayed top scores and refresh the shared board. Network failures are
+        // non-fatal so solo play still works offline.
         async function recordScore(player) {
             const value = Math.max(player.worm.length - INITIAL_WORM_LENGTH, 0);
             try {
@@ -371,7 +373,7 @@
                     body: JSON.stringify({ name: player.name, score: value })
                 });
                 if (!res.ok) throw new Error('HTTP ' + res.status);
-                await purgeExpiredScores();
+                await pruneLeaderboard();
             } catch (e) {
                 console.warn('Could not submit score to Supabase:', e);
             }
