@@ -11,6 +11,7 @@ Each project is intended to allow the user to explore agent assited coding. For 
 - Anytime project code is modified, the README.md should be updated as well.
 - README.md can contain planned features or changes that have not been implemented, yet. These should be marked with a TODO tag.
 - Unless the user specifies otherwise, the project implementation should be done in JavaScipt as single HTML5 file named `index.html`.
+- The repository root contains an `index.html` that links to all projects. Whenever a new project is created, add a link to it in the root `index.html`.
 
 ## AI Instructions
 

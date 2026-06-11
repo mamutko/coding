@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>"coding" repository — Projects</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --card: #1a1d24;
+      --card-hover: #232733;
+      --text: #e6e8ee;
+      --muted: #9aa0ad;
+      --accent: #6ea8fe;
+      --border: #2a2e38;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+    .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
+    h1 { font-size: 2rem; margin: 0 0 8px; }
+    .lede { color: var(--muted); margin: 0 0 40px; }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    a.card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      transition: background .15s ease, transform .15s ease, border-color .15s ease;
+    }
+    a.card:hover {
+      background: var(--card-hover);
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .card h2 {
+      font-size: 1.1rem;
+      margin: 0 0 6px;
+      color: var(--accent);
+    }
+    .card p { margin: 0; color: var(--muted); font-size: .92rem; }
+    footer { margin-top: 48px; color: var(--muted); font-size: .85rem; }
+    footer a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>"coding" repository</h1>
+    <p class="lede">A collection of projects exploring agent-assisted coding. Pick one to open it.</p>
+
+    <div class="grid">
+      <a class="card" href="martin/worm-01/index.html">
+        <h2>Worm 01</h2>
+        <p>Simple 2D worm game — eat food, avoid poison and walls.</p>
+      </a>
+      <a class="card" href="martin/worm-02/index.html">
+        <h2>Worm 02</h2>
+        <p>Worm with leaderboards, mobile-optimized.</p>
+      </a>
+      <a class="card" href="martin/worm-03/index.html">
+        <h2>Worm 03</h2>
+        <p>Worm with leaderboards, mobile-optimized, and two-player mode.</p>
+      </a>
+      <a class="card" href="martin/society-02/index.html">
+        <h2>Society</h2>
+        <p>Simulate a village on an island — grow a flourishing society.</p>
+      </a>
+      <a class="card" href="martin/room-01/index.html">
+        <h2>Room 01</h2>
+        <p>First-person 3D room exploration built with Three.js.</p>
+      </a>
+      <a class="card" href="martin/sidescroller-01/index.html">
+        <h2>Sidescroller 01</h2>
+        <p>2D side-scrolling platformer on an HTML5 canvas.</p>
+      </a>
+      <a class="card" href="martin/notebook-01/index.html">
+        <h2>Nodebook</h2>
+        <p>Minimal notes app exploring authentication and per-user data.</p>
+      </a>
+      <a class="card" href="martin/chemistry-test-01/index.html">
+        <h2>Chemistry Test</h2>
+        <p>Self-contained multiple-choice test on introductory chemistry.</p>
+      </a>
+      <a class="card" href="martin/romeo-and-juliet-01/index.html">
+        <h2>Romeo &amp; Juliet — Quote Test</h2>
+        <p>Multiple-choice test on quotations from the play.</p>
+      </a>
+    </div>
+
+    <footer>
+      See the <a href="README.md">README</a> for project rules and AI instructions.
+    </footer>
+  </div>
+</body>
+</html>
