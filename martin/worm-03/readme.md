@@ -20,8 +20,9 @@ The game can be played solo or as a two-player match between two browsers connec
 
 ## Game Start
 
-- At the beginning of the game, the player clicks "Start Game" in a start panel titled "Worm" to begin a solo game. No name is requested up front; the player is only prompted for a name if they achieve a leaderboard-worthy score (see "Scoring and Leaderboard").
-- The start panel is laid out as **two columns**: a **Single Player** column (with the "Start Game" button) and a **Multi Player** column (with the multiplayer controls described in "Two-Player Multiplayer"). This same start panel is the hub the player returns to after every game.
+- The start panel (titled "Worm") is a card menu and is the hub the player returns to after every game. The **main screen** has two cards: **"Start Single Player Game"** and **"Start Multi Player Game"**.
+- Clicking **Start Single Player Game** begins a solo game. No name is requested up front; the player is only prompted for a name if they achieve a leaderboard-worthy score (see "Scoring and Leaderboard").
+- Clicking **Start Multi Player Game** opens the multiplayer screen (see "Two-Player Multiplayer").
 - Prior to the start of the game, the player is shown the board with the worm, food and poison.
 - The worm is placed in the middle of the board.
 - The initial length of the worm is 3 segments.
@@ -36,7 +37,7 @@ The leaderboard name is validated in the browser when the player clicks **Publis
 - anything other than **letters (A–Z, a–z), spaces, and dashes**,
 - or contains a **bad word** (profanity, slur, or sensitive term).
 
-If validation fails, a dialog explains the three rules ("at most 18 characters", "letters, spaces and dashes only", "respectful — no profanity") and the score is not published (the publish prompt stays open).
+If validation fails, a dialog explains the three rules ("at most 18 characters", "letters, spaces and dashes only", "respectful") and the score is not published (the publish prompt stays open).
 
 The same limits are also enforced **at the database** (see "Data constraints").
 
@@ -84,20 +85,28 @@ These are `CHECK` constraints added by a migration under `supabase/migrations/`.
 
 Two players can play together on a single shared board, with their browsers connected directly peer-to-peer.
 
+### The multiplayer screen
+
+Clicking **Start Multi Player Game** on the start panel opens a screen with four cards:
+
+- **Back** — returns to the main start screen (cancelling any in-progress random search).
+- **Join Random Game** — random matchmaking (see below). While searching, this card reads **"Cancel Search"**.
+- **Enter Game Number to Join** — reveals a 4-digit input and a **Join** button to join a friend's game by their number.
+- **Your Game Number: &lt;number&gt;** — shows this browser's own 4-digit game number. Clicking it displays the hint *"Share this number with a friend, the game will start automatically when your friend enters this number."* The host does not press anything to start; the game begins for both as soon as the friend joins the number.
+
 ### Matchmaking by code
 
-- The start panel shows the player **their own 4-digit code** and an input field for **entering a friend's code**.
-- To host a game, a player shares their code; the friend types it into the "Join a friend" field and clicks "Join Game".
+- To host a game, a player shares their own game number (shown on the "Your Game Number" card); the friend opens **Enter Game Number to Join**, types it, and clicks **Join**.
 - The player who is connected to becomes the **host**; the player who joins becomes the **joiner**. The match is one-on-one — additional connection attempts to a player already in a game are refused.
 - Codes are random 4-digit numbers. If a generated code happens to already be in use, a new one is generated automatically.
 
 ### Random matchmaking
 
-- The start panel also has a **"Join Random Game"** button that pairs the player with anyone else who is currently searching, without exchanging a code.
+- The **Join Random Game** card pairs the player with anyone else who is currently searching, without exchanging a number.
 - Matchmaking uses a **single well-known rendezvous peer ID** (a fixed lobby ID, namespaced so it cannot collide with the 4-digit game codes). The first searcher to find the lobby empty **claims** the lobby ID and waits; the next searcher **finds** the waiter there.
 - When a searcher reaches a waiter, the waiter sends back its own 4-digit game code over the lobby connection, and the searcher then joins that code through the normal code-based flow. The waiter becomes the host, the searcher becomes the joiner.
 - The lobby ID is only used to introduce the two players; the actual game runs over each player's persistent game peer. As soon as a match forms, the host **releases the lobby ID** so the next pair of searchers can use it.
-- While searching, the button changes to **"Cancel Search"**. Because the lobby is a single slot, only one pair can be forming a match at a time; this is suitable for a small number of concurrent players (e.g. a class), not for large-scale matchmaking.
+- While searching, the card changes to **"Cancel Search"**. Because the lobby is a single slot, only one pair can be forming a match at a time; this is suitable for a small number of concurrent players (e.g. a class), not for large-scale matchmaking.
 
 ### Networking
 
@@ -115,7 +124,8 @@ Two players can play together on a single shared board, with their browsers conn
 
 - Both worms share the same board, food, and poison. There are 2 food and 30 poison cells, the same as solo play.
 - The **host's worm** keeps the original colors (orange head, green body). The **joiner's worm** is visually distinct with a blue head and cyan body.
-- The worms start on opposite sides of the board, are stationary until their controller provides a direction, and each moves at a speed equal to its own length in cells per second.
+- The worms start on opposite sides of the board and are stationary until their controller provides a direction. **Both worms move at the same speed, set by whichever worm is currently longer** (unlike solo play, where speed tracks the single worm's own length). As either worm grows, both speed up together.
+- To keep a hesitant player from stalling the match, if one worm has still not started moving by the time the other worm eats its first food, the idle worm **automatically starts moving in the direction its head is already facing**.
 - A worm dies if its head hits a wall, a poison cell, its own body, **or the other worm's body**.
 - As soon as one worm dies, the round ends. The surviving player sees "You win!", the player whose worm died sees "You lose!" (a "Draw!" if both die together). The dead worm's head is drawn greyed out.
 - Each player's current score and their opponent's is shown on the canvas as `You: N` and `Opponent: N` (no player names).

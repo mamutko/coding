@@ -85,48 +85,54 @@
             opacity: 0.4;
             cursor: default;
         }
-        #joinBtn, #randomBtn {
-            width: 100%;
-        }
-        #modeColumns {
+        .cardGrid {
             display: flex;
-            gap: 14px;
-            text-align: left;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
         }
-        .modeCol {
-            flex: 1;
-            min-width: 0;
-        }
-        .modeCol h3 {
-            margin: 0 0 8px;
+        .card {
+            margin-top: 0;
+            padding: 14px 10px;
             font-size: 14px;
+            background: #111;
+            border: 1px solid #fff;
+            border-radius: 6px;
+            color: #fff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             text-align: center;
-            border-bottom: 1px solid #444;
-            padding-bottom: 6px;
+            line-height: 1.3;
         }
-        #mpArea {
-            border-left: 1px solid #444;
-            padding-left: 14px;
+        .card:disabled { opacity: 0.4; cursor: default; }
+        #mainMenu .card {
+            flex-basis: 100%;
+            min-height: 70px;
+            font-size: 16px;
         }
-        #startSingleHint {
-            font-size: 11px;
-            opacity: 0.65;
-            margin: 10px 0 0;
-        }
-        #yourCodeLine {
-            font-size: 14px;
-            margin-bottom: 10px;
+        #multiMenu .card {
+            flex: 1 1 44%;
+            min-width: 120px;
+            min-height: 68px;
         }
         #yourCode {
-            font-size: 20px;
-            letter-spacing: 3px;
             color: #3aa0ff;
             font-weight: bold;
+            letter-spacing: 2px;
         }
+        #joinNumberArea {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+        #joinNumberArea #joinCodeInput { flex: 1; }
+        #joinNumberArea #joinBtn { margin-top: 0; width: auto; white-space: nowrap; }
         #mpStatus {
             font-size: 12px;
             opacity: 0.85;
-            margin-top: 8px;
+            margin-top: 10px;
             min-height: 16px;
         }
         #leaderboardBtn {
@@ -230,22 +236,21 @@
             <div id="gameOver">
                 <div id="overlayTitle">Worm</div>
                 <div id="startControls">
-                    <div id="modeColumns">
-                        <div class="modeCol">
-                            <h3>Single Player</h3>
-                            <button id="restartBtn">Start Game</button>
-                            <p id="startSingleHint">Play solo and chase the leaderboard.</p>
-                        </div>
-                        <div class="modeCol" id="mpArea">
-                            <h3>Multi Player</h3>
-                            <div id="yourCodeLine">Your code: <span id="yourCode">----</span></div>
-                            <label for="joinCodeInput">Join a friend &mdash; enter their 4-digit code:</label>
-                            <input id="joinCodeInput" type="text" inputmode="numeric" maxlength="4" placeholder="0000" />
-                            <button id="joinBtn" disabled>Join Game</button>
-                            <button id="randomBtn" disabled>Join Random Game</button>
-                            <div id="mpStatus"></div>
-                        </div>
+                    <div id="mainMenu" class="cardGrid">
+                        <button class="card" id="singleCard">Start Single Player Game</button>
+                        <button class="card" id="multiCard">Start Multi Player Game</button>
                     </div>
+                    <div id="multiMenu" class="cardGrid" style="display: none;">
+                        <button class="card" id="backCard">Back</button>
+                        <button class="card" id="randomCard" disabled>Join Random Game</button>
+                        <button class="card" id="enterNumberCard" disabled>Enter Game Number to Join</button>
+                        <button class="card" id="yourNumberCard" disabled>Your Game Number: <span id="yourCode">----</span></button>
+                    </div>
+                    <div id="joinNumberArea" style="display: none;">
+                        <input id="joinCodeInput" type="text" inputmode="numeric" maxlength="4" placeholder="0000" />
+                        <button id="joinBtn">Join</button>
+                    </div>
+                    <div id="mpStatus"></div>
                     <p id="controlHint">Tap top / bottom / left / right of screen to steer</p>
                 </div>
             </div>
@@ -273,7 +278,7 @@
                     <ul>
                         <li>at most 18 characters long</li>
                         <li>letters, spaces and dashes only</li>
-                        <li>respectful &mdash; no profanity</li>
+                        <li>respectful</li>
                     </ul>
                     <button id="closeNameError">OK</button>
                 </div>
@@ -286,7 +291,15 @@
         const gameOverDiv = document.getElementById('gameOver');
         const overlayTitle = document.getElementById('overlayTitle');
         const startControls = document.getElementById('startControls');
-        const restartBtn = document.getElementById('restartBtn');
+        const mainMenu = document.getElementById('mainMenu');
+        const multiMenu = document.getElementById('multiMenu');
+        const singleCard = document.getElementById('singleCard');
+        const multiCard = document.getElementById('multiCard');
+        const backCard = document.getElementById('backCard');
+        const randomCard = document.getElementById('randomCard');
+        const enterNumberCard = document.getElementById('enterNumberCard');
+        const yourNumberCard = document.getElementById('yourNumberCard');
+        const joinNumberArea = document.getElementById('joinNumberArea');
         const wellDonePanel = document.getElementById('wellDonePanel');
         const wellDoneName = document.getElementById('wellDoneName');
         const publishBtn = document.getElementById('publishBtn');
@@ -297,12 +310,11 @@
         const closeLeaderboard = document.getElementById('closeLeaderboard');
         const nameErrorPanel = document.getElementById('nameErrorPanel');
         const closeNameError = document.getElementById('closeNameError');
-        const mpArea = document.getElementById('mpArea');
         const yourCodeEl = document.getElementById('yourCode');
         const joinCodeInput = document.getElementById('joinCodeInput');
         const joinBtn = document.getElementById('joinBtn');
-        const randomBtn = document.getElementById('randomBtn');
         const mpStatus = document.getElementById('mpStatus');
+        let mpUnavailable = false;
 
         const BOARD_WIDTH = 80;
         const BOARD_HEIGHT = 40;
@@ -381,7 +393,12 @@
         }
 
         function getMoveInterval(player) {
-            return 1000 / Math.max(1, player.worm.length);
+            // Single player: speed tracks the worm's own length. Multiplayer:
+            // both worms share one speed, set by whichever worm is longer.
+            const len = (mode === 'single')
+                ? player.worm.length
+                : Math.max(...players.map(p => p.worm.length));
+            return 1000 / Math.max(1, len);
         }
 
         // ---------- Leaderboard ----------
@@ -808,6 +825,7 @@
             if (foodIndex !== -1) {
                 food.splice(foodIndex, 1);
                 food.push(randomFreeCell());
+                autoStartIdleWorms(index);
             } else {
                 p.worm.pop();
             }
@@ -816,6 +834,28 @@
             draw();
             broadcastState();
             schedulePlayerMove(index);
+        }
+
+        // Direction the worm's head currently points, inferred from its geometry
+        // (head relative to the segment behind it).
+        function headDirection(p) {
+            const head = p.worm[0];
+            const next = p.worm[1] || head;
+            const dx = Math.sign(head.x - next.x);
+            const dy = Math.sign(head.y - next.y);
+            return (dx === 0 && dy === 0) ? { x: 1, y: 0 } : { x: dx, y: dy };
+        }
+
+        // Multiplayer: once a worm eats, any opponent that has not begun moving
+        // is nudged into motion along the way its head already points.
+        function autoStartIdleWorms(eaterIndex) {
+            if (mode === 'single') return;
+            players.forEach((p, i) => {
+                if (i === eaterIndex || !p.alive || p.started) return;
+                p.direction = headDirection(p);
+                p.started = true;
+                schedulePlayerMove(i);
+            });
         }
 
         function checkGameEnd() {
@@ -900,12 +940,33 @@
 
         // ---------- Overlay ----------
 
-        function showOverlay(title, buttonText, showMultiplayer) {
-            overlayTitle.textContent = title;
-            restartBtn.textContent = buttonText;
-            restartBtn.disabled = false;
+        // The start overlay is a two-screen card menu. The main screen offers
+        // single vs multiplayer; the multiplayer screen offers back / random /
+        // enter-a-number / show-your-number.
+        function showMainMenu() {
+            mainMenu.style.display = 'flex';
+            multiMenu.style.display = 'none';
+            joinNumberArea.style.display = 'none';
+            mpStatus.textContent = '';
+        }
+
+        function showMultiMenu() {
+            mainMenu.style.display = 'none';
+            multiMenu.style.display = 'flex';
+            joinNumberArea.style.display = 'none';
+            if (mpUnavailable) {
+                mpStatus.textContent = 'Multiplayer unavailable (could not reach broker).';
+            } else if (!peerReady) {
+                mpStatus.textContent = 'Connecting…';
+            } else {
+                mpStatus.textContent = '';
+            }
+        }
+
+        function showStartOverlay() {
+            overlayTitle.textContent = 'Worm';
             startControls.style.display = 'block';
-            mpArea.style.display = showMultiplayer ? 'block' : 'none';
+            showMainMenu();
             gameOverDiv.style.display = 'block';
         }
 
@@ -992,14 +1053,29 @@
             buildPlayers([activeName('Player')]);
             spawnFoodAndPoison();
             draw();
-            showOverlay('Worm', 'Start Game', true);
+            showStartOverlay();
         }
 
-        // The Single Player "Start Game" button. The start overlay is the hub
-        // the player returns to after every game, so this is the only place it
-        // is clicked.
-        restartBtn.addEventListener('click', () => {
-            startSingle();
+        // ----- Start-menu cards -----
+        singleCard.addEventListener('click', () => startSingle());
+
+        multiCard.addEventListener('click', () => showMultiMenu());
+
+        backCard.addEventListener('click', () => {
+            if (randomState !== 'idle') cancelRandom();
+            showMainMenu();
+        });
+
+        enterNumberCard.addEventListener('click', () => {
+            if (!peerReady) return;
+            joinNumberArea.style.display = 'flex';
+            mpStatus.textContent = '';
+            joinCodeInput.focus();
+        });
+
+        yourNumberCard.addEventListener('click', () => {
+            if (!peerReady) return;
+            mpStatus.textContent = 'Share this number with a friend, the game will start automatically when your friend enters this number.';
         });
 
         leaderboardBtn.addEventListener('click', () => {
@@ -1111,7 +1187,7 @@
                 reconnectAttempts = 0;
                 sessionActive = true;
                 randomState = 'idle';
-                randomBtn.textContent = 'Join Random Game';
+                randomCard.textContent = 'Join Random Game';
                 mpStatus.textContent = 'Connected! Waiting for host…';
                 try { c.send({ t: 'hello', name: playerName }); } catch (e) {}
                 hideOverlay();
@@ -1213,7 +1289,7 @@
         function joinByCode(code) {
             mpStatus.textContent = 'Connecting…';
             randomState = 'idle';
-            randomBtn.textContent = 'Join Random Game';
+            randomCard.textContent = 'Join Random Game';
             remotePeerId = code;
             const c = peer.connect(code, { reliable: true });
             setupJoinerConnection(c);
@@ -1253,7 +1329,7 @@
             closeLobbyConn();
             if (lobbyPeer) { try { lobbyPeer.destroy(); } catch (e) {} lobbyPeer = null; }
             randomState = 'idle';
-            randomBtn.textContent = 'Join Random Game';
+            randomCard.textContent = 'Join Random Game';
         }
 
         function cancelRandom() {
@@ -1316,11 +1392,11 @@
             });
         }
 
-        randomBtn.addEventListener('click', async () => {
+        randomCard.addEventListener('click', async () => {
             if (randomState !== 'idle') { cancelRandom(); return; }
             if (!peerReady) { mpStatus.textContent = 'Still connecting…'; return; }
             playerName = activeName('Player');
-            randomBtn.textContent = 'Cancel Search';
+            randomCard.textContent = 'Cancel Search';
             probeLobby();
         });
 
@@ -1328,8 +1404,11 @@
 
         function createPeer() {
             if (typeof Peer === 'undefined') {
-                mpStatus.textContent = 'Multiplayer unavailable (could not reach broker).';
+                mpUnavailable = true;
                 yourCodeEl.textContent = 'N/A';
+                if (multiMenu.style.display !== 'none') {
+                    mpStatus.textContent = 'Multiplayer unavailable (could not reach broker).';
+                }
                 return;
             }
             myCode = String(Math.floor(1000 + Math.random() * 9000));
@@ -1339,8 +1418,14 @@
                 peerReady = true;
                 myCode = id;
                 yourCodeEl.textContent = id;
-                joinBtn.disabled = false;
-                randomBtn.disabled = false;
+                randomCard.disabled = false;
+                enterNumberCard.disabled = false;
+                yourNumberCard.disabled = false;
+                // If the player is already looking at the multiplayer menu, clear
+                // the "Connecting…" notice now that we are ready.
+                if (multiMenu.style.display !== 'none' && randomState === 'idle') {
+                    mpStatus.textContent = '';
+                }
             });
 
             peer.on('connection', (c) => {
