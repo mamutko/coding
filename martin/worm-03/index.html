@@ -47,7 +47,7 @@
             padding: 20px;
             border: 2px solid #fff;
             border-radius: 8px;
-            width: 280px;
+            width: 360px;
             max-width: 90%;
             z-index: 20;
         }
@@ -88,10 +88,30 @@
         #joinBtn, #randomBtn {
             width: 100%;
         }
+        #modeColumns {
+            display: flex;
+            gap: 14px;
+            text-align: left;
+        }
+        .modeCol {
+            flex: 1;
+            min-width: 0;
+        }
+        .modeCol h3 {
+            margin: 0 0 8px;
+            font-size: 14px;
+            text-align: center;
+            border-bottom: 1px solid #444;
+            padding-bottom: 6px;
+        }
         #mpArea {
-            margin-top: 16px;
-            border-top: 1px solid #444;
-            padding-top: 12px;
+            border-left: 1px solid #444;
+            padding-left: 14px;
+        }
+        #startSingleHint {
+            font-size: 11px;
+            opacity: 0.65;
+            margin: 10px 0 0;
         }
         #yourCodeLine {
             font-size: 14px;
@@ -210,16 +230,23 @@
             <div id="gameOver">
                 <div id="overlayTitle">Worm</div>
                 <div id="startControls">
-                    <button id="restartBtn">Start Game</button>
-                    <p id="controlHint">Tap top / bottom / left / right of screen to steer</p>
-                    <div id="mpArea">
-                        <div id="yourCodeLine">Your code: <span id="yourCode">----</span></div>
-                        <label for="joinCodeInput">Join a friend &mdash; enter their 4-digit code:</label>
-                        <input id="joinCodeInput" type="text" inputmode="numeric" maxlength="4" placeholder="0000" />
-                        <button id="joinBtn" disabled>Join Game</button>
-                        <button id="randomBtn" disabled>Join Random Game</button>
-                        <div id="mpStatus"></div>
+                    <div id="modeColumns">
+                        <div class="modeCol">
+                            <h3>Single Player</h3>
+                            <button id="restartBtn">Start Game</button>
+                            <p id="startSingleHint">Play solo and chase the leaderboard.</p>
+                        </div>
+                        <div class="modeCol" id="mpArea">
+                            <h3>Multi Player</h3>
+                            <div id="yourCodeLine">Your code: <span id="yourCode">----</span></div>
+                            <label for="joinCodeInput">Join a friend &mdash; enter their 4-digit code:</label>
+                            <input id="joinCodeInput" type="text" inputmode="numeric" maxlength="4" placeholder="0000" />
+                            <button id="joinBtn" disabled>Join Game</button>
+                            <button id="randomBtn" disabled>Join Random Game</button>
+                            <div id="mpStatus"></div>
+                        </div>
                     </div>
+                    <p id="controlHint">Tap top / bottom / left / right of screen to steer</p>
                 </div>
             </div>
             <button id="leaderboardBtn">Leaderboard</button>
@@ -480,7 +507,8 @@
         ];
         const BAD_WORDS_BOUNDED_ENC = [
             'frrq', 'fxqw', 'idj', 'zrs', 'jrrn', 'vslf', 'gdjr', 'sdnl',
-            'frq', 'sxwd', 'slfd', 'ix',
+            'frq', 'sxwd', 'slfd', 'ix', 'dvv', 'khoo', 'fxp', 'gdpq', 'vha',
+            'wlw',
         ];
 
         // Reverse the +3 cipher (shift letters back by 3).
@@ -557,18 +585,20 @@
         }
 
         // On game over, refresh the board and, if the local score qualifies,
-        // prompt the player to publish it under a name.
+        // prompt the player to publish it under a name. Resolves to true if the
+        // prompt was shown.
         async function maybePromptLeaderboard(player) {
             const value = Math.max(player.worm.length - INITIAL_WORM_LENGTH, 0);
-            if (value <= 0) return;
+            if (value <= 0) return false;
             await loadLeaderboard();
             updateLeaderboardDisplay();
-            if (!scoreQualifies(value)) return;
+            if (!scoreQualifies(value)) return false;
             pendingScore = value;
             wellDoneName.value = getStoredName();
             // Not auto-focused: the player may still be tapping steering keys,
             // which would otherwise type into the name field.
             wellDonePanel.style.display = 'flex';
+            return true;
         }
 
         publishBtn.addEventListener('click', async () => {
@@ -577,10 +607,12 @@
             setStoredName(name);
             wellDonePanel.style.display = 'none';
             await recordScore(name, pendingScore);
+            returnToStart();
         });
 
         skipBtn.addEventListener('click', () => {
             wellDonePanel.style.display = 'none';
+            returnToStart();
         });
 
         // ---------- State construction (host/single) ----------
@@ -696,13 +728,13 @@
         function drawScores() {
             if (mode === 'single') {
                 const me = players[0];
-                if (me) drawLabelBox(`${me.name}, current score: ${score(me)}`, 'right');
+                if (me) drawLabelBox(`Score: ${score(me)}`, 'right');
                 return;
             }
             const me = players[localPlayerIndex];
             const op = players[1 - localPlayerIndex];
-            if (me) drawLabelBox(`${me.name} (you): ${score(me)}`, 'right');
-            if (op) drawLabelBox(`${op.name}: ${score(op)}`, 'left');
+            if (me) drawLabelBox(`You: ${score(me)}`, 'right');
+            if (op) drawLabelBox(`Opponent: ${score(op)}`, 'left');
         }
 
         function draw() {
@@ -901,10 +933,25 @@
             if (gameOverShown) return;
             gameOverShown = true;
             stopAllTimers();
-            showOverlay(resultText(), 'Restart Game', false);
-            // If the local player's score makes the board, prompt to publish it.
+            // Write the result ("Game Over!" in solo) across the board, hold for
+            // half a second, then move on to the leaderboard prompt or the start
+            // screen.
+            showMessage(resultText());
+            setTimeout(afterGameOver, 500);
+        }
+
+        async function afterGameOver() {
             const me = players[localPlayerIndex];
-            if (me) maybePromptLeaderboard(me);
+            const prompted = me ? await maybePromptLeaderboard(me) : false;
+            // If no leaderboard prompt was shown, go straight back to the start
+            // screen. Otherwise the publish/skip buttons handle the return.
+            if (!prompted) returnToStart();
+        }
+
+        // Tear down any multiplayer session and show the start overlay.
+        function returnToStart() {
+            leaveSession();
+            showLobbyPreview();
         }
 
         // ---------- Game start / restart ----------
@@ -937,18 +984,6 @@
             draw();
         }
 
-        function restartMultiplayer() {
-            // Host rebuilds shared state, keeping both names, and broadcasts it.
-            const names = players.map(p => p.name);
-            gameOverShown = false;
-            buildPlayers(names);
-            spawnFoodAndPoison();
-            gamePhase = 'playing';
-            hideOverlay();
-            broadcastState();
-            draw();
-        }
-
         function showLobbyPreview() {
             mode = 'single';
             localPlayerIndex = 0;
@@ -960,23 +995,11 @@
             showOverlay('Worm', 'Start Game', true);
         }
 
+        // The Single Player "Start Game" button. The start overlay is the hub
+        // the player returns to after every game, so this is the only place it
+        // is clicked.
         restartBtn.addEventListener('click', () => {
-            if (gamePhase === 'lobby') {
-                startSingle();
-                return;
-            }
-            // gamePhase === 'over'
-            if (mode === 'single') {
-                startSingle();
-            } else if (mode === 'host') {
-                restartMultiplayer();
-            } else { // joiner asks the host to start a new round
-                if (conn && conn.open) {
-                    conn.send({ t: 'restart-request' });
-                    overlayTitle.textContent = 'Waiting for host…';
-                    restartBtn.disabled = true;
-                }
-            }
+            startSingle();
         });
 
         leaderboardBtn.addEventListener('click', () => {
@@ -1072,8 +1095,6 @@
                     if (players[1]) players[1].name = (msg.name || 'Player 2');
                     draw();
                     broadcastState();
-                } else if (msg.t === 'restart-request') {
-                    restartMultiplayer();
                 }
             });
             c.on('close', onConnClose);
@@ -1104,6 +1125,9 @@
 
         function onConnClose() {
             if (intentionalLeave) return;
+            // A normal game end sends both players back to the start screen, so a
+            // close while the round is over is expected — don't try to reconnect.
+            if (gamePhase === 'over') return;
             if (reconnecting) return; // a reconnect attempt is already in flight
             if (!sessionActive) {
                 onOpponentLeft('Could not connect. Try again.');

@@ -20,8 +20,8 @@ The game can be played solo or as a two-player match between two browsers connec
 
 ## Game Start
 
-- At the beginning of the game, the player clicks "Start Game" in a start panel titled "Worm" to begin a solo game. No name is requested up front; the player is only prompted for a name if they achieve a leaderboard-worthy score (see "Scoring and Leaderboard"). During play the worm is labelled with the player's saved name (from a previous publish) or a default ("Player"/"Host").
-- The same start panel also contains the multiplayer controls described in "Two-Player Multiplayer".
+- At the beginning of the game, the player clicks "Start Game" in a start panel titled "Worm" to begin a solo game. No name is requested up front; the player is only prompted for a name if they achieve a leaderboard-worthy score (see "Scoring and Leaderboard").
+- The start panel is laid out as **two columns**: a **Single Player** column (with the "Start Game" button) and a **Multi Player** column (with the multiplayer controls described in "Two-Player Multiplayer"). This same start panel is the hub the player returns to after every game.
 - Prior to the start of the game, the player is shown the board with the worm, food and poison.
 - The worm is placed in the middle of the board.
 - The initial length of the worm is 3 segments.
@@ -58,15 +58,16 @@ These are `CHECK` constraints added by a migration under `supabase/migrations/`.
 ## Game End
 
 - See gameplay details for conditions of ending the game.
-- Once one of these conditions is met. The game stops, the worm stops moving, and the text "Game Over!" is displayed across the board.
-- Below the "Game Over!" text is a button with the label "Restart Game". If the user clicks the button a new game is started.
-- If the local player's score qualifies for the leaderboard, a "Well done!" overlay is shown on top of the game-over screen first (see "Scoring and Leaderboard").
+- When the player dies, the game stops, the worm stops moving, and the text **"Game Over!"** is displayed across the board (in a two-player game the result is "You win!" / "You lose!" / "Draw!" instead).
+- After a **0.5-second** pause, the game proceeds automatically:
+  - if the player's score qualifies for the leaderboard, the **"Well done!"** leaderboard-entry dialog is shown (see "Scoring and Leaderboard");
+  - otherwise the player is taken **directly back to the start panel**.
+- After the leaderboard dialog is dismissed (by publishing or skipping), the player is likewise returned to the start panel. There is no separate "restart" button — the start panel is the single hub for beginning the next game.
 
 ## Scoring and Leaderboard
 
 - The score of the current player is equal to the current length of the worm minus the initial length of the worm. Hence, the score starts at 0 and grows by one every time the worm eats food.
-- The current score is displayed in the top-right corner of the game canvas in the format `PlayerName, current score: 12`.
-- `PlayerName` is the player's saved name (from a previous publish) or a default; the worm is labelled with it during play.
+- The current score is displayed in the top-right corner of the game canvas as `Score: 12` — just the number, with no player name. (In a two-player game the corners instead show `You: 12` and `Opponent: 7`, also without names.)
 - A leaderboard button in the bottom-right corner of the canvas opens a modal listing the **top 20 scores** (highest first). Each entry shows the player name, the score, and the date/time the score was achieved.
 - The leaderboard is **shared across all players**: scores are stored in a public Supabase table (hosted Postgres) accessed over its REST API, so every browser sees the same global board rather than a per-device list. The modal is refreshed from the server both on page load and each time it is opened.
 
@@ -74,7 +75,7 @@ These are `CHECK` constraints added by a migration under `supabase/migrations/`.
 
 - When a game ends, the leaderboard is refreshed and the local player's score is checked. It **qualifies** if the board holds fewer than 20 entries, or the score is at least as high as the current lowest top-20 score (and is greater than 0).
 - If the score qualifies, a **"Well done!"** overlay appears with a name field and two buttons: **Publish Score** and **Skip**. The field is pre-filled with the player's saved name and is **not** auto-focused (so steering keys still being pressed don't type into it).
-- **Publish Score** validates the name (see "Name validation"); on success it inserts the score row, saves the name to `localStorage` so it is pre-filled next time, and refreshes the board. **Skip** dismisses the overlay without publishing.
+- **Publish Score** validates the name (see "Name validation"); on success it inserts the score row, saves the name to `localStorage` so it is pre-filled next time, and refreshes the board. **Skip** dismisses the overlay without publishing. Either button then returns the player to the start panel.
 - Each published score is its own row, so the same player can appear more than once on the board.
 - Scores do not expire. The table is kept in sync with what the board displays: after each new score is submitted, every row outside the top 20 is deleted, so the table holds only the 20 scores shown in the leaderboard. Ties in score are ranked by most-recently-inserted, and the same ordering is used for both the displayed board and the prune so the rows kept are exactly the rows shown.
 - Leaderboard network calls are best-effort: if Supabase is unreachable, errors are logged to the console and solo play continues normally.
@@ -116,18 +117,18 @@ Two players can play together on a single shared board, with their browsers conn
 - The **host's worm** keeps the original colors (orange head, green body). The **joiner's worm** is visually distinct with a blue head and cyan body.
 - The worms start on opposite sides of the board, are stationary until their controller provides a direction, and each moves at a speed equal to its own length in cells per second.
 - A worm dies if its head hits a wall, a poison cell, its own body, **or the other worm's body**.
-- As soon as one worm dies, the round ends. The surviving player sees "You win!", the player whose worm died sees "You lose!". The dead worm's head is drawn greyed out.
-- Each player's current score (and their opponent's) is shown on the canvas; the local player's score is labeled "(you)".
-- Each browser records its own player's best score to its local leaderboard, exactly as in solo play.
+- As soon as one worm dies, the round ends. The surviving player sees "You win!", the player whose worm died sees "You lose!" (a "Draw!" if both die together). The dead worm's head is drawn greyed out.
+- Each player's current score and their opponent's is shown on the canvas as `You: N` and `Opponent: N` (no player names).
+- Each browser handles its own player's score with the same end-of-game flow as solo play: the result is shown for 0.5 s, then the leaderboard-entry dialog (if the score qualifies) or a return to the start panel (see "Scoring and Leaderboard").
 
 ### Restarting, reconnecting and disconnects
 
-- After a multiplayer round ends, the **host** can click "Restart Game" to deal a new board and broadcast it. The **joiner's** "Restart Game" button sends a restart request to the host, which starts the new round for both players; while waiting, the joiner sees "Waiting for host…".
-- If the WebRTC connection drops mid-session, the game attempts to **reconnect** rather than ending immediately, using the still-alive game peers:
+- When a multiplayer round ends, each player follows the same end-of-game flow as solo play and is returned to the **start panel** (after the result pause and any leaderboard-entry dialog). This ends the session and closes the peer-to-peer connection; to play again the players start a fresh game from the start panel. There is no in-place rematch.
+- If the WebRTC connection drops **mid-round** (while still playing), the game attempts to **reconnect** rather than ending immediately, using the still-alive game peers:
   - The simulation pauses and both players see a "Reconnecting…" / "Opponent disconnected — waiting to reconnect…" message.
   - The **joiner** re-initiates the connection to the host's game code (a few timed attempts); the **host** waits for the joiner to return. On success, the host resumes the paused simulation and resyncs the state, and play continues.
-  - If reconnection does not succeed within the retry window, the remaining player is returned to the start panel and can start a new solo game or rematch.
-- Reconnection is best-effort: it recovers from brief WebRTC drops, but a network change that requires fresh signaling, or a player closing the tab for too long, ends the session.
+  - If reconnection does not succeed within the retry window, the remaining player is returned to the start panel and can start a new game.
+- Reconnection only applies to drops during active play; a connection closing once the round is already over is expected (both players are returning to the start panel) and does not trigger a reconnect.
 
 ## Mobile Screen Scaling
 
