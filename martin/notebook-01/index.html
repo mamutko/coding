@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nodebook</title>
+    <style>
+        * { box-sizing: border-box; }
+        html, body { height: 100%; margin: 0; }
+        body {
+            display: flex;
+            flex-direction: column;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        }
+
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 16px;
+            background: #1e1e1e;
+            color: #fff;
+            flex: 0 0 auto;
+        }
+        header .left { display: flex; align-items: center; gap: 10px; }
+        header h1 { font-size: 18px; margin: 0; font-weight: 600; }
+
+        /* Dirty indicator: a small white circle shown when there are unsaved
+           changes. Hidden otherwise. */
+        #dirty {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #fff;
+            visibility: hidden;
+        }
+        #dirty.show { visibility: visible; }
+
+        #authBtn {
+            font-size: 14px;
+            padding: 6px 12px;
+            cursor: pointer;
+            border: 1px solid #fff;
+            background: transparent;
+            color: #fff;
+            border-radius: 4px;
+            max-width: 60vw;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* The notes field fills the entire area below the header. */
+        #note {
+            flex: 1 1 auto;
+            width: 100%;
+            border: none;
+            padding: 16px;
+            font-size: 15px;
+            line-height: 1.5;
+            font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+            resize: none;
+            outline: none;
+        }
+        #note:disabled { background: #f4f4f4; color: #999; }
+
+        /* Login dialog */
+        #loginDialog {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        #loginDialog.show { display: flex; }
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            width: 320px;
+            max-width: 90%;
+        }
+        .card h2 { margin: 0 0 12px; font-size: 16px; }
+        .card input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        .card .actions { display: flex; gap: 8px; }
+        .card button { padding: 8px 12px; font-size: 14px; cursor: pointer; }
+        #loginMsg { font-size: 13px; margin-top: 10px; min-height: 16px; color: #333; }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="left">
+            <h1>Nodebook</h1>
+            <span id="dirty" title="Unsaved changes"></span>
+        </div>
+        <button id="authBtn">Login</button>
+    </header>
+
+    <textarea id="note" placeholder="Log in to start taking notes…" disabled></textarea>
+
+    <div id="loginDialog">
+        <div class="card">
+            <h2>Sign in</h2>
+            <input id="email" type="email" placeholder="you@example.com" autocomplete="email" />
+            <div class="actions">
+                <button id="sendLink">Send magic link</button>
+                <button id="cancelLogin" type="button">Cancel</button>
+            </div>
+            <div id="loginMsg"></div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script>
+        // ---------- Supabase ----------
+        // The "coding" Supabase project. The publishable key is designed to ship
+        // in client code; access to notes is gated by authentication + RLS, not
+        // by hiding the key.
+        const SUPABASE_URL = 'https://qifgxysuhskscrjjwzfm.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_dJ7DGbkXPYOiD4YipTXEog_vx_FhOot';
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const NOTES_TABLE = 'mn1_notes';
+        const SAVE_DELAY_MS = 2000; // autosave after this much keyboard inactivity
+
+        // ---------- Elements ----------
+        const authBtn = document.getElementById('authBtn');
+        const note = document.getElementById('note');
+        const dirtyDot = document.getElementById('dirty');
+        const loginDialog = document.getElementById('loginDialog');
+        const emailInput = document.getElementById('email');
+        const sendLink = document.getElementById('sendLink');
+        const cancelLogin = document.getElementById('cancelLogin');
+        const loginMsg = document.getElementById('loginMsg');
+
+        // ---------- State ----------
+        let currentUser = null;
+        let saveTimer = null;
+        let dirty = false;
+
+        function setDirty(value) {
+            dirty = value;
+            dirtyDot.classList.toggle('show', value);
+        }
+
+        // Magic-link users may have no profile name, so fall back to the email.
+        function displayName(user) {
+            const meta = user.user_metadata || {};
+            return meta.full_name || meta.name || user.email || 'user';
+        }
+
+        // ---------- Persistence ----------
+        async function loadNote() {
+            const { data, error } = await sb
+                .from(NOTES_TABLE)
+                .select('content')
+                .eq('user_id', currentUser.id)
+                .maybeSingle();
+            if (error) {
+                console.warn('Could not load note:', error);
+                return;
+            }
+            note.value = data ? data.content : '';
+        }
+
+        async function saveNote() {
+            if (!currentUser) return;
+            const content = note.value;
+            const { error } = await sb
+                .from(NOTES_TABLE)
+                .upsert({
+                    user_id: currentUser.id,
+                    content: content,
+                    updated_at: new Date().toISOString()
+                });
+            if (error) {
+                console.warn('Could not save note:', error);
+                return; // leave the dirty indicator on so a later edit retries
+            }
+            // Only clear the indicator if nothing changed while the save was in
+            // flight; otherwise the pending edits are still unsaved.
+            if (note.value === content) setDirty(false);
+        }
+
+        function scheduleSave() {
+            setDirty(true);
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(saveNote, SAVE_DELAY_MS);
+        }
+
+        // ---------- UI transitions ----------
+        function enterLoggedIn(user) {
+            currentUser = user;
+            authBtn.textContent = 'Logout: ' + displayName(user);
+            note.disabled = false;
+            note.placeholder = 'Start typing your notes…';
+            setDirty(false);
+            loadNote();
+        }
+
+        function enterLoggedOut() {
+            currentUser = null;
+            authBtn.textContent = 'Login';
+            note.value = '';
+            note.disabled = true;
+            note.placeholder = 'Log in to start taking notes…';
+            setDirty(false);
+            clearTimeout(saveTimer);
+        }
+
+        // ---------- Events ----------
+        note.addEventListener('input', scheduleSave);
+
+        authBtn.addEventListener('click', async () => {
+            if (currentUser) {
+                // Flush any pending changes before signing out.
+                clearTimeout(saveTimer);
+                if (dirty) await saveNote();
+                await sb.auth.signOut();
+            } else {
+                loginMsg.textContent = '';
+                emailInput.value = '';
+                loginDialog.classList.add('show');
+                emailInput.focus();
+            }
+        });
+
+        cancelLogin.addEventListener('click', () => {
+            loginDialog.classList.remove('show');
+        });
+
+        sendLink.addEventListener('click', async () => {
+            const email = emailInput.value.trim();
+            if (!email) {
+                loginMsg.textContent = 'Please enter an email address.';
+                return;
+            }
+            sendLink.disabled = true;
+            loginMsg.textContent = 'Sending…';
+            const { error } = await sb.auth.signInWithOtp({
+                email: email,
+                options: { emailRedirectTo: window.location.href }
+            });
+            sendLink.disabled = false;
+            if (error) {
+                loginMsg.textContent = 'Error: ' + error.message;
+                return;
+            }
+            loginMsg.textContent = 'Check your email for a sign-in link.';
+        });
+
+        // Best-effort flush if the user closes the tab with unsaved changes.
+        window.addEventListener('beforeunload', () => {
+            if (currentUser && dirty) saveNote();
+        });
+
+        // ---------- Auth state ----------
+        // Fires on load (INITIAL_SESSION), after a magic-link return (SIGNED_IN),
+        // on sign-out, and on token refresh. We only reload the note when the
+        // user actually changes, so a background token refresh never clobbers
+        // what the user is currently typing.
+        sb.auth.onAuthStateChange((_event, session) => {
+            const user = session && session.user;
+            if (user) {
+                loginDialog.classList.remove('show');
+                if (!currentUser || currentUser.id !== user.id) {
+                    enterLoggedIn(user);
+                } else {
+                    currentUser = user;
+                    authBtn.textContent = 'Logout: ' + displayName(user);
+                }
+            } else {
+                enterLoggedOut();
+            }
+        });
+    </script>
+</body>
+</html>
