@@ -113,6 +113,7 @@ Clicking **Start Multi Player Game** on the start panel opens a screen with four
 - Connections use **WebRTC data channels** established via **PeerJS**. PeerJS is loaded from a CDN and its public broker is used only at connection setup; once connected, game traffic flows directly between the two browsers.
 - The player's 4-digit code is used as their PeerJS peer ID, so joining is simply a connection to that ID. Each player keeps this game peer (and its signaling link) alive for the whole session, which is what makes reconnection possible.
 - Internet access is required to load PeerJS and complete the handshake. If PeerJS cannot be reached, the multiplayer controls report that multiplayer is unavailable and solo play still works.
+- When a connection opens, a diagnostic line is written to the browser **console** reporting the selected ICE candidate pair: whether the link is **direct peer-to-peer** (candidate types `host`/`srflx`/`prflx`) or **relayed through a TURN server** (`relay`), along with the candidate addresses and round-trip time. This is purely informational and does not affect gameplay.
 
 ### Host-authoritative model
 
