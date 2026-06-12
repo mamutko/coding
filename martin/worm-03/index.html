@@ -264,7 +264,7 @@
                 <div class="wellDoneCard">
                     <h2>Well done!</h2>
                     <p>Your score made the leaderboard. Enter a name to publish it.</p>
-                    <input id="wellDoneName" type="text" maxlength="18" placeholder="Your name" />
+                    <input id="wellDoneName" type="text" maxlength="18" placeholder="Your name" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
                     <div class="wellDoneActions">
                         <button id="publishBtn">Publish Score</button>
                         <button id="skipBtn">Skip</button>
@@ -1146,10 +1146,69 @@
 
         // ---------- Networking: connection lifecycle ----------
 
+        // Diagnostic: once a DataConnection opens, inspect the underlying
+        // RTCPeerConnection's selected ICE candidate pair and log whether the
+        // link is a direct peer-to-peer connection or relayed through a TURN
+        // server. Candidate types: host = LAN, srflx/prflx = direct via STUN
+        // hole-punching, relay = TURN relay (not true P2P).
+        function logConnectionDetails(c) {
+            const pc = c && c.peerConnection;
+            if (!pc || !pc.getStats) {
+                console.log('[worm-03] No RTCPeerConnection available for stats.');
+                return;
+            }
+            // Let ICE settle on its final nominated pair before reading stats.
+            setTimeout(() => {
+                pc.getStats().then((report) => {
+                    let pair = null, transport = null;
+                    report.forEach((s) => { if (s.type === 'transport') transport = s; });
+                    if (transport && transport.selectedCandidatePairId) {
+                        pair = report.get(transport.selectedCandidatePairId);
+                    }
+                    if (!pair) {
+                        report.forEach((s) => {
+                            if (s.type === 'candidate-pair' && s.state === 'succeeded' &&
+                                (s.nominated || s.selected)) pair = s;
+                        });
+                    }
+                    if (!pair) {
+                        console.log('[worm-03] Connected, but no active ICE candidate pair found yet.');
+                        return;
+                    }
+                    const local = report.get(pair.localCandidateId);
+                    const remote = report.get(pair.remoteCandidateId);
+                    const meaning = {
+                        host: 'direct (same LAN)',
+                        srflx: 'direct via STUN hole-punch',
+                        prflx: 'direct (peer-reflexive)',
+                        relay: 'RELAYED via TURN'
+                    };
+                    const lt = local && local.candidateType;
+                    const rt = remote && remote.candidateType;
+                    const relayed = lt === 'relay' || rt === 'relay';
+                    const fmt = (cand) => cand
+                        ? `${cand.candidateType} (${meaning[cand.candidateType] || '?'}) ` +
+                          `${cand.address || cand.ip || '?'}:${cand.port || '?'}/${cand.protocol || '?'}` +
+                          (cand.url ? `  via ${cand.url}` : '')
+                        : 'unknown';
+                    console.log(
+                        '[worm-03] Connection established — ' +
+                        (relayed ? 'RELAYED through a TURN server (not direct P2P)'
+                                 : 'DIRECT peer-to-peer') + '\n' +
+                        '  Local  candidate: ' + fmt(local) + '\n' +
+                        '  Remote candidate: ' + fmt(remote) + '\n' +
+                        '  RTT: ' + (pair.currentRoundTripTime != null
+                            ? Math.round(pair.currentRoundTripTime * 1000) + ' ms' : 'n/a'));
+                    console.log('[worm-03] Selected candidate pair:', pair);
+                }).catch((e) => console.log('[worm-03] getStats failed:', e));
+            }, 1000);
+        }
+
         // Host side: a peer connected to our game code.
         function setupHostConnection(c) {
             conn = c;
             c.on('open', () => {
+                logConnectionDetails(c);
                 mpStatus.textContent = '';
                 reconnecting = false;
                 reconnectAttempts = 0;
@@ -1183,6 +1242,7 @@
             mode = 'joiner';
             localPlayerIndex = 1;
             c.on('open', () => {
+                logConnectionDetails(c);
                 reconnecting = false;
                 reconnectAttempts = 0;
                 sessionActive = true;
