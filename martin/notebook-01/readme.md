@@ -1,4 +1,4 @@
-# Nodebook (notebook-01)
+# Notebook (notebook-01)
 
 A minimal single-user notes app built to investigate authentication and
 per-user data protection with Supabase. Each signed-in user has one private
@@ -6,7 +6,7 @@ notes document that autosaves to the database and is visible only to them.
 
 ## Layout
 
-- A header row across the top with the title **"Nodebook"** on the left and a
+- A header row across the top with the title **"Notebook"** on the left and a
   **Login** button on the right.
 - Below the header, a single text area fills the entire remaining height and
   width of the screen. It holds the user's notes.
