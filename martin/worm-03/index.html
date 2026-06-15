@@ -355,6 +355,9 @@
         let localPlayerIndex = 0;
         let playerName = null;
         let gameOverShown = false;
+        // "This is you!" callout flashed next to the local worm at MP game start.
+        let showYouHint = false;
+        let youHintTimer = null;
 
         // Authoritative on host/single; a mirror of received state on the joiner.
         let players = [];
@@ -776,6 +779,45 @@
             poison.forEach(p => ctx.fillRect(p.x * CELL_SIZE, p.y * CELL_SIZE, CELL_SIZE, CELL_SIZE));
 
             if (gamePhase !== 'lobby') drawScores();
+            drawYouHint();
+        }
+
+        // A translucent "This is you!" callout drawn next to the local player's
+        // worm head; only visible while showYouHint is set (multiplayer start).
+        function drawYouHint() {
+            if (!showYouHint || mode === 'single') return;
+            const me = players[localPlayerIndex];
+            if (!me || !me.worm || !me.worm[0]) return;
+            const head = me.worm[0];
+            const fontSize = Math.max(10, Math.min(16, CELL_SIZE * 1.4));
+            ctx.font = `${fontSize}px Arial`;
+            const text = 'This is you!';
+            const padding = 5;
+            const boxW = ctx.measureText(text).width + padding * 2;
+            const boxH = fontSize + padding * 2;
+            // Prefer just above the head; if there's no room, place it below.
+            let x = head.x * CELL_SIZE + CELL_SIZE / 2 - boxW / 2;
+            let y = head.y * CELL_SIZE - boxH - 4;
+            if (y < 0) y = head.y * CELL_SIZE + CELL_SIZE + 4;
+            x = Math.max(2, Math.min(x, canvas.width - boxW - 2));
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(x, y, boxW, boxH);
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.strokeRect(x, y, boxW, boxH);
+            ctx.fillStyle = '#fff';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'top';
+            ctx.fillText(text, x + padding, y + padding);
+            ctx.textBaseline = 'alphabetic';
+        }
+
+        // Show the "This is you!" callout for 1.2s at the start of a MP game.
+        function flashYouHint() {
+            if (mode === 'single') return;
+            showYouHint = true;
+            draw();
+            clearTimeout(youHintTimer);
+            youHintTimer = setTimeout(() => { showYouHint = false; draw(); }, 1200);
         }
 
         // ---------- Simulation (host/single only) ----------
@@ -995,10 +1037,10 @@
             gameOverShown = true;
             stopAllTimers();
             // Write the result ("Game Over!" in solo) across the board, hold for
-            // half a second, then move on to the leaderboard prompt or the start
+            // a moment, then move on to the leaderboard prompt or the start
             // screen.
             showMessage(resultText());
-            setTimeout(afterGameOver, 500);
+            setTimeout(afterGameOver, 1200);
         }
 
         async function afterGameOver() {
@@ -1043,6 +1085,7 @@
             hideOverlay();
             broadcastState();
             draw();
+            flashYouHint();
         }
 
         function showLobbyPreview() {
@@ -1128,6 +1171,7 @@
         // Joiner: render whatever the host sends and react to phase changes.
         function applyRemoteState(msg) {
             const wasOver = gamePhase === 'over';
+            const wasPlaying = gamePhase === 'playing';
             players = msg.players;
             applyStyles(players);
             food = msg.food;
@@ -1139,6 +1183,11 @@
                 hideOverlay();
             }
             draw();
+            // First time we enter the playing phase (not a reconnect resume),
+            // flash the "This is you!" callout next to our worm.
+            if (gamePhase === 'playing' && !wasPlaying) {
+                flashYouHint();
+            }
             if (gamePhase === 'over' && !wasOver) {
                 presentGameOver();
             }

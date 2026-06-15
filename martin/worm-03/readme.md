@@ -60,7 +60,7 @@ These are `CHECK` constraints added by a migration under `supabase/migrations/`.
 
 - See gameplay details for conditions of ending the game.
 - When the player dies, the game stops, the worm stops moving, and the text **"Game Over!"** is displayed across the board (in a two-player game the result is "You win!" / "You lose!" / "Draw!" instead).
-- After a **0.5-second** pause, the game proceeds automatically:
+- After a **1.2-second** pause, the game proceeds automatically:
   - if the player's score qualifies for the leaderboard, the **"Well done!"** leaderboard-entry dialog is shown (see "Scoring and Leaderboard");
   - otherwise the player is taken **directly back to the start panel**.
 - After the leaderboard dialog is dismissed (by publishing or skipping), the player is likewise returned to the start panel. There is no separate "restart" button — the start panel is the single hub for beginning the next game.
@@ -127,10 +127,11 @@ Clicking **Start Multi Player Game** on the start panel opens a screen with four
 - The **host's worm** keeps the original colors (orange head, green body). The **joiner's worm** is visually distinct with a blue head and cyan body.
 - The worms start on opposite sides of the board and are stationary until their controller provides a direction. **Both worms move at the same speed, set by whichever worm is currently longer** (unlike solo play, where speed tracks the single worm's own length). As either worm grows, both speed up together.
 - To keep a hesitant player from stalling the match, if one worm has still not started moving by the time the other worm eats its first food, the idle worm **automatically starts moving in the direction its head is already facing**.
+- At the start of a two-player game, a translucent **"This is you!"** callout appears next to the local player's worm for 1.2 seconds and then disappears.
 - A worm dies if its head hits a wall, a poison cell, its own body, **or the other worm's body**.
 - As soon as one worm dies, the round ends. The surviving player sees "You win!", the player whose worm died sees "You lose!" (a "Draw!" if both die together). The dead worm's head is drawn greyed out.
 - Each player's current score and their opponent's is shown on the canvas as `You: N` and `Opponent: N` (no player names).
-- Each browser handles its own player's score with the same end-of-game flow as solo play: the result is shown for 0.5 s, then the leaderboard-entry dialog (if the score qualifies) or a return to the start panel (see "Scoring and Leaderboard").
+- Each browser handles its own player's score with the same end-of-game flow as solo play: the result is shown for 1.2 s, then the leaderboard-entry dialog (if the score qualifies) or a return to the start panel (see "Scoring and Leaderboard").
 
 ### Restarting, reconnecting and disconnects
 
@@ -159,10 +160,30 @@ Clicking **Start Multi Player Game** on the start panel opens a screen with four
 - The same direction constraint as keyboard controls applies: only perpendicular direction changes are allowed (the worm cannot reverse into itself).
 - A brief hint about touch controls is shown on the start and game-over overlay screen.
 
+## Backend with Supabase
+
+The shared leaderboard is stored in a hosted **Supabase** project (named "coding") and accessed directly from the browser over its REST (PostgREST) Data API.
+
+- **Dashboard:** <https://supabase.com/dashboard/project/qifgxysuhskscrjjwzfm>
+- **Administering Supabase:** log in to the dashboard with **Martin's GitHub account**.
+- **Data API base URL:** `https://qifgxysuhskscrjjwzfm.supabase.co/rest/v1/`
+- **Publishable (anon) key:** `sb_publishable_dJ7DGbkXPYOiD4YipTXEog_vx_FhOot` — embedded in `index.html`. Publishable keys are designed to ship in client code; access is governed by row-level security, not by hiding the key.
+
+### Table: `mw3_high_score`
+
+- Table names are prefixed with the per-project slug `mw3` (for `martin/worm/03`) so multiple projects in this repository can share one database.
+- Columns: `id`, `name`, `score`, and `timestamp` (a `timestamptz` defaulting to `now()`, shown in the leaderboard as the date/time the score was achieved).
+- **Row-level security** is enabled with permissive policies granting the anonymous role read / insert / delete, so the table is effectively world read/write (the game is unauthenticated). The `name` column is additionally guarded by length/character `CHECK` constraints (see "Data constraints").
+- The client reads the board with `order=score.desc,id.desc&limit=20`, `POST`s new scores, and after each insert prunes the table by fetching the top-20 ids and issuing `DELETE` with `id=not.in.(<those ids>)` (a no-op until the table holds at least 20 rows).
+
+### Migrations
+
+- The table and its policies/constraints are created by SQL migrations under `supabase/migrations/` at the repository root. Supabase's **GitHub integration** applies them automatically when changes are merged to `main`.
+
 ## Implementation details
 
 - The game is implemented in JavaScript as a single HTML5 file index.html.
 - PeerJS is included via a CDN `<script>` tag for the WebRTC peer-to-peer connection used by multiplayer.
 - Game state is held in a `players` array so the same rendering and simulation code serves both solo (one worm) and two-player (two worms) games.
 - Random matchmaking uses a transient second PeerJS peer that claims a fixed lobby ID only while waiting; it is destroyed once a match forms, leaving the game running on the persistent per-player game peers.
-- The shared leaderboard is backed by a public Supabase REST endpoint in the "coding" Supabase project (`/rest/v1/mw3_high_score`). Table names are prefixed with the per-project slug `mw3` (for `martin/worm/03`) so projects in this repository can share one database. The table has columns `id`, `name`, `score`, and `timestamp` (a `timestamptz` defaulting to `now()`, used for both display and the one-month expiry). The Supabase publishable key is embedded in `index.html`; this is expected for client-side use. The table has row-level security enabled with permissive policies granting the anonymous role read/insert/delete, so it is effectively world read/write. Reads use `order=score.desc,id.desc&limit=20`; new scores are `POST`ed; after each insert the table is pruned by fetching the top 20 ids and issuing a `DELETE` with `id=not.in.(<those ids>)` (a no-op until the table holds at least 20 rows). The table is created by a migration under `supabase/migrations/` at the repository root, which Supabase applies via its GitHub integration when merged to `main`.
+- The shared leaderboard is backed by Supabase — see "Backend with Supabase".
