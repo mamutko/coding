@@ -14,24 +14,12 @@ paged navigation) deliberately reuses the look and feel of the
 
 ## Style &amp; Effects
 
-The test borrows the presentation style of `money-positioning-presentation-01`:
-
-- **Titanium look** &mdash; dark background layered with a fine + bold graph-paper grid
-  (CSS repeating gradients) and a radial vignette. Cards and controls use a metallic
-  blue/grey gradient with a light top edge and soft shadow.
-- **Reactive schematic network** &mdash; the background is a live `<canvas>` (`#schem`)
-  that generates a connected graph of orthogonal "traces" with circle nodes. Hovering
-  near a node charges it (growing a soft halo); moving away fires a bright pulse that
-  travels the traces and splits at intersections. Identical engine to the presentation.
-- **Scrolling grid** &mdash; the graph-paper grid scrolls horizontally in sync with the
-  paged navigation via the `--gx` background-position variable, and the schematic canvas
-  scrolls with the same per-page offset.
-- **Mouse-reactive chrome** &mdash; a `pointermove` handler sets a per-element proximity
-  value (`--p`, 0&ndash;1) on `.reactive` elements (nav chevrons, progress ticks),
-  scaling their glow as the cursor approaches.
-- **Paged deck** &mdash; an intro page, one page per question, and a results page live in
-  a horizontal flex `.deck`; navigation sets `transform: translateX(...)` so transitions
-  slide horizontally.
+The test uses the repo's shared **titanium / engineering deck** style (dark graph-paper
+background, a live mouse-reactive schematic `<canvas>`, metallic cards, a horizontally
+paged deck, and animated reveals) — the same engine as `money-positioning-presentation-01`.
+The generic style and its reusable engine are documented in the **`presentation` skill**
+(`.claude/skills/presentation/`), which also ships runnable example decks. Only the
+test-specific behaviour is described below.
 
 ## Navigation
 

@@ -1,1 +1,1 @@
-Before modifying any project code, agents must read the README.md in the root of the repository for project rules and AI instructions.
+Before modifying any project code, agents must read the **`working-with-projects` skill** (`.claude/skills/working-with-projects/SKILL.md`) — the canonical reference for the repository's rules and workflow.

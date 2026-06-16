@@ -6,6 +6,10 @@ The purpose of this project is to create a single page HTML file `index.html` th
 
 ## Presentation Style
 
+This is the original design brief for the repo's shared titanium deck style; the generic
+style and its reusable engine are now captured in the **`presentation` skill**
+(`.claude/skills/presentation/`).
+
 Presentation flow:
 
 - the presentation should take advantage of the whole screen / window
@@ -36,53 +40,19 @@ dependencies). It realizes the slides above with the following behavior (eight s
 Interlude, Hackathon, and Production slides are preserved in the code but hidden, so they are not
 navigated or counted):
 
-- **Paged deck** — the slide `<section>`s live in a horizontal flex `.deck`; hidden slides (the
-  Interlude, Hackathon, and Production) carry a `slide-off` class (`display:none`) and are excluded
-  from the navigation list, so they occupy no slot. Navigation sets
-  `transform: translateX(...)` so transitions slide horizontally in the direction of travel
-  (next = leftward slide toward the right-edge control), per the Presentation Style.
-- **Navigation** — right-edge "next" and left-edge "prev" chevrons (prev hidden on the first
-  slide, next hidden on the last), a clickable progress-tick bar at the bottom, plus keyboard
-  (`←` `→`, `space`, `PageUp`/`PageDown`, `Home`/`End`) and touch-swipe.
-- **Animated SVG diagram engine** — a small JS engine (`buildFlow` / `buildTimeline`) renders
-  each Mermaid spec as native SVG. Node types `box`, `db` (cylinder), `decision` (diamond),
-  and `config` (double-border) are filled with a titanium gradient. Edges are drawn on slide
-  entry (animated `stroke-dashoffset`) with a continuously flowing accent dash overlay and
-  arrowheads. Diagrams replay their build animation each time their slide becomes active.
-  The (hidden) Interlude slide uses a bespoke horizontal timeline builder; the closing slide reuses
-  the indirection ("purpose") diagram concept rather than a new diagram.
-- **Titanium look** — dark background layered with a fine + bold graph-paper grid (a CSS
-  repeating-gradient) and a radial vignette. Surfaces (cards, nodes, nav) use a metallic
-  blue/grey gradient with a light top edge and soft shadow. The graph-paper grid scrolls
-  horizontally in sync with the slides: each transition animates its `--gx`
-  `background-position` by one viewport width (matching the deck's translate and easing), so
-  the paper travels with the content while its infinite tiling stays seamless and the centered
-  fade-mask stays put.
-- **Reactive schematic network** — the engineering "schematic" backdrop is a live `<canvas>`
-  (`#schem`), not a static image. At load (and on resize) `buildNetwork()` generates a graph
-  of orthogonal multi-segment "traces" with a small circle **node** at each end, spread across
-  the full deck width (`PERSCREEN` traces per screen). All right-angle crossings between traces
-  are computed and inserted as shared **intersection vertices**, so the traces form one
-  connected graph. The canvas scrolls with the slides using the same per-slide offset as the
-  grid (eased in the rAF loop). Interaction:
-  - **Charging** — while the cursor is within `CHARGE_R` of a node, that node accumulates
-    charge (faster the closer/longer it lingers) and grows a soft radial **halo** (a
-    `createRadialGradient` glow, in the same spirit as the nav elements). Once it reaches full
-    charge the halo gently **pulses** (a small sine oscillation of its radius and alpha).
-  - **Discharge / pulse** — when the cursor leaves a charged node's vicinity, it fires a
-    **pulse**: a short bright highlight (a bright core plus its own soft halo) that travels
-    along the trace at constant speed (`SPEED`, 700 px/s). Pulse brightness, width, and length
-    scale with the accumulated charge, so an accidental quick pass barely glints while a
-    deliberate hover fires a pronounced pulse.
-  - **Splitting** — when a pulse reaches an intersection vertex it continues onto *every*
-    crossing branch (minus the one it arrived on), so pulses fan out across the network. Hop
-    count, per-hop intensity decay (`HOPDECAY`), and a global cap (`MAXP`) keep the burst
-    finite and fading. Everything is drawn additively (`globalCompositeOperation = 'lighter'`)
-    over the faint resting traces, keeping it a background effect.
-- **Mouse-reactive chrome** — the same `pointermove` handler sets a per-element `--p` proximity
-  value (0–1) on `.reactive` elements (nav chevrons, progress ticks, stat/info cards, the demo
-  button and demo controls), scaling their border glow and lift as the cursor approaches. Slide
-  copy reveals with staggered fade/translate transitions on entry.
+- **Titanium deck engine (shared style)** — the paged deck, horizontal `translateX` navigation
+  (chevrons, progress ticks, keyboard, touch-swipe), the scrolling graph-paper grid, the live
+  mouse-reactive schematic `<canvas>` background, the metallic cards, and the animated reveals
+  are the repo's shared presentation style, documented with reusable example decks in the
+  **`presentation` skill** (`.claude/skills/presentation/`). Project-specific notes:
+  - **Hidden slides** — the Interlude, Hackathon, and Production `<section>`s carry a `slide-off`
+    class (`display:none`) so they are excluded from the navigation, progress bar, and slide
+    count, but preserved in the code and documentation.
+  - **Animated SVG diagrams** — a small JS engine (`buildFlow` / `buildTimeline`) renders each
+    Mermaid spec as native SVG with node types `box`, `db` (cylinder), `decision` (diamond),
+    and `config` (double-border); edges animate in on slide entry and replay each time their
+    slide becomes active. The Interlude uses a bespoke horizontal timeline; the closing slide
+    reuses the indirection ("purpose") diagram rather than a new one.
 - **Payroll Execution Demo (pull-up slide)** — a self-contained interactive demo (`#demoPanel`)
   that slides up over the deck from the bottom while the deck shifts up and dims. It is opened by
   any `[data-demo-open]` trigger — the "Payroll Execution Demo" button on Slide 2 (without money

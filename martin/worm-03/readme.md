@@ -85,6 +85,11 @@ These are `CHECK` constraints added by a migration under `supabase/migrations/`.
 
 Two players can play together on a single shared board, with their browsers connected directly peer-to-peer.
 
+The generic peer-to-peer pattern this uses — **PeerJS** for the handshake/matchmaking, **WebRTC**
+data channels for in-game traffic, a host-authoritative simulation, single-slot random matchmaking,
+and reconnection — is documented in the **`multiplayer-game` skill** (`.claude/skills/multiplayer-game/`).
+The sections below cover how worm-03 applies it.
+
 ### The multiplayer screen
 
 Clicking **Start Multi Player Game** on the start panel opens a screen with four cards:
@@ -162,23 +167,19 @@ Clicking **Start Multi Player Game** on the start panel opens a screen with four
 
 ## Backend with Supabase
 
-The shared leaderboard is stored in a hosted **Supabase** project (named "coding") and accessed directly from the browser over its REST (PostgREST) Data API.
-
-- **Dashboard:** <https://supabase.com/dashboard/project/qifgxysuhskscrjjwzfm>
-- **Administering Supabase:** log in to the dashboard with **Martin's GitHub account**.
-- **Data API base URL:** `https://qifgxysuhskscrjjwzfm.supabase.co/rest/v1/`
-- **Publishable (anon) key:** `sb_publishable_dJ7DGbkXPYOiD4YipTXEog_vx_FhOot` — embedded in `index.html`. Publishable keys are designed to ship in client code; access is governed by row-level security, not by hiding the key.
+The shared leaderboard is stored in the repo's hosted **Supabase** project ("coding") and read
+directly from the browser over its REST (PostgREST) Data API using raw `fetch`. The generic
+backend setup — the project URL/key, why the publishable key ships in client code, the per-project
+table-slug convention, RLS, and how migrations auto-apply on merge to `main` — is documented in the
+**`database-backend` skill** (`.claude/skills/database-backend/`). Worm-03 specifics:
 
 ### Table: `mw3_high_score`
 
-- Table names are prefixed with the per-project slug `mw3` (for `martin/worm/03`) so multiple projects in this repository can share one database.
+- Slug `mw3` = `martin/worm-03`.
 - Columns: `id`, `name`, `score`, and `timestamp` (a `timestamptz` defaulting to `now()`, shown in the leaderboard as the date/time the score was achieved).
-- **Row-level security** is enabled with permissive policies granting the anonymous role read / insert / delete, so the table is effectively world read/write (the game is unauthenticated). The `name` column is additionally guarded by length/character `CHECK` constraints (see "Data constraints").
-- The client reads the board with `order=score.desc,id.desc&limit=20`, `POST`s new scores, and after each insert prunes the table by fetching the top-20 ids and issuing `DELETE` with `id=not.in.(<those ids>)` (a no-op until the table holds at least 20 rows).
-
-### Migrations
-
-- The table and its policies/constraints are created by SQL migrations under `supabase/migrations/` at the repository root. Supabase's **GitHub integration** applies them automatically when changes are merged to `main`.
+- **Row-level security** is enabled with **permissive** policies granting the anonymous role read / insert / delete, so the table is effectively world read/write (the game is unauthenticated). The `name` column is additionally guarded by length/character `CHECK` constraints (see "Data constraints").
+- The client reads the board with `order=score.desc,id.desc&limit=20`, `POST`s new scores, and after each insert prunes the table by fetching the top-20 ids and issuing `DELETE` with `id=not.in.(<those ids>)` (a no-op until the table holds at least 20 rows). Network calls are best-effort so solo play keeps working offline.
+- The table, policies, and constraints are created by migrations under `supabase/migrations/`.
 
 ## Implementation details
 

@@ -15,6 +15,11 @@ notes document that autosaves to the database and is visible only to them.
 
 ## Authentication
 
+Login uses **Supabase email OTP / magic links**. The generic mechanics — sending the link with
+`signInWithOtp`, driving the UI from `onAuthStateChange`, the display-name fallback, protecting
+per-user data with RLS on `auth.uid()`, and the required dashboard setup — are documented in the
+**`user-accounts` skill** (`.claude/skills/user-accounts/`). Notebook-specific behaviour:
+
 - Clicking **Login** opens a small dialog asking for an email address and sends
   a **magic link** via Supabase (`signInWithOtp`). The user clicks the link in
   their email and is returned to the app, now signed in.
@@ -43,15 +48,13 @@ notes document that autosaves to the database and is visible only to them.
 
 ## Data protection (RLS)
 
-- `mn1_notes` has row-level security enabled. Its primary key `user_id`
-  references `auth.users(id)`, and the policies restrict **select/insert/update/
-  delete to rows where `auth.uid() = user_id`**, scoped to the `authenticated`
-  role. The anonymous role is granted no privileges at all, so notes are never
-  readable without signing in, and each user can only ever see and edit their
-  own row.
-- The table is created by a migration under `supabase/migrations/` at the
-  repository root, applied by Supabase's GitHub integration when merged to
-  `main`.
+- `mn1_notes` (slug `mn1` = `martin/notebook-01`) has row-level security enabled,
+  with policies scoped to `auth.uid() = user_id` for the `authenticated` role and
+  **no** privileges for `anon`, so each user can only ever see and edit their own
+  row and notes are never readable without signing in. See the `user-accounts`
+  skill for the policy pattern and the `database-backend` skill for the migration
+  conventions.
+- The table is created by a migration under `supabase/migrations/`.
 
 ## Implementation details
 
@@ -63,14 +66,7 @@ notes document that autosaves to the database and is visible only to them.
 
 ## Setup notes (Supabase dashboard)
 
-These steps are configured in the Supabase project, not in code:
-
-- **Email auth must be enabled** (it is by default). Magic-link emails are sent
-  by Supabase's built-in mailer, which is rate-limited; a custom SMTP provider
-  is recommended for anything beyond light testing.
-- The app must be served from a URL that is listed in the project's
-  **Authentication → URL Configuration** (Site URL / Redirect URLs), because the
-  magic link redirects back to `window.location.href`. Opening the file
-  directly via `file://` will not complete the sign-in round trip — serve it
-  over `http(s)` (e.g. a local static server) and add that URL to the allow
-  list.
+This app needs the standard email-OTP dashboard setup — email auth enabled, and the
+serving URL added to **Authentication → URL Configuration** so the magic link can
+redirect back (it won't complete over `file://`). The details are in the
+**`user-accounts` skill**.
