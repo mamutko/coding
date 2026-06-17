@@ -1,6 +1,6 @@
 ---
 name: presentation
-description: How to build a single-file HTML "deck" — a presentation, slideshow, or multiple-choice test — in the repo's signature titanium / engineering style with a live reactive schematic background, a horizontally-paged slide deck, mouse-reactive chrome, and animated reveals. Use when creating a presentation, slides, a quiz/test, or any paged, navigable full-screen content. Worked examples: martin/money-positioning-presentation-01, martin/chemistry-test-01. Bundled runnable examples: example-presentation.html, example-test.html.
+description: How to build a single-file HTML "deck" — a presentation, slideshow, or multiple-choice test — in the repo's signature titanium / engineering style with a live reactive schematic background, a horizontally-paged slide deck, mouse-reactive chrome, animated reveals, a mobile-friendly footer nav, and an optional shared leaderboard. Use when creating a presentation, slides, a quiz/test, or any paged, navigable full-screen content. Worked examples: martin/money-positioning-presentation-01, martin/chemistry-test-01, martin/earth-science-01 (test with a shared leaderboard). Bundled runnable examples: example-presentation.html, example-test.html.
 ---
 
 # Presentations & tests (titanium deck style)
@@ -56,12 +56,18 @@ content. The sections below explain the pieces so you can extend them.
   <canvas class="bg-schem" id="schem"></canvas>
   <div class="bg-vignette"></div>
 </div>
-<div class="brand">…</div>                <!-- top-left wordmark -->
-<div class="counter mono"><b id="curNo">01</b> / <span id="totNo">--</span></div>
-<div class="deck" id="deck"></div>        <!-- slides injected here -->
+<header class="topbar">                     <!-- fixed top: wordmark + counter (+ score pill on a test) -->
+  <div class="brand">…wordmark…</div>
+  <div class="hud mono">
+    <span class="counter"><b id="curNo">01</b> / <span id="totNo">--</span></span>
+    <span class="scorepill empty" id="scorePill"></span>  <!-- tests only -->
+  </div>
+</header>
+<div class="deck" id="deck"></div>          <!-- slides injected here -->
+<div class="bottombar"></div>               <!-- fixed footer strip; only visible on mobile -->
 <div class="nav prev reactive hide" id="prev">…chevron…</div>
 <div class="nav next reactive" id="next">…chevron…</div>
-<div class="progress" id="progress"></div><!-- clickable ticks -->
+<div class="progress" id="progress"></div>  <!-- clickable, equal-length ticks -->
 ```
 
 - Slides are `<section class="slide">` in a horizontal flex `.deck`; they are
@@ -74,6 +80,33 @@ content. The sections below explain the pieces so you can extend them.
 - Navigation: right/left chevrons, a clickable progress-tick bar, keyboard
   (`←` `→`, space, `PageUp`/`PageDown`, `Home`/`End`), and horizontal
   touch-swipe. (A test adds number keys `1`–`4` to pick an answer.)
+- **Equal-length page indicators** — every `.tick` is the same fixed width; the
+  active tick (`.tick.on`) is shown by colour and glow only, **never** by growing
+  wider. (On a test, an answered tick also tints green.) Don't reintroduce a
+  width change on `.tick.on`.
+
+### Mobile / cell-phone layout
+
+The chrome is built so the nav collapses into a **footer** on a phone, leaving
+the slide content unobstructed:
+
+- The top wordmark/counter (and the test's score pill) live in a fixed
+  `.topbar`; the bottom holds a fixed `.bottombar` strip behind the `prev` /
+  `progress` / `next` controls. On desktop both bars are transparent and the
+  chevrons sit at the vertical centre of the screen edges.
+- A `@media (max-width:760px)` block turns `.topbar` and `.bottombar` into
+  semi-opaque, blurred bars, and **moves the chevrons down into the footer**
+  (`top:auto; bottom:14px`) flanking the progress dots, so all navigation is
+  thumb-reachable at the bottom. The ticks shrink (and shrink again under
+  380px) but stay equal-length. A second small `@media` step tightens spacing on
+  very narrow screens.
+- Use `<meta name="viewport" content="width=device-width, initial-scale=1.0,
+  viewport-fit=cover">` and give slide `.inner` extra top/bottom padding on
+  mobile so content clears the two bars.
+- Copy the chrome CSS + the two `@media` blocks from either bundled example
+  verbatim — they are generic. The score pill is hidden with a `.scorepill.empty`
+  class (toggled by a small `setScorePill()` helper) so it doesn't render as an
+  empty bordered pill before the first answer.
 
 ## Presentation-specific elements
 
@@ -106,11 +139,42 @@ The test example demonstrates:
   attempt): the correct option turns green with ✓, a wrong pick turns red with
   ✗, the rest dim, and an explanation panel slides in. The progress tick turns
   green once answered.
-- **Running score** in a header pill.
+- **Running score** in a header pill (hidden until the first answer).
 - **Results slide** — an animated circular SVG score ring fills to the
   percentage, the number counts up, and a banded verdict/message is shown
   (100 / ≥80 / ≥60 / ≥40 / below). A "Retake" button resets answers, ticks,
-  score, and ring.
+  score, and ring. Keep the ring **compact** (the example uses ~188px, ~150px on
+  mobile, with the `svg` set to `width/height:100%` so the `viewBox` math is
+  untouched) so anything below it — notably a Publish Score panel — stays
+  visible without scrolling.
+
+## Shared leaderboard (optional, tests)
+
+A test can let players **publish the score they achieved** to a leaderboard
+shared across all players, shown on the results slide. The bundled
+`example-test.html` does **not** wire this up (it needs a real backend table);
+**martin/earth-science-01 is the worked example** — copy its publish panel,
+leaderboard modal, and the `mes1_high_score` migration as a starting point.
+
+- **Backend** — store scores in the shared Supabase project and call it directly
+  from the browser; see the [`database-backend`](../database-backend/SKILL.md)
+  skill for the table-slug convention, RLS policies, migrations, and the
+  publishable key. Use a per-project slug table (e.g. `mes1_high_score`) with
+  columns `name`, `score`, `total`, `timestamp`, and `CHECK` constraints that
+  mirror the in-browser name validation. Make all network calls **best-effort**
+  (try/catch + console log) so the quiz still works offline.
+- **Results-slide UI** — below the (compact) score ring, add a name field plus
+  **Publish Score** and **Leaderboard** buttons, then a small status line. The
+  name pre-fills from `localStorage` and is saved on a successful publish.
+- **Publishing** — validate the name (e.g. 1–18 chars, letters/spaces/dashes),
+  `POST` a row, then open the leaderboard modal with the new entry highlighted.
+  Lock to one publish per attempt and re-enable it in the "Retake" reset. After
+  each insert, prune rows outside the displayed top N to keep the table in sync
+  with the board.
+- **Leaderboard modal** — a fixed backdrop + card listing the top N
+  (`order=score.desc,id.desc&limit=N`), each row showing rank, name, score
+  (`18 / 20`) and date. Close it via its ×, a backdrop click, or `Esc`. On mobile
+  the publish buttons stack full-width and the modal caps its height.
 
 ## Building a new deck
 

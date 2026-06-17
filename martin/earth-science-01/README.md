@@ -30,7 +30,18 @@ string shown after answering.
 
 Right/left chevrons, a clickable progress-tick bar, keyboard (`←` `→`, space,
 `PageUp`/`PageDown`, `Home`/`End`), number keys `1`–`4` to pick an answer, and
-horizontal touch-swipe. A counter (top-right) and a running score pill are shown.
+horizontal touch-swipe. A counter (top-right) and a running score pill (hidden
+until the first answer) are shown. The progress ticks are all the **same length**;
+the active page is shown by colour and glow only, and an answered page tints green.
+
+### Mobile layout
+
+The deck is cell-phone friendly. On narrow screens (≤760px) the wordmark and
+score move into a blurred top bar, and the **navigation collapses into a footer**:
+the previous/next chevrons drop to the bottom corners flanking the (smaller, still
+equal-length) progress ticks, so all navigation is thumb-reachable. On the results
+slide the publish controls stack full-width. The generic mechanics live in the
+[`presentation` skill](../../.claude/skills/presentation/SKILL.md).
 
 ### Answering & feedback
 
@@ -41,7 +52,8 @@ once answered, and the running score updates.
 
 ### Results
 
-An animated circular score ring fills to the percentage and the number counts up.
+An animated circular score ring (kept compact so the publish controls below stay
+visible without scrolling) fills to the percentage and the number counts up.
 The verdict is banded by percentage:
 
 - **100%** — "Perfect score!"
