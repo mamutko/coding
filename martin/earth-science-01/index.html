@@ -113,6 +113,54 @@
     transition:transform .2s,box-shadow .3s,border-color .3s}
   .btn:hover{transform:translateY(-2px);border-color:rgba(79,209,224,.6);
     box-shadow:inset 0 1px 0 rgba(255,255,255,.12),0 0 30px rgba(79,209,224,.3)}
+  .btn.sm{margin-top:0;padding:12px 20px;font-size:15px}
+  .btn.ghost{background:linear-gradient(155deg,rgba(140,162,184,.10),rgba(30,38,48,.4))}
+  .btn.disabled{opacity:.45;pointer-events:none}
+
+  /* ---------- publish score (results slide) ---------- */
+  .publish{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;align-items:center;
+    margin-top:26px;max-width:560px}
+  .nameField{flex:1 1 200px;min-width:180px;padding:13px 16px;border-radius:13px;
+    font-size:16px;color:#eaf3f7;font-family:inherit;
+    background:linear-gradient(155deg,rgba(20,26,34,.85),rgba(12,16,22,.85));
+    border:1px solid rgba(150,172,194,.3);border-top-color:rgba(206,220,234,.4);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.06);outline:none;
+    transition:border-color .25s,box-shadow .3s}
+  .nameField::placeholder{color:#6f7d8c}
+  .nameField:focus{border-color:rgba(79,209,224,.6);box-shadow:0 0 22px rgba(79,209,224,.22)}
+  .pubmsg{margin-top:14px;min-height:20px;font-size:14px;letter-spacing:.02em;text-align:center}
+  .pubmsg.ok{color:var(--good)} .pubmsg.err{color:var(--bad)}
+
+  /* ---------- leaderboard modal ---------- */
+  .modal-backdrop{position:fixed;inset:0;z-index:20;display:none;place-items:center;
+    background:rgba(4,7,11,.72);backdrop-filter:blur(4px);padding:24px}
+  .modal-backdrop.show{display:grid}
+  .modal{width:100%;max-width:520px;max-height:82vh;display:flex;flex-direction:column;
+    border-radius:18px;padding:24px 24px 18px;
+    background:linear-gradient(160deg,rgba(28,36,46,.96),rgba(14,18,24,.97));
+    border:1px solid rgba(150,172,194,.28);border-top-color:rgba(206,220,234,.5);
+    box-shadow:0 30px 80px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.1)}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+  .modal-head h3{margin:0;font-size:20px;letter-spacing:.02em}
+  .modal-head .sub2{font-size:12px;letter-spacing:.28em;text-transform:uppercase;color:var(--accent)}
+  .close{cursor:pointer;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;
+    font-size:22px;line-height:1;color:#cfe0ec;
+    background:linear-gradient(135deg,rgba(120,150,180,.25),rgba(40,50,62,.6));
+    border:1px solid rgba(150,172,194,.3);transition:all .2s}
+  .close:hover{border-color:rgba(224,118,79,.6);color:#fff}
+  .lblist{list-style:none;margin:14px 0 0;padding:0 4px 0 0;overflow-y:auto;display:grid;gap:8px}
+  .lbrow{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:12px;
+    padding:11px 14px;border-radius:11px;
+    background:linear-gradient(155deg,rgba(140,162,184,.12),rgba(30,38,48,.5));
+    border:1px solid rgba(150,172,194,.18)}
+  .lbrow.you{border-color:rgba(79,209,224,.6);box-shadow:0 0 20px rgba(79,209,224,.18)}
+  .lbrow .rank{font-weight:700;color:var(--accent);font-size:15px;text-align:center}
+  .lbrow .who{min-width:0}
+  .lbrow .who .nm{font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .lbrow .who .dt{font-size:12px;color:var(--muted)}
+  .lbrow .sc{font-weight:700;font-size:16px;color:#eaf3f7;white-space:nowrap}
+  .lbrow .sc small{color:var(--muted);font-weight:600}
+  .lbempty{color:var(--muted);text-align:center;padding:24px 0;font-size:15px}
 
   .reveal{opacity:0;transform:translateY(20px);
     transition:opacity .6s ease,transform .6s ease;transition-delay:var(--d,0s)}
@@ -174,6 +222,16 @@
 
 <div class="progress" id="progress"></div>
 <div class="hint mono">&larr; &rarr; / space &middot; 1&ndash;4</div>
+
+<div class="modal-backdrop" id="lbBackdrop">
+  <div class="modal">
+    <div class="modal-head">
+      <div><div class="sub2 mono">Top 20</div><h3>Leaderboard</h3></div>
+      <div class="close" id="lbClose" title="Close">&times;</div>
+    </div>
+    <ol class="lblist" id="lbList"><li class="lbempty">Loading&hellip;</li></ol>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -379,7 +437,13 @@ deck.insertAdjacentHTML('beforeend',`
       </div>
       <div class="verdict gradtext reveal" id="verdict" style="--d:.4s">&nbsp;</div>
       <p class="sub reveal" id="resultMsg" style="--d:.5s;text-align:center;max-width:46ch">&nbsp;</p>
-      <div class="btn reveal" style="--d:.65s" id="retryBtn">&#8634; &nbsp;Retake quiz</div>
+      <div class="publish reveal" style="--d:.6s">
+        <input id="nameInput" class="nameField" maxlength="18" placeholder="Your name" autocomplete="off" />
+        <div class="btn sm" id="publishBtn">Publish Score</div>
+        <div class="btn sm ghost" id="boardBtn">Leaderboard</div>
+      </div>
+      <div class="pubmsg reveal" id="pubMsg" style="--d:.66s"></div>
+      <div class="btn reveal" style="--d:.72s" id="retryBtn">&#8634; &nbsp;Retake quiz</div>
     </div></div>
   </section>`);
 
@@ -449,7 +513,10 @@ function resetQuiz(){
     [...list.children].forEach(li=>{li.classList.remove('correct','wrong','dim');li.querySelector('.mark').textContent='';}); });
   deck.querySelectorAll('.explain').forEach(x=>{x.classList.remove('show');x.innerHTML='';});
   ticks.forEach(t=>t.classList.remove('answered'));
-  scorePill.textContent=''; document.getElementById('ringFg').style.strokeDashoffset='628'; go(0);
+  scorePill.textContent=''; document.getElementById('ringFg').style.strokeDashoffset='628';
+  published=false; lastRowId=null;
+  publishBtn.classList.remove('disabled'); publishBtn.textContent='Publish Score'; setPubMsg('');
+  go(0);
 }
 
 function showResults(){
@@ -469,6 +536,105 @@ function showResults(){
   document.getElementById('resultMsg').textContent=`You answered ${score} of ${QUESTIONS.length} correctly. ${msg}`;
   scorePill.textContent=`SCORE ${score} / ${QUESTIONS.length}`;
 }
+
+/* ============================================================
+   Leaderboard — shared Supabase table mes1_high_score.
+   See the database-backend skill for the generic backend setup.
+   Network calls are best-effort: failures are logged and the quiz
+   keeps working offline.
+   ============================================================ */
+const LB_BASE='https://qifgxysuhskscrjjwzfm.supabase.co/rest/v1/mes1_high_score';
+const LB_KEY='sb_publishable_dJ7DGbkXPYOiD4YipTXEog_vx_FhOot';
+const LB_HEADERS={apikey:LB_KEY,Authorization:'Bearer '+LB_KEY,'Content-Type':'application/json'};
+const LB_LIMIT=20;
+
+const nameInput=document.getElementById('nameInput');
+const publishBtn=document.getElementById('publishBtn');
+const boardBtn=document.getElementById('boardBtn');
+const pubMsg=document.getElementById('pubMsg');
+const lbBackdrop=document.getElementById('lbBackdrop');
+const lbList=document.getElementById('lbList');
+let published=false, lastRowId=null;
+
+nameInput.value=(localStorage.getItem('mes1_name')||'').slice(0,18);
+
+function setPubMsg(text,kind){ pubMsg.textContent=text||''; pubMsg.className='pubmsg reveal'+(kind?' '+kind:''); }
+
+/* Same rules as the DB CHECK constraints: 1..18 chars, letters/spaces/dashes. */
+function validateName(name){
+  if(!name) return 'Enter a name to publish your score.';
+  if(name.length>18) return 'Name must be at most 18 characters.';
+  if(!/^[A-Za-z -]+$/.test(name)) return 'Use letters, spaces and dashes only.';
+  return null;
+}
+
+async function fetchBoard(){
+  const res=await fetch(`${LB_BASE}?select=id,name,score,total,timestamp&order=score.desc,id.desc&limit=${LB_LIMIT}`,{headers:LB_HEADERS});
+  if(!res.ok) throw new Error('read '+res.status);
+  return res.json();
+}
+
+function renderBoard(rows){
+  if(!rows||!rows.length){ lbList.innerHTML='<li class="lbempty">No scores yet &mdash; be the first to publish!</li>'; return; }
+  lbList.innerHTML=rows.map((r,i)=>{
+    const d=new Date(r.timestamp);
+    const when=isNaN(d)?'':d.toLocaleDateString(undefined,{month:'short',day:'numeric'})+' '+d.toLocaleTimeString(undefined,{hour:'2-digit',minute:'2-digit'});
+    const safe=String(r.name).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]));
+    const you=r.id===lastRowId?' you':'';
+    return `<li class="lbrow${you}"><span class="rank">${i+1}</span>`+
+      `<span class="who"><div class="nm">${safe}</div><div class="dt">${when}</div></span>`+
+      `<span class="sc">${r.score}<small> / ${r.total}</small></span></li>`;
+  }).join('');
+}
+
+async function openBoard(){
+  lbBackdrop.classList.add('show');
+  lbList.innerHTML='<li class="lbempty">Loading&hellip;</li>';
+  try{ renderBoard(await fetchBoard()); }
+  catch(err){ console.error('Leaderboard read failed',err);
+    lbList.innerHTML='<li class="lbempty">Could not load the leaderboard (offline?).</li>'; }
+}
+function closeBoard(){ lbBackdrop.classList.remove('show'); }
+
+/* Keep the table trimmed to the top 20, matching what the board shows. */
+async function pruneBoard(){
+  try{
+    const res=await fetch(`${LB_BASE}?select=id&order=score.desc,id.desc&limit=${LB_LIMIT}`,{headers:LB_HEADERS});
+    if(!res.ok) return;
+    const ids=(await res.json()).map(r=>r.id);
+    if(ids.length<LB_LIMIT) return;
+    await fetch(`${LB_BASE}?id=not.in.(${ids.join(',')})`,{method:'DELETE',headers:LB_HEADERS});
+  }catch(err){ console.error('Leaderboard prune failed',err); }
+}
+
+async function publishScore(){
+  if(published) return;
+  const name=nameInput.value.trim();
+  const problem=validateName(name);
+  if(problem){ setPubMsg(problem,'err'); nameInput.focus(); return; }
+  publishBtn.classList.add('disabled'); setPubMsg('Publishing…');
+  try{
+    const res=await fetch(LB_BASE,{method:'POST',headers:{...LB_HEADERS,Prefer:'return=representation'},
+      body:JSON.stringify({name,score,total:QUESTIONS.length})});
+    if(!res.ok) throw new Error('insert '+res.status);
+    const inserted=await res.json(); lastRowId=inserted&&inserted[0]?inserted[0].id:null;
+    localStorage.setItem('mes1_name',name);
+    published=true; publishBtn.textContent='Published ✓';
+    setPubMsg(`Score published as “${name}”.`,'ok');
+    await pruneBoard();
+    openBoard();
+  }catch(err){
+    console.error('Publish failed',err);
+    publishBtn.classList.remove('disabled');
+    setPubMsg('Could not publish (offline?). Try again.','err');
+  }
+}
+
+publishBtn.addEventListener('click',publishScore);
+boardBtn.addEventListener('click',openBoard);
+document.getElementById('lbClose').addEventListener('click',closeBoard);
+lbBackdrop.addEventListener('click',e=>{ if(e.target===lbBackdrop) closeBoard(); });
+window.addEventListener('keydown',e=>{ if(e.key==='Escape'&&lbBackdrop.classList.contains('show')) closeBoard(); });
 
 /* ---------- mouse proximity (reactive chrome) ---------- */
 const mouse={x:-99999,y:-99999};

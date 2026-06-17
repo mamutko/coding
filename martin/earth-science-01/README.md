@@ -50,7 +50,64 @@ The verdict is banded by percentage:
 - **≥ 40%** — "Keep studying"
 - **below 40%** — "Time to review"
 
-A **Retake quiz** button resets answers, ticks, score, and the ring.
+The results slide also offers **Publish Score** and **Leaderboard** (see below).
+A **Retake quiz** button resets answers, ticks, score, the ring, and the publish
+state so the score can be published again on a fresh attempt.
+
+## Leaderboard
+
+After the quiz concludes, the results slide lets the player **publish the score
+they achieved** to a leaderboard that is **shared across all players**, in the
+same spirit as the worm-03 leaderboard. The board lists the **top 20 scores**,
+highest first, each showing the player name, the score (e.g. `18 / 20`), and the
+date/time it was published.
+
+### Publishing
+
+- A **name field** (pre-filled from the previous publish, saved in
+  `localStorage`) sits next to a **Publish Score** button and a **Leaderboard**
+  button.
+- **Publish Score** validates the name, then inserts a row with the name, the
+  number of correct answers, and the quiz length. On success the button becomes
+  **Published ✓** (one publish per attempt), the leaderboard opens with the new
+  entry highlighted, and the name is saved for next time.
+- **Leaderboard** opens the same modal at any time without publishing. It is
+  closed with its **×**, by clicking the backdrop, or with **Esc**.
+- Each published score is its own row, so the same player can appear more than
+  once. After each insert the table is **pruned to the top 20** rows shown.
+
+### Name validation
+
+The name is validated in the browser before publishing and is rejected if it is
+empty, longer than **18 characters**, or contains anything other than letters,
+spaces and dashes. The same limits are enforced at the database with `CHECK`
+constraints (see below). There is no profanity list.
+
+### Backend
+
+The leaderboard is stored in the repo's shared **Supabase** project and read and
+written directly from the browser over its REST (PostgREST) Data API with raw
+`fetch`. All network calls are **best-effort** — on failure they are logged to
+the console and the quiz keeps working offline. The generic backend setup (project
+URL/key, the per-project table-slug convention, RLS, and how migrations
+auto-apply on merge to `main`) is documented in the
+[`database-backend` skill](../../.claude/skills/database-backend/SKILL.md).
+
+#### Table: `mes1_high_score`
+
+- Slug `mes1` = `martin/earth-science-01`.
+- Columns: `id`, `name`, `score` (correct answers), `total` (quiz length), and
+  `timestamp` (`timestamptz` defaulting to `now()`).
+- **Row-level security** is enabled with **permissive** policies granting the
+  anonymous role read / insert / delete, so the board is effectively world
+  read/write (the quiz is unauthenticated).
+- `CHECK` constraints enforce the name rules (1..18 chars, letters/spaces/dashes,
+  plus `*` reserved for manual owner redaction), `total > 0`, and
+  `0 ≤ score ≤ total`.
+- The client reads with `order=score.desc,id.desc&limit=20`, `POST`s new scores,
+  and after each insert prunes rows outside the top 20.
+- The table, policies, and constraints are created by a migration under
+  `supabase/migrations/`.
 
 ## Content covered
 
