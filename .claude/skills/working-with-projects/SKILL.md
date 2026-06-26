@@ -70,8 +70,24 @@ When creating a new project:
 - use `-01` as a version suffix unless creating a new version of an already present project
 - always ask the user which `user-name` to use, and confirm it with them — even if the conversation context already seems to contain a name, do not assume it is the right one
 - create an empty README.md in the project folder, with just a title and a "TODO" note noting that the project has not been implemented, yet
+- implement a placeholder `index.html` containing just the project name (e.g.
+  a single heading with the project name), so there is something to deploy and
+  open before any real work is done
 - if the user didn't provide details on what the project should be, instruct the user to edit README.md to provide details about the project and then prompt AI to implement it
 - if the user provided details in the initial prompt, put them in README.md
+- commit and push the new project to `main` so GitHub Pages deploys it — this
+  is an explicit exception to the "push only when the user asks" rule above; the
+  initial scaffold (README + placeholder `index.html`) is always pushed as part
+  of creating the project
+- after pushing, give the user **both** links so they can open the project:
+  - **Local copy** — a link to the project's local `index.html` file on disk
+    (e.g. `user-name/project-name-01/index.html`), so they can open it directly
+    in a browser without waiting for a deploy
+  - **Deployed (web-facing) version** — the GitHub Pages URL, which for this
+    repo is `https://mamutko.github.io/coding/user-name/project-name-01/`
+    (GitHub Pages serves the repo root, so the path mirrors the folder
+    structure). Note it may take a minute or two after the push for the deploy
+    to go live
 - refer to project-type-specific skills for specific project types:
   - the project is a multiplayer game (multiplayer-game skill)
   - the project needs a storage backend (database-backend skill)
