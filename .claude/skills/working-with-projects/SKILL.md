@@ -23,7 +23,9 @@ with that project.
   step). External libraries are pulled from a CDN `<script>` tag.
 - Each project has a README (`README.md` or `readme.md`) at its root.
 - The repository root has an `index.html` that links to every project. **When
-  you create a new project, add a card/link for it in the root `index.html`.**
+  you create a new project, add a card/link for it in the root `index.html`** —
+  refer to the `README.md` in the root of the repository for details on how to
+  update the root `index.html`.
 - Shared backend assets live at the repo root, not inside a project — notably
   `supabase/migrations/` (see the `database-backend` skill).
 

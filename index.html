@@ -25,6 +25,17 @@
     .wrap { max-width: 880px; margin: 0 auto; padding: 48px 24px 80px; }
     h1 { font-size: 2rem; margin: 0 0 8px; }
     .lede { color: var(--muted); margin: 0 0 40px; }
+    .section { margin-bottom: 40px; }
+    .section > h2 {
+      font-size: .85rem;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--muted);
+      font-weight: 600;
+      margin: 0 0 14px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -60,7 +71,9 @@
     <h1>"coding" repository</h1>
     <p class="lede">A collection of projects exploring agent-assisted coding. Pick one to open it.</p>
 
-    <div class="grid">
+    <section class="section">
+      <h2>martin</h2>
+      <div class="grid">
       <a class="card" href="martin/worm-01/index.html">
         <h2>Worm 01</h2>
         <p>Simple 2D worm game — eat food, avoid poison and walls.</p>
@@ -101,11 +114,18 @@
         <h2>Earth Science Quiz</h2>
         <p>Grade 9 quiz on ecosystems, energy flow, biomes and nutrient cycles.</p>
       </a>
+      </div>
+    </section>
+
+    <section class="section">
+      <h2>daniel</h2>
+      <div class="grid">
       <a class="card" href="daniel/space-01/index.html">
         <h2>Space Game</h2>
         <p>Side-scrolling space shooter — dodge and destroy descending aliens.</p>
       </a>
-    </div>
+      </div>
+    </section>
 
     <footer>
       See the <a href="README.md">README</a> for project rules and AI instructions.

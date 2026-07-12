@@ -16,3 +16,15 @@ repository's rules and workflow. The bullets below are only a quick summary.
 - Mark planned-but-unimplemented features with a **TODO** tag.
 - Add a link in the root `index.html` for every new project.
 - Work directly on `main`; only branch when the user explicitly asks.
+
+## The root `index.html`
+
+The repository's landing page: a self-contained dark-themed page listing every
+project as a card that links to the project's `index.html`. Each card shows the
+project title and a one-line description.
+
+Cards are grouped into **sections, one per user folder** — the section is
+headed with the parent folder name and holds the cards for the projects inside
+it. For example, `martin/worm-03` is a "Worm 03" card in a section named
+"martin". Add every new project as a card in its user's section, creating the
+section if it does not exist yet.
