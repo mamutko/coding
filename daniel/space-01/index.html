@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Space Game</title>
+  <style>
+    html,body{height:100%;margin:0;background:#000;color:#fff;font-family:Segoe UI,Roboto,Arial,sans-serif;position:relative}
+    #game{display:block;background:#000;box-shadow:0 0 20px rgba(0,0,0,0.5)}
+    .hud{position:fixed;left:12px;top:12px;font-size:14px;opacity:0.9}
+    .hud-right{position:fixed;right:12px;top:12px;text-align:right;font-size:14px;opacity:0.95}
+    .hud-right > div{margin-bottom:10px}
+    .hud-right label{display:block;margin-top:8px;font-size:13px}
+    #playerName{width:130px;padding:4px 6px;font-size:13px;border-radius:4px;border:1px solid #555;background:#111;color:#fff}
+    #leaderboard{margin-top:8px;font-size:13px;line-height:1.4}
+    #game-container{position:relative;width:800px;margin:0 auto;top:60px}
+    #restartBtn{position:absolute;left:50%;top:50%;transform:translate(-50%, 80px);padding:10px 18px;font-size:16px;border:none;border-radius:6px;background:#0ff;color:#000;cursor:pointer;display:none;z-index:2}
+  </style>
+</head>
+<body>
+  <div class="hud">Controls: A / D — move, Space — shoot</div>
+  <div class="hud-right">
+    <div id="score">Score: 0</div>
+    <div id="leaderboard">Leader board: <br><span style="opacity:.7;font-size:12px">No scores yet</span></div>
+    <label>Player name:<br><input id="playerName" placeholder="Enter name"></label>
+  </div>
+  <div id="game-container">
+    <canvas id="game" width="800" height="600"></canvas>
+    <button id="restartBtn">Restart</button>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    const SHIP_WIDTH = 48;
+    const SHIP_HEIGHT = 18;
+
+    const ship = {
+      x: (canvas.width - SHIP_WIDTH) / 2,
+      y: canvas.height - SHIP_HEIGHT - 12,
+      w: SHIP_WIDTH,
+      h: SHIP_HEIGHT,
+      speed: 6
+    };
+
+    let shipImageLoaded = false;
+    const shipImage = new Image();
+    shipImage.onload = () => shipImageLoaded = true;
+    shipImage.onerror = () => console.warn('Ship image failed to load');
+    shipImage.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxMjAgMTIwIj48cGF0aCBmaWxsPSIjMGZmIiBkPSJNNjAgMTBDNDUgMTAgMzAgNDAgMzAgNDBDMjAgNTAgMTUgNzAgMTAgOTBDMzAgOTAgNDAgODAgNDAgODBMNTUgOTBMNjUgOTBMODAgODBDODAgODAgOTAgOTAgMTEwIDkwQzEwNSA3MCAxMDAgNTAgOTAgNDBDOTAgNDAgNzUgMTAgNjAgMTBaIi8+PGNpcmNsZSBjeD0iNjAiIGN5PSI0NSIgcj0iMTAiIGZpbGw9IiNmZmYiLz48L3N2Zz4=';
+
+    let keys = { left: false, right: false, space: false };
+    const bullets = [];
+    const aliens = [];
+    const alienBullets = [];
+    let score = 0;
+    let gameOver = false;
+
+    const scoreEl = document.getElementById('score');
+    const nameInput = document.getElementById('playerName');
+    const leaderboardEl = document.getElementById('leaderboard');
+    const restartBtn = document.getElementById('restartBtn');
+    const leaderboardEntries = [];
+
+    function updateScore() {
+      scoreEl.textContent = 'Score: ' + score;
+    }
+
+    function updateLeaderboard() {
+      if (leaderboardEntries.length === 0) {
+        leaderboardEl.innerHTML = 'Leader board:<br><span style="opacity:.7;font-size:12px">No scores yet</span>';
+        return;
+      }
+      const items = leaderboardEntries.slice(0, 5).map((entry, index) => `${index + 1}. ${entry.name} — ${entry.score}`);
+      leaderboardEl.innerHTML = 'Leader board:<br>' + items.join('<br>');
+    }
+
+    function saveScore() {
+      const name = nameInput.value.trim() || 'Anonymous';
+      leaderboardEntries.push({ name, score });
+      leaderboardEntries.sort((a, b) => b.score - a.score);
+      updateLeaderboard();
+    }
+
+    restartBtn.addEventListener('click', () => {
+      if (!gameOver) return;
+      saveScore();
+      resetGame();
+    });
+
+    function shoot() {
+      if (gameOver) return;
+      bullets.push({ x: ship.x + ship.w / 2 - 2, y: ship.y - 8, w: 4, h: 10, vy: -9 });
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = true;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = true;
+      if (e.code === 'Space') {
+        if (!keys.space) shoot();
+        keys.space = true;
+        e.preventDefault();
+      }
+    });
+    window.addEventListener('keyup', (e) => {
+      if (e.code === 'KeyA' || e.code === 'ArrowLeft') keys.left = false;
+      if (e.code === 'KeyD' || e.code === 'ArrowRight') keys.right = false;
+      if (e.code === 'Space') keys.space = false;
+    });
+
+    // spawn aliens periodically
+    let spawnTimer = 0;
+    function spawnAlien() {
+      const w = 34, h = 18;
+      const x = Math.random() * (canvas.width - w - 12) + 6;
+      aliens.push({ x, y: -h, w, h, vy: 1.2 + Math.random() * 0.6, shootCooldown: 60 + Math.floor(Math.random() * 120) });
+    }
+
+    function rectsIntersect(a, b) {
+      return !(a.x + a.w < b.x || a.x > b.x + b.w || a.y + a.h < b.y || a.y > b.y + b.h);
+    }
+
+    function update() {
+      if (gameOver) return;
+
+      if (keys.left) ship.x -= ship.speed;
+      if (keys.right) ship.x += ship.speed;
+      ship.x = Math.max(6, Math.min(canvas.width - ship.w - 6, ship.x));
+
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        b.y += b.vy;
+        if (b.y + b.h < 0) bullets.splice(i, 1);
+      }
+
+      // update aliens
+      for (let i = aliens.length - 1; i >= 0; i--) {
+        const a = aliens[i];
+        a.y += a.vy;
+        a.shootCooldown -= 1;
+        if (a.shootCooldown <= 0) {
+          // fire
+          alienBullets.push({ x: a.x + a.w / 2 - 2, y: a.y + a.h + 2, w: 4, h: 10, vy: 5 });
+          a.shootCooldown = 80 + Math.floor(Math.random() * 160);
+        }
+        // if alien passes bottom, remove it and penalize score
+        if (a.y > canvas.height + 20) {
+          aliens.splice(i, 1);
+          score -= 5;
+          scoreEl.textContent = 'Score: ' + score;
+        }
+      }
+
+      // update alien bullets
+      for (let i = alienBullets.length - 1; i >= 0; i--) {
+        const b = alienBullets[i];
+        b.y += b.vy;
+        if (b.y > canvas.height) alienBullets.splice(i, 1);
+      }
+
+      // check player bullets vs aliens
+      for (let i = bullets.length - 1; i >= 0; i--) {
+        const b = bullets[i];
+        for (let j = aliens.length - 1; j >= 0; j--) {
+          const a = aliens[j];
+          if (rectsIntersect(b, a)) {
+            // destroy alien and bullet
+            bullets.splice(i, 1);
+            aliens.splice(j, 1);
+            score += 10;
+            scoreEl.textContent = 'Score: ' + score;
+            break;
+          }
+        }
+      }
+
+      // check alien bullets vs player
+      for (let i = alienBullets.length - 1; i >= 0; i--) {
+        const b = alienBullets[i];
+        if (rectsIntersect(b, ship)) {
+          gameOver = true;
+          restartBtn.style.display = 'block';
+          break;
+        }
+      }
+
+      // spawn timer
+      spawnTimer -= 1;
+      if (spawnTimer <= 0) {
+        spawnAlien();
+        spawnTimer = 80 + Math.floor(Math.random() * 80);
+      }
+    }
+
+    function drawShip(x, y) {
+      if (shipImageLoaded && shipImage.naturalWidth) {
+        const imageHeight = ship.w * (shipImage.naturalHeight / shipImage.naturalWidth);
+        const imageY = y + ship.h / 2 - imageHeight / 2;
+        ctx.drawImage(shipImage, x, imageY, ship.w, imageHeight);
+        return;
+      }
+
+      ctx.save();
+      ctx.fillStyle = '#0ff';
+      ctx.beginPath();
+      ctx.moveTo(x, y + ship.h / 2);
+      ctx.lineTo(x + ship.w * 0.25, y);
+      ctx.lineTo(x + ship.w * 0.75, y);
+      ctx.lineTo(x + ship.w, y + ship.h / 2);
+      ctx.lineTo(x + ship.w * 0.75, y + ship.h);
+      ctx.lineTo(x + ship.w * 0.25, y + ship.h);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawAlien(a) {
+      ctx.save();
+      ctx.fillStyle = '#f55';
+      ctx.beginPath();
+      ctx.ellipse(a.x + a.w / 2, a.y + a.h / 2, a.w / 2, a.h / 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(a.x + a.w * 0.25, a.y + a.h * 0.35, a.w * 0.5, a.h * 0.2);
+      ctx.restore();
+    }
+
+    function draw() {
+      // clear
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // stars (simple background)
+      ctx.fillStyle = '#113';
+      for (let i = 0; i < 40; i++) {
+        const sx = (i * 37) % canvas.width;
+        const sy = (i * 97) % canvas.height;
+        ctx.fillRect(sx, sy, 1, 1);
+      }
+
+      // bullets
+      ctx.fillStyle = '#ff6';
+      bullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
+
+      // alien bullets
+      ctx.fillStyle = '#f90';
+      alienBullets.forEach(b => ctx.fillRect(b.x, b.y, b.w, b.h));
+
+      // aliens
+      aliens.forEach(a => drawAlien(a));
+
+      // ship
+      drawShip(ship.x, ship.y);
+
+      // game over
+      if (gameOver) {
+        ctx.save();
+        ctx.fillStyle = 'rgba(0,0,0,0.6)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#fff';
+        ctx.font = '48px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('GAME OVER!', canvas.width / 2, canvas.height / 2);
+        ctx.restore();
+      }
+    }
+
+    function resetGame() {
+      ship.x = (canvas.width - SHIP_WIDTH) / 2;
+      bullets.length = 0;
+      aliens.length = 0;
+      alienBullets.length = 0;
+      score = 0;
+      updateScore();
+      gameOver = false;
+      restartBtn.style.display = 'none';
+      spawnTimer = 30;
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    // start
+    spawnTimer = 30;
+    updateLeaderboard();
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
