@@ -1,6 +1,6 @@
 ---
 name: presentation
-description: How to build a single-file HTML "deck" — a presentation, slideshow, or multiple-choice test — in the repo's signature titanium / engineering style with a live reactive schematic background, a horizontally-paged slide deck, mouse-reactive chrome, animated reveals, a mobile-friendly footer nav, and an optional shared leaderboard. Use when creating a presentation, slides, a quiz/test, or any paged, navigable full-screen content. Worked examples: martin/money-positioning-presentation-01, martin/chemistry-test-01, martin/earth-science-01 (test with a shared leaderboard). Bundled runnable examples: example-presentation.html, example-test.html.
+description: How to build a single-file HTML "deck" — a presentation, slideshow, or multiple-choice test — in the repo's signature titanium / engineering style with a live reactive schematic background, a horizontally-paged slide deck, mouse-reactive chrome, animated reveals, a mobile-friendly footer nav, and an optional shared leaderboard. Use when creating a presentation, slides, a quiz/test, or any paged, navigable full-screen content. Worked examples: martin/chemistry-test-01, martin/earth-science-01 (test with a shared leaderboard). Bundled runnable examples: example-presentation.html, example-test.html.
 ---
 
 # Presentations & tests (titanium deck style)
@@ -110,7 +110,7 @@ the slide content unobstructed:
 
 ## Presentation-specific elements
 
-The presentation example demonstrates the element types money-positioning uses:
+The presentation example demonstrates the typical presentation element types:
 
 - **Hero/title slide** — eyebrow, large `h1` with a `.gradtext` accent word,
   `.sub` subtitle, footer attribution.
@@ -120,8 +120,8 @@ The presentation example demonstrates the element types money-positioning uses:
   benefits/decisions/tradeoffs.
 - **Animated SVG diagram** — a small flow of `box` nodes joined by edges whose
   `stroke-dashoffset` animates on slide entry, with a flowing accent dash. The
-  example includes a minimal `buildFlow` you can extend (money-positioning's full
-  engine adds `db`/`decision`/`config` node shapes and timelines).
+  example includes a minimal `buildFlow` you can extend (e.g. with
+  `db`/`decision`/`config` node shapes and timelines).
 - **Closing slide** — restate the one big idea, optionally calling back an
   earlier diagram dimmed behind the text.
 

@@ -2,9 +2,23 @@
 
 This document describes how NPCs (villagers) in Society decide what to do each turn. For the underlying movement model (one tile per turn, animation between turns, and the rule that two NPCs cannot share a tile) and for the game clock, see [README.md](README.md).
 
-An NPC has multiple properties, each with a value from 0 to 1000. The values of these properties drive the NPC's behaviour. They change according to the rules in this state machine and through interactions with facilities around the map.
+The baheviour of NPCs is driven by property values. Each property is a number from 0 to 1 stored as an integer value from 0 to 1000. There are global properties that are shared between all NPCs and NPC properties that are stored/calculated individually for each NPC. The values of these properties change according to the rules defined below.
+
+There are several property types:
+
+- computed - the property is determined by a formula using other properties or game parameters
+- stored - the value of the property is stored and atered based on the rules below
+
+## Global Properties
+
+- daylight - follows the day cycle described in README.md.
+  - 0 at midnight, 1 at noon
+  - TODO: AI to provide formula.
 
 ## NPC Properties
+
+- 
+
 
 - fullness
 - alertness

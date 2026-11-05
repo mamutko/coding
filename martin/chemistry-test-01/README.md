@@ -9,14 +9,13 @@ classification of matter, and physical &amp; chemical properties. The test gives
 student instant feedback per question and a final score.
 
 The visual style (dark titanium look, animated engineering background, reactive chrome,
-paged navigation) deliberately reuses the look and feel of the
-`money-positioning-presentation-01` project.
+paged navigation) deliberately reuses the repo's shared presentation look and feel.
 
 ## Style &amp; Effects
 
 The test uses the repo's shared **titanium / engineering deck** style (dark graph-paper
 background, a live mouse-reactive schematic `<canvas>`, metallic cards, a horizontally
-paged deck, and animated reveals) — the same engine as `money-positioning-presentation-01`.
+paged deck, and animated reveals).
 The generic style and its reusable engine are documented in the **`presentation` skill**
 (`.claude/skills/presentation/`), which also ships runnable example decks. Only the
 test-specific behaviour is described below.
