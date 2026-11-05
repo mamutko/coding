@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dungeon Crawler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #c9a45c;
+    --gold-dim: #7a6236;
+    --blood: #9e1b1b;
+    --ink: #e8dcc4;
+    --ink-dim: #a99c86;
+    --panel: rgba(16, 11, 14, 0.78);
+    --panel-edge: #5e4a2c;
+    --magic: #6f8cff;
+    --rare: #e6c84a;
+    --common: #d8d2c4;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #050306; color: var(--ink);
+    font-family: "IM Fell English", Georgia, serif; user-select: none; -webkit-user-select: none; }
+  canvas#game { display: block; position: fixed; inset: 0; cursor: default; }
+  .hidden { display: none !important; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; }
+  #orb { position: absolute; left: 22px; bottom: 22px; width: 120px; height: 120px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 40%, #1a0d10, #070305 70%);
+    border: 3px solid var(--gold-dim); box-shadow: 0 0 0 2px #1b130b, 0 0 24px rgba(0,0,0,0.9), inset 0 0 18px #000;
+    overflow: hidden; }
+  #orbFill { position: absolute; left: 0; right: 0; bottom: 0; height: 100%;
+    background: radial-gradient(circle at 40% 30%, #ff5a4a, #b3161a 45%, #4a0508 100%); transition: height 0.15s linear; }
+  #orbGlass { position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 35% 25%, rgba(255,255,255,0.35), rgba(255,255,255,0) 35%); }
+  #orbText { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: Cinzel, serif; font-weight: 700; font-size: 17px; text-shadow: 0 0 4px #000, 0 0 2px #000; }
+  #orbLabel { position: absolute; left: 22px; width: 120px; bottom: 4px; text-align: center; font-family: Cinzel, serif;
+    font-size: 11px; letter-spacing: 2px; color: var(--ink-dim); text-shadow: 0 0 3px #000; }
+
+  #bottom { position: absolute; left: 50%; transform: translateX(-50%); bottom: 14px; display: flex; flex-direction: column;
+    align-items: center; gap: 6px; pointer-events: auto; }
+  #hotbar { display: flex; gap: 4px; padding: 5px; background: rgba(10, 7, 9, 0.8); border: 1px solid var(--panel-edge);
+    box-shadow: 0 0 14px #000; }
+  .hk { position: relative; width: 48px; height: 48px; background: #120c0e; border: 1px solid #3a2d1c; }
+  .hk.active { border-color: var(--gold); box-shadow: inset 0 0 10px rgba(201,164,92,0.45); }
+  .hk .num { position: absolute; left: 3px; top: 1px; font-family: Cinzel, serif; font-size: 11px; color: var(--gold); text-shadow: 0 0 3px #000; z-index: 2; }
+  .hk .cnt { position: absolute; right: 3px; bottom: 1px; font-family: Cinzel, serif; font-size: 11px; text-shadow: 0 0 3px #000; z-index: 2; }
+  .ico { position: absolute; inset: 2px; background-repeat: no-repeat; }
+  #xpbar { width: 100%; height: 9px; background: #0c0809; border: 1px solid var(--panel-edge); position: relative; }
+  #xpFill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(#e7c66d, #8a6a22); }
+  #xpText { position: absolute; inset: -3px 0 0 0; text-align: center; font-size: 10px; font-family: Cinzel, serif; color: #fff; text-shadow: 0 0 3px #000; }
+
+  #topleft { position: absolute; left: 18px; top: 14px; font-family: Cinzel, serif; text-shadow: 0 0 4px #000; }
+  #depthName { font-size: 20px; color: var(--gold); letter-spacing: 1px; }
+  #depthSub { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
+  #goldText { font-size: 13px; color: #e3c060; margin-top: 4px; }
+
+  #target { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); width: 320px; text-align: center;
+    font-family: Cinzel, serif; text-shadow: 0 0 4px #000; }
+  #targetName { font-size: 15px; margin-bottom: 3px; }
+  #targetBar { height: 10px; background: #1b0b0c; border: 1px solid #5a2a22; position: relative; }
+  #targetFill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#c4291f, #5c0d0a); }
+
+  #log { position: absolute; left: 22px; bottom: 166px; width: 360px; font-size: 14px; display: flex; flex-direction: column-reverse;
+    gap: 2px; text-shadow: 0 0 3px #000, 0 0 2px #000; }
+  #log div { transition: opacity 1s; }
+
+  #minimap { position: absolute; right: 14px; top: 14px; width: 220px; height: 130px; background: rgba(6,4,6,0.55);
+    border: 1px solid var(--panel-edge); }
+  #menuBtn { position: absolute; right: 14px; bottom: 16px; pointer-events: auto; }
+  button { font-family: Cinzel, serif; color: var(--ink); background: linear-gradient(#2a1d17, #140d0b); border: 1px solid var(--gold-dim);
+    padding: 7px 14px; cursor: pointer; font-size: 13px; letter-spacing: 1px; }
+  button:hover { border-color: var(--gold); color: #fff; }
+  #flash { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(120,0,0,0) 40%, rgba(150,0,0,0.55)); opacity: 0; }
+
+  /* ---------- Equip overlay ---------- */
+  #equip { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -54%); width: min(940px, 96vw);
+    background: var(--panel); border: 1px solid var(--panel-edge); box-shadow: 0 0 0 1px #000, 0 0 40px rgba(0,0,0,0.8);
+    padding: 14px 18px 12px; }
+  #equip h2, #equip h3 { font-family: Cinzel, serif; margin: 0; color: var(--gold); font-weight: 700; letter-spacing: 2px; }
+  #equip h2 { font-size: 20px; }
+  #equip h3 { font-size: 13px; margin-bottom: 6px; }
+  .eqHead { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #3b2e1d; padding-bottom: 6px; margin-bottom: 10px; }
+  .hint { font-size: 13px; color: var(--ink-dim); font-style: italic; }
+  .eqBody { display: grid; grid-template-columns: 250px 1fr 200px; gap: 16px; }
+  #doll { position: relative; width: 250px; height: 326px; }
+  #portrait { position: absolute; left: 61px; top: 66px; width: 128px; height: 128px; }
+  .slot { position: absolute; width: 56px; height: 56px; background: rgba(10,6,8,0.75); border: 1px solid #4a3a24; }
+  .slot:hover, .cell:hover { border-color: var(--gold); }
+  .slot .lbl { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px;
+    color: #5f5140; font-family: Cinzel, serif; text-align: center; }
+  .cellGrid { display: grid; grid-template-columns: repeat(6, 56px); gap: 4px; }
+  .cell { position: relative; width: 56px; height: 56px; background: rgba(10,6,8,0.7); border: 1px solid #3a2d1c; }
+  .r-magic { box-shadow: inset 0 0 10px rgba(111,140,255,0.55); }
+  .r-rare { box-shadow: inset 0 0 10px rgba(230,200,74,0.55); }
+  .bindTag { position: absolute; right: 2px; top: 0; font-size: 11px; font-family: Cinzel, serif; color: var(--gold); text-shadow: 0 0 3px #000; z-index: 2; }
+  #potionCell { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+  #stats { font-size: 14px; line-height: 1.45; }
+  #stats .row { display: flex; justify-content: space-between; border-bottom: 1px dotted #2e2418; }
+  #stats .row span:last-child { color: #fff; }
+  .hkWrap { margin-top: 10px; border-top: 1px solid #3b2e1d; padding-top: 8px; }
+  #hkCfg { display: flex; gap: 4px; }
+
+  #tooltip { position: fixed; pointer-events: none; z-index: 50; max-width: 290px; background: rgba(8,5,7,0.94); border: 1px solid var(--panel-edge);
+    padding: 8px 10px; font-size: 14px; line-height: 1.35; box-shadow: 0 0 12px #000; }
+  #tooltip .nm { font-family: Cinzel, serif; font-weight: 700; font-size: 15px; }
+  #tooltip .ty { color: var(--ink-dim); font-style: italic; margin-bottom: 4px; }
+  #tooltip .st { color: #9fb2ff; }
+  #tooltip .cmp { margin-top: 6px; padding-top: 5px; border-top: 1px solid #33281a; color: var(--ink-dim); font-size: 13px; }
+  #tooltip .up { color: #7fd17f; } #tooltip .dn { color: #e06a5a; }
+
+  /* ---------- Title / death screens ---------- */
+  #screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column;
+    background: radial-gradient(ellipse at center, rgba(10,4,8,0.55), rgba(3,1,3,0.95)); text-align: center; padding: 16px; z-index: 40; }
+  #screen h1 { font-family: UnifrakturMaguntia, Cinzel, serif; font-weight: 400; font-size: clamp(44px, 9vw, 96px); margin: 0;
+    color: #b52a22; text-shadow: 0 0 18px rgba(180,20,20,0.6), 0 3px 0 #000; }
+  #screen p { max-width: 620px; color: var(--ink-dim); font-size: 17px; }
+  #screen .controls { font-size: 15px; color: var(--ink); line-height: 1.6; margin: 6px 0 20px; }
+  #screen button { font-size: 17px; padding: 10px 26px; }
+  #fade { position: fixed; inset: 0; background: #000; pointer-events: none; opacity: 0; z-index: 30; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="topleft"><div id="depthName"></div><div id="depthSub"></div><div id="goldText"></div></div>
+  <div id="target" class="hidden"><div id="targetName"></div><div id="targetBar"><div id="targetFill"></div></div></div>
+  <canvas id="minimap" width="220" height="130"></canvas>
+  <div id="log"></div>
+  <div id="orb"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
+  <div id="orbLabel">LIFE</div>
+  <div id="bottom">
+    <div id="hotbar"></div>
+    <div id="xpbar"><div id="xpFill"></div><div id="xpText"></div></div>
+  </div>
+  <button id="menuBtn">Equipment (I)</button>
+</div>
+<div id="flash"></div>
+
+<div id="equip" class="hidden">
+  <div class="eqHead"><h2>Equipment</h2><span class="hint">I / Tab / Esc to close — the world does not wait for you.</span></div>
+  <div class="eqBody">
+    <div>
+      <div id="doll"><canvas id="portrait" width="128" height="128"></canvas></div>
+    </div>
+    <div>
+      <h3>Inventory</h3>
+      <div id="inv" class="cellGrid"></div>
+      <div id="potionCell"><div class="cell" id="potionSlot" data-ref="potion"></div><span id="potionText"></span></div>
+    </div>
+    <div><h3>Attributes</h3><div id="stats"></div></div>
+  </div>
+  <div class="hkWrap">
+    <h3>Quick keys</h3>
+    <div id="hkCfg"></div>
+    <div class="hint" style="margin-top:6px">Hover a weapon (or the potion) and press 1–9 or 0 to bind it to that key. Right-click a key to clear it.
+      Click an item to equip or unequip it; right-click an inventory item to drop it.</div>
+  </div>
+</div>
+<div id="tooltip" class="hidden"></div>
+<div id="fade"></div>
+
+<div id="screen">
+  <h1>Crypt of Endless Night</h1>
+  <p id="screenText">Descend the endless crypt alone. Every stair leads deeper, and every depth breeds fouler things.</p>
+  <div class="controls" id="screenControls">
+    <b>Left click</b> — walk / open / pick up &nbsp;·&nbsp; <b>Right click</b> — attack<br>
+    <b>I</b> or <b>Tab</b> — equipment &nbsp;·&nbsp; <b>1–9, 0</b> — quick keys &nbsp;·&nbsp; <b>Q</b> — drink potion<br>
+    <b>M</b> — minimap &nbsp;·&nbsp; <b>N</b> — sound &nbsp;·&nbsp; <b>Mouse wheel</b> — zoom
+  </div>
+  <button id="startBtn" disabled>Loading…</button>
+</div>
+
+<script>
+'use strict';
+// =====================================================================================
+//  Asset metadata (generated by tools/process_art.py; inlined so file:// works)
+// =====================================================================================
+const META = {"characters":{"hero":{"fw":128,"fh":128,"frames":4},"skeleton":{"fw":165,"fh":128,"frames":4},"ghoul":{"fw":144,"fh":128,"frames":4},"spider":{"fw":195,"fh":128,"frames":4},"wraith":{"fw":107,"fh":128,"frames":4},"demon":{"fw":155,"fh":128,"frames":4}},"items":{"shortsword":[0,0],"longsword":[96,0],"greatsword":[192,0],"handaxe":[288,0],"battleaxe":[384,0],"execaxe":[480,0],"shortbow":[0,96],"longbow":[96,96],"bonebow":[192,96],"leathercap":[288,96],"greathelm":[384,96],"leathertunic":[480,96],"platemail":[0,192],"leathergloves":[96,192],"gauntlets":[192,192],"leatherboots":[288,192],"ironboots":[384,192],"silverring":[480,192],"rubyring":[0,288],"skullring":[96,288],"sapphireamulet":[192,288],"bloodamulet":[288,288],"bonetalisman":[384,288],"potion":[480,288]},"props":{"chest":[0,0,132,141],"chestopen":[134,0,144,171],"door":[280,0,131,207],"stairs":[413,0,156,127],"brazier":[571,0,104,167],"bones":[677,0,148,117],"urn":[827,0,95,151],"gold":[924,0,127,90]},"iconSize":96};
+const ATLAS_W = 576, ATLAS_H = 384;
+
+// =====================================================================================
+//  Constants & helpers
+// =====================================================================================
+const TW = 96, TH = 48, HW = TW / 2, HH = TH / 2, WALLH = 72;
+const T_VOID = 0, T_FLOOR = 1, T_WALL = 2, T_DOOR = 3, T_OPEN = 4;
+const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,W,SW) -> sheet row
+const $ = id => document.getElementById(id);
+const rnd = Math.random;
+const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+const pick = a => a[Math.floor(rnd() * a.length)];
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const iso = (x, y) => [(x - y) * HW, (x + y) * HH];
+const ROMAN = n => { const r = [[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']]; let s=''; for (const [v,c] of r) while (n >= v) { s += c; n -= v; } return s; };
+
+const cv = $('game'), ctx = cv.getContext('2d');
+const lc = document.createElement('canvas'), lctx = lc.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight;
+  cv.width = lc.width = Math.round(W * DPR); cv.height = lc.height = Math.round(H * DPR);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+}
+addEventListener('resize', resize); resize();
+
+// =====================================================================================
+//  Images
+// =====================================================================================
+const IMG = {};
+const SRC = { hero: 'assets/hero.webp', skeleton: 'assets/skeleton.webp', ghoul: 'assets/ghoul.webp', spider: 'assets/spider.webp',
+  wraith: 'assets/wraith.webp', demon: 'assets/demon.webp', items: 'assets/items.webp', props: 'assets/props.webp',
+  floor: 'assets/floor.jpg', wall: 'assets/wall.jpg' };
+function loadAll() {
+  return Promise.all(Object.entries(SRC).map(([k, s]) => new Promise((res, rej) => {
+    const i = new Image(); i.onload = () => { IMG[k] = i; res(); }; i.onerror = () => rej(s); i.src = s;
+  })));
+}
+let floorPat = null;
+
+// =====================================================================================
+//  Sound (tiny WebAudio synth)
+// =====================================================================================
+let AC = null, soundOn = true, noiseBuf = null;
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)();
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 0.5, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = rnd() * 2 - 1; } catch (e) { AC = null; } }
+  return AC;
+}
+function sfx(type) {
+  if (!soundOn || !audio()) return;
+  const t = AC.currentTime, g = AC.createGain(); g.connect(AC.destination);
+  const noise = (dur, freq, q, vol) => { const s = AC.createBufferSource(); s.buffer = noiseBuf; const f = AC.createBiquadFilter();
+    f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q; s.connect(f); f.connect(g);
+    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); s.start(t); s.stop(t + dur); };
+  const tone = (f0, f1, dur, vol, wave = 'sine') => { const o = AC.createOscillator(); o.type = wave; o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f1, t + dur); o.connect(g); g.gain.setValueAtTime(vol, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.start(t); o.stop(t + dur); };
+  switch (type) {
+    case 'swing': noise(0.18, 900, 0.8, 0.25); break;
+    case 'hit': noise(0.12, 300, 1.2, 0.5); break;
+    case 'hurt': tone(160, 70, 0.25, 0.25, 'sawtooth'); break;
+    case 'bow': tone(420, 180, 0.12, 0.18, 'triangle'); break;
+    case 'bolt': tone(700, 200, 0.3, 0.12, 'sine'); break;
+    case 'pick': tone(900, 1400, 0.12, 0.12, 'triangle'); break;
+    case 'gold': tone(1500, 2100, 0.1, 0.08, 'square'); break;
+    case 'door': noise(0.4, 160, 2, 0.4); break;
+    case 'chest': noise(0.3, 220, 1.5, 0.35); tone(500, 900, 0.3, 0.06, 'triangle'); break;
+    case 'die': tone(220, 50, 0.5, 0.2, 'sawtooth'); break;
+    case 'level': tone(392, 784, 0.6, 0.15, 'triangle'); break;
+    case 'potion': tone(300, 600, 0.25, 0.12, 'sine'); break;
+    case 'stairs': tone(200, 60, 0.9, 0.2, 'sine'); break;
+  }
+}
+
+// =====================================================================================
+//  Item data
+// =====================================================================================
+const BASES = {
+  shortsword:   { name: 'Short Sword', slot: 'weapon', kind: 'sword', min: 4, max: 8, cd: 0.55, lvl: 1 },
+  longsword:    { name: 'Longsword', slot: 'weapon', kind: 'sword', min: 6, max: 12, cd: 0.65, lvl: 2 },
+  greatsword:   { name: 'Blackened Greatsword', slot: 'weapon', kind: 'sword', min: 11, max: 19, cd: 0.85, lvl: 4 },
+  handaxe:      { name: 'Hand Axe', slot: 'weapon', kind: 'axe', min: 5, max: 10, cd: 0.7, lvl: 1 },
+  battleaxe:    { name: 'Battle Axe', slot: 'weapon', kind: 'axe', min: 9, max: 16, cd: 0.85, lvl: 3 },
+  execaxe:      { name: "Executioner's Axe", slot: 'weapon', kind: 'axe', min: 14, max: 26, cd: 1.05, lvl: 5 },
+  shortbow:     { name: 'Short Bow', slot: 'weapon', kind: 'bow', min: 3, max: 7, cd: 0.6, lvl: 1 },
+  longbow:      { name: 'Yew Longbow', slot: 'weapon', kind: 'bow', min: 6, max: 12, cd: 0.75, lvl: 3 },
+  bonebow:      { name: 'Bone Bow', slot: 'weapon', kind: 'bow', min: 10, max: 18, cd: 0.9, lvl: 5 },
+  leathercap:   { name: 'Leather Cap', slot: 'head', armor: 3, lvl: 1 },
+  greathelm:    { name: 'Horned Great Helm', slot: 'head', armor: 8, lvl: 3 },
+  leathertunic: { name: 'Leather Tunic', slot: 'chest', armor: 6, lvl: 1 },
+  platemail:    { name: 'Plate Cuirass', slot: 'chest', armor: 15, lvl: 4 },
+  leathergloves:{ name: 'Leather Gloves', slot: 'hands', armor: 2, lvl: 1 },
+  gauntlets:    { name: 'Iron Gauntlets', slot: 'hands', armor: 5, lvl: 2 },
+  leatherboots: { name: 'Leather Boots', slot: 'feet', armor: 2, implicit: { speed: 5 }, lvl: 1 },
+  ironboots:    { name: 'Plated Boots', slot: 'feet', armor: 5, lvl: 2 },
+  silverring:   { name: 'Silver Ring', slot: 'ring', implicit: { vit: 2 }, lvl: 1 },
+  rubyring:     { name: 'Ruby Ring', slot: 'ring', implicit: { str: 3 }, lvl: 3 },
+  skullring:    { name: 'Grave Ring', slot: 'ring', implicit: { dmg: 8 }, lvl: 5 },
+  sapphireamulet:{ name: 'Sapphire Amulet', slot: 'amulet', implicit: { dex: 3 }, lvl: 1 },
+  bloodamulet:  { name: 'Blood Amulet', slot: 'amulet', implicit: { hp: 15 }, lvl: 3 },
+  bonetalisman: { name: 'Bone Talisman', slot: 'amulet', implicit: { regen: 1 }, lvl: 5 },
+};
+const KIND_INFO = { sword: { reach: 1.55, arc: 0.9, label: 'Sword (melee)' }, axe: { reach: 1.45, arc: 1.25, label: 'Axe (melee, wide cleave)' },
+  bow: { reach: 12, label: 'Bow (ranged)' }, fist: { reach: 1.25, arc: 0.8, label: 'Bare hands' } };
+const SLOT_LABEL = { weapon: 'Weapon', head: 'Helm', chest: 'Armor', hands: 'Gloves', feet: 'Boots', ring: 'Ring', ring1: 'Ring', ring2: 'Ring', amulet: 'Amulet' };
+const STAT_LABEL = { str: 'Strength', dex: 'Dexterity', vit: 'Vitality', hp: 'Life', regen: 'Life regen / s', armor: 'Armor',
+  crit: '% Critical chance', dmg: '% Damage', speed: '% Move speed' };
+const AFFIX = [
+  { k: 'str', pre: 'Mighty', suf: 'of the Bear', min: 1, max: l => 2 + l },
+  { k: 'dex', pre: 'Nimble', suf: 'of the Fox', min: 1, max: l => 2 + l },
+  { k: 'vit', pre: 'Stalwart', suf: 'of the Ox', min: 1, max: l => 2 + l },
+  { k: 'hp', pre: 'Hale', suf: 'of Life', min: 5, max: l => 8 + l * 4 },
+  { k: 'regen', pre: 'Mending', suf: 'of Renewal', min: 0.3, max: l => 0.6 + l * 0.2, dec: true },
+  { k: 'armor', pre: 'Warded', suf: 'of Iron', min: 2, max: l => 3 + l * 2, noWeapon: true },
+  { k: 'crit', pre: 'Keen', suf: 'of Precision', min: 1, max: l => Math.min(3 + l * 0.5, 12) },
+  { k: 'dmg', pre: 'Cruel', suf: 'of Slaughter', min: 5, max: l => 10 + l * 3 },
+  { k: 'speed', pre: 'Swift', suf: 'of Haste', min: 3, max: l => Math.min(6 + l, 15), only: 'feet' },
+];
+const RARE_A = ['Grim', 'Dread', 'Bone', 'Night', 'Blood', 'Ash', 'Grave', 'Wraith', 'Raven', 'Doom', 'Hollow', 'Sorrow'];
+const RARE_B = ['bite', 'song', 'fang', 'ward', 'veil', 'shroud', 'mark', 'brand', 'coil', 'howl', 'spire', 'grasp'];
+let nextId = 1;
+
+function genItem(ilvl, boost = 0, forceBase = null, forceRarity = null) {
+  const keys = Object.keys(BASES).filter(k => BASES[k].lvl <= ilvl);
+  const baseKey = forceBase || pick(keys);
+  const b = BASES[baseKey];
+  const it = { id: nextId++, base: baseKey, slot: b.slot, kind: b.kind || null, ilvl, stats: {} };
+  const sc = 1 + 0.14 * (ilvl - 1);
+  if (b.slot === 'weapon') { it.min = Math.max(1, Math.round(b.min * sc)); it.max = Math.max(it.min + 1, Math.round(b.max * sc)); it.cd = b.cd; }
+  if (b.armor) it.armor = Math.round(b.armor * sc);
+  if (b.implicit) for (const k in b.implicit) it.stats[k] = +(b.implicit[k] * (1 + 0.1 * (ilvl - 1))).toFixed(k === 'regen' ? 1 : 0);
+  let rarity = forceRarity;
+  if (!rarity) { const r = rnd(), rare = 0.07 + boost * 0.5, magic = 0.3 + boost; rarity = r < rare ? 'rare' : r < rare + magic ? 'magic' : 'common'; }
+  it.rarity = rarity;
+  const n = rarity === 'rare' ? ri(3, 4) : rarity === 'magic' ? ri(1, 2) : 0;
+  const pool = AFFIX.filter(a => !(a.noWeapon && b.slot === 'weapon') && !(a.only && a.only !== b.slot));
+  const chosen = [];
+  while (chosen.length < n && pool.length) { const a = pool.splice(Math.floor(rnd() * pool.length), 1)[0]; chosen.push(a); }
+  for (const a of chosen) {
+    let v = a.min + rnd() * (a.max(ilvl) - a.min);
+    v = a.dec ? +v.toFixed(1) : Math.round(v);
+    it.stats[a.k] = +((it.stats[a.k] || 0) + v).toFixed(a.dec ? 1 : 0);
+  }
+  if (rarity === 'magic') it.name = [chosen[0] && chosen[0].pre, b.name, chosen[1] && chosen[1].suf].filter(Boolean).join(' ');
+  else if (rarity === 'rare') it.name = pick(RARE_A) + pick(RARE_B) + ', ' + b.name;
+  else it.name = b.name;
+  return it;
+}
+
+// =====================================================================================
+//  Monster data
+// =====================================================================================
+const MON = {
+  skeleton: { name: 'Skeleton Warrior', scale: 1.0, hp: 26, dmg: [3, 6], armor: 5, speed: 2.5, reach: 1.1, cd: 1.2, xp: 16, r: 0.32, minD: 1, w: 3 },
+  ghoul:    { name: 'Ghoul', scale: 0.95, hp: 20, dmg: [2, 5], armor: 2, speed: 3.3, reach: 1.0, cd: 0.9, xp: 13, r: 0.3, minD: 1, w: 3 },
+  spider:   { name: 'Cave Spider', scale: 0.78, hp: 15, dmg: [2, 4], armor: 1, speed: 3.9, reach: 1.0, cd: 0.8, xp: 11, r: 0.34, minD: 1, w: 2 },
+  wraith:   { name: 'Wraith', scale: 1.0, hp: 22, dmg: [4, 7], armor: 3, speed: 2.3, ranged: true, range: 6.5, cd: 1.9, xp: 22, r: 0.3, minD: 2, w: 2, float: true },
+  demon:    { name: 'Pit Demon', scale: 1.3, hp: 75, dmg: [8, 13], armor: 12, speed: 2.1, reach: 1.35, cd: 1.5, xp: 60, r: 0.45, minD: 3, w: 1 },
+};
+const CHAMP_PRE = ['Dread', 'Blighted', 'Bloodsoaked', 'Ancient', 'Accursed', 'Ravenous'];
+const LEVEL_NAMES = ['The Forsaken Crypt', 'The Ossuary', 'Halls of the Hollow', 'The Weeping Catacombs', 'Sepulchre of Ash',
+  'The Blood Vaults', 'Throne of Bones', 'The Abyssal Nave'];
+const depthName = d => LEVEL_NAMES[(d - 1) % 8] + (d > 8 ? ' ' + ROMAN(Math.ceil(d / 8)) : '');
+
+function makeMonster(type, x, y, d) {
+  const b = MON[type];
+  const champ = d >= 2 && rnd() < 0.1;
+  const hpS = Math.pow(1.17, d - 1), dmS = Math.pow(1.13, d - 1);
+  const m = { type, b, x, y, r: b.r * (champ ? 1.15 : 1), scale: b.scale * (champ ? 1.15 : 1), lvl: d, champ,
+    name: champ ? pick(CHAMP_PRE) + ' ' + b.name : b.name,
+    maxHp: Math.round(b.hp * hpS * (champ ? 2.5 : 1)), dmg: [b.dmg[0] * dmS * (champ ? 1.5 : 1), b.dmg[1] * dmS * (champ ? 1.5 : 1)],
+    armor: Math.round(b.armor + 3 * (d - 1)), speed: b.speed * Math.min(1.35, 1 + 0.015 * (d - 1)),
+    xp: Math.round(b.xp * Math.pow(1.17, d - 1) * (champ ? 3 : 1)),
+    state: 'idle', cd: rnd(), windup: 0, path: [], repath: 0, dir: ri(0, 7), anim: rnd() * 4, moving: false,
+    hitT: 0, dead: false, deathT: 0, wander: 1 + rnd() * 4, lunge: 0, lastHit: -99 };
+  m.hp = m.maxHp;
+  return m;
+}
+
+// =====================================================================================
+//  Game state
+// =====================================================================================
+let G = null;
+const mouse = { x: 0, y: 0, left: false, right: false, holdWalk: false, walkT: 0 };
+
+function newHero() {
+  const h = { x: 0, y: 0, r: 0.28, dir: 0, anim: 0, moving: false, path: [], intent: null, attackTarget: null, attackPending: false,
+    lvl: 1, xp: 0, base: { str: 10, dex: 10, vit: 10 }, hp: 1, st: {},
+    equip: { weapon: null, head: null, chest: null, hands: null, feet: null, ring1: null, ring2: null, amulet: null },
+    inv: new Array(30).fill(null), potions: 3, gold: 0, hotkeys: new Array(10).fill(null),
+    atkCd: 0, swing: null, potionCd: 0, kills: 0, stuckT: 0, repath: 0, lunge: 0, hitT: 0 };
+  const sword = genItem(1, 0, 'shortsword', 'common'); sword.name = 'Rusty Short Sword';
+  const bow = genItem(1, 0, 'shortbow', 'common');
+  h.equip.weapon = sword; h.inv[0] = bow;
+  h.hotkeys[0] = { type: 'item', id: sword.id }; h.hotkeys[1] = { type: 'item', id: bow.id }; h.hotkeys[2] = { type: 'potion' };
+  return h;
+}
+
+function newGame() {
+  nextId = 1; logEl.innerHTML = '';
+  G = { depth: 1, hero: newHero(), map: null, monsters: [], objects: [], items: [], proj: [], fx: [], texts: [],
+    zoom: 1, camX: 0, camY: 0, time: 0, dead: false, deadT: 0, hover: null, uiHover: null, pick: [], fade: 1, minimap: true, miniT: 0 };
+  recalc(); G.hero.hp = G.hero.st.maxHp;
+  buildLevel(1);
+  log('You enter ' + depthName(1) + '.', '#c9a45c');
+  refreshUI();
+}
+
+// =====================================================================================
+//  Hero stats
+// =====================================================================================
+const xpNeed = l => Math.round(60 * Math.pow(l, 1.7));
+function recalc() {
+  const h = G.hero, s = { str: h.base.str, dex: h.base.dex, vit: h.base.vit, hp: 0, regen: 0, armor: 0, crit: 0, dmg: 0, speed: 0 };
+  for (const k in h.equip) { const it = h.equip[k]; if (!it) continue; if (it.armor) s.armor += it.armor; for (const st in it.stats) s[st] += it.stats[st]; }
+  const maxHp = Math.round(40 + s.vit * 4 + h.lvl * 6 + s.hp);
+  h.st = { str: s.str, dex: s.dex, vit: s.vit, maxHp, armor: s.armor, crit: 5 + s.dex * 0.2 + s.crit, dmgPct: s.dmg,
+    speed: 4.2 * (1 + s.speed / 100), regen: maxHp * 0.006 + s.regen, bonusRegen: s.regen };
+  h.hp = Math.min(h.hp, maxHp);
+}
+function weaponOf(h) { return h.equip.weapon || { kind: 'fist', min: 1, max: 3, cd: 0.6, name: 'Bare hands' }; }
+function weaponDamageRange(h) {
+  const w = weaponOf(h), stat = w.kind === 'bow' ? h.st.dex : h.st.str;
+  const k = (1 + stat * 0.02) * (1 + h.st.dmgPct / 100);
+  return [w.min * k, w.max * k];
+}
+function gainXp(n) {
+  const h = G.hero; h.xp += n;
+  while (h.xp >= xpNeed(h.lvl)) {
+    h.xp -= xpNeed(h.lvl); h.lvl++; h.base.str += 2; h.base.dex += 2; h.base.vit += 2; recalc(); h.hp = h.st.maxHp;
+    G.fx.push({ type: 'ring', x: h.x, y: h.y, t: 0, dur: 1.0, color: '230,200,110' });
+    floatText(h.x, h.y, 'LEVEL ' + h.lvl, '#f0d070', 1.6, 22);
+    log('You reached level ' + h.lvl + '. Strength, Dexterity and Vitality +2.', '#f0d070'); sfx('level');
+  }
+}
+
+// =====================================================================================
+//  Dungeon generation
+// =====================================================================================
+function buildLevel(d) {
+  const w = Math.min(44 + d * 2, 80), h = w;
+  const t = new Uint8Array(w * h);
+  const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? T_VOID : t[y * w + x];
+  const rooms = [];
+  const want = Math.min(9 + Math.floor(d / 2), 18);
+  for (let tries = 0; tries < 600 && rooms.length < want; tries++) {
+    const rw = ri(5, 10), rh = ri(5, 10), rx = ri(2, w - rw - 3), ry = ri(2, h - rh - 3);
+    if (rooms.some(r => rx < r.x + r.w + 3 && rx + rw + 3 > r.x && ry < r.y + r.h + 3 && ry + rh + 3 > r.y)) continue;
+    rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + (rw >> 1), cy: ry + (rh >> 1) });
+  }
+  for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) t[y * w + x] = T_FLOOR;
+  const carve = (a, b) => {
+    let x = a.cx, y = a.cy; const hf = rnd() < 0.5;
+    const stepX = () => { while (x !== b.cx) { x += Math.sign(b.cx - x); t[y * w + x] = T_FLOOR; } };
+    const stepY = () => { while (y !== b.cy) { y += Math.sign(b.cy - y); t[y * w + x] = T_FLOOR; } };
+    if (hf) { stepX(); stepY(); } else { stepY(); stepX(); }
+  };
+  for (let i = 1; i < rooms.length; i++) {
+    let best = 0, bd = 1e9;
+    for (let j = 0; j < i; j++) { const dd = Math.abs(rooms[i].cx - rooms[j].cx) + Math.abs(rooms[i].cy - rooms[j].cy); if (dd < bd) { bd = dd; best = j; } }
+    carve(rooms[i], rooms[best]);
+  }
+  for (let k = 0; k < 2 + (d >> 2); k++) { const a = pick(rooms), b = pick(rooms); if (a !== b) carve(a, b); }
+  // door candidates on each room's surrounding ring
+  const doorSpots = [];
+  for (const r of rooms) {
+    for (let x = r.x; x < r.x + r.w; x++) for (const y of [r.y - 1, r.y + r.h])
+      if (at(x, y) === T_FLOOR && at(x - 1, y) === T_VOID && at(x + 1, y) === T_VOID) doorSpots.push([x, y, 'x']);
+    for (let y = r.y; y < r.y + r.h; y++) for (const x of [r.x - 1, r.x + r.w])
+      if (at(x, y) === T_FLOOR && at(x, y - 1) === T_VOID && at(x, y + 1) === T_VOID) doorSpots.push([x, y, 'y']);
+  }
+  // walls around every floor
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (t[y * w + x] !== T_VOID) continue;
+    let near = false;
+    for (let dy = -1; dy <= 1 && !near; dy++) for (let dx = -1; dx <= 1; dx++) if (at(x + dx, y + dy) === T_FLOOR) { near = true; break; }
+    if (near) t[y * w + x] = T_WALL;
+  }
+  const objects = [], monsters = [], items = [];
+  const occ = new Uint8Array(w * h);
+  for (const [x, y, axis] of doorSpots) {
+    if (rnd() < 0.55 && occ[y * w + x] === 0) { t[y * w + x] = T_DOOR; occ[y * w + x] = 1; objects.push({ type: 'door', x, y, axis, open: false, block: true }); }
+  }
+  const map = { w, h, t, at, seen: new Uint8Array(w * h), block: new Uint8Array(w * h), rooms };
+  G.map = map; G.objects = objects; G.monsters = monsters; G.items = items; G.proj = []; G.fx = []; G.texts = [];
+
+  // BFS from start room to find the farthest room for the stairs
+  const start = rooms[0];
+  const distArr = bfs(start.cx, start.cy);
+  let far = rooms[rooms.length - 1], fd = -1;
+  for (const r of rooms.slice(1)) { const v = distArr[r.cy * w + r.cx]; if (v > fd) { fd = v; far = r; } }
+  // object placement helpers
+  const isOpening = (x, y) => { // tile touches a doorway/corridor outside of its room
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const v = at(x + dx, y + dy); if (v === T_DOOR) return true; }
+    return false;
+  };
+  const freeInner = (r, edgeOnly) => {
+    for (let tries = 0; tries < 40; tries++) {
+      let x, y;
+      if (edgeOnly) { if (rnd() < 0.5) { x = ri(r.x, r.x + r.w - 1); y = rnd() < 0.5 ? r.y : r.y + r.h - 1; } else { y = ri(r.y, r.y + r.h - 1); x = rnd() < 0.5 ? r.x : r.x + r.w - 1; } }
+      else { x = ri(r.x + 1, r.x + r.w - 2); y = ri(r.y + 1, r.y + r.h - 2); }
+      if (occ[y * w + x] || isOpening(x, y)) continue;
+      if (edgeOnly) { // never block a corridor mouth: all 4-neighbours outside the room must be wall
+        let ok = true;
+        for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const nx = x + dx, ny = y + dy;
+          const inside = nx >= r.x && nx < r.x + r.w && ny >= r.y && ny < r.y + r.h; if (!inside && at(nx, ny) !== T_WALL) ok = false; }
+        if (!ok) continue;
+      }
+      return [x, y];
+    }
+    return null;
+  };
+  const place = (type, r, edgeOnly, extra = {}) => {
+    const p = freeInner(r, edgeOnly); if (!p) return null;
+    occ[p[1] * w + p[0]] = 1;
+    const o = Object.assign({ type, x: p[0], y: p[1], used: false, block: edgeOnly }, extra); objects.push(o); return o;
+  };
+  occ[start.cy * w + start.cx] = 1;
+  occ[far.cy * w + far.cx] = 1;
+  objects.push({ type: 'stairs', x: far.cx, y: far.cy, used: false, block: false });
+  const monTypes = Object.keys(MON).filter(k => MON[k].minD <= d);
+  const weighted = []; for (const k of monTypes) for (let i = 0; i < MON[k].w; i++) weighted.push(k);
+  for (const r of rooms) {
+    if (rnd() < 0.75 || r === start) place('brazier', r, true);
+    if (r !== start && rnd() < 0.38) place('chest', r, true);
+    for (let i = ri(0, 2); i > 0; i--) place('urn', r, true);
+    for (let i = ri(0, 2); i > 0; i--) place('bones', r, false);
+    if (rnd() < 0.2) place('gold', r, false, { amount: ri(3, 12) * d });
+    if (r === start) continue;
+    const n = Math.min(7, 1 + Math.floor((r.w * r.h) / 22) + Math.floor(d / 3) + (rnd() < 0.4 ? 1 : 0));
+    for (let i = 0; i < n; i++) {
+      const p = freeInner(r, false); if (!p) break;
+      monsters.push(makeMonster(pick(weighted), p[0] + 0.5 + (rnd() - 0.5) * 0.4, p[1] + 0.5 + (rnd() - 0.5) * 0.4, d));
+    }
+  }
+  for (const o of objects) if (o.block && o.type !== 'door') map.block[o.y * w + o.x] = 1;   // doors block via their tile type
+  const hero = G.hero;
+  hero.x = start.cx + 0.5; hero.y = start.cy + 0.5; hero.path = []; hero.intent = null; hero.attackTarget = null; hero.swing = null;
+  G.fade = 1;
+  updateMinimap(true);
+}
+
+function bfs(sx, sy) {
+  const m = G.map, d = new Int32Array(m.w * m.h).fill(-1), q = [sx + sy * m.w]; d[q[0]] = 0;
+  for (let qi = 0; qi < q.length; qi++) {
+    const i = q[qi], x = i % m.w, y = (i / m.w) | 0;
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const nx = x + dx, ny = y + dy, v = m.at(nx, ny);
+      if (v === T_FLOOR || v === T_DOOR || v === T_OPEN) { const j = ny * m.w + nx; if (d[j] < 0) { d[j] = d[i] + 1; q.push(j); } }
+    }
+  }
+  return d;
+}
+
+// =====================================================================================
+//  Collision, line of sight, pathfinding
+// =====================================================================================
+function blocked(tx, ty) {
+  const m = G.map; if (tx < 0 || ty < 0 || tx >= m.w || ty >= m.h) return true;
+  const v = m.t[ty * m.w + tx]; return !(v === T_FLOOR || v === T_OPEN) || m.block[ty * m.w + tx] === 1;
+}
+function canStand(x, y, r) {
+  return !blocked(Math.floor(x - r), Math.floor(y - r)) && !blocked(Math.floor(x + r), Math.floor(y - r)) &&
+         !blocked(Math.floor(x - r), Math.floor(y + r)) && !blocked(Math.floor(x + r), Math.floor(y + r));
+}
+function opaque(tx, ty) { const v = G.map.at(tx, ty); return v === T_WALL || v === T_DOOR || v === T_VOID; }
+function los(ax, ay, bx, by) {
+  const d = Math.hypot(bx - ax, by - ay), n = Math.ceil(d / 0.25);
+  for (let i = 1; i < n; i++) { const x = ax + (bx - ax) * i / n, y = ay + (by - ay) * i / n; if (opaque(Math.floor(x), Math.floor(y))) return false; }
+  return true;
+}
+function lineWalkable(ax, ay, bx, by, r) {
+  const d = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.ceil(d / 0.2));
+  for (let i = 1; i <= n; i++) { if (!canStand(ax + (bx - ax) * i / n, ay + (by - ay) * i / n, r)) return false; }
+  return true;
+}
+// binary-heap A* over 8-connected tiles; near=true stops on any free tile adjacent to the goal
+function astar(sx, sy, gx, gy, near, maxN = 7000, partial = false) {
+  const m = G.map, W_ = m.w, N = W_ * m.h;
+  if (!near && blocked(gx, gy)) return null;
+  const g = new Float32Array(N).fill(Infinity), came = new Int32Array(N).fill(-1), closed = new Uint8Array(N);
+  const heap = [], hf = (x, y) => { const dx = Math.abs(x - gx), dy = Math.abs(y - gy); return Math.max(dx, dy) + 0.414 * Math.min(dx, dy); };
+  const push = (f, i) => { heap.push([f, i]); let c = heap.length - 1; while (c > 0) { const p = (c - 1) >> 1; if (heap[p][0] <= heap[c][0]) break; [heap[p], heap[c]] = [heap[c], heap[p]]; c = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let c = 0; for (;;) { const l = 2 * c + 1, r = l + 1; let s = c;
+    if (l < heap.length && heap[l][0] < heap[s][0]) s = l; if (r < heap.length && heap[r][0] < heap[s][0]) s = r; if (s === c) break; [heap[s], heap[c]] = [heap[c], heap[s]]; c = s; } } return top; };
+  const si = sy * W_ + sx; g[si] = 0; push(hf(sx, sy), si);
+  let found = -1, n = 0, bestI = si, bestH = hf(sx, sy);
+  while (heap.length && n++ < maxN) {
+    const [, i] = pop(); if (closed[i]) continue; closed[i] = 1;
+    const x = i % W_, y = (i / W_) | 0;
+    const hv = hf(x, y); if (hv < bestH) { bestH = hv; bestI = i; }
+    if (near ? (Math.max(Math.abs(x - gx), Math.abs(y - gy)) <= 1 && !(x === gx && y === gy && blocked(x, y))) : (x === gx && y === gy)) { found = i; break; }
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue; const nx = x + dx, ny = y + dy;
+      if (blocked(nx, ny)) continue;
+      if (dx && dy && (blocked(x + dx, y) || blocked(x, y + dy))) continue;
+      const j = ny * W_ + nx; if (closed[j]) continue;
+      const ng = g[i] + (dx && dy ? 1.414 : 1);
+      if (ng < g[j]) { g[j] = ng; came[j] = i; push(ng + hf(nx, ny), j); }
+    }
+  }
+  if (found < 0) { if (!partial || bestI === si) return null; found = bestI; }
+  const out = []; for (let i = found; i !== si && i >= 0; i = came[i]) out.push([i % W_ + 0.5, ((i / W_) | 0) + 0.5]);
+  return out.reverse();
+}
+function smoothPath(pts, sx, sy, r) {
+  const out = []; let cx = sx, cy = sy, i = 0;
+  while (i < pts.length) {
+    let j = Math.min(pts.length - 1, i + 12);
+    while (j > i && !lineWalkable(cx, cy, pts[j][0], pts[j][1], r)) j--;
+    out.push(pts[j]); cx = pts[j][0]; cy = pts[j][1]; i = j + 1;
+  }
+  return out;
+}
+function pathTo(e, wx, wy, near) {
+  const tx = Math.floor(wx), ty = Math.floor(wy);
+  let p = astar(Math.floor(e.x), Math.floor(e.y), tx, ty, near || blocked(tx, ty), 7000, true);
+  if (!p) return false;
+  if (!p.length) {   // already on (or next to) the goal tile
+    e.path = !near && canStand(wx, wy, e.r) && lineWalkable(e.x, e.y, wx, wy, e.r) ? [[wx, wy]] : [];
+    return true;
+  }
+  const last = p[p.length - 1], reached = Math.floor(last[0]) === tx && Math.floor(last[1]) === ty;
+  if (!near && reached && !blocked(tx, ty) && canStand(wx, wy, e.r)) p[p.length - 1] = [wx, wy];
+  e.path = smoothPath(p, e.x, e.y, e.r);
+  return true;
+}
+function moveEnt(e, dx, dy) {
+  let moved = false;
+  if (canStand(e.x + dx, e.y, e.r)) { e.x += dx; moved = true; }
+  if (canStand(e.x, e.y + dy, e.r)) { e.y += dy; moved = true; }
+  return moved;
+}
+function setDir(e, dx, dy) {
+  if (Math.abs(dx) + Math.abs(dy) < 1e-4) return;
+  const sx = dx - dy, sy = (dx + dy) * 0.5, a = Math.atan2(sx, sy);
+  e.dir = DIR_ROW[(((Math.round(a / (Math.PI / 4))) % 8) + 8) % 8];
+}
+function followPath(e, speed, dt) {
+  if (!e.path.length) return false;
+  const [tx, ty] = e.path[0], dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy), step = speed * dt;
+  setDir(e, dx, dy);
+  if (d <= step) { moveEnt(e, dx, dy); e.path.shift(); }
+  else moveEnt(e, dx / d * step, dy / d * step);
+  return true;
+}
+
+// =====================================================================================
+//  Combat
+// =====================================================================================
+function floatText(x, y, s, color, dur = 0.9, size = 16) { G.texts.push({ x, y, s, color, t: 0, dur, size }); }
+function armorReduce(armor, attackerLvl) { return armor / (armor + 40 + 8 * attackerLvl); }
+
+function damageMonster(m, raw, crit) {
+  if (m.dead) return;
+  const v = Math.max(1, Math.round(raw * (1 - armorReduce(m.armor, G.hero.lvl))));
+  m.hp -= v; m.hitT = 0.14; m.lastHit = G.time;
+  floatText(m.x, m.y, (crit ? v + '!' : '' + v), crit ? '#ffd36a' : '#f2e6d0', 0.8, crit ? 20 : 15);
+  for (let i = 0; i < 5; i++) G.fx.push({ type: 'spark', x: m.x, y: m.y, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 40 + rnd() * 20, vz: 60 + rnd() * 60, t: 0, dur: 0.45, color: m.type === 'wraith' ? '120,255,170' : '170,20,20' });
+  sfx('hit');
+  alert(m);
+  if (m.hp <= 0) killMonster(m);
+}
+function alert(m) {
+  m.state = 'chase';
+  for (const o of G.monsters) if (!o.dead && o.state === 'idle' && dist(o, m) < 6) o.state = 'chase';
+}
+function killMonster(m) {
+  m.dead = true; m.deathT = 0; m.hp = 0; G.hero.kills++;
+  sfx('die');
+  gainXp(m.xp); floatText(m.x, m.y - 0.3, '+' + m.xp + ' xp', '#c9b37a', 1.1, 13);
+  const d = G.depth;
+  if (m.champ) { dropItem(genItem(d + 1, 0.35), m.x, m.y); if (rnd() < 0.5) dropItem(genItem(d + 1, 0.2), m.x, m.y); }
+  else if (rnd() < 0.13) dropItem(genItem(d, 0), m.x, m.y);
+  if (rnd() < 0.09) dropPotion(m.x, m.y);
+  if (rnd() < 0.3) dropGold(ri(2, 8) * d, m.x, m.y);
+}
+function heroAttack(px, py, target) {
+  const h = G.hero; if (h.atkCd > 0 || G.dead) return false;
+  const w = weaponOf(h), info = KIND_INFO[w.kind];
+  h.atkCd = w.cd;
+  const ax = (target ? target.x : px) - h.x, ay = (target ? target.y : py) - h.y;
+  setDir(h, ax, ay);
+  const ang = Math.atan2(ay, ax);
+  const [mn, mx] = weaponDamageRange(h);
+  const roll = () => { const crit = rnd() * 100 < h.st.crit; return [(mn + rnd() * (mx - mn)) * (crit ? 1.75 : 1), crit]; };
+  h.path = [];
+  if (w.kind === 'bow') {
+    const sp = 15; sfx('bow');
+    const [dmg, crit] = roll();
+    G.proj.push({ type: 'arrow', x: h.x + Math.cos(ang) * 0.4, y: h.y + Math.sin(ang) * 0.4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: info.reach / sp, dmg, crit, friendly: true });
+  } else {
+    sfx('swing');
+    h.swing = { t: 0, dur: 0.24, ang, hit: false, arc: info.arc, reach: info.reach, roll };
+    h.lunge = 1;
+  }
+  return true;
+}
+function resolveSwing(h) {
+  const s = h.swing;
+  for (const m of G.monsters) {
+    if (m.dead) continue;
+    const dx = m.x - h.x, dy = m.y - h.y, d = Math.hypot(dx, dy);
+    if (d - m.r > s.reach) continue;
+    let da = Math.abs(Math.atan2(dy, dx) - s.ang); if (da > Math.PI) da = 2 * Math.PI - da;
+    if (da <= s.arc || d < 0.55) { const [dmg, crit] = s.roll(); damageMonster(m, dmg, crit); }
+  }
+}
+function damageHero(raw, m) {
+  const h = G.hero; if (G.dead) return;
+  const v = Math.max(1, Math.round(raw * (1 - armorReduce(h.st.armor, m.lvl))));
+  h.hp -= v; h.hitT = 0.15;
+  floatText(h.x, h.y, '-' + v, '#ff5a4a', 0.9, 16);
+  $('flash').style.opacity = Math.min(0.9, 0.25 + v / h.st.maxHp * 3);
+  sfx('hurt');
+  if (h.hp <= 0) { h.hp = 0; G.dead = true; G.deadT = 0; log('You have fallen at depth ' + G.depth + '.', '#ff5a4a'); }
+}
+
+// =====================================================================================
+//  Loot & interactions
+// =====================================================================================
+function dropSpot(x, y) {
+  const cx = Math.floor(x), cy = Math.floor(y);
+  for (let rad = 0; rad < 4; rad++) {
+    const cands = [];
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue;
+      const tx = cx + dx, ty = cy + dy; if (blocked(tx, ty)) continue;
+      if (G.objects.some(o => o.x === tx && o.y === ty && o.type === 'stairs')) continue;
+      const crowd = G.items.filter(it => Math.floor(it.x) === tx && Math.floor(it.y) === ty).length;
+      if (crowd < 1 || rad === 3) cands.push([tx, ty]);
+    }
+    if (cands.length) { const [tx, ty] = pick(cands); return [tx + 0.3 + rnd() * 0.4, ty + 0.3 + rnd() * 0.4]; }
+  }
+  return [x, y];
+}
+function dropItem(item, x, y) { const [px, py] = dropSpot(x, y); G.items.push({ item, x: px, y: py, t: rnd() * 6 }); }
+function dropPotion(x, y) { const [px, py] = dropSpot(x, y); G.items.push({ potion: true, x: px, y: py, t: rnd() * 6 }); }
+function dropGold(n, x, y) { const [px, py] = dropSpot(x, y); G.objects.push({ type: 'gold', x: Math.floor(px), y: Math.floor(py), fx: px, fy: py, amount: n, used: false, block: false }); }
+
+function objCenter(o) { return o.fx !== undefined ? [o.fx, o.fy] : [o.x + 0.5, o.y + 0.5]; }
+function interactable(o) {
+  if (o.type === 'door') return !o.open;
+  if (o.type === 'brazier') return false;
+  if (o.type === 'stairs') return true;
+  return !o.used;
+}
+function act(ref) {
+  const h = G.hero, d = G.depth;
+  if (ref.kind === 'item') {
+    const fi = ref.r;
+    if (!G.items.includes(fi)) return;
+    if (fi.potion) { h.potions++; G.items.splice(G.items.indexOf(fi), 1); log('Picked up a health potion.', '#e06a5a'); sfx('pick'); gainXp(1 + d); refreshUI(); return; }
+    const slot = h.inv.indexOf(null);
+    if (slot < 0) { log('Your pack is full.', '#e06a5a'); return; }
+    h.inv[slot] = fi.item; G.items.splice(G.items.indexOf(fi), 1);
+    log('Picked up ' + fi.item.name + '.', rarityColor(fi.item.rarity)); sfx('pick'); gainXp(2 * d); refreshUI();
+    return;
+  }
+  const o = ref.r;
+  switch (o.type) {
+    case 'door':
+      if (o.open) return; o.open = true; G.map.t[o.y * G.map.w + o.x] = T_OPEN; sfx('door'); gainXp(d); break;
+    case 'chest': {
+      if (o.used) return; o.used = true; sfx('chest'); gainXp(6 * d);
+      const n = ri(1, 2) + (rnd() < 0.4 ? 1 : 0);
+      for (let i = 0; i < n; i++) dropItem(genItem(d + (rnd() < 0.3 ? 1 : 0), 0.15), o.x + 0.5, o.y + 0.5);
+      dropGold(ri(10, 30) * d, o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.3) dropPotion(o.x + 0.5, o.y + 0.5);
+      log('The chest creaks open.', '#c9a45c');
+      break;
+    }
+    case 'urn':
+      if (o.used) return; o.used = true; G.map.block[o.y * G.map.w + o.x] = 0; sfx('hit'); gainXp(2 * d);
+      for (let i = 0; i < 8; i++) G.fx.push({ type: 'spark', x: o.x + 0.5, y: o.y + 0.5, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 20, vz: 80, t: 0, dur: 0.5, color: '140,120,90' });
+      if (rnd() < 0.35) dropGold(ri(3, 10) * d, o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.12) dropPotion(o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.08) dropItem(genItem(d), o.x + 0.5, o.y + 0.5);
+      break;
+    case 'bones':
+      if (o.used) return; o.used = true; gainXp(d); log('You search the bones.', '#a99c86');
+      if (rnd() < 0.2) dropGold(ri(2, 8) * d, o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.1) dropItem(genItem(d), o.x + 0.5, o.y + 0.5);
+      break;
+    case 'gold':
+      if (o.used) return; o.used = true; h.gold += o.amount; G.objects.splice(G.objects.indexOf(o), 1); sfx('gold');
+      floatText(h.x, h.y, '+' + o.amount + ' gold', '#e3c060', 0.9, 14); break;
+    case 'stairs': descend(); break;
+  }
+}
+function descend() {
+  sfx('stairs');
+  const d = G.depth + 1; G.depth = d;
+  gainXp(10 * d);
+  buildLevel(d);
+  log('You descend to depth ' + d + ': ' + depthName(d) + '.', '#c9a45c');
+}
+function drinkPotion() {
+  const h = G.hero; if (G.dead) return;
+  if (h.potions <= 0) { log('No potions left.', '#e06a5a'); return; }
+  if (h.potionCd > 0) return;
+  if (h.hp >= h.st.maxHp) { log('You are already at full health.', '#a99c86'); return; }
+  h.potions--; h.potionCd = 0.8; const v = Math.round(h.st.maxHp * 0.45); h.hp = Math.min(h.st.maxHp, h.hp + v);
+  floatText(h.x, h.y, '+' + v, '#7fd17f', 0.9, 16); sfx('potion'); refreshUI();
+}
+
+// =====================================================================================
+//  Equipment & hotkeys
+// =====================================================================================
+const rarityColor = r => r === 'rare' ? 'var(--rare)' : r === 'magic' ? 'var(--magic)' : 'var(--common)';
+const rarityHex = r => r === 'rare' ? '#e6c84a' : r === 'magic' ? '#6f8cff' : '#d8d2c4';
+function equipFromInv(i) {
+  const h = G.hero, it = h.inv[i]; if (!it) return;
+  let slot = it.slot;
+  if (slot === 'ring') slot = !h.equip.ring1 ? 'ring1' : !h.equip.ring2 ? 'ring2' : 'ring1';
+  const old = h.equip[slot]; h.equip[slot] = it; h.inv[i] = old || null;
+  h.atkCd = Math.max(h.atkCd, 0.2); recalc(); sfx('pick'); refreshUI();
+}
+function unequip(slot) {
+  const h = G.hero, it = h.equip[slot]; if (!it) return;
+  const i = h.inv.indexOf(null); if (i < 0) { log('Your pack is full.', '#e06a5a'); return; }
+  h.inv[i] = it; h.equip[slot] = null; recalc(); refreshUI();
+}
+function dropFromInv(i) {
+  const h = G.hero, it = h.inv[i]; if (!it) return;
+  h.inv[i] = null; dropItem(it, h.x, h.y);
+  h.hotkeys = h.hotkeys.map(k => k && k.type === 'item' && k.id === it.id ? null : k);
+  refreshUI();
+}
+function findOwned(id) {
+  const h = G.hero;
+  if (h.equip.weapon && h.equip.weapon.id === id) return { where: 'eq', item: h.equip.weapon };
+  const i = h.inv.findIndex(x => x && x.id === id); return i >= 0 ? { where: 'inv', i, item: h.inv[i] } : null;
+}
+function useHotkey(idx) {
+  const h = G.hero, k = h.hotkeys[idx]; if (!k || G.dead) return;
+  if (k.type === 'potion') { drinkPotion(); return; }
+  const f = findOwned(k.id);
+  if (!f) { h.hotkeys[idx] = null; refreshUI(); return; }
+  if (f.where === 'inv') { equipFromInv(f.i); log('Equipped ' + f.item.name + '.', rarityColor(f.item.rarity)); }
+}
+function refItem(ref) {
+  const h = G.hero; if (!ref) return null;
+  if (ref.startsWith('inv:')) return h.inv[+ref.slice(4)];
+  if (ref.startsWith('eq:')) return h.equip[ref.slice(3)];
+  return null;
+}
+function bindHotkey(idx, ref) {
+  const h = G.hero;
+  if (ref === 'potion') { h.hotkeys[idx] = { type: 'potion' }; }
+  else { const it = refItem(ref); if (!it || it.slot !== 'weapon') { log('Only weapons and potions can be bound to quick keys.', '#a99c86'); return; }
+    h.hotkeys = h.hotkeys.map(k => k && k.type === 'item' && k.id === it.id ? null : k); h.hotkeys[idx] = { type: 'item', id: it.id }; }
+  log('Bound to key ' + (idx === 9 ? 0 : idx + 1) + '.', '#c9a45c'); refreshUI();
+}
+
+// =====================================================================================
+//  UI (DOM)
+// =====================================================================================
+function iconCss(name, size) {
+  const [x, y] = META.items[name], k = size / 96;
+  return `background-image:url(assets/items.webp);background-size:${ATLAS_W * k}px ${ATLAS_H * k}px;background-position:-${x * k}px -${y * k}px;`;
+}
+const DOLL = { head: [97, 0], amulet: [180, 30], weapon: [14, 90], ring1: [180, 96], hands: [14, 160], ring2: [180, 162], chest: [97, 204], feet: [97, 268] };
+function buildUI() {
+  const doll = $('doll');
+  for (const s in DOLL) {
+    const el = document.createElement('div'); el.className = 'slot'; el.dataset.ref = 'eq:' + s;
+    el.style.left = DOLL[s][0] + 'px'; el.style.top = DOLL[s][1] + 'px';
+    el.innerHTML = `<div class="lbl">${SLOT_LABEL[s]}</div><div class="ico"></div><span class="bindTag"></span>`;
+    el.addEventListener('click', () => unequip(s));
+    doll.appendChild(el);
+  }
+  const inv = $('inv');
+  for (let i = 0; i < 30; i++) {
+    const el = document.createElement('div'); el.className = 'cell'; el.dataset.ref = 'inv:' + i;
+    el.innerHTML = '<div class="ico"></div><span class="bindTag"></span>';
+    el.addEventListener('click', () => equipFromInv(i));
+    el.addEventListener('contextmenu', e => { e.preventDefault(); dropFromInv(i); hideTip(); });
+    inv.appendChild(el);
+  }
+  $('potionSlot').innerHTML = '<div class="ico" style="' + iconCss('potion', 52) + '"></div><span class="bindTag"></span>';
+  $('potionSlot').addEventListener('click', drinkPotion);
+  for (const host of [$('hotbar'), $('hkCfg')]) {
+    for (let i = 0; i < 10; i++) {
+      const el = document.createElement('div'); el.className = 'hk'; el.dataset.hk = i;
+      el.innerHTML = `<span class="num">${i === 9 ? 0 : i + 1}</span><div class="ico"></div><span class="cnt"></span>`;
+      el.addEventListener('click', () => useHotkey(i));
+      el.addEventListener('contextmenu', e => { e.preventDefault(); G.hero.hotkeys[i] = null; refreshUI(); });
+      el.addEventListener('mouseenter', () => showHkTip(i, el)); el.addEventListener('mouseleave', hideTip);
+      host.appendChild(el);
+    }
+  }
+  document.querySelectorAll('#equip [data-ref]').forEach(el => {
+    el.addEventListener('mouseenter', () => { G.uiHover = el.dataset.ref; showRefTip(el.dataset.ref); });
+    el.addEventListener('mouseleave', () => { G.uiHover = null; hideTip(); });
+  });
+  $('menuBtn').addEventListener('click', toggleEquip);
+  document.addEventListener('mousemove', e => { const t = $('tooltip'); if (!t.classList.contains('hidden')) placeTip(e.clientX, e.clientY); });
+}
+function placeTip(x, y) {
+  const t = $('tooltip'), r = t.getBoundingClientRect();
+  let lx = x + 18, ly = y + 14; if (lx + r.width > W - 6) lx = x - r.width - 14; if (ly + r.height > H - 6) ly = H - r.height - 6;
+  t.style.left = lx + 'px'; t.style.top = Math.max(6, ly) + 'px';
+}
+function hideTip() { $('tooltip').classList.add('hidden'); }
+function itemLines(it) {
+  const b = BASES[it.base]; let s = `<div class="nm" style="color:${rarityHex(it.rarity)}">${it.name}</div>`;
+  s += `<div class="ty">${it.rarity !== 'common' ? (it.rarity === 'rare' ? 'Rare ' : 'Magic ') : ''}${it.slot === 'weapon' ? KIND_INFO[it.kind].label : SLOT_LABEL[it.slot]} · item level ${it.ilvl}</div>`;
+  if (it.slot === 'weapon') s += `<div>Damage: <b>${it.min}–${it.max}</b></div><div>Attacks per second: <b>${(1 / it.cd).toFixed(2)}</b></div>`;
+  if (it.armor) s += `<div>Armor: <b>${it.armor}</b></div>`;
+  for (const k in it.stats) s += `<div class="st">+${it.stats[k]} ${STAT_LABEL[k]}</div>`;
+  void b; return s;
+}
+function weaponDps(it) { return it ? (it.min + it.max) / 2 / it.cd : 0; }
+function showRefTip(ref) {
+  const t = $('tooltip');
+  if (ref === 'potion') { t.innerHTML = `<div class="nm" style="color:#e06a5a">Health Potion</div><div>Restores 45% of your life.</div><div class="ty">You carry ${G.hero.potions}. Press a number key to bind.</div>`; t.classList.remove('hidden'); return; }
+  const it = refItem(ref); if (!it) { hideTip(); return; }
+  let s = itemLines(it);
+  if (ref.startsWith('inv:')) {
+    const h = G.hero; const slot = it.slot === 'ring' ? 'ring1' : it.slot; const cur = h.equip[slot];
+    if (cur) {
+      s += `<div class="cmp">Equipped: <span style="color:${rarityHex(cur.rarity)}">${cur.name}</span>`;
+      if (it.slot === 'weapon') { const d = weaponDps(it) - weaponDps(cur); s += `<br>Base DPS <span class="${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}</span>`; }
+      if (it.armor || cur.armor) { const d = (it.armor || 0) - (cur.armor || 0); s += `<br>Armor <span class="${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '+' : ''}${d}</span>`; }
+      s += '</div>';
+    }
+    s += `<div class="ty" style="margin-top:4px">Click to equip · right-click to drop${it.slot === 'weapon' ? ' · 1–0 to bind' : ''}</div>`;
+  } else s += `<div class="ty" style="margin-top:4px">Click to unequip${it.slot === 'weapon' ? ' · 1–0 to bind' : ''}</div>`;
+  t.innerHTML = s; t.classList.remove('hidden');
+}
+function showHkTip(i, el) {
+  const k = G.hero.hotkeys[i], t = $('tooltip');
+  if (!k) { t.innerHTML = '<div class="ty">Empty quick key. Bind weapons in the Equipment screen.</div>'; }
+  else if (k.type === 'potion') t.innerHTML = '<div class="nm" style="color:#e06a5a">Drink Health Potion</div>';
+  else { const f = findOwned(k.id); t.innerHTML = f ? itemLines(f.item) + '<div class="ty">Press to equip · right-click to clear</div>' : '<div class="ty">Item no longer owned.</div>'; }
+  t.classList.remove('hidden'); const r = el.getBoundingClientRect(); placeTip(r.left, r.top - 120);
+}
+function setIco(el, it, size) {
+  const ico = el.querySelector('.ico');
+  ico.style.cssText = it ? iconCss(it.base, size) : '';
+  el.classList.toggle('r-magic', !!it && it.rarity === 'magic'); el.classList.toggle('r-rare', !!it && it.rarity === 'rare');
+}
+function keyOf(item) { const h = G.hero; const i = h.hotkeys.findIndex(k => k && k.type === 'item' && item && k.id === item.id); return i < 0 ? '' : (i === 9 ? '0' : '' + (i + 1)); }
+function refreshUI() {
+  if (!G) return; const h = G.hero;
+  document.querySelectorAll('#doll .slot').forEach(el => {
+    const s = el.dataset.ref.slice(3), it = h.equip[s]; setIco(el, it, 52);
+    el.querySelector('.lbl').style.display = it ? 'none' : ''; el.querySelector('.bindTag').textContent = keyOf(it);
+  });
+  document.querySelectorAll('#inv .cell').forEach((el, i) => { setIco(el, h.inv[i], 52); el.querySelector('.bindTag').textContent = keyOf(h.inv[i]); });
+  const pk = h.hotkeys.findIndex(k => k && k.type === 'potion');
+  $('potionSlot').querySelector('.bindTag').textContent = pk < 0 ? '' : (pk === 9 ? '0' : '' + (pk + 1));
+  $('potionText').textContent = 'Health potions: ' + h.potions;
+  for (const host of [$('hotbar'), $('hkCfg')]) host.querySelectorAll('.hk').forEach((el, i) => {
+    const k = h.hotkeys[i], ico = el.querySelector('.ico'), cnt = el.querySelector('.cnt');
+    let it = null, active = false;
+    if (k && k.type === 'potion') { ico.style.cssText = iconCss('potion', 44); cnt.textContent = h.potions; }
+    else { cnt.textContent = ''; if (k) { const f = findOwned(k.id); if (f) { it = f.item; active = f.where === 'eq'; } }
+      ico.style.cssText = it ? iconCss(it.base, 44) : ''; }
+    el.classList.toggle('active', active);
+  });
+  const st = h.st, [dn, dx] = weaponDamageRange(h), w = weaponOf(h);
+  const rows = [['Level', h.lvl], ['Experience', h.xp + ' / ' + xpNeed(h.lvl)], ['Strength', st.str], ['Dexterity', st.dex], ['Vitality', st.vit],
+    ['Life', Math.ceil(h.hp) + ' / ' + st.maxHp], ['Life regen', st.regen.toFixed(1) + ' / s'], ['Armor', st.armor],
+    ['Damage', Math.round(dn) + '–' + Math.round(dx)], ['Attack speed', (1 / w.cd).toFixed(2) + ' / s'], ['Critical', st.crit.toFixed(1) + '%'],
+    ['Move speed', Math.round(st.speed / 4.2 * 100) + '%'], ['Kills', h.kills], ['Gold', h.gold]];
+  $('stats').innerHTML = rows.map(r => `<div class="row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
+  if (G.uiHover) showRefTip(G.uiHover);
+}
+function toggleEquip() { const e = $('equip'); e.classList.toggle('hidden'); if (e.classList.contains('hidden')) { G.uiHover = null; hideTip(); } else refreshUI(); }
+function equipOpen() { return !$('equip').classList.contains('hidden'); }
+const logEl = $('log');
+function log(msg, color = '#e8dcc4') {
+  const d = document.createElement('div'); d.textContent = msg; d.style.color = color; logEl.prepend(d);
+  while (logEl.children.length > 6) logEl.lastChild.remove();
+  setTimeout(() => { d.style.opacity = 0; }, 6000); setTimeout(() => d.remove(), 7200);
+}
+let hudCache = {};
+function updateHud() {
+  const h = G.hero, set = (k, v, f) => { if (hudCache[k] !== v) { hudCache[k] = v; f(v); } };
+  set('hp', Math.ceil(h.hp) + '/' + h.st.maxHp, v => { $('orbText').textContent = v.replace('/', ' / '); $('orbFill').style.height = (h.hp / h.st.maxHp * 100) + '%'; });
+  set('xp', h.lvl + ':' + h.xp, () => { $('xpFill').style.width = (h.xp / xpNeed(h.lvl) * 100) + '%'; $('xpText').textContent = 'Level ' + h.lvl + ' — ' + h.xp + ' / ' + xpNeed(h.lvl) + ' xp'; });
+  set('depth', G.depth, d => { $('depthName').textContent = depthName(d); $('depthSub').textContent = 'Depth ' + d; });
+  set('gold', h.gold, g => { $('goldText').textContent = g + ' gold'; });
+  const fl = $('flash'); const o = +fl.style.opacity || 0; if (o > 0) fl.style.opacity = Math.max(0, o - 0.03);
+  const m = G.hover && G.hover.kind === 'mon' ? G.hover.r : (h.attackTarget && !h.attackTarget.dead ? h.attackTarget : null);
+  if (m && !m.dead) {
+    $('target').classList.remove('hidden');
+    set('tname', m.name + Math.ceil(m.hp), () => { $('targetName').textContent = m.name + '  (level ' + m.lvl + ')'; $('targetName').style.color = m.champ ? '#e6c84a' : '#e8dcc4';
+      $('targetFill').style.width = (m.hp / m.maxHp * 100) + '%'; });
+  } else if (hudCache.tname !== null) { hudCache.tname = null; $('target').classList.add('hidden'); }
+  if (equipOpen() && (G.time * 4 | 0) !== hudCache.statT) { hudCache.statT = G.time * 4 | 0; const st = $('stats').children[5]; if (st) st.lastChild.textContent = Math.ceil(h.hp) + ' / ' + h.st.maxHp; }
+}
+
+// =====================================================================================
+//  Input
+// =====================================================================================
+function screenToIso(mx, my) { return [(mx - W / 2) / G.zoom + G.camX, (my - H / 2) / G.zoom + G.camY]; }
+function isoToWorld(X, Y) { return [(X / HW + Y / HH) / 2, (Y / HH - X / HW) / 2]; }
+function pickAt(mx, my) {
+  const [X, Y] = screenToIso(mx, my);
+  for (let pass = 0; pass < 2; pass++)
+    for (let i = G.pick.length - 1; i >= 0; i--) { const p = G.pick[i]; if ((p.kind === 'mon') !== (pass === 0)) continue;
+      if (X >= p.x && X <= p.x + p.w && Y >= p.y && Y <= p.y + p.h) return p; }
+  return null;
+}
+document.addEventListener('contextmenu', e => e.preventDefault());
+cv.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
+cv.addEventListener('mousedown', e => {
+  if (!G || !G.running || G.dead) return;
+  audio(); mouse.x = e.clientX; mouse.y = e.clientY;
+  const h = G.hero, ref = pickAt(mouse.x, mouse.y);
+  if (e.button === 0) {
+    mouse.left = true; h.attackTarget = null; h.attackPending = false;
+    if (ref && ref.kind !== 'mon') {
+      h.intent = ref; const [cx, cy] = ref.kind === 'item' ? [ref.r.x, ref.r.y] : objCenter(ref.r);
+      const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door');
+      if (dist(h, { x: cx, y: cy }) <= (blk ? 1.5 : 0.75)) { act(ref); h.intent = null; h.path = []; }
+      else pathTo(h, cx, cy, blk);
+      mouse.holdWalk = false;
+    } else {
+      h.intent = null; const [wx, wy] = isoToWorld(...screenToIso(mouse.x, mouse.y)); pathTo(h, wx, wy, false);
+      mouse.holdWalk = true; mouse.walkT = 0.15;
+    }
+  } else if (e.button === 2) {
+    mouse.right = true; h.intent = null;
+    rightAction(ref, true);
+  }
+});
+addEventListener('mouseup', e => { if (e.button === 0) { mouse.left = false; mouse.holdWalk = false; } if (e.button === 2) mouse.right = false; });
+addEventListener('blur', () => { mouse.left = mouse.right = mouse.holdWalk = false; });
+cv.addEventListener('wheel', e => { if (G) G.zoom = clamp(G.zoom * (e.deltaY > 0 ? 0.9 : 1.1), 0.6, 1.5); e.preventDefault(); }, { passive: false });
+function rightAction(ref, fresh) {
+  const h = G.hero, w = weaponOf(h);
+  const m = ref && ref.kind === 'mon' ? ref.r : null;
+  if (m) {
+    h.attackTarget = m; h.attackPending = true;
+    if (w.kind === 'bow') { if (heroAttack(0, 0, m)) h.attackPending = false; }
+  } else {
+    if (fresh) { h.attackTarget = null; h.attackPending = false; }
+    if (!h.attackTarget) { const [wx, wy] = isoToWorld(...screenToIso(mouse.x, mouse.y)); heroAttack(wx, wy, null); }
+  }
+}
+addEventListener('keydown', e => {
+  if (!G || !G.running) return;
+  const k = e.key;
+  if (k === 'i' || k === 'I' || k === 'Tab' || k === 'c' || k === 'C') { e.preventDefault(); toggleEquip(); return; }
+  if (k === 'Escape') { if (equipOpen()) toggleEquip(); return; }
+  if (/^[0-9]$/.test(k)) { const idx = k === '0' ? 9 : +k - 1;
+    if (equipOpen() && G.uiHover && (G.uiHover === 'potion' || refItem(G.uiHover))) bindHotkey(idx, G.uiHover); else useHotkey(idx); return; }
+  if (k === 'q' || k === 'Q') drinkPotion();
+  if (k === 'm' || k === 'M') { G.minimap = !G.minimap; $('minimap').classList.toggle('hidden', !G.minimap); }
+  if (k === 'n' || k === 'N') { soundOn = !soundOn; log('Sound ' + (soundOn ? 'on' : 'off') + '.', '#a99c86'); }
+});
+
+// =====================================================================================
+//  Update
+// =====================================================================================
+function update(dt) {
+  G.time += dt;
+  const h = G.hero;
+  if (G.fade > 0) G.fade = Math.max(0, G.fade - dt * 1.6);
+  if (G.dead) {
+    G.deadT += dt;
+    if (G.deadT > 1.4 && !G.deathShown) { G.deathShown = true; showDeath(); }
+    updateFx(dt); return;
+  }
+  // continuous input
+  if (mouse.holdWalk && mouse.left) {
+    mouse.walkT -= dt;
+    if (mouse.walkT <= 0) { mouse.walkT = 0.15; const [wx, wy] = isoToWorld(...screenToIso(mouse.x, mouse.y));
+      if (dist(h, { x: wx, y: wy }) > 0.4) pathTo(h, wx, wy, false); }
+  }
+  if (mouse.right && h.atkCd <= 0) rightAction(G.hover, false);
+
+  // hero
+  h.atkCd = Math.max(0, h.atkCd - dt); h.potionCd = Math.max(0, h.potionCd - dt); h.hitT = Math.max(0, h.hitT - dt);
+  h.lunge = Math.max(0, h.lunge - dt * 5);
+  h.hp = Math.min(h.st.maxHp, h.hp + h.st.regen * dt);
+  if (h.swing) { h.swing.t += dt; if (!h.swing.hit && h.swing.t >= 0.08) { h.swing.hit = true; resolveSwing(h); } if (h.swing.t >= h.swing.dur) h.swing = null; }
+  const at = h.attackTarget;
+  if (at) {
+    if (at.dead) { h.attackTarget = null; h.attackPending = false; }
+    else {
+      const w = weaponOf(h), info = KIND_INFO[w.kind];
+      if (w.kind === 'bow') { if ((mouse.right || h.attackPending) && h.atkCd <= 0) { heroAttack(0, 0, at); h.attackPending = false; } else if (!mouse.right && !h.attackPending) h.attackTarget = null; }
+      else {
+        const inReach = dist(h, at) - at.r <= info.reach * 0.85;
+        if (inReach) { h.path = []; if (h.atkCd <= 0 && !h.swing && (h.attackPending || mouse.right)) { heroAttack(0, 0, at); h.attackPending = false; } }
+        else if (h.attackPending || mouse.right) { h.repath -= dt; if (h.repath <= 0 || !h.path.length) { h.repath = 0.25; pathTo(h, at.x, at.y, true); } }
+        else h.attackTarget = null;
+      }
+    }
+  }
+  const ox = h.x, oy = h.y;
+  h.moving = !h.swing && followPath(h, h.st.speed, dt);
+  if (h.moving) { h.anim += dt * h.st.speed * 2.1; if (Math.hypot(h.x - ox, h.y - oy) < 1e-4) { h.stuckT += dt; if (h.stuckT > 0.3) { h.path = []; h.stuckT = 0; } } else h.stuckT = 0; }
+  if (h.intent) {
+    const ref = h.intent, [cx, cy] = ref.kind === 'item' ? [ref.r.x, ref.r.y] : objCenter(ref.r);
+    const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door');
+    const dd = dist(h, { x: cx, y: cy });
+    if (dd <= (blk ? 1.5 : 0.75)) { setDir(h, cx - h.x, cy - h.y); h.path = []; h.intent = null; act(ref); }
+    else if (!h.path.length) { if (dd <= 1.7) { h.intent = null; act(ref); } else h.intent = null; }
+  }
+  // mark explored
+  const m = G.map;
+  for (let y = Math.floor(h.y) - 7; y <= Math.floor(h.y) + 7; y++) for (let x = Math.floor(h.x) - 7; x <= Math.floor(h.x) + 7; x++)
+    if (x >= 0 && y >= 0 && x < m.w && y < m.h && (x + 0.5 - h.x) ** 2 + (y + 0.5 - h.y) ** 2 < 46) m.seen[y * m.w + x] = 1;
+
+  // monsters
+  for (const mo of G.monsters) updateMonster(mo, dt);
+  G.monsters = G.monsters.filter(mo => !(mo.dead && mo.deathT > 1.2));
+  // separation
+  const act_ = G.monsters.filter(mo => !mo.dead && Math.abs(mo.x - h.x) < 16 && Math.abs(mo.y - h.y) < 16);
+  for (let i = 0; i < act_.length; i++) {
+    const a = act_[i];
+    for (let j = i + 1; j < act_.length; j++) { const b = act_[j]; const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), md = a.r + b.r;
+      if (d < md && d > 1e-3) { const push = (md - d) / 2, nx = dx / d * push, ny = dy / d * push; moveEnt(a, -nx, -ny); moveEnt(b, nx, ny); } }
+    const dx = a.x - h.x, dy = a.y - h.y, d = Math.hypot(dx, dy), md = a.r + h.r;
+    if (d < md && d > 1e-3) moveEnt(a, dx / d * (md - d), dy / d * (md - d));
+  }
+  // projectiles
+  for (const p of G.proj) {
+    const steps = 3;
+    for (let s = 0; s < steps && p.life > 0; s++) {
+      p.x += p.vx * dt / steps; p.y += p.vy * dt / steps; p.life -= dt / steps;
+      if (opaque(Math.floor(p.x), Math.floor(p.y))) { p.life = 0; G.fx.push({ type: 'spark', x: p.x, y: p.y, vx: 0, vy: 0, z: 40, vz: 30, t: 0, dur: 0.3, color: p.friendly ? '200,180,140' : '120,255,170' }); break; }
+      if (p.friendly) { for (const mo of G.monsters) if (!mo.dead && Math.hypot(mo.x - p.x, mo.y - p.y) < mo.r + 0.18) { damageMonster(mo, p.dmg, p.crit); p.life = 0; break; } }
+      else if (Math.hypot(h.x - p.x, h.y - p.y) < h.r + 0.2) { damageHero(p.dmg, p.src); p.life = 0; }
+    }
+  }
+  G.proj = G.proj.filter(p => p.life > 0);
+  for (const fi of G.items) fi.t += dt;
+  updateFx(dt);
+  G.miniT -= dt; if (G.miniT <= 0) { G.miniT = 0.25; updateMinimap(); }
+}
+function updateFx(dt) {
+  for (const f of G.fx) { f.t += dt; if (f.type === 'spark') { f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt; f.vz -= 300 * dt; } }
+  G.fx = G.fx.filter(f => f.t < f.dur);
+  for (const t of G.texts) t.t += dt;
+  G.texts = G.texts.filter(t => t.t < t.dur);
+}
+function updateMonster(m, dt) {
+  m.hitT = Math.max(0, m.hitT - dt); m.lunge = Math.max(0, m.lunge - dt * 4);
+  if (m.dead) { m.deathT += dt; return; }
+  const h = G.hero, b = m.b, d = dist(m, h);
+  if (G.time - m.lastHit > 4) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.01 * dt);
+  m.cd -= dt; m.moving = false;
+  if (m.state === 'idle') {
+    if (d < 8.5 && los(m.x, m.y, h.x, h.y)) { alert(m); }
+    else if (d < 30) {
+      m.wander -= dt;
+      if (m.wander <= 0) { m.wander = 2 + rnd() * 5; const tx = m.x + (rnd() - 0.5) * 4, ty = m.y + (rnd() - 0.5) * 4;
+        if (canStand(tx, ty, m.r) && lineWalkable(m.x, m.y, tx, ty, m.r)) m.path = [[tx, ty]]; }
+      if (m.path.length) { m.moving = followPath(m, m.speed * 0.4, dt); m.anim += dt * m.speed * 0.8; }
+    }
+    return;
+  }
+  if (d > 20) { m.state = 'idle'; m.path = []; return; }
+  if (m.windup > 0) {
+    m.windup -= dt; setDir(m, h.x - m.x, h.y - m.y);
+    if (m.windup <= 0) {
+      const dmg = m.dmg[0] + rnd() * (m.dmg[1] - m.dmg[0]);
+      if (b.ranged) { const a = Math.atan2(h.y - m.y, h.x - m.x), sp = 7; sfx('bolt');
+        G.proj.push({ type: 'bolt', x: m.x, y: m.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.6, dmg, friendly: false, src: m }); }
+      else if (d - h.r <= b.reach + 0.35) { m.lunge = 1; damageHero(dmg, m); }
+    }
+    return;
+  }
+  const seen = los(m.x, m.y, h.x, h.y);
+  let goal = null;
+  if (b.ranged) {
+    if (seen && d <= b.range) { if (m.cd <= 0) { m.windup = 0.45; m.cd = b.cd; return; } if (d < 3.2) { const ax = m.x - h.x, ay = m.y - h.y; goal = [m.x + ax / d, m.y + ay / d]; } }
+    else goal = [h.x, h.y];
+  } else {
+    if (d - h.r <= b.reach) { if (m.cd <= 0) { m.windup = 0.32; m.cd = b.cd; } setDir(m, h.x - m.x, h.y - m.y); return; }
+    goal = [h.x, h.y];
+  }
+  if (!goal) return;
+  const spd = m.speed;
+  if (seen && d < 9 && lineWalkable(m.x, m.y, goal[0], goal[1], m.r * 0.9)) {
+    const dx = goal[0] - m.x, dy = goal[1] - m.y, dd = Math.hypot(dx, dy) || 1; m.path = [];
+    moveEnt(m, dx / dd * spd * dt, dy / dd * spd * dt); setDir(m, dx, dy); m.moving = true;
+  } else {
+    m.repath -= dt;
+    if (m.repath <= 0 || !m.path.length) { m.repath = 0.5 + rnd() * 0.4; const p = astar(Math.floor(m.x), Math.floor(m.y), Math.floor(goal[0]), Math.floor(goal[1]), true, 2500);
+      m.path = p ? smoothPath(p, m.x, m.y, m.r) : []; }
+    m.moving = followPath(m, spd, dt);
+  }
+  if (m.moving) m.anim += dt * spd * 2.0;
+}
+
+// =====================================================================================
+//  Rendering
+// =====================================================================================
+const dl = [];
+function render() {
+  const h = G.hero, m = G.map, z = G.zoom;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#040205'; ctx.fillRect(0, 0, W, H);
+  const [hx, hy] = iso(h.x, h.y);
+  G.camX += (hx - G.camX) * (G.camSnap ? 1 : 0.25); G.camY += (hy - 46 - G.camY) * (G.camSnap ? 1 : 0.25); G.camSnap = false;
+  if (Math.abs(hx - G.camX) > 400) { G.camX = hx; G.camY = hy - 46; }
+  const baseT = [DPR * z, 0, 0, DPR * z, DPR * (W / 2 - G.camX * z), DPR * (H / 2 - G.camY * z)];
+  ctx.setTransform(...baseT);
+  // visible tile range
+  const cs = [[0, 0], [W, 0], [0, H], [W, H]].map(([sx, sy]) => isoToWorld(...screenToIso(sx, sy)));
+  const x0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c[0]))) - 1), x1 = Math.min(m.w - 1, Math.ceil(Math.max(...cs.map(c => c[0]))) + 3);
+  const y0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c[1]))) - 1), y1 = Math.min(m.h - 1, Math.ceil(Math.max(...cs.map(c => c[1]))) + 3);
+  const lightR = 9.5;
+  const nearHero = (x, y) => Math.abs(x - h.x) < lightR + 4 && Math.abs(y - h.y) < lightR + 4;
+
+  // floor (affine iso transform + texture pattern)
+  ctx.save(); ctx.transform(HW, HH, -HW, HH, 0, 0);
+  ctx.beginPath();
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const v = m.t[y * m.w + x]; if ((v === T_FLOOR || v === T_OPEN || v === T_DOOR) && (m.seen[y * m.w + x] || nearHero(x, y))) ctx.rect(x, y, 1.02, 1.02); }
+  ctx.fillStyle = floorPat; ctx.fill();
+  ctx.lineWidth = 0.012; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.stroke();
+  ctx.restore();
+
+  // floor-level props (stairs, bones, gold) and items
+  G.pick.length = 0;
+  for (const o of G.objects) {
+    if (o.type !== 'stairs' && o.type !== 'bones' && o.type !== 'gold') continue;
+    if (o.x < x0 || o.x > x1 || o.y < y0 || o.y > y1) continue;
+    drawProp(o);
+  }
+  for (const fi of G.items) {
+    if (fi.x < x0 || fi.x > x1 + 1 || fi.y < y0 || fi.y > y1 + 1) continue;
+    const [sx, sy] = iso(fi.x, fi.y), col = fi.potion ? '224,90,80' : (fi.item.rarity === 'rare' ? '230,200,74' : fi.item.rarity === 'magic' ? '111,140,255' : '216,210,196');
+    const gr = ctx.createRadialGradient(sx, sy, 0, sx, sy, 30); gr.addColorStop(0, `rgba(${col},0.45)`); gr.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(sx, sy, 30, 15, 0, 0, 7); ctx.fill();
+    const s = 44, bob = Math.sin(fi.t * 2.5) * 2, [ix, iy] = META.items[fi.potion ? 'potion' : fi.item.base];
+    const hov = G.hover && G.hover.r === fi;
+    if (hov) ctx.filter = 'brightness(1.5)';
+    ctx.drawImage(IMG.items, ix, iy, 96, 96, sx - s / 2, sy - s + 6 + bob, s, s);
+    ctx.filter = 'none';
+    G.pick.push({ kind: 'item', r: fi, x: sx - s / 2 - 4, y: sy - s, w: s + 8, h: s + 10 });
+  }
+
+  // depth-sorted drawables
+  dl.length = 0;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const v = m.t[y * m.w + x]; if ((v === T_WALL || v === T_DOOR) && (m.seen[y * m.w + x] || nearHero(x, y))) dl.push({ k: x + y + 1, t: 0, x, y }); }
+  for (const o of G.objects) if (o.type !== 'stairs' && o.type !== 'bones' && o.type !== 'gold' && o.type !== 'door' && o.x >= x0 && o.x <= x1 && o.y >= y0 && o.y <= y1) dl.push({ k: o.x + o.y + 1, t: 1, o });
+  for (const mo of G.monsters) if (mo.x >= x0 && mo.x <= x1 + 1 && mo.y >= y0 && mo.y <= y1 + 1) dl.push({ k: mo.x + mo.y, t: 2, e: mo });
+  dl.push({ k: h.x + h.y, t: 3, e: h });
+  for (const p of G.proj) dl.push({ k: p.x + p.y, t: 4, p });
+  dl.sort((a, b) => a.k - b.k);
+  for (const d of dl) {
+    if (d.t === 0) drawWall(d.x, d.y);
+    else if (d.t === 1) drawProp(d.o);
+    else if (d.t === 2) drawChar(d.e, false);
+    else if (d.t === 3) drawChar(d.e, true);
+    else drawProj(d.p);
+  }
+  drawFx();
+
+  // lighting
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-over';
+  lctx.clearRect(0, 0, lc.width, lc.height); lctx.fillStyle = 'rgba(3,1,5,0.93)'; lctx.fillRect(0, 0, lc.width, lc.height);
+  lctx.globalCompositeOperation = 'destination-out';
+  const toDev = (wx, wy, lift = 0) => { const [X, Y] = iso(wx, wy); return [((X - G.camX) * z + W / 2) * DPR, ((Y - lift - G.camY) * z + H / 2) * DPR]; };
+  const hole = (wx, wy, rad, str, lift = 0) => {
+    const [X, Y] = toDev(wx, wy, lift), r = rad * HW * 1.42 * z * DPR;
+    if (X < -r || Y < -r || X > lc.width + r || Y > lc.height + r) return;
+    lctx.save(); lctx.translate(X, Y); lctx.scale(1, 0.62);
+    const gr = lctx.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(0,0,0,${str})`); gr.addColorStop(0.5, `rgba(0,0,0,${str * 0.8})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    lctx.fillStyle = gr; lctx.beginPath(); lctx.arc(0, 0, r, 0, 7); lctx.fill(); lctx.restore();
+  };
+  hole(h.x, h.y, 7.2, 1, 30);
+  const braziers = G.objects.filter(o => o.type === 'brazier' && Math.abs(o.x - h.x) < 18 && Math.abs(o.y - h.y) < 18);
+  for (const b of braziers) hole(b.x + 0.5, b.y + 0.5, 4.2 + Math.sin(G.time * 9 + b.x) * 0.15 + Math.sin(G.time * 13.7 + b.y) * 0.1, 0.95, 40);
+  for (const p of G.proj) if (p.type === 'bolt') hole(p.x, p.y, 1.6, 0.8, 40);
+  ctx.drawImage(lc, 0, 0);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const b of braziers) { const [X, Y] = toDev(b.x + 0.5, b.y + 0.5, 50); const r = 170 * z * DPR;
+    const gr = ctx.createRadialGradient(X, Y, 0, X, Y, r); gr.addColorStop(0, 'rgba(255,120,40,0.16)'); gr.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = gr; ctx.fillRect(X - r, Y - r, 2 * r, 2 * r); }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // post-light overlays: labels, hp bars, floating text
+  ctx.setTransform(...baseT);
+  ctx.textAlign = 'center'; ctx.font = '13px "IM Fell English", serif';
+  for (const fi of G.items) {
+    if (dist(fi, h) > 7.5) continue;
+    const [sx, sy] = iso(fi.x, fi.y), label = fi.potion ? 'Health Potion' : fi.item.name;
+    const tw = ctx.measureText(label).width + 10;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(sx - tw / 2, sy - 62, tw, 17);
+    ctx.fillStyle = fi.potion ? '#e06a5a' : rarityHex(fi.item.rarity); ctx.fillText(label, sx, sy - 49);
+  }
+  if (G.hover && G.hover.kind === 'obj') {
+    const o = G.hover.r, [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy);
+    const label = { chest: 'Chest', door: 'Door', urn: 'Funeral Urn', bones: 'Bones', gold: o.amount + ' Gold', stairs: 'Stairs Down — Depth ' + (G.depth + 1) }[o.type];
+    ctx.font = '14px Cinzel, serif'; const tw = ctx.measureText(label).width + 12;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(sx - tw / 2, G.hover.y - 22, tw, 19); ctx.fillStyle = '#e8dcc4'; ctx.fillText(label, sx, G.hover.y - 8);
+  }
+  for (const mo of G.monsters) {
+    if (mo.dead || mo.hp >= mo.maxHp || dist(mo, h) > 9) continue;
+    const [sx, sy] = iso(mo.x, mo.y), top = sy - 128 * mo.scale + 4 - (mo.b.float ? 10 : 0);
+    ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(sx - 25, top - 8, 50, 6);
+    ctx.fillStyle = mo.champ ? '#e6c84a' : '#c4291f'; ctx.fillRect(sx - 24, top - 7, 48 * mo.hp / mo.maxHp, 4);
+  }
+  for (const t of G.texts) {
+    const [sx, sy] = iso(t.x, t.y), k = t.t / t.dur;
+    ctx.globalAlpha = 1 - k * k; ctx.font = `bold ${t.size}px Cinzel, serif`;
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.strokeText(t.s, sx, sy - 100 - k * 40); ctx.fillStyle = t.color; ctx.fillText(t.s, sx, sy - 100 - k * 40);
+  }
+  ctx.globalAlpha = 1;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // hover / cursor
+  G.hover = G.running && !G.dead ? pickAt(mouse.x, mouse.y) : null;
+  cv.style.cursor = G.hover ? (G.hover.kind === 'mon' ? 'crosshair' : 'pointer') : 'default';
+  $('fade').style.opacity = G.fade;
+}
+
+function wallTransparent(x, y) {
+  const h = G.hero, cx = x + 0.5, cy = y + 0.5, dk = (cx + cy) - (h.x + h.y);
+  return dk > 0.2 && dk < 4.5 && Math.abs((cx - cy) - (h.x - h.y)) < 2.2;
+}
+function face(img, sx, sy, sw, sh, A, B, shade) {
+  const ux = B[0] - A[0], uy = B[1] - A[1];
+  ctx.save(); ctx.transform(ux / sw, uy / sw, 0, WALLH / sh, A[0], A[1] - WALLH);
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw * 1.02, sh * 1.01);
+  if (shade) { ctx.fillStyle = `rgba(0,0,0,${shade})`; ctx.fillRect(0, 0, sw * 1.02, sh * 1.01); }
+  ctx.restore();
+}
+function drawWall(x, y) {
+  const m = G.map, v = m.t[y * m.w + x];
+  const L = iso(x, y + 1), B = iso(x + 1, y + 1), R = iso(x + 1, y), T = iso(x, y);
+  const wallish = (a, b) => { const t = m.at(a, b); return t === T_WALL || t === T_DOOR; };
+  const alpha = wallTransparent(x, y) ? 0.3 : 1;
+  ctx.globalAlpha = alpha;
+  const door = v === T_DOOR ? G.objects.find(o => o.type === 'door' && o.x === x && o.y === y) : null;
+  const tsx = ((x * 131 + y * 71) % 4) * 128, tsy = ((x * 37 + y * 113) % 4) * 100;
+  const [dx, dy, dw, dh] = META.props.door;
+  if (!wallish(x, y + 1)) {
+    if (door && door.axis === 'x') face(IMG.props, dx, dy, dw, dh, L, B, 0.15); else face(IMG.wall, tsx, tsy, 128, 75, L, B, 0.42);
+  }
+  if (!wallish(x + 1, y)) {
+    if (door && door.axis === 'y') face(IMG.props, dx, dy, dw, dh, B, R, 0.05); else face(IMG.wall, (tsx + 256) % 512, tsy, 128, 75, B, R, 0.18);
+  }
+  ctx.beginPath(); ctx.moveTo(T[0], T[1] - WALLH); ctx.lineTo(R[0], R[1] - WALLH); ctx.lineTo(B[0], B[1] - WALLH); ctx.lineTo(L[0], L[1] - WALLH); ctx.closePath();
+  ctx.fillStyle = door ? '#2b1d14' : '#1f1b1e'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,240,220,0.07)'; ctx.lineWidth = 1; ctx.stroke();
+  ctx.globalAlpha = 1;
+  if (door) G.pick.push({ kind: 'obj', r: door, x: Math.min(L[0], R[0]), y: T[1] - WALLH, w: TW, h: TH + WALLH });
+}
+const PROP_STYLE = { chest: [0.6, 8], chestopen: [0.6, 8], stairs: [0.66, 0], brazier: [0.62, 10], bones: [0.5, 6], urn: [0.52, 8], gold: [0.42, 6] };
+function drawProp(o) {
+  let key = o.type === 'chest' && o.used ? 'chestopen' : o.type;
+  if (o.type === 'urn' && o.used) return;
+  const [px, py, pw, ph] = META.props[key], [s, off] = PROP_STYLE[key];
+  const [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy), w = pw * s, hh = ph * s;
+  const top = key === 'stairs' ? sy - hh / 2 : sy - hh + off;
+  const hov = G.hover && G.hover.r === o;
+  if (key !== 'stairs' && key !== 'gold') { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(sx, sy + 2, w * 0.42, w * 0.2, 0, 0, 7); ctx.fill(); }
+  if (hov) ctx.filter = 'brightness(1.45)';
+  ctx.drawImage(IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh);
+  ctx.filter = 'none';
+  if (o.type === 'brazier') { // flickering embers
+    for (let i = 0; i < 2; i++) { const t = (G.time * 0.9 + i * 0.5 + o.x * 0.13) % 1; ctx.fillStyle = `rgba(255,${150 + i * 40},60,${1 - t})`;
+      ctx.fillRect(sx - 6 + Math.sin(t * 9 + i) * 8, top + 10 - t * 40, 2, 2); }
+  }
+  if (interactable(o)) G.pick.push({ kind: 'obj', r: o, x: sx - w / 2, y: top, w, h: hh });
+}
+function drawChar(e, isHero) {
+  const sheet = isHero ? 'hero' : e.type, md = META.characters[sheet], img = IMG[sheet];
+  const s = isHero ? 1 : e.scale, [sx, sy0] = iso(e.x, e.y);
+  let sy = sy0, alpha = 1;
+  if (!isHero && e.dead) { alpha = Math.max(0, 1 - e.deathT / 1.1); sy += e.deathT * 14; }
+  if (!isHero && e.b.float) sy -= 8 + Math.sin(G.time * 3 + e.x) * 4;
+  ctx.fillStyle = `rgba(0,0,0,${0.45 * alpha})`; ctx.beginPath(); ctx.ellipse(sx, sy0 + 2, 26 * s, 12 * s, 0, 0, 7); ctx.fill();
+  const frame = e.moving ? Math.floor(e.anim) % 4 : 0, row = e.dir;
+  // lunge toward facing direction
+  let ox = 0, oy = 0;
+  if (e.lunge > 0) { const a = [0, 7, 6, 5, 4, 3, 2, 1].indexOf(row) * Math.PI / 4; ox = Math.sin(a) * 10 * e.lunge; oy = Math.cos(a) * 6 * e.lunge; }
+  if (!isHero && e.windup > 0) { ox += (rnd() - 0.5) * 2; }
+  const w = md.fw * s, hgt = md.fh * s, dx = sx - w / 2 + ox, dy = sy - hgt + 6 * s + oy;
+  ctx.globalAlpha = alpha;
+  const hover = !isHero && G.hover && G.hover.r === e;
+  const filters = [];
+  if (e.hitT > 0) filters.push('brightness(2.4) saturate(0.3)');
+  else if (hover) filters.push('brightness(1.35)');
+  if (!isHero && e.champ) filters.push('drop-shadow(0 0 5px rgba(220,40,30,0.9))');
+  if (filters.length) ctx.filter = filters.join(' ');
+  ctx.drawImage(img, frame * md.fw, row * md.fh, md.fw, md.fh, dx, dy, w, hgt);
+  ctx.filter = 'none'; ctx.globalAlpha = 1;
+  if (!isHero && !e.dead) G.pick.push({ kind: 'mon', r: e, x: sx - w * 0.32, y: dy + hgt * 0.15, w: w * 0.64, h: hgt * 0.85 });
+  if (isHero && e.swing) drawSwing(e);
+}
+function drawSwing(h) {
+  const s = h.swing, k = s.t / s.dur, [sx, sy] = iso(h.x, h.y), cy = sy - 50;
+  const toScreenAng = a => { const dx = Math.cos(a), dy = Math.sin(a); return Math.atan2((dx + dy) * HH, (dx - dy) * HW); };
+  const a0 = toScreenAng(s.ang - s.arc), a1 = toScreenAng(s.ang + s.arc);
+  let span = a1 - a0; if (span < 0) span += Math.PI * 2;
+  const cur = a0 + span * Math.min(1, k * 1.4), tail = a0 + span * Math.max(0, k * 1.4 - 0.55);
+  ctx.save(); ctx.translate(sx, cy); ctx.scale(1, 0.6);
+  ctx.strokeStyle = `rgba(235,225,205,${0.75 * (1 - k)})`; ctx.lineWidth = 9; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(0, 0, 62, tail, cur); ctx.stroke();
+  ctx.strokeStyle = `rgba(255,255,255,${0.9 * (1 - k)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 66, tail, cur); ctx.stroke();
+  ctx.restore();
+}
+function drawProj(p) {
+  const [sx, sy] = iso(p.x, p.y);
+  if (p.type === 'arrow') {
+    const n = Math.hypot(p.vx, p.vy), [tx, ty] = iso(p.x - p.vx / n * 0.6, p.y - p.vy / n * 0.6);
+    ctx.strokeStyle = '#6b4a2a'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(tx, ty - 44); ctx.lineTo(sx, sy - 44); ctx.stroke();
+    ctx.fillStyle = '#d9d2c0'; ctx.beginPath(); ctx.arc(sx, sy - 44, 2.2, 0, 7); ctx.fill();
+  } else {
+    const gr = ctx.createRadialGradient(sx, sy - 44, 0, sx, sy - 44, 16); gr.addColorStop(0, 'rgba(210,255,220,1)'); gr.addColorStop(0.4, 'rgba(90,255,150,0.8)'); gr.addColorStop(1, 'rgba(40,200,100,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(sx, sy - 44, 16, 0, 7); ctx.fill();
+  }
+}
+function drawFx() {
+  for (const f of G.fx) {
+    const k = f.t / f.dur, [sx, sy] = iso(f.x, f.y);
+    if (f.type === 'spark') { ctx.fillStyle = `rgba(${f.color},${1 - k})`; ctx.fillRect(sx - 1.5, sy - f.z - 1.5, 3, 3); }
+    else if (f.type === 'ring') { ctx.strokeStyle = `rgba(${f.color},${1 - k})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(sx, sy, 20 + k * 90, (20 + k * 90) * 0.5, 0, 0, 7); ctx.stroke(); }
+  }
+}
+// minimap (iso projected, centred on hero)
+const mm = $('minimap'), mctx = mm.getContext('2d');
+function updateMinimap() {
+  if (!G || !G.minimap) return;
+  const m = G.map, h = G.hero, s = 2.2;
+  mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.clearRect(0, 0, mm.width, mm.height);
+  const ox = mm.width / 2 - (h.x - h.y) * s, oy = mm.height / 2 - (h.x + h.y) * s / 2;
+  mctx.setTransform(s, s / 2, -s, s / 2, ox, oy);
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+    const i = y * m.w + x; if (!m.seen[i]) continue; const v = m.t[i];
+    mctx.fillStyle = v === T_WALL ? '#6d6257' : v === T_DOOR ? '#8a5a2b' : '#2d2629'; mctx.fillRect(x, y, 1, 1);
+  }
+  for (const o of G.objects) if (o.type === 'stairs' && m.seen[o.y * m.w + o.x]) { mctx.fillStyle = '#e6c84a'; mctx.fillRect(o.x - 0.5, o.y - 0.5, 2, 2); }
+  mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.fillStyle = '#ff4030'; mctx.beginPath(); mctx.arc(mm.width / 2, mm.height / 2, 3, 0, 7); mctx.fill();
+}
+// equip-screen portrait: the hero slowly turning through all eight directions
+const pctx = $('portrait').getContext('2d');
+function drawPortrait() {
+  if (!equipOpen()) return;
+  const md = META.characters.hero, row = Math.floor(G.time / 1.2) % 8, frame = Math.floor(G.time * 7) % 4;
+  pctx.clearRect(0, 0, 128, 128);
+  pctx.drawImage(IMG.hero, frame * md.fw, row * md.fh, md.fw, md.fh, 0, 0, 128, 128);
+}
+
+// =====================================================================================
+//  Screens & main loop
+// =====================================================================================
+function showDeath() {
+  const h = G.hero; G.running = false;
+  $('screen').classList.remove('hidden');
+  $('screen').querySelector('h1').textContent = 'You Have Fallen';
+  $('screenText').textContent = `Slain at depth ${G.depth} (${depthName(G.depth)}) — level ${h.lvl}, ${h.kills} foes destroyed, ${h.gold} gold gathered.`;
+  $('screenControls').style.display = 'none';
+  $('startBtn').textContent = 'Rise Again';
+}
+function startGame() {
+  audio(); newGame(); G.running = true; G.camSnap = true; G.deathShown = false;
+  $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); hideTip();
+}
+$('startBtn').addEventListener('click', startGame);
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  requestAnimationFrame(frame);   // schedule first, so an error can never stop the loop
+  if (G) {
+    try {
+      if (G.running || G.dead) update(dt);
+      render(); updateHud(); drawPortrait();
+    } catch (err) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
+      if (!frame.errLogged) { frame.errLogged = true; console.error('Frame error (game continues):', err); }
+    }
+  }
+}
+loadAll().then(() => {
+  floorPat = ctx.createPattern(IMG.floor, 'repeat');
+  floorPat.setTransform(new DOMMatrix().scale(3 / 512));
+  buildUI();
+  newGame(); G.running = false; G.camSnap = true;   // render the first level behind the title screen
+  const b = $('startBtn'); b.disabled = false; b.textContent = 'Enter the Crypt';
+  requestAnimationFrame(frame);
+}).catch(err => { $('startBtn').textContent = 'Failed to load ' + err; });
+</script>
+</body>
+</html>

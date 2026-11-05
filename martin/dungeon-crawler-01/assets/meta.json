@@ -1,0 +1,183 @@
+{
+ "characters": {
+  "hero": {
+   "fw": 128,
+   "fh": 128,
+   "frames": 4
+  },
+  "skeleton": {
+   "fw": 165,
+   "fh": 128,
+   "frames": 4
+  },
+  "ghoul": {
+   "fw": 144,
+   "fh": 128,
+   "frames": 4
+  },
+  "spider": {
+   "fw": 195,
+   "fh": 128,
+   "frames": 4
+  },
+  "wraith": {
+   "fw": 107,
+   "fh": 128,
+   "frames": 4
+  },
+  "demon": {
+   "fw": 155,
+   "fh": 128,
+   "frames": 4
+  }
+ },
+ "items": {
+  "shortsword": [
+   0,
+   0
+  ],
+  "longsword": [
+   96,
+   0
+  ],
+  "greatsword": [
+   192,
+   0
+  ],
+  "handaxe": [
+   288,
+   0
+  ],
+  "battleaxe": [
+   384,
+   0
+  ],
+  "execaxe": [
+   480,
+   0
+  ],
+  "shortbow": [
+   0,
+   96
+  ],
+  "longbow": [
+   96,
+   96
+  ],
+  "bonebow": [
+   192,
+   96
+  ],
+  "leathercap": [
+   288,
+   96
+  ],
+  "greathelm": [
+   384,
+   96
+  ],
+  "leathertunic": [
+   480,
+   96
+  ],
+  "platemail": [
+   0,
+   192
+  ],
+  "leathergloves": [
+   96,
+   192
+  ],
+  "gauntlets": [
+   192,
+   192
+  ],
+  "leatherboots": [
+   288,
+   192
+  ],
+  "ironboots": [
+   384,
+   192
+  ],
+  "silverring": [
+   480,
+   192
+  ],
+  "rubyring": [
+   0,
+   288
+  ],
+  "skullring": [
+   96,
+   288
+  ],
+  "sapphireamulet": [
+   192,
+   288
+  ],
+  "bloodamulet": [
+   288,
+   288
+  ],
+  "bonetalisman": [
+   384,
+   288
+  ],
+  "potion": [
+   480,
+   288
+  ]
+ },
+ "props": {
+  "chest": [
+   0,
+   0,
+   132,
+   141
+  ],
+  "chestopen": [
+   134,
+   0,
+   144,
+   171
+  ],
+  "door": [
+   280,
+   0,
+   131,
+   207
+  ],
+  "stairs": [
+   413,
+   0,
+   156,
+   127
+  ],
+  "brazier": [
+   571,
+   0,
+   104,
+   167
+  ],
+  "bones": [
+   677,
+   0,
+   148,
+   117
+  ],
+  "urn": [
+   827,
+   0,
+   95,
+   151
+  ],
+  "gold": [
+   924,
+   0,
+   127,
+   90
+  ]
+ },
+ "iconSize": 96
+}
