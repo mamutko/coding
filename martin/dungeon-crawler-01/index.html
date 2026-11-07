@@ -757,7 +757,7 @@ function killMonster(m) {
   if (m.boss) { lootItem(genItem(d + 1, 0.35, null, null, rd), m.x, m.y); dropGold(ri(20, 40) * d, m.x, m.y); log(m.name + ' is destroyed. The guardian\'s chest unseals.', '#7fe08a'); }
   else if (m.champ) { lootItem(genItem(d + 1, 0.35, null, null, rd), m.x, m.y); if (rnd() < 0.5) lootItem(genItem(d + 1, 0.2, null, null, rd), m.x, m.y); }
   else if (rnd() < 0.13) lootItem(genItem(d, 0, null, null, rd), m.x, m.y);
-  if (rnd() < 0.045) dropPotion(m.x, m.y);
+  if (rnd() < 0.0675) dropPotion(m.x, m.y);
   if (rnd() < 0.3) dropGold(ri(2, 8) * d, m.x, m.y);
 }
 function heroAttack(px, py, target) {
@@ -866,7 +866,7 @@ function act(ref) {
       const n = ri(1, 2) + (rnd() < 0.4 ? 1 : 0);
       for (let i = 0; i < n; i++) lootItem(genItem(d + (rnd() < 0.3 ? 1 : 0), 0.15, null, null, o.boss ? d + 2 : d), o.x + 0.5, o.y + 0.5);
       dropGold(ri(10, 30) * d, o.x + 0.5, o.y + 0.5);
-      if (rnd() < 0.15) dropPotion(o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.225) dropPotion(o.x + 0.5, o.y + 0.5);
       log('The chest creaks open.', '#c9a45c');
       break;
     }
@@ -874,7 +874,7 @@ function act(ref) {
       if (o.used) return; o.used = true; G.map.block[o.y * G.map.w + o.x] = 0; sfx('hit'); gainXp(2 * d);
       for (let i = 0; i < 8; i++) G.fx.push({ type: 'spark', x: o.x + 0.5, y: o.y + 0.5, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 20, vz: 80, t: 0, dur: 0.5, color: '140,120,90' });
       if (rnd() < 0.35) dropGold(ri(3, 10) * d, o.x + 0.5, o.y + 0.5);
-      if (rnd() < 0.06) dropPotion(o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.09) dropPotion(o.x + 0.5, o.y + 0.5);
       if (rnd() < 0.08) lootItem(genItem(d), o.x + 0.5, o.y + 0.5);
       break;
     case 'bones':

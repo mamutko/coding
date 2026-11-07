@@ -371,12 +371,12 @@ affected. The guardian's chest's guaranteed item is not thinned.
 
 | Source | Drops (item chances before `LOOT`) |
 |---|---|
-| Monster | 13 % item, 4.5 % potion, 30 % gold (2–8 × d) |
+| Monster | 13 % item, 6.75 % potion, 30 % gold (2–8 × d) |
 | Champion | an item of ilvl d+1 (boost 0.35), plus a 50 % chance of a second (boost 0.2) |
-| Boss | an item of ilvl d+1 (boost 0.35), gold (20–40 × d), plus the normal 4.5 % potion / 30 % gold rolls |
-| Chest | 1–3 items (boost 0.15, 30 % chance of ilvl+1), gold (10–30 × d), 15 % potion |
+| Boss | an item of ilvl d+1 (boost 0.35), gold (20–40 × d), plus the normal 6.75 % potion / 30 % gold rolls |
+| Chest | 1–3 items (boost 0.15, 30 % chance of ilvl+1), gold (10–30 × d), 22.5 % potion |
 | Guardian's chest | **always** one item of ilvl d+1 that is rare (30 %, if depth + 2 allows rares, i.e. from depth 2) or else magic, gold (30–60 × d), plus everything a normal chest drops |
-| Urn | 35 % gold, 6 % potion, 8 % item |
+| Urn | 35 % gold, 9 % potion, 8 % item |
 | Bones | 20 % gold, 10 % item |
 
 **Guardian's chest.** It glows green and is labelled *Guardian's Chest* on hover. While the boss lives it is
