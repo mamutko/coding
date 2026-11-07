@@ -31,7 +31,8 @@
   #orb { position: absolute; left: 22px; bottom: 22px; width: 120px; height: 120px; border-radius: 50%;
     background: radial-gradient(circle at 50% 40%, #1a0d10, #070305 70%);
     border: 3px solid var(--gold-dim); box-shadow: 0 0 0 2px #1b130b, 0 0 24px rgba(0,0,0,0.9), inset 0 0 18px #000;
-    overflow: hidden; }
+    overflow: hidden; pointer-events: auto; touch-action: none; }
+  #orb.held { border-color: var(--gold); box-shadow: 0 0 0 2px #1b130b, 0 0 22px rgba(230,180,80,0.75), inset 0 0 18px #000; }
   #orbFill { position: absolute; left: 0; right: 0; bottom: 0; height: 100%;
     background: radial-gradient(circle at 40% 30%, #ff5a4a, #b3161a 45%, #4a0508 100%); transition: height 0.15s linear; }
   #orbGlass { position: absolute; inset: 0; border-radius: 50%;
@@ -121,6 +122,16 @@
   #screen p { max-width: 620px; color: var(--ink-dim); font-size: 17px; }
   #screen .controls { font-size: 15px; color: var(--ink); line-height: 1.6; margin: 6px 0 20px; }
   #screen button { font-size: 17px; padding: 10px 26px; }
+  #screenText.fallen { color: #e0a090; }
+  #heroPick { display: flex; flex-direction: column; gap: 6px; width: min(420px, 100%); margin: 0 0 16px; }
+  #heroPick .heroBtn { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 15px;
+    padding: 8px 14px; text-align: left; }
+  #heroPick .heroBtn .sub { font-family: Georgia, serif; font-size: 13px; color: var(--ink-dim); }
+  #heroPick .heroBtn.sel { border-color: var(--gold); color: #fff; box-shadow: 0 0 10px rgba(201,164,92,0.45); }
+  #heroPick input { font: 16px Cinzel, serif; padding: 8px 12px; background: #120c0b; color: var(--ink);
+    border: 1px solid var(--gold-dim); outline: none; text-align: center; }
+  #heroPick input:focus { border-color: var(--gold); }
+  #heroPick input.bad { border-color: #c4291f; }
   #fade { position: fixed; inset: 0; background: #000; pointer-events: none; opacity: 0; z-index: 30; }
 </style>
 </head>
@@ -143,7 +154,7 @@
 <div id="flash"></div>
 
 <div id="equip" class="hidden">
-  <div class="eqHead"><h2>Equipment</h2><span class="hint">I / Tab / Esc to close — the world does not wait for you.</span></div>
+  <div class="eqHead"><h2 id="eqTitle">Equipment</h2><span class="hint">I / Tab / Esc to close — the world does not wait for you.</span></div>
   <div class="eqBody">
     <div>
       <div id="doll"><canvas id="portrait" width="128" height="128"></canvas></div>
@@ -169,10 +180,11 @@
   <h1>Crypt of Endless Night</h1>
   <p id="screenText">Descend the endless crypt alone. Every stair leads deeper, and every depth breeds fouler things.</p>
   <div class="controls" id="screenControls">
-    <b>Left click</b> — walk / open / pick up &nbsp;·&nbsp; <b>Right click</b> (or <b>Shift + click</b>) — attack<br>
+    <b>Left click</b> — walk / open / pick up &nbsp;·&nbsp; <b>Right click</b> (or <b>Shift + click</b>, or tap while holding the life orb) — attack<br>
     <b>I</b> or <b>Tab</b> — equipment &nbsp;·&nbsp; <b>1–9, 0</b> — quick keys &nbsp;·&nbsp; <b>Q</b> — drink potion<br>
     <b>M</b> — minimap &nbsp;·&nbsp; <b>N</b> — sound &nbsp;·&nbsp; <b>Mouse wheel</b> — zoom
   </div>
+  <div id="heroPick"></div>
   <button id="startBtn" disabled>Loading…</button>
 </div>
 
@@ -309,6 +321,9 @@ const RARE_A = ['Grim', 'Dread', 'Bone', 'Night', 'Blood', 'Ash', 'Grave', 'Wrai
 const RARE_B = ['bite', 'song', 'fang', 'ward', 'veil', 'shroud', 'mark', 'brand', 'coil', 'howl', 'spire', 'grasp'];
 let nextId = 1;
 
+// Loot tuning: every random item drop happens with probability LOOT (gold amounts are scaled by it too), and
+// the rare / magic odds are scaled by RARE_ODDS / MAGIC_ODDS. Health potions are not affected.
+const LOOT = 0.8, RARE_ODDS = 0.2, MAGIC_ODDS = 0.5;
 function genItem(ilvl, boost = 0, forceBase = null, forceRarity = null) {
   const keys = Object.keys(BASES).filter(k => BASES[k].lvl <= ilvl);
   const baseKey = forceBase || pick(keys);
@@ -319,7 +334,8 @@ function genItem(ilvl, boost = 0, forceBase = null, forceRarity = null) {
   if (b.armor) it.armor = Math.round(b.armor * sc);
   if (b.implicit) for (const k in b.implicit) it.stats[k] = +(b.implicit[k] * (1 + 0.1 * (ilvl - 1))).toFixed(k === 'regen' ? 1 : 0);
   let rarity = forceRarity;
-  if (!rarity) { const r = rnd(), rare = 0.07 + boost * 0.5, magic = 0.3 + boost; rarity = r < rare ? 'rare' : r < rare + magic ? 'magic' : 'common'; }
+  if (!rarity) { const r = rnd(), rare = (0.07 + boost * 0.5) * RARE_ODDS, magic = (0.3 + boost) * MAGIC_ODDS;
+    rarity = r < rare ? 'rare' : r < rare + magic ? 'magic' : 'common'; }
   it.rarity = rarity;
   const n = rarity === 'rare' ? ri(3, 4) : rarity === 'magic' ? ri(1, 2) : 0;
   const pool = AFFIX.filter(a => !(a.noWeapon && b.slot === 'weapon') && !(a.only && a.only !== b.slot));
@@ -347,19 +363,23 @@ const MON = {
   demon:    { name: 'Pit Demon', scale: 1.3, hp: 75, dmg: [8, 13], armor: 12, speed: 2.1, reach: 1.35, cd: 1.5, xp: 60, r: 0.45, minD: 3, w: 1 },
 };
 const CHAMP_PRE = ['Dread', 'Blighted', 'Bloodsoaked', 'Ancient', 'Accursed', 'Ravenous'];
+const BOSS_NAMES = ['Morgrath', 'Vexhollow', 'Ulthane', 'Skarn', 'Belmorah', 'Grisvald', 'Nythra', 'Corvane', 'Drokkar', 'Ashmire'];
 const LEVEL_NAMES = ['The Forsaken Crypt', 'The Ossuary', 'Halls of the Hollow', 'The Weeping Catacombs', 'Sepulchre of Ash',
   'The Blood Vaults', 'Throne of Bones', 'The Abyssal Nave'];
 const depthName = d => LEVEL_NAMES[(d - 1) % 8] + (d > 8 ? ' ' + ROMAN(Math.ceil(d / 8)) : '');
 
-function makeMonster(type, x, y, d) {
+// Tiers: normal; champion (10 % from depth 2, red glow); boss (one per level, green glow, see buildLevel).
+const TIER = { normal: { size: 1, hp: 1, dmg: 1, xp: 1, armor: 0 }, champ: { size: 1.15, hp: 2.5, dmg: 1.5, xp: 3, armor: 0 },
+  boss: { size: 1.35, hp: 6, dmg: 1.8, xp: 8, armor: 4 } };
+function makeMonster(type, x, y, d, boss = false) {
   const b = MON[type];
-  const champ = d >= 2 && rnd() < 0.1;
+  const champ = !boss && d >= 2 && rnd() < 0.1, T = TIER[boss ? 'boss' : champ ? 'champ' : 'normal'];
   const hpS = Math.pow(1.17, d - 1), dmS = Math.pow(1.13, d - 1);
-  const m = { type, b, x, y, r: b.r * (champ ? 1.15 : 1), scale: b.scale * (champ ? 1.15 : 1), lvl: d, champ,
-    name: champ ? pick(CHAMP_PRE) + ' ' + b.name : b.name,
-    maxHp: Math.round(b.hp * hpS * (champ ? 2.5 : 1)), dmg: [b.dmg[0] * dmS * (champ ? 1.5 : 1), b.dmg[1] * dmS * (champ ? 1.5 : 1)],
-    armor: Math.round(b.armor + 3 * (d - 1)), speed: b.speed * Math.min(1.35, 1 + 0.015 * (d - 1)),
-    xp: Math.round(b.xp * Math.pow(1.17, d - 1) * (champ ? 3 : 1)),
+  const m = { type, b, x, y, r: boss ? Math.min(b.r * 1.15, 0.48) : b.r * T.size, scale: b.scale * T.size, lvl: d, champ, boss,
+    name: boss ? pick(BOSS_NAMES) + ', ' + b.name + ' Tyrant' : champ ? pick(CHAMP_PRE) + ' ' + b.name : b.name,
+    maxHp: Math.round(b.hp * hpS * T.hp), dmg: [b.dmg[0] * dmS * T.dmg, b.dmg[1] * dmS * T.dmg],
+    armor: Math.round(b.armor + 3 * (d - 1) + T.armor * d), speed: b.speed * Math.min(1.35, 1 + 0.015 * (d - 1)),
+    xp: Math.round(b.xp * Math.pow(1.17, d - 1) * T.xp),
     state: 'idle', cd: rnd(), windup: 0, path: [], repath: 0, dir: ri(0, 7), anim: rnd() * 4, moving: false,
     hitT: 0, dead: false, deathT: 0, wander: 1 + rnd() * 4, lunge: 0, lastHit: -99 };
   m.hp = m.maxHp;
@@ -370,7 +390,7 @@ function makeMonster(type, x, y, d) {
 //  Game state
 // =====================================================================================
 let G = null;
-const mouse = { x: 0, y: 0, left: false, right: false, holdWalk: false, walkT: 0, shiftRight: false };
+const mouse = { x: 0, y: 0, left: false, right: false, holdWalk: false, walkT: 0, leftId: null, rightId: null, orbId: null };
 
 function newHero() {
   const h = { x: 0, y: 0, r: 0.28, dir: 0, anim: 0, moving: false, path: [], intent: null, attackTarget: null, attackPending: false,
@@ -385,14 +405,43 @@ function newHero() {
   return h;
 }
 
-function newGame() {
+// entry: a saved hero (see Saving) to resume at its saved depth on a freshly generated level, or null for a
+// fresh level-1 hero at depth 1.
+function newGame(entry) {
   nextId = 1; logEl.innerHTML = '';
-  G = { depth: 1, hero: newHero(), map: null, monsters: [], objects: [], items: [], proj: [], fx: [], texts: [],
+  G = { depth: entry ? entry.depth : 1, hero: newHero(), map: null, monsters: [], objects: [], items: [], proj: [], fx: [], texts: [],
     zoom: 1, camX: 0, camY: 0, time: 0, dead: false, deadT: 0, hover: null, uiHover: null, pick: [], fade: 1, minimap: true, miniT: 0 };
+  if (entry) {
+    Object.assign(G.hero, JSON.parse(JSON.stringify(entry.hero)));
+    G.hero.saveId = entry.id;
+    const owned = [...Object.values(G.hero.equip), ...G.hero.inv].filter(Boolean);
+    nextId = owned.reduce((m, it) => Math.max(m, it.id), 0) + 1;   // new items never reuse a saved item's id
+  }
   recalc(); G.hero.hp = G.hero.st.maxHp;
-  buildLevel(1);
-  log('You enter ' + depthName(1) + '.', '#c9a45c');
+  buildLevel(G.depth);
+  log('You enter ' + depthName(G.depth) + '.', '#c9a45c');
   refreshUI();
+}
+
+// =====================================================================================
+//  Saving (browser localStorage)
+// =====================================================================================
+// One key holds every hero: { v: 1, last: <id of the last hero played>, heroes: { <id>: entry } }, where
+// entry = { id, name, depth, lvl, saved: <ms timestamp>, hero: { ...the SAVED_FIELDS of the hero } }.
+// A hero is saved when created and on arrival at each new depth; the level layout is never saved.
+const SAVE_KEY = 'crypt-of-endless-night.save';
+const SAVED_FIELDS = ['name', 'lvl', 'xp', 'base', 'equip', 'inv', 'potions', 'gold', 'hotkeys', 'kills'];
+function readSave() {
+  try { const sv = JSON.parse(localStorage.getItem(SAVE_KEY)); if (sv && sv.v === 1 && sv.heroes) return sv; } catch (e) {}
+  return { v: 1, last: null, heroes: {} };
+}
+function saveHero() {
+  const sv = readSave(), h = G.hero, data = {};
+  for (const k of SAVED_FIELDS) data[k] = h[k];
+  sv.heroes[h.saveId] = { id: h.saveId, name: h.name, depth: G.depth, lvl: h.lvl, saved: Date.now(), hero: data };
+  sv.last = h.saveId;
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(sv)); return true; }
+  catch (e) { log('Progress could not be saved (browser storage unavailable).', '#e06a5a'); return false; }
 }
 
 // =====================================================================================
@@ -509,12 +558,26 @@ function buildLevel(d) {
   objects.push({ type: 'stairs', x: far.cx, y: far.cy, used: false, block: false });
   const monTypes = Object.keys(MON).filter(k => MON[k].minD <= d);
   const weighted = []; for (const k of monTypes) for (let i = 0; i < MON[k].w; i++) weighted.push(k);
+  // boss room: the largest of the rooms that are neither the start nor the stairs room, preferring rooms far
+  // from the start (area x path distance); the boss stands near its middle beside a sealed guardian's chest
+  const bossRoom = rooms.filter(r => r !== start && r !== far)
+    .sort((a, b) => b.w * b.h * (distArr[b.cy * w + b.cx] + 10) - a.w * a.h * (distArr[a.cy * w + a.cx] + 10))[0] || far;
   for (const r of rooms) {
+    if (r === bossRoom) {
+      place('brazier', r, true); place('brazier', r, true);
+      place('chest', r, true, { boss: true });
+      const p = freeInner(r, false) || [r.cx, r.cy]; occ[p[1] * w + p[0]] = 1;
+      // boss type: one that has appeared since at least two depths earlier (so no demon boss before depth 5)
+      const bossPool = weighted.filter(k => MON[k].minD <= Math.max(1, d - 2));
+      const boss = makeMonster(pick(bossPool), p[0] + 0.5, p[1] + 0.5, d, true); monsters.push(boss); map.boss = boss;
+      for (let i = ri(1, 2); i > 0; i--) { const q = freeInner(r, false); if (q) monsters.push(makeMonster(pick(weighted), q[0] + 0.5, q[1] + 0.5, d)); }
+      continue;
+    }
     if (rnd() < 0.75 || r === start) place('brazier', r, true);
     if (r !== start && rnd() < 0.38) place('chest', r, true);
     for (let i = ri(0, 2); i > 0; i--) place('urn', r, true);
     for (let i = ri(0, 2); i > 0; i--) place('bones', r, false);
-    if (rnd() < 0.2) place('gold', r, false, { amount: ri(3, 12) * d });
+    if (rnd() < 0.2) place('gold', r, false, { amount: Math.max(1, Math.round(ri(3, 12) * d * LOOT)) });
     if (r === start) continue;
     const n = Math.min(7, 1 + Math.floor((r.w * r.h) / 22) + Math.floor(d / 3) + (rnd() < 0.4 ? 1 : 0));
     for (let i = 0; i < n; i++) {
@@ -659,8 +722,9 @@ function killMonster(m) {
   sfx('die');
   gainXp(m.xp); floatText(m.x, m.y - 0.3, '+' + m.xp + ' xp', '#c9b37a', 1.1, 13);
   const d = G.depth;
-  if (m.champ) { dropItem(genItem(d + 1, 0.35), m.x, m.y); if (rnd() < 0.5) dropItem(genItem(d + 1, 0.2), m.x, m.y); }
-  else if (rnd() < 0.13) dropItem(genItem(d, 0), m.x, m.y);
+  if (m.boss) { lootItem(genItem(d + 1, 0.35), m.x, m.y); dropGold(ri(20, 40) * d, m.x, m.y); log(m.name + ' is destroyed. The guardian\'s chest unseals.', '#7fe08a'); }
+  else if (m.champ) { lootItem(genItem(d + 1, 0.35), m.x, m.y); if (rnd() < 0.5) lootItem(genItem(d + 1, 0.2), m.x, m.y); }
+  else if (rnd() < 0.13) lootItem(genItem(d, 0), m.x, m.y);
   if (rnd() < 0.09) dropPotion(m.x, m.y);
   if (rnd() < 0.3) dropGold(ri(2, 8) * d, m.x, m.y);
 }
@@ -724,8 +788,9 @@ function dropSpot(x, y) {
   return [x, y];
 }
 function dropItem(item, x, y) { const [px, py] = dropSpot(x, y); G.items.push({ item, x: px, y: py, t: rnd() * 6 }); }
+function lootItem(item, x, y) { if (rnd() < LOOT) dropItem(item, x, y); }   // a random drop, thinned by LOOT
 function dropPotion(x, y) { const [px, py] = dropSpot(x, y); G.items.push({ potion: true, x: px, y: py, t: rnd() * 6 }); }
-function dropGold(n, x, y) { const [px, py] = dropSpot(x, y); G.objects.push({ type: 'gold', x: Math.floor(px), y: Math.floor(py), fx: px, fy: py, amount: n, used: false, block: false }); }
+function dropGold(n, x, y) { n = Math.max(1, Math.round(n * LOOT)); const [px, py] = dropSpot(x, y); G.objects.push({ type: 'gold', x: Math.floor(px), y: Math.floor(py), fx: px, fy: py, amount: n, used: false, block: false }); }
 
 function objCenter(o) { return o.fx !== undefined ? [o.fx, o.fy] : [o.x + 0.5, o.y + 0.5]; }
 function interactable(o) {
@@ -751,9 +816,15 @@ function act(ref) {
     case 'door':
       if (o.open) return; o.open = true; G.map.t[o.y * G.map.w + o.x] = T_OPEN; sfx('door'); gainXp(d); break;
     case 'chest': {
-      if (o.used) return; o.used = true; sfx('chest'); gainXp(6 * d);
+      if (o.used) return;
+      if (o.boss && G.map.boss && !G.map.boss.dead) { log('The chest is sealed while its guardian lives.', '#7fe08a'); sfx('door'); return; }
+      o.used = true; sfx('chest'); gainXp((o.boss ? 15 : 6) * d);
+      if (o.boss) {   // guardian's chest: always one rare (30 %) or magic item, plus a normal chest's loot
+        dropItem(genItem(d + 1, 0, null, rnd() < 0.3 ? 'rare' : 'magic'), o.x + 0.5, o.y + 0.5);
+        dropGold(ri(30, 60) * d, o.x + 0.5, o.y + 0.5);
+      }
       const n = ri(1, 2) + (rnd() < 0.4 ? 1 : 0);
-      for (let i = 0; i < n; i++) dropItem(genItem(d + (rnd() < 0.3 ? 1 : 0), 0.15), o.x + 0.5, o.y + 0.5);
+      for (let i = 0; i < n; i++) lootItem(genItem(d + (rnd() < 0.3 ? 1 : 0), 0.15), o.x + 0.5, o.y + 0.5);
       dropGold(ri(10, 30) * d, o.x + 0.5, o.y + 0.5);
       if (rnd() < 0.3) dropPotion(o.x + 0.5, o.y + 0.5);
       log('The chest creaks open.', '#c9a45c');
@@ -764,12 +835,12 @@ function act(ref) {
       for (let i = 0; i < 8; i++) G.fx.push({ type: 'spark', x: o.x + 0.5, y: o.y + 0.5, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 20, vz: 80, t: 0, dur: 0.5, color: '140,120,90' });
       if (rnd() < 0.35) dropGold(ri(3, 10) * d, o.x + 0.5, o.y + 0.5);
       if (rnd() < 0.12) dropPotion(o.x + 0.5, o.y + 0.5);
-      if (rnd() < 0.08) dropItem(genItem(d), o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.08) lootItem(genItem(d), o.x + 0.5, o.y + 0.5);
       break;
     case 'bones':
       if (o.used) return; o.used = true; gainXp(d); log('You search the bones.', '#a99c86');
       if (rnd() < 0.2) dropGold(ri(2, 8) * d, o.x + 0.5, o.y + 0.5);
-      if (rnd() < 0.1) dropItem(genItem(d), o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.1) lootItem(genItem(d), o.x + 0.5, o.y + 0.5);
       break;
     case 'gold':
       if (o.used) return; o.used = true; h.gold += o.amount; G.objects.splice(G.objects.indexOf(o), 1); sfx('gold');
@@ -783,6 +854,7 @@ function descend() {
   gainXp(10 * d);
   buildLevel(d);
   log('You descend to depth ' + d + ': ' + depthName(d) + '.', '#c9a45c');
+  if (saveHero()) log('Progress saved.', '#a99c86');
 }
 function drinkPotion() {
   const h = G.hero; if (G.dead) return;
@@ -863,7 +935,7 @@ function buildUI() {
   for (let i = 0; i < 30; i++) {
     const el = document.createElement('div'); el.className = 'cell'; el.dataset.ref = 'inv:' + i;
     el.innerHTML = '<div class="ico"></div><span class="bindTag"></span>';
-    el.addEventListener('click', e => { if (e.shiftKey) { dropFromInv(i); hideTip(); } else equipFromInv(i); });
+    el.addEventListener('click', e => { if (modifier(e)) { dropFromInv(i); hideTip(); } else equipFromInv(i); });
     el.addEventListener('contextmenu', e => { e.preventDefault(); dropFromInv(i); hideTip(); });
     inv.appendChild(el);
   }
@@ -873,7 +945,7 @@ function buildUI() {
     for (let i = 0; i < 10; i++) {
       const el = document.createElement('div'); el.className = 'hk'; el.dataset.hk = i;
       el.innerHTML = `<span class="num">${i === 9 ? 0 : i + 1}</span><div class="ico"></div><span class="cnt"></span>`;
-      el.addEventListener('click', e => { if (e.shiftKey) { G.hero.hotkeys[i] = null; refreshUI(); } else useHotkey(i); });
+      el.addEventListener('click', e => { if (modifier(e)) { G.hero.hotkeys[i] = null; refreshUI(); } else useHotkey(i); });
       el.addEventListener('contextmenu', e => { e.preventDefault(); G.hero.hotkeys[i] = null; refreshUI(); });
       el.addEventListener('mouseenter', () => showHkTip(i, el)); el.addEventListener('mouseleave', hideTip);
       host.appendChild(el);
@@ -954,6 +1026,7 @@ function refreshUI() {
     ['Life', Math.ceil(h.hp) + ' / ' + st.maxHp], ['Life regen', st.regen.toFixed(1) + ' / s'], ['Armor', st.armor],
     ['Damage', Math.round(dn) + '–' + Math.round(dx)], ['Attack speed', (1 / w.cd).toFixed(2) + ' / s'], ['Critical', st.crit.toFixed(1) + '%'],
     ['Move speed', Math.round(st.speed / 4.2 * 100) + '%'], ['Kills', h.kills], ['Gold', h.gold]];
+  $('eqTitle').textContent = G.hero.name || 'Equipment';
   $('stats').innerHTML = rows.map(r => `<div class="row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
   if (G.uiHover) showRefTip(G.uiHover);
 }
@@ -976,7 +1049,7 @@ function updateHud() {
   const m = G.hover && G.hover.kind === 'mon' ? G.hover.r : (h.attackTarget && !h.attackTarget.dead ? h.attackTarget : null);
   if (m && !m.dead) {
     $('target').classList.remove('hidden');
-    set('tname', m.name + Math.ceil(m.hp), () => { $('targetName').textContent = m.name + '  (level ' + m.lvl + ')'; $('targetName').style.color = m.champ ? '#e6c84a' : '#e8dcc4';
+    set('tname', m.name + Math.ceil(m.hp), () => { $('targetName').textContent = m.name + '  (level ' + m.lvl + ')'; $('targetName').style.color = m.boss ? '#7fe08a' : m.champ ? '#e6c84a' : '#e8dcc4';
       $('targetFill').style.width = (m.hp / m.maxHp * 100) + '%'; });
   } else if (hudCache.tname !== null) { hudCache.tname = null; $('target').classList.add('hidden'); }
   if (equipOpen() && (G.time * 4 | 0) !== hudCache.statT) { hudCache.statT = G.time * 4 | 0; const st = $('stats').children[5]; if (st) st.lastChild.textContent = Math.ceil(h.hp) + ' / ' + h.st.maxHp; }
@@ -995,16 +1068,29 @@ function pickAt(mx, my) {
   return null;
 }
 document.addEventListener('contextmenu', e => e.preventDefault());
-// Pointer events cover mouse, touchpad, touch screen and pen alike. Shift + left click (or Shift + tap)
-// counts as a right click, for devices without a right button.
-const rightClick = e => e.button === 2 || (e.button === 0 && e.shiftKey);
-cv.addEventListener('pointermove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
-cv.addEventListener('pointerdown', e => {
+// Pointer events cover mouse, touchpad, touch screen and pen alike. For devices without a right button, a
+// left click or tap counts as a right click while a modifier is held: the Shift key, or a finger resting on
+// the life orb. Each press remembers its pointerId, so lifting one finger never ends another finger's press.
+const modifier = e => e.shiftKey || mouse.orbId != null;
+const rightClick = e => e.button === 2 || (e.button === 0 && modifier(e));
+const orbEl = $('orb');
+orbEl.addEventListener('pointerdown', e => { if (e.button !== 0) return; e.preventDefault(); mouse.orbId = e.pointerId; orbEl.classList.add('held'); });
+const releaseOrb = () => { mouse.orbId = null; orbEl.classList.remove('held'); };
+// A second mouse button pressed or released while another is held ("chorded") arrives as a pointermove
+// with e.button set, not as pointerdown / pointerup.
+const BTN_BIT = { 0: 1, 1: 4, 2: 2 };
+cv.addEventListener('pointermove', e => {
+  mouse.x = e.clientX; mouse.y = e.clientY;
+  if (e.button > -1 && BTN_BIT[e.button]) (e.buttons & BTN_BIT[e.button] ? pointerDown : pointerUp)(e);
+});
+addEventListener('pointermove', e => { if (e.target !== cv && e.button > -1 && BTN_BIT[e.button] && !(e.buttons & BTN_BIT[e.button])) pointerUp(e); });
+cv.addEventListener('pointerdown', e => pointerDown(e));
+function pointerDown(e) {
   if (!G || !G.running || G.dead) return;
   audio(); mouse.x = e.clientX; mouse.y = e.clientY;
   const h = G.hero, ref = pickAt(mouse.x, mouse.y);
-  if (e.button === 0 && !e.shiftKey) {
-    mouse.left = true; h.attackTarget = null; h.attackPending = false;
+  if (e.button === 0 && !modifier(e)) {
+    mouse.left = true; mouse.leftId = e.pointerId; h.attackTarget = null; h.attackPending = false;
     if (ref && ref.kind !== 'mon') {
       h.intent = ref; const [cx, cy] = ref.kind === 'item' ? [ref.r.x, ref.r.y] : objCenter(ref.r);
       const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door');
@@ -1016,17 +1102,23 @@ cv.addEventListener('pointerdown', e => {
       mouse.holdWalk = true; mouse.walkT = 0.15;
     }
   } else if (rightClick(e)) {
-    mouse.right = true; mouse.shiftRight = e.button === 0; h.intent = null;
+    mouse.right = true; mouse.rightId = e.pointerId; h.intent = null;
     rightAction(ref, true);
   }
+}
+// A mouse shares one pointerId between its buttons, so match the button too.
+addEventListener('pointerup', e => pointerUp(e));
+function pointerUp(e) {
+  if (e.pointerId === mouse.orbId && e.button === 0) releaseOrb();
+  if (e.pointerId === mouse.rightId && (e.button === 2 || !mouse.left || e.pointerId !== mouse.leftId)) { mouse.right = false; mouse.rightId = null; }
+  else if (e.pointerId === mouse.leftId && e.button === 0) { mouse.left = false; mouse.holdWalk = false; mouse.leftId = null; }
+}
+addEventListener('pointercancel', e => {
+  if (e.pointerId === mouse.orbId) releaseOrb();
+  if (e.pointerId === mouse.rightId) { mouse.right = false; mouse.rightId = null; }
+  if (e.pointerId === mouse.leftId) { mouse.left = mouse.holdWalk = false; mouse.leftId = null; }
 });
-addEventListener('pointerup', e => {
-  if (e.button === 0 && mouse.shiftRight) { mouse.right = mouse.shiftRight = false; return; }  // Shift-click release
-  if (e.button === 0) { mouse.left = false; mouse.holdWalk = false; } if (e.button === 2) mouse.right = false;
-});
-const releaseAll = () => { mouse.left = mouse.right = mouse.holdWalk = mouse.shiftRight = false; };
-addEventListener('pointercancel', releaseAll);
-addEventListener('blur', releaseAll);
+addEventListener('blur', () => { mouse.left = mouse.right = mouse.holdWalk = false; mouse.leftId = mouse.rightId = null; releaseOrb(); });
 cv.addEventListener('wheel', e => { if (G) G.zoom = clamp(G.zoom * (e.deltaY > 0 ? 0.9 : 1.1), 0.6, 1.5); e.preventDefault(); }, { passive: false });
 function rightAction(ref, fresh) {
   const h = G.hero, w = weaponOf(h);
@@ -1292,7 +1384,7 @@ function render() {
   }
   if (G.hover && G.hover.kind === 'obj') {
     const o = G.hover.r, [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy);
-    const label = { chest: 'Chest', door: 'Door', urn: 'Funeral Urn', bones: 'Bones', gold: o.amount + ' Gold', stairs: 'Stairs Down — Depth ' + (G.depth + 1) }[o.type];
+    const label = { chest: o.boss ? "Guardian's Chest" : 'Chest', door: 'Door', urn: 'Funeral Urn', bones: 'Bones', gold: o.amount + ' Gold', stairs: 'Stairs Down — Depth ' + (G.depth + 1) }[o.type];
     ctx.font = '14px Cinzel, serif'; const tw = ctx.measureText(label).width + 12;
     ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(sx - tw / 2, G.hover.y - 22, tw, 19); ctx.fillStyle = '#e8dcc4'; ctx.fillText(label, sx, G.hover.y - 8);
   }
@@ -1300,7 +1392,7 @@ function render() {
     if (mo.dead || mo.hp >= mo.maxHp || dist(mo, h) > 9) continue;
     const [sx, sy] = iso(mo.x, mo.y), top = sy - 128 * mo.scale + 4 - (mo.b.float ? 10 : 0);
     ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(sx - 25, top - 8, 50, 6);
-    ctx.fillStyle = mo.champ ? '#e6c84a' : '#c4291f'; ctx.fillRect(sx - 24, top - 7, 48 * mo.hp / mo.maxHp, 4);
+    ctx.fillStyle = mo.boss ? '#5fd06a' : mo.champ ? '#e6c84a' : '#c4291f'; ctx.fillRect(sx - 24, top - 7, 48 * mo.hp / mo.maxHp, 4);
   }
   for (const t of G.texts) {
     const [sx, sy] = iso(t.x, t.y), k = t.t / t.dur;
@@ -1356,7 +1448,8 @@ function drawProp(o) {
   const top = key === 'stairs' ? sy - hh / 2 : sy - hh + off;
   const hov = G.hover && G.hover.r === o;
   if (key !== 'stairs' && key !== 'gold') { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(sx, sy + 2, w * 0.42, w * 0.2, 0, 0, 7); ctx.fill(); }
-  if (hov) ctx.filter = 'brightness(1.45)';
+  const glow = o.boss && !o.used ? 'drop-shadow(0 0 6px rgba(70,235,110,0.9))' : '';
+  if (hov || glow) ctx.filter = [hov ? 'brightness(1.45)' : '', glow].filter(Boolean).join(' ');
   ctx.drawImage(IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh);
   ctx.filter = 'none';
   if (o.type === 'brazier') { // flickering embers
@@ -1385,6 +1478,7 @@ function drawChar(e, isHero) {
   if (e.hitT > 0) filters.push('brightness(2.4) saturate(0.3)');
   else if (hover) filters.push('brightness(1.35)');
   if (!isHero && e.champ) filters.push('drop-shadow(0 0 5px rgba(220,40,30,0.9))');
+  if (!isHero && e.boss) filters.push('drop-shadow(0 0 7px rgba(70,235,110,0.95))');
   if (filters.length) ctx.filter = filters.join(' ');
   ctx.drawImage(img, frame * md.fw, row * md.fh, md.fw, md.fh, dx, dy, w, hgt);
   ctx.filter = 'none'; ctx.globalAlpha = 1;
@@ -1449,16 +1543,54 @@ function drawPortrait() {
 // =====================================================================================
 //  Screens & main loop
 // =====================================================================================
+// The title screen doubles as the hero picker: saved heroes (most recently saved first) and "New Hero".
+let pickSel = null;   // selected save id, or 'new'
+function renderHeroPick() {
+  const sv = readSave(), list = Object.values(sv.heroes).sort((a, b) => b.saved - a.saved), box = $('heroPick');
+  if (pickSel !== 'new' && !sv.heroes[pickSel]) pickSel = sv.heroes[sv.last] ? sv.last : list.length ? list[0].id : 'new';
+  box.innerHTML = '';
+  const btn = (main, sub, sel, onClick) => {
+    const b = document.createElement('button'); b.className = 'heroBtn' + (sel ? ' sel' : '');
+    const m = document.createElement('span'); m.textContent = main; b.appendChild(m);
+    if (sub) { const t = document.createElement('span'); t.className = 'sub'; t.textContent = sub; b.appendChild(t); }
+    b.addEventListener('click', onClick); box.appendChild(b);
+  };
+  for (const e of list) btn(e.name, `Level ${e.lvl} · Depth ${e.depth} — ${depthName(e.depth)}`, pickSel === e.id, () => {
+    if (pickSel === e.id) startGame(); else { pickSel = e.id; renderHeroPick(); } });
+  btn('New Hero', '', pickSel === 'new', () => { pickSel = 'new'; renderHeroPick(); });
+  if (pickSel === 'new') {
+    const inp = document.createElement('input'); inp.id = 'heroName'; inp.maxLength = 20; inp.placeholder = 'Name your hero';
+    inp.autocomplete = 'off'; inp.spellcheck = false;
+    inp.addEventListener('input', () => inp.classList.remove('bad'));
+    inp.addEventListener('keydown', e => { if (e.key === 'Enter') startGame(); });
+    box.appendChild(inp); setTimeout(() => inp.focus(), 0);
+  }
+  $('startBtn').textContent = pickSel === 'new' ? 'Begin' : 'Enter the Crypt';
+}
 function showDeath() {
   const h = G.hero; G.running = false;
+  pickSel = h.saveId;
+  const e = readSave().heroes[h.saveId], back = e ? e.depth : G.depth;
   $('screen').classList.remove('hidden');
-  $('screen').querySelector('h1').textContent = 'You Have Fallen';
-  $('screenText').textContent = `Slain at depth ${G.depth} (${depthName(G.depth)}) — level ${h.lvl}, ${h.kills} foes destroyed, ${h.gold} gold gathered.`;
-  $('screenControls').style.display = 'none';
-  $('startBtn').textContent = 'Rise Again';
+  $('screenText').textContent = `${h.name} was slain at depth ${G.depth} (${depthName(G.depth)}), at level ${h.lvl}. ` +
+    `What was gained on this level is lost; ${h.name} rises again at the start of depth ${back}.`;
+  $('screenText').classList.add('fallen');
+  renderHeroPick();
 }
 function startGame() {
-  audio(); newGame(); G.running = true; G.camSnap = true; G.deathShown = false;
+  if ($('startBtn').disabled) return;
+  audio();
+  if (pickSel === 'new') {
+    const inp = $('heroName'), name = inp.value.trim().replace(/\s+/g, ' ').slice(0, 20);
+    if (!name) { inp.classList.add('bad'); inp.focus(); return; }
+    newGame(null); G.hero.name = name; G.hero.saveId = 'h' + Date.now().toString(36) + Math.floor(rnd() * 1e6).toString(36);
+    saveHero(); pickSel = G.hero.saveId; refreshUI();
+  } else {
+    const e = readSave().heroes[pickSel];
+    if (!e) { renderHeroPick(); return; }
+    newGame(e);
+  }
+  G.running = true; G.camSnap = true; G.deathShown = false;
   $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); hideTip();
 }
 $('startBtn').addEventListener('click', startGame);
@@ -1480,8 +1612,8 @@ loadAll().then(() => {
   floorPat = ctx.createPattern(IMG.floor, 'repeat');
   floorPat.setTransform(new DOMMatrix().scale(3 / 512));
   buildUI();
-  newGame(); G.running = false; G.camSnap = true;   // render the first level behind the title screen
-  const b = $('startBtn'); b.disabled = false; b.textContent = 'Enter the Crypt';
+  newGame(null); G.running = false; G.camSnap = true;   // render a first level behind the title screen
+  const b = $('startBtn'); b.disabled = false; renderHeroPick();
   requestAnimationFrame(frame);
 }).catch(err => { $('startBtn').textContent = 'Failed to load ' + err; });
 </script>

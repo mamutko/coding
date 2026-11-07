@@ -25,7 +25,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 |---|---|
 | Left click on floor | Walk there (A* pathfinding). Holding the button keeps walking toward the cursor. |
 | Left click on chest / door / urn / bones / gold / item / stairs | Walk to it and act on it: open, break, search, pick up, or descend. |
-| Right click, or `Shift` + left click | Attack with the equipped weapon (see [Combat](#combat)). Hold to keep attacking. |
+| Right click, or `Shift` + left click, or a tap while a finger rests on the life orb | Attack with the equipped weapon (see [Combat](#combat)). Hold to keep attacking. |
 | `I`, `C` or `Tab` | Toggle the equipment overlay (`Esc` closes it). |
 | `1`–`9`, `0` | Quick keys: equip the bound weapon or drink a potion. |
 | `Q` | Drink a health potion. |
@@ -33,14 +33,48 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `N` | Toggle sound. |
 | Mouse wheel | Zoom (0.6×–1.5×). |
 
-**Touchpads and touch screens.** `Shift` turns any left click or tap into a right click, everywhere a right
-click does something: attacking in the game view, dropping a pack item and clearing a quick key. The game
-view uses pointer events (mouse, touchpad, touch and pen alike) with `touch-action: none`, so a finger held
-on the screen keeps walking or attacking and dragging doesn't scroll or zoom the page. A press that started
-as `Shift` + click stays a right click until it is released, even if `Shift` is let go first.
+**Touchpads and touch screens.** A *modifier* turns any left click or tap into a right click, everywhere a
+right click does something: attacking in the game view, dropping a pack item and clearing a quick key. The
+modifier is the `Shift` key, or, on a touch screen, a finger resting on the life orb (the orb's rim glows gold
+while it is held). The game view and the orb use pointer events (mouse, touchpad, touch and pen alike) with
+`touch-action: none`, so a finger held on the screen keeps walking or attacking and dragging doesn't scroll
+or zoom the page.
 
-The title screen lists the controls and has an **Enter the Crypt** button (enabled once all images have loaded).
-The first level is rendered behind the title screen.
+- Each press remembers its `pointerId` (and, for a mouse, which button), so with several fingers down,
+  lifting one never ends another's press: lifting the orb finger doesn't stop a walk or an attack already
+  under way, and a press that started as a right click stays one until it is released.
+- A second mouse button pressed or released while another is held arrives as a `pointermove` with
+  `e.button` set (a "chorded" press), so the game treats those as presses and releases too. Holding left to
+  walk and then holding right attacks, as before.
+
+The title screen lists the controls and is also the hero picker (see [Saving](#saving)). A level-1 level is
+rendered behind it. The start button is enabled once all images have loaded.
+
+## Saving
+
+Progress is saved in the browser's `localStorage` under one key, `crypt-of-endless-night.save`:
+`{ v: 1, last: <id of the hero played last>, heroes: { <id>: entry } }`, where an entry is
+`{ id, name, depth, lvl, saved: <timestamp>, hero: { name, lvl, xp, base, equip, inv, potions, gold, hotkeys, kills } }`.
+Items are plain data, so the hero's equipment, pack and quick keys are stored as they are. Every read and write
+is wrapped in `try`; if storage is unavailable the game still plays, logs that progress could not be saved,
+and the picker shows no saved heroes.
+
+- **When it saves:** when a hero is created (at depth 1), and automatically on arrival at each new depth
+  (after the descend XP; the log says "Progress saved."). Nothing else is saved: not the level layout, and
+  nothing gained or lost partway through a level.
+- **Hero picker** (the title screen): one button per saved hero, most recently saved first, showing name,
+  level and depth, plus **New Hero**. The selected button has a gold border; the hero played last (or the
+  newest) is selected at start. Clicking a selected hero (or the button below) starts it.
+  - **Resuming** generates a *new* layout for the saved depth and restores the saved hero at full life. Item
+    ids continue after the highest saved one, so new drops never clash with owned items.
+  - **New Hero** shows a name field (up to 20 characters, spaces collapsed; empty names are refused with a red
+    border), and the button becomes **Begin** (Enter also works). The new hero starts at level 1 on depth 1
+    with the starting kit, and is saved at once.
+- **Death:** after a short pause the title screen returns with the fallen hero selected and a message
+  ("<name> was slain at depth N … What was gained on this level is lost; <name> rises again at the start of
+  depth M."). Starting again reloads the hero as saved on arrival at that depth, so the level's gold, items,
+  XP, kills and potions are lost, and the layout is new.
+- The equipment overlay's title shows the hero's name.
 
 ## Rendering
 
@@ -82,8 +116,8 @@ The first level is rendered behind the title screen.
     below the ground point in this view.
   - **Spider, wraith, demon:** 4 frames per direction, `fpt` 2, frame 0 is idle; `footY` 128 in a 152 px frame.
     The wraith hovers and bobs. Attacks show a short
-  lunge toward the facing direction. A hit flashes the sprite white (`filter: brightness`), and champions get
-  a red glow (`drop-shadow`). Dead monsters sink and fade over about 1 s.
+  lunge toward the facing direction. A hit flashes the sprite white (`filter: brightness`), champions get
+  a red glow and bosses a green glow (`drop-shadow`). Dead monsters sink and fade over about 1 s.
 - **Effects.** Melee swings draw a sweeping crescent arc in the attack direction. Arrows are drawn as shafts with
   a tip, and wraith bolts as glowing green orbs. Hits spray blood-coloured sparks (green for wraiths), urns
   burst into shards, and level-ups emit an expanding golden ring.
@@ -118,11 +152,16 @@ Each depth `d` gets a freshly generated level.
   - chest: 38 % chance; blocking
   - urns: 0–2; blocking
   - bones: 0–2
-  - gold pile: 20 % chance, worth 3–12 × d
+  - gold pile: 20 % chance, worth 3–12 × d × `LOOT`
+- **Boss room.** Of the rooms other than the start and stairs rooms, the one with the largest
+  `area × (BFS distance from the start + 10)` becomes the boss room. It gets two braziers, a **guardian's
+  chest** (on the edge, blocking), the boss on a free inner tile, 1–2 ordinary monsters, and no other props.
+  The boss's type is drawn by weight from the types unlocked at depth `max(1, d − 2)`, so the demon (from
+  depth 3) can be a boss only from depth 5.
 - Blocking props are only placed on a room's edge, against solid wall, and never next to a doorway or
   corridor mouth, so they can't cut off a path.
-- **Monsters per room:** `min(7, 1 + ⌊area/22⌋ + ⌊d/3⌋ + (40 % chance of +1))`. The type is drawn by weight
-  from the types unlocked at that depth.
+- **Monsters per room** (not the start or boss room): `min(7, 1 + ⌊area/22⌋ + ⌊d/3⌋ + (40 % chance of +1))`.
+  The type is drawn by weight from the types unlocked at that depth.
 
 ## Movement & pathfinding
 
@@ -152,7 +191,7 @@ Each depth `d` gets a freshly generated level.
   | Source | XP |
   |---|---|
   | Killing a monster | the monster's XP value |
-  | Opening a chest | 6·d |
+  | Opening a chest | 6·d (guardian's chest: 15·d) |
   | Breaking an urn | 2·d |
   | Searching bones | d |
   | Opening a door | d |
@@ -160,8 +199,8 @@ Each depth `d` gets a freshly generated level.
   | Picking up a potion | 1 + d |
   | Descending stairs | 10 × the new depth |
 - **Health potion:** restores 45 % of max life, with a 0.8 s cooldown. It can't be drunk at full life.
-- **Death** shows the "You Have Fallen" screen with depth, level, kills and gold. **Rise Again** starts a new
-  game. Progress is not saved between sessions.
+- **Death** returns to the title screen with the fallen hero selected; the hero resumes from its last save
+  (see [Saving](#saving)).
 
 ## Combat
 
@@ -227,8 +266,20 @@ Spawn weights are 3 : 3 : 2 : 2 : 1 in table order.
 | XP | × 1.17^(d−1) |
 | Monster level | = d (used by armor mitigation) |
 
-**Champions.** From depth 2, 10 % of monsters are champions: a name prefix (Dread, Blighted, …), ×2.5 life,
-×1.5 damage, ×3 XP, 15 % larger, red glow, gold health bar.
+**Monster tiers** (`TIER` in the code):
+
+| | Normal | Champion | Boss |
+|---|---|---|---|
+| Occurs | always | 10 % of monsters from depth 2 | exactly one per level, in the boss room |
+| Name | type name | prefix + type, e.g. *Dread Ghoul* | *&lt;name&gt;, &lt;type&gt; Tyrant*, e.g. *Morgrath, Ghoul Tyrant* |
+| Life / damage / XP | ×1 | ×2.5 / ×1.5 / ×3 | ×6 / ×1.8 / ×8 |
+| Armor | — | — | + 4·d |
+| Size | ×1 | ×1.15 (radius too) | ×1.35 drawn; radius ×1.15, at most 0.48 so it fits corridors |
+| Look | — | red glow, gold health bar and target name | green glow, green health bar and target name |
+| Loot | see Loot sources | see Loot sources | see Loot sources |
+
+Boss names are drawn from Morgrath, Vexhollow, Ulthane, Skarn, Belmorah, Grisvald, Nythra, Corvane, Drokkar
+and Ashmire.
 
 ## Items
 
@@ -271,10 +322,11 @@ equipped at a time.
 | Rarity | Base chance | Affixes | Name |
 |---|---|---|---|
 | Common (white) | the rest | 0 | base name |
-| Magic (blue) | 30 % + boost | 1–2 | "Prefix Base of Suffix", e.g. *Mighty Longsword of the Fox* |
-| Rare (gold) | 7 % + half the boost | 3–4 | random name, e.g. *Gravefang, Longsword* |
+| Magic (blue) | (30 % + boost) × `MAGIC_ODDS` (0.5) | 1–2 | "Prefix Base of Suffix", e.g. *Mighty Longsword of the Fox* |
+| Rare (gold) | (7 % + half the boost) × `RARE_ODDS` (0.2) | 3–4 | random name, e.g. *Gravefang, Longsword* |
 
-Chests, champions and some drops add a rarity boost.
+So a plain drop is 1.4 % rare and 15 % magic. Chests, champions and bosses add a rarity boost (with a 0.35
+boost: 4.9 % rare, 32.5 % magic). An item with a forced rarity (the guardian's chest) skips the roll.
 
 **Affixes** (value ranges grow with item level `l`):
 
@@ -292,13 +344,23 @@ Chests, champions and some drops add a rarity boost.
 
 **Loot sources:**
 
-| Source | Drops |
+`LOOT` (0.8) thins all loot by 20 %: each random item drop below happens only with probability `LOOT`
+(`lootItem()`), and every gold amount is multiplied by `LOOT` (`dropGold()`, at least 1). Potions are not
+affected. The guardian's chest's guaranteed item is not thinned.
+
+| Source | Drops (item chances before `LOOT`) |
 |---|---|
 | Monster | 13 % item, 9 % potion, 30 % gold (2–8 × d) |
-| Champion | a guaranteed item of ilvl d+1 with a large rarity boost, plus a 50 % chance of a second |
+| Champion | an item of ilvl d+1 (boost 0.35), plus a 50 % chance of a second (boost 0.2) |
+| Boss | an item of ilvl d+1 (boost 0.35), gold (20–40 × d), plus the normal 9 % potion / 30 % gold rolls |
 | Chest | 1–3 items (boost 0.15, 30 % chance of ilvl+1), gold (10–30 × d), 30 % potion |
+| Guardian's chest | **always** one item of ilvl d+1 that is rare (30 %) or else magic, gold (30–60 × d), plus everything a normal chest drops |
 | Urn | 35 % gold, 12 % potion, 8 % item |
 | Bones | 20 % gold, 10 % item |
+
+**Guardian's chest.** It glows green and is labelled *Guardian's Chest* on hover. While the boss lives it is
+sealed: clicking it only logs "The chest is sealed while its guardian lives." When the boss dies, the log says
+"<boss> is destroyed. The guardian's chest unseals."
 
 Dropped things land on nearby free tiles. Floor items bob, glow in their rarity colour, and show a name
 label when within 7.5 tiles. Gold is counted at the top left. Potions go to a potion counter, not the
@@ -332,7 +394,8 @@ Opened with `I` / `C` / `Tab` or the **Equipment (I)** button. It is a partly tr
 
 - **Top left:** level name (e.g. *The Forsaken Crypt*, *The Ossuary*, … eight names that cycle with a Roman
   numeral after depth 8), the depth number, and gold.
-- **Top centre:** name, level and health bar of the hovered or targeted monster (gold name for champions).
+- **Top centre:** name, level and health bar of the hovered or targeted monster (gold name for champions,
+  green for bosses).
 - **Top right:** minimap.
 - **Bottom left:** the life orb, and above it a message log (6 lines, each fading after 6 s).
 - **Bottom centre:** quick-key hotbar and XP bar.
