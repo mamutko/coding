@@ -328,9 +328,12 @@ const LOOT = 0.8, RARE_ODDS = 0.2, MAGIC_ODDS = 0.5;
 // allowed rarity is lowered to the best allowed one. ruleDepth is the depth these rules use: the current
 // depth, or depth + 2 for loot from the boss room (boss, its guards and the guardian's chest).
 const MAGIC_FROM = 2, RARE_FROM = 4;
+// Slot gates by depth (same ruleDepth): no rings before RING_FROM, no amulets before AMULET_FROM.
+const RING_FROM = 3, AMULET_FROM = 5;
 const maxRarity = rd => rd >= RARE_FROM ? 'rare' : rd >= MAGIC_FROM ? 'magic' : 'common';
 function genItem(ilvl, boost = 0, forceBase = null, forceRarity = null, ruleDepth = G ? G.depth : 1) {
-  const keys = Object.keys(BASES).filter(k => BASES[k].lvl <= ilvl);
+  const keys = Object.keys(BASES).filter(k => BASES[k].lvl <= ilvl &&
+    !(BASES[k].slot === 'ring' && ruleDepth < RING_FROM) && !(BASES[k].slot === 'amulet' && ruleDepth < AMULET_FROM));
   const baseKey = forceBase || pick(keys);
   const b = BASES[baseKey];
   const it = { id: nextId++, base: baseKey, slot: b.slot, kind: b.kind || null, ilvl, stats: {} };
@@ -830,7 +833,7 @@ function act(ref) {
       o.used = true; sfx('chest'); gainXp((o.boss ? 15 : 6) * d);
       if (o.boss) {   // guardian's chest: always one rare (30 %) or magic item, plus a normal chest's loot
         // depth + 2 rules: always at least magic (depth 1 counts as 3); rare only where depth + 2 allows it
-        dropItem(genItem(d + 1, 0, null, rnd() < 0.3 && maxRarity(d + 2) === 'rare' ? 'rare' : 'magic'), o.x + 0.5, o.y + 0.5);
+        dropItem(genItem(d + 1, 0, null, rnd() < 0.3 && maxRarity(d + 2) === 'rare' ? 'rare' : 'magic', d + 2), o.x + 0.5, o.y + 0.5);
         dropGold(ri(30, 60) * d, o.x + 0.5, o.y + 0.5);
       }
       const n = ri(1, 2) + (rnd() < 0.4 ? 1 : 0);

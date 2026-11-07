@@ -314,6 +314,11 @@ equipped at a time.
 | Blood Amulet | amulet | +15 life | 3 |
 | Bone Talisman | amulet | +1 life regen/s | 5 |
 
+**Slot gates by depth.** On top of the item-level unlocks, no rings drop before depth 3 (`RING_FROM`) and no
+amulets before depth 5 (`AMULET_FROM`); the base is then drawn from the other slots. Like the rarity gates,
+boss-room loot (the boss, its guards and the guardian's chest) uses depth + 2, so the boss room can drop
+rings from depth 1 and amulets from depth 3.
+
 **Scaling.** Weapon damage and armor scale by `1 + 0.14·(ilvl − 1)`; built-in bonuses scale by
 `1 + 0.1·(ilvl − 1)`.
 
