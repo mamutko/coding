@@ -324,7 +324,12 @@ let nextId = 1;
 // Loot tuning: every random item drop happens with probability LOOT (gold amounts are scaled by it too), and
 // the rare / magic odds are scaled by RARE_ODDS / MAGIC_ODDS. Health potions are not affected.
 const LOOT = 0.8, RARE_ODDS = 0.2, MAGIC_ODDS = 0.5;
-function genItem(ilvl, boost = 0, forceBase = null, forceRarity = null) {
+// Rarity gates by depth: no magic items before MAGIC_FROM, no rares before RARE_FROM. A roll above the
+// allowed rarity is lowered to the best allowed one. ruleDepth is the depth these rules use: the current
+// depth, or depth + 2 for loot from the boss room (boss, its guards and the guardian's chest).
+const MAGIC_FROM = 2, RARE_FROM = 4;
+const maxRarity = rd => rd >= RARE_FROM ? 'rare' : rd >= MAGIC_FROM ? 'magic' : 'common';
+function genItem(ilvl, boost = 0, forceBase = null, forceRarity = null, ruleDepth = G ? G.depth : 1) {
   const keys = Object.keys(BASES).filter(k => BASES[k].lvl <= ilvl);
   const baseKey = forceBase || pick(keys);
   const b = BASES[baseKey];
@@ -335,7 +340,9 @@ function genItem(ilvl, boost = 0, forceBase = null, forceRarity = null) {
   if (b.implicit) for (const k in b.implicit) it.stats[k] = +(b.implicit[k] * (1 + 0.1 * (ilvl - 1))).toFixed(k === 'regen' ? 1 : 0);
   let rarity = forceRarity;
   if (!rarity) { const r = rnd(), rare = (0.07 + boost * 0.5) * RARE_ODDS, magic = (0.3 + boost) * MAGIC_ODDS;
-    rarity = r < rare ? 'rare' : r < rare + magic ? 'magic' : 'common'; }
+    rarity = r < rare ? 'rare' : r < rare + magic ? 'magic' : 'common';
+    const cap = maxRarity(ruleDepth);
+    if (cap === 'common') rarity = 'common'; else if (cap === 'magic' && rarity === 'rare') rarity = 'magic'; }
   it.rarity = rarity;
   const n = rarity === 'rare' ? ri(3, 4) : rarity === 'magic' ? ri(1, 2) : 0;
   const pool = AFFIX.filter(a => !(a.noWeapon && b.slot === 'weapon') && !(a.only && a.only !== b.slot));
@@ -447,7 +454,7 @@ function saveHero() {
 // =====================================================================================
 //  Hero stats
 // =====================================================================================
-const xpNeed = l => Math.round(60 * Math.pow(l, 1.7));
+const xpNeed = l => Math.round(120 * Math.pow(l, 1.7));
 function recalc() {
   const h = G.hero, s = { str: h.base.str, dex: h.base.dex, vit: h.base.vit, hp: 0, regen: 0, armor: 0, crit: 0, dmg: 0, speed: 0 };
   for (const k in h.equip) { const it = h.equip[k]; if (!it) continue; if (it.armor) s.armor += it.armor; for (const st in it.stats) s[st] += it.stats[st]; }
@@ -570,7 +577,8 @@ function buildLevel(d) {
       // boss type: one that has appeared since at least two depths earlier (so no demon boss before depth 5)
       const bossPool = weighted.filter(k => MON[k].minD <= Math.max(1, d - 2));
       const boss = makeMonster(pick(bossPool), p[0] + 0.5, p[1] + 0.5, d, true); monsters.push(boss); map.boss = boss;
-      for (let i = ri(1, 2); i > 0; i--) { const q = freeInner(r, false); if (q) monsters.push(makeMonster(pick(weighted), q[0] + 0.5, q[1] + 0.5, d)); }
+      for (let i = ri(1, 2); i > 0; i--) { const q = freeInner(r, false);
+        if (q) { const g = makeMonster(pick(weighted), q[0] + 0.5, q[1] + 0.5, d); g.bossRoom = true; monsters.push(g); } }
       continue;
     }
     if (rnd() < 0.75 || r === start) place('brazier', r, true);
@@ -722,9 +730,10 @@ function killMonster(m) {
   sfx('die');
   gainXp(m.xp); floatText(m.x, m.y - 0.3, '+' + m.xp + ' xp', '#c9b37a', 1.1, 13);
   const d = G.depth;
-  if (m.boss) { lootItem(genItem(d + 1, 0.35), m.x, m.y); dropGold(ri(20, 40) * d, m.x, m.y); log(m.name + ' is destroyed. The guardian\'s chest unseals.', '#7fe08a'); }
-  else if (m.champ) { lootItem(genItem(d + 1, 0.35), m.x, m.y); if (rnd() < 0.5) lootItem(genItem(d + 1, 0.2), m.x, m.y); }
-  else if (rnd() < 0.13) lootItem(genItem(d, 0), m.x, m.y);
+  const rd = m.boss || m.bossRoom ? d + 2 : d;   // boss-room loot uses the depth + 2 rarity rules
+  if (m.boss) { lootItem(genItem(d + 1, 0.35, null, null, rd), m.x, m.y); dropGold(ri(20, 40) * d, m.x, m.y); log(m.name + ' is destroyed. The guardian\'s chest unseals.', '#7fe08a'); }
+  else if (m.champ) { lootItem(genItem(d + 1, 0.35, null, null, rd), m.x, m.y); if (rnd() < 0.5) lootItem(genItem(d + 1, 0.2, null, null, rd), m.x, m.y); }
+  else if (rnd() < 0.13) lootItem(genItem(d, 0, null, null, rd), m.x, m.y);
   if (rnd() < 0.09) dropPotion(m.x, m.y);
   if (rnd() < 0.3) dropGold(ri(2, 8) * d, m.x, m.y);
 }
@@ -820,11 +829,12 @@ function act(ref) {
       if (o.boss && G.map.boss && !G.map.boss.dead) { log('The chest is sealed while its guardian lives.', '#7fe08a'); sfx('door'); return; }
       o.used = true; sfx('chest'); gainXp((o.boss ? 15 : 6) * d);
       if (o.boss) {   // guardian's chest: always one rare (30 %) or magic item, plus a normal chest's loot
-        dropItem(genItem(d + 1, 0, null, rnd() < 0.3 ? 'rare' : 'magic'), o.x + 0.5, o.y + 0.5);
+        // depth + 2 rules: always at least magic (depth 1 counts as 3); rare only where depth + 2 allows it
+        dropItem(genItem(d + 1, 0, null, rnd() < 0.3 && maxRarity(d + 2) === 'rare' ? 'rare' : 'magic'), o.x + 0.5, o.y + 0.5);
         dropGold(ri(30, 60) * d, o.x + 0.5, o.y + 0.5);
       }
       const n = ri(1, 2) + (rnd() < 0.4 ? 1 : 0);
-      for (let i = 0; i < n; i++) lootItem(genItem(d + (rnd() < 0.3 ? 1 : 0), 0.15), o.x + 0.5, o.y + 0.5);
+      for (let i = 0; i < n; i++) lootItem(genItem(d + (rnd() < 0.3 ? 1 : 0), 0.15, null, null, o.boss ? d + 2 : d), o.x + 0.5, o.y + 0.5);
       dropGold(ri(10, 30) * d, o.x + 0.5, o.y + 0.5);
       if (rnd() < 0.3) dropPotion(o.x + 0.5, o.y + 0.5);
       log('The chest creaks open.', '#c9a45c');

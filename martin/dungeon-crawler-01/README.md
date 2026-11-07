@@ -185,7 +185,7 @@ Each depth `d` gets a freshly generated level.
 - **Regeneration:** `0.6 % of max life per second + item regen`, always active. Life is shown in the red
   orb at the bottom left.
 - **Critical chance:** `5 % + 0.2 %·DEX + item crit`. Criticals deal ×1.75.
-- **Experience:** level `L` needs `round(60 · L^1.7)` XP. On a level-up, STR, DEX and VIT each gain +2 and
+- **Experience:** level `L` needs `round(120 · L^1.7)` XP (120, 390, 1851 … for levels 1, 2, 5). On a level-up, STR, DEX and VIT each gain +2 and
   the hero fully heals. XP comes from:
 
   | Source | XP |
@@ -326,7 +326,14 @@ equipped at a time.
 | Rare (gold) | (7 % + half the boost) × `RARE_ODDS` (0.2) | 3–4 | random name, e.g. *Gravefang, Longsword* |
 
 So a plain drop is 1.4 % rare and 15 % magic. Chests, champions and bosses add a rarity boost (with a 0.35
-boost: 4.9 % rare, 32.5 % magic). An item with a forced rarity (the guardian's chest) skips the roll.
+boost: 4.9 % rare, 32.5 % magic). An item with a forced rarity (the starting kit, the guardian's chest) skips
+the roll.
+
+**Rarity gates by depth.** No magic items before depth 2 (`MAGIC_FROM`) and no rares before depth 4
+(`RARE_FROM`); a roll above what the depth allows is lowered to the best allowed rarity (rare → magic at
+depths 2–3, anything → common at depth 1). Loot from the **boss room** (the boss, its guards and the
+guardian's chest) uses the rules of depth + 2, so the boss room has magic items from depth 1 and rares from
+depth 2.
 
 **Affixes** (value ranges grow with item level `l`):
 
@@ -354,7 +361,7 @@ affected. The guardian's chest's guaranteed item is not thinned.
 | Champion | an item of ilvl d+1 (boost 0.35), plus a 50 % chance of a second (boost 0.2) |
 | Boss | an item of ilvl d+1 (boost 0.35), gold (20–40 × d), plus the normal 9 % potion / 30 % gold rolls |
 | Chest | 1–3 items (boost 0.15, 30 % chance of ilvl+1), gold (10–30 × d), 30 % potion |
-| Guardian's chest | **always** one item of ilvl d+1 that is rare (30 %) or else magic, gold (30–60 × d), plus everything a normal chest drops |
+| Guardian's chest | **always** one item of ilvl d+1 that is rare (30 %, if depth + 2 allows rares, i.e. from depth 2) or else magic, gold (30–60 × d), plus everything a normal chest drops |
 | Urn | 35 % gold, 12 % potion, 8 % item |
 | Bones | 20 % gold, 10 % item |
 
