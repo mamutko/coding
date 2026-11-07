@@ -323,7 +323,7 @@ let nextId = 1;
 
 // Loot tuning: every random item drop happens with probability LOOT (gold amounts are scaled by it too), and
 // the rare / magic odds are scaled by RARE_ODDS / MAGIC_ODDS. Health potions are not affected.
-const LOOT = 0.8, RARE_ODDS = 0.2, MAGIC_ODDS = 0.5;
+const LOOT = 0.8, RARE_ODDS = 0.1, MAGIC_ODDS = 0.25;
 // Rarity gates by depth: no magic items before MAGIC_FROM, no rares before RARE_FROM. A roll above the
 // allowed rarity is lowered to the best allowed one. ruleDepth is the depth these rules use: the current
 // depth, or depth + 2 for loot from the boss room (boss, its guards and the guardian's chest).
@@ -384,7 +384,7 @@ const TIER = { normal: { size: 1, hp: 1, dmg: 1, xp: 1, armor: 0 }, champ: { siz
 function makeMonster(type, x, y, d, boss = false) {
   const b = MON[type];
   const champ = !boss && d >= 2 && rnd() < 0.1, T = TIER[boss ? 'boss' : champ ? 'champ' : 'normal'];
-  const hpS = Math.pow(1.17, d - 1), dmS = Math.pow(1.13, d - 1);
+  const hpS = Math.pow(1.22, d - 1), dmS = Math.pow(1.22, d - 1);   // +22 % life and damage per depth
   const m = { type, b, x, y, r: boss ? Math.min(b.r * 1.15, 0.48) : b.r * T.size, scale: b.scale * T.size, lvl: d, champ, boss,
     name: boss ? pick(BOSS_NAMES) + ', ' + b.name + ' Tyrant' : champ ? pick(CHAMP_PRE) + ' ' + b.name : b.name,
     maxHp: Math.round(b.hp * hpS * T.hp), dmg: [b.dmg[0] * dmS * T.dmg, b.dmg[1] * dmS * T.dmg],
@@ -463,7 +463,7 @@ function recalc() {
   for (const k in h.equip) { const it = h.equip[k]; if (!it) continue; if (it.armor) s.armor += it.armor; for (const st in it.stats) s[st] += it.stats[st]; }
   const maxHp = Math.round(40 + s.vit * 4 + h.lvl * 6 + s.hp);
   h.st = { str: s.str, dex: s.dex, vit: s.vit, maxHp, armor: s.armor, crit: 5 + s.dex * 0.2 + s.crit, dmgPct: s.dmg,
-    speed: 4.2 * (1 + s.speed / 100), regen: maxHp * 0.006 + s.regen, bonusRegen: s.regen };
+    speed: 4.2 * (1 + s.speed / 100), regen: maxHp * 0.002 + s.regen, bonusRegen: s.regen };
   h.hp = Math.min(h.hp, maxHp);
 }
 function weaponOf(h) { return h.equip.weapon || { kind: 'fist', min: 1, max: 3, cd: 0.6, name: 'Bare hands' }; }
@@ -475,7 +475,7 @@ function weaponDamageRange(h) {
 function gainXp(n) {
   const h = G.hero; h.xp += n;
   while (h.xp >= xpNeed(h.lvl)) {
-    h.xp -= xpNeed(h.lvl); h.lvl++; h.base.str += 2; h.base.dex += 2; h.base.vit += 2; recalc(); h.hp = h.st.maxHp;
+    h.xp -= xpNeed(h.lvl); h.lvl++; h.base.str += 2; h.base.dex += 2; h.base.vit += 2; recalc(); h.hp = Math.min(h.st.maxHp, h.hp + h.st.maxHp * 0.2);   // level-up heals 20 %, not fully
     G.fx.push({ type: 'ring', x: h.x, y: h.y, t: 0, dur: 1.0, color: '230,200,110' });
     floatText(h.x, h.y, 'LEVEL ' + h.lvl, '#f0d070', 1.6, 22);
     log('You reached level ' + h.lvl + '. Strength, Dexterity and Vitality +2.', '#f0d070'); sfx('level');
@@ -577,8 +577,8 @@ function buildLevel(d) {
       place('brazier', r, true); place('brazier', r, true);
       place('chest', r, true, { boss: true });
       const p = freeInner(r, false) || [r.cx, r.cy]; occ[p[1] * w + p[0]] = 1;
-      // boss type: one that has appeared since at least two depths earlier (so no demon boss before depth 5)
-      const bossPool = weighted.filter(k => MON[k].minD <= Math.max(1, d - 2));
+      // boss type: drawn by weight from the types unlocked at depth + 1, so it can be one not yet seen here
+      const bossPool = []; for (const k in MON) if (MON[k].minD <= d + 1) for (let i = 0; i < MON[k].w; i++) bossPool.push(k);
       const boss = makeMonster(pick(bossPool), p[0] + 0.5, p[1] + 0.5, d, true); monsters.push(boss); map.boss = boss;
       for (let i = ri(1, 2); i > 0; i--) { const q = freeInner(r, false);
         if (q) { const g = makeMonster(pick(weighted), q[0] + 0.5, q[1] + 0.5, d); g.bossRoom = true; monsters.push(g); } }
@@ -593,7 +593,16 @@ function buildLevel(d) {
     const n = Math.min(7, 1 + Math.floor((r.w * r.h) / 22) + Math.floor(d / 3) + (rnd() < 0.4 ? 1 : 0));
     for (let i = 0; i < n; i++) {
       const p = freeInner(r, false); if (!p) break;
-      monsters.push(makeMonster(pick(weighted), p[0] + 0.5 + (rnd() - 0.5) * 0.4, p[1] + 0.5 + (rnd() - 0.5) * 0.4, d));
+      const m = makeMonster(pick(weighted), p[0] + 0.5 + (rnd() - 0.5) * 0.4, p[1] + 0.5 + (rnd() - 0.5) * 0.4, d);
+      monsters.push(m);
+      if (m.champ) {   // a champion brings 2-3 escorts of its own type, on free tiles within 2 of it
+        for (let e = ri(2, 3), k = 0; e > 0 && k < 30; k++) {
+          const ex = Math.floor(m.x) + ri(-2, 2), ey = Math.floor(m.y) + ri(-2, 2);
+          if (at(ex, ey) !== T_FLOOR || occ[ey * w + ex] || monsters.some(o => Math.floor(o.x) === ex && Math.floor(o.y) === ey)) continue;
+          const esc = makeMonster(m.type, ex + 0.5, ey + 0.5, d); if (esc.champ) continue;
+          monsters.push(esc); e--;
+        }
+      }
     }
   }
   for (const o of objects) if (o.block && o.type !== 'door') map.block[o.y * w + o.x] = 1;   // doors block via their tile type
@@ -721,12 +730,16 @@ function damageMonster(m, raw, crit) {
   floatText(m.x, m.y, (crit ? v + '!' : '' + v), crit ? '#ffd36a' : '#f2e6d0', 0.8, crit ? 20 : 15);
   for (let i = 0; i < 5; i++) G.fx.push({ type: 'spark', x: m.x, y: m.y, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 40 + rnd() * 20, vz: 60 + rnd() * 60, t: 0, dur: 0.45, color: m.type === 'wraith' ? '120,255,170' : '170,20,20' });
   sfx('hit');
-  alert(m);
+  alert(m, true);
   if (m.hp <= 0) killMonster(m);
 }
-function alert(m) {
+// A monster that notices the hero wakes idle monsters within 6 tiles; one that is hit (roomWide) also wakes
+// every monster in the same room.
+const roomAt = (x, y) => G.map.rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+function alert(m, roomWide = false) {
   m.state = 'chase';
-  for (const o of G.monsters) if (!o.dead && o.state === 'idle' && dist(o, m) < 6) o.state = 'chase';
+  const room = roomWide ? roomAt(m.x, m.y) : null;
+  for (const o of G.monsters) if (!o.dead && o.state === 'idle' && (dist(o, m) < 6 || (room && roomAt(o.x, o.y) === room))) o.state = 'chase';
 }
 function killMonster(m) {
   m.dead = true; m.deathT = 0; m.hp = 0; G.hero.kills++;
@@ -737,7 +750,7 @@ function killMonster(m) {
   if (m.boss) { lootItem(genItem(d + 1, 0.35, null, null, rd), m.x, m.y); dropGold(ri(20, 40) * d, m.x, m.y); log(m.name + ' is destroyed. The guardian\'s chest unseals.', '#7fe08a'); }
   else if (m.champ) { lootItem(genItem(d + 1, 0.35, null, null, rd), m.x, m.y); if (rnd() < 0.5) lootItem(genItem(d + 1, 0.2, null, null, rd), m.x, m.y); }
   else if (rnd() < 0.13) lootItem(genItem(d, 0, null, null, rd), m.x, m.y);
-  if (rnd() < 0.09) dropPotion(m.x, m.y);
+  if (rnd() < 0.045) dropPotion(m.x, m.y);
   if (rnd() < 0.3) dropGold(ri(2, 8) * d, m.x, m.y);
 }
 function heroAttack(px, py, target) {
@@ -756,20 +769,27 @@ function heroAttack(px, py, target) {
     G.proj.push({ type: 'arrow', x: h.x + Math.cos(ang) * 0.4, y: h.y + Math.sin(ang) * 0.4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: info.reach / sp, dmg, crit, friendly: true });
   } else {
     sfx('swing');
-    h.swing = { t: 0, dur: 0.24, ang, hit: false, arc: info.arc, reach: info.reach, roll };
+    h.swing = { t: 0, dur: 0.24, ang, hit: false, arc: info.arc, reach: info.reach, roll, target: target || null };
     h.lunge = 1;
   }
   return true;
 }
+// A swing hits every monster in its arc, but only the main target takes full damage; the others take
+// CLEAVE (25 %). The main target is the clicked monster, or, for a swing at the ground (or if the clicked
+// monster isn't hit), the hit monster closest to the aim direction.
+const CLEAVE = 0.25;
 function resolveSwing(h) {
-  const s = h.swing;
+  const s = h.swing, hits = [];
   for (const m of G.monsters) {
     if (m.dead) continue;
     const dx = m.x - h.x, dy = m.y - h.y, d = Math.hypot(dx, dy);
     if (d - m.r > s.reach) continue;
     let da = Math.abs(Math.atan2(dy, dx) - s.ang); if (da > Math.PI) da = 2 * Math.PI - da;
-    if (da <= s.arc || d < 0.55) { const [dmg, crit] = s.roll(); damageMonster(m, dmg, crit); }
+    if (da <= s.arc || d < 0.55) hits.push({ m, da, d });
   }
+  if (!hits.length) return;
+  const main = hits.find(x => x.m === s.target) || hits.reduce((a, b) => (b.da < a.da - 0.05 || (Math.abs(b.da - a.da) <= 0.05 && b.d < a.d)) ? b : a);
+  for (const x of hits) { const [dmg, crit] = s.roll(); damageMonster(x.m, x === main ? dmg : dmg * CLEAVE, crit); }
 }
 function damageHero(raw, m) {
   const h = G.hero; if (G.dead) return;
@@ -839,7 +859,7 @@ function act(ref) {
       const n = ri(1, 2) + (rnd() < 0.4 ? 1 : 0);
       for (let i = 0; i < n; i++) lootItem(genItem(d + (rnd() < 0.3 ? 1 : 0), 0.15, null, null, o.boss ? d + 2 : d), o.x + 0.5, o.y + 0.5);
       dropGold(ri(10, 30) * d, o.x + 0.5, o.y + 0.5);
-      if (rnd() < 0.3) dropPotion(o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.15) dropPotion(o.x + 0.5, o.y + 0.5);
       log('The chest creaks open.', '#c9a45c');
       break;
     }
@@ -847,7 +867,7 @@ function act(ref) {
       if (o.used) return; o.used = true; G.map.block[o.y * G.map.w + o.x] = 0; sfx('hit'); gainXp(2 * d);
       for (let i = 0; i < 8; i++) G.fx.push({ type: 'spark', x: o.x + 0.5, y: o.y + 0.5, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 20, vz: 80, t: 0, dur: 0.5, color: '140,120,90' });
       if (rnd() < 0.35) dropGold(ri(3, 10) * d, o.x + 0.5, o.y + 0.5);
-      if (rnd() < 0.12) dropPotion(o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.06) dropPotion(o.x + 0.5, o.y + 0.5);
       if (rnd() < 0.08) lootItem(genItem(d), o.x + 0.5, o.y + 0.5);
       break;
     case 'bones':
@@ -874,7 +894,7 @@ function drinkPotion() {
   if (h.potions <= 0) { log('No potions left.', '#e06a5a'); return; }
   if (h.potionCd > 0) return;
   if (h.hp >= h.st.maxHp) { log('You are already at full health.', '#a99c86'); return; }
-  h.potions--; h.potionCd = 0.8; const v = Math.round(h.st.maxHp * 0.45); h.hp = Math.min(h.st.maxHp, h.hp + v);
+  h.potions--; h.potionCd = 0.8; const v = Math.round(h.st.maxHp * 0.35); h.hp = Math.min(h.st.maxHp, h.hp + v);
   floatText(h.x, h.y, '+' + v, '#7fd17f', 0.9, 16); sfx('potion'); refreshUI();
 }
 

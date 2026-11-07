@@ -156,12 +156,13 @@ Each depth `d` gets a freshly generated level.
 - **Boss room.** Of the rooms other than the start and stairs rooms, the one with the largest
   `area × (BFS distance from the start + 10)` becomes the boss room. It gets two braziers, a **guardian's
   chest** (on the edge, blocking), the boss on a free inner tile, 1–2 ordinary monsters, and no other props.
-  The boss's type is drawn by weight from the types unlocked at depth `max(1, d − 2)`, so the demon (from
-  depth 3) can be a boss only from depth 5.
+  The boss's type is drawn by weight from the types unlocked at depth `d + 1`, so it can be a type not yet
+  seen at this depth (a wraith boss at depth 1, a demon boss from depth 2).
 - Blocking props are only placed on a room's edge, against solid wall, and never next to a doorway or
   corridor mouth, so they can't cut off a path.
 - **Monsters per room** (not the start or boss room): `min(7, 1 + ⌊area/22⌋ + ⌊d/3⌋ + (40 % chance of +1))`.
-  The type is drawn by weight from the types unlocked at that depth.
+  The type is drawn by weight from the types unlocked at that depth. A **champion** also brings 2–3 escorts of
+  its own type (never champions themselves) on free floor tiles within 2 tiles of it.
 
 ## Movement & pathfinding
 
@@ -182,11 +183,11 @@ Each depth `d` gets a freshly generated level.
 - Starts with: STR 10, DEX 10, VIT 10, a *Rusty Short Sword* (equipped), a *Short Bow* in the pack, and
   3 health potions. Quick keys start as 1 = sword, 2 = bow, 3 = potion.
 - **Maximum life:** `40 + 4·VIT + 6·level + life bonuses`.
-- **Regeneration:** `0.6 % of max life per second + item regen`, always active. Life is shown in the red
+- **Regeneration:** `0.2 % of max life per second + item regen`, always active. Life is shown in the red
   orb at the bottom left.
 - **Critical chance:** `5 % + 0.2 %·DEX + item crit`. Criticals deal ×1.75.
 - **Experience:** level `L` needs `round(120 · L^1.7)` XP (120, 390, 1851 … for levels 1, 2, 5). On a level-up, STR, DEX and VIT each gain +2 and
-  the hero fully heals. XP comes from:
+  the hero heals 20 % of max life (not fully). XP comes from:
 
   | Source | XP |
   |---|---|
@@ -198,7 +199,7 @@ Each depth `d` gets a freshly generated level.
   | Picking up an item | 2·d |
   | Picking up a potion | 1 + d |
   | Descending stairs | 10 × the new depth |
-- **Health potion:** restores 45 % of max life, with a 0.8 s cooldown. It can't be drunk at full life.
+- **Health potion:** restores 35 % of max life, with a 0.8 s cooldown (minimum time between two potions). There is no limit on how many the hero carries. It can't be drunk at full life.
 - **Death** returns to the title screen with the fallen hero selected; the hero resumes from its last save
   (see [Saving](#saving)).
 
@@ -219,7 +220,10 @@ Every hit deals at least 1 damage.
 **Melee (swords, axes, bare hands).** Right-click a monster to walk into range and strike it; holding the
 button keeps attacking. Right-clicking empty ground swings at once toward the cursor. A swing hits *every*
 monster within reach and inside the arc, 0.08 s into a 0.24 s animation. Monsters right next to the hero are
-hit regardless of angle.
+hit regardless of angle. Only the **main target** takes full damage; every other monster hit takes 25 %
+(`CLEAVE`). The main target is the clicked monster; for a swing at the ground (or if the clicked monster isn't
+in the swing), it is the hit monster closest to the aim direction (nearer one on a near-tie). Each monster
+gets its own damage and crit roll, then its own armor reduction.
 
 | Weapon type | Reach (tiles) | Half-arc |
 |---|---|---|
@@ -235,8 +239,9 @@ hit regardless of angle.
 
 **Monsters:**
 
-- Monsters wake when the hero is within 8.5 tiles with line of sight, or when they or a monster within
-  6 tiles is hit.
+- Monsters wake when the hero is within 8.5 tiles with line of sight, or when they are hit. A monster that
+  wakes also wakes idle monsters within 6 tiles of it; one that is **hit** also wakes every monster in the same
+  room.
 - They chase directly when the way is clear and otherwise follow A\* paths, re-planned every 0.5–0.9 s.
   They push apart from each other and from the hero, and give up beyond 20 tiles.
 - Idle monsters wander slowly.
@@ -259,8 +264,8 @@ Spawn weights are 3 : 3 : 2 : 2 : 1 in table order.
 
 | Stat | Scaling |
 |---|---|
-| Life | × 1.17^(d−1) |
-| Damage | × 1.13^(d−1) |
+| Life | × 1.22^(d−1) |
+| Damage | × 1.22^(d−1) |
 | Armor | + 3·(d−1) |
 | Speed | × min(1.35, 1 + 0.015·(d−1)) |
 | XP | × 1.17^(d−1) |
@@ -327,11 +332,11 @@ rings from depth 1 and amulets from depth 3.
 | Rarity | Base chance | Affixes | Name |
 |---|---|---|---|
 | Common (white) | the rest | 0 | base name |
-| Magic (blue) | (30 % + boost) × `MAGIC_ODDS` (0.5) | 1–2 | "Prefix Base of Suffix", e.g. *Mighty Longsword of the Fox* |
-| Rare (gold) | (7 % + half the boost) × `RARE_ODDS` (0.2) | 3–4 | random name, e.g. *Gravefang, Longsword* |
+| Magic (blue) | (30 % + boost) × `MAGIC_ODDS` (0.25) | 1–2 | "Prefix Base of Suffix", e.g. *Mighty Longsword of the Fox* |
+| Rare (gold) | (7 % + half the boost) × `RARE_ODDS` (0.1) | 3–4 | random name, e.g. *Gravefang, Longsword* |
 
-So a plain drop is 1.4 % rare and 15 % magic. Chests, champions and bosses add a rarity boost (with a 0.35
-boost: 4.9 % rare, 32.5 % magic). An item with a forced rarity (the starting kit, the guardian's chest) skips
+So a plain drop is 0.7 % rare and 7.5 % magic. Chests, champions and bosses add a rarity boost (with a 0.35
+boost: 2.45 % rare, 16.25 % magic). An item with a forced rarity (the starting kit, the guardian's chest) skips
 the roll.
 
 **Rarity gates by depth.** No magic items before depth 2 (`MAGIC_FROM`) and no rares before depth 4
@@ -362,12 +367,12 @@ affected. The guardian's chest's guaranteed item is not thinned.
 
 | Source | Drops (item chances before `LOOT`) |
 |---|---|
-| Monster | 13 % item, 9 % potion, 30 % gold (2–8 × d) |
+| Monster | 13 % item, 4.5 % potion, 30 % gold (2–8 × d) |
 | Champion | an item of ilvl d+1 (boost 0.35), plus a 50 % chance of a second (boost 0.2) |
-| Boss | an item of ilvl d+1 (boost 0.35), gold (20–40 × d), plus the normal 9 % potion / 30 % gold rolls |
-| Chest | 1–3 items (boost 0.15, 30 % chance of ilvl+1), gold (10–30 × d), 30 % potion |
+| Boss | an item of ilvl d+1 (boost 0.35), gold (20–40 × d), plus the normal 4.5 % potion / 30 % gold rolls |
+| Chest | 1–3 items (boost 0.15, 30 % chance of ilvl+1), gold (10–30 × d), 15 % potion |
 | Guardian's chest | **always** one item of ilvl d+1 that is rare (30 %, if depth + 2 allows rares, i.e. from depth 2) or else magic, gold (30–60 × d), plus everything a normal chest drops |
-| Urn | 35 % gold, 12 % potion, 8 % item |
+| Urn | 35 % gold, 6 % potion, 8 % item |
 | Bones | 20 % gold, 10 % item |
 
 **Guardian's chest.** It glows green and is labelled *Guardian's Chest* on hover. While the boss lives it is
