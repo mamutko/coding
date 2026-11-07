@@ -1271,7 +1271,7 @@ function updateMonster(m, dt) {
   m.hitT = Math.max(0, m.hitT - dt); m.lunge = Math.max(0, m.lunge - dt * 4);
   if (m.dead) { m.deathT += dt; return; }
   const h = G.hero, b = m.b, d = dist(m, h);
-  if (G.time - m.lastHit > 4) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.01 * dt);
+  if (G.time - m.lastHit > 4) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.015 * dt);
   m.cd -= dt; m.moving = false;
   if (m.state === 'idle') {
     if (d < 8.5 && los(m.x, m.y, h.x, h.y)) { alert(m); }

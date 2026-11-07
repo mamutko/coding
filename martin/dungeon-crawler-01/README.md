@@ -245,7 +245,7 @@ gets its own damage and crit roll, then its own armor reduction.
 - They chase directly when the way is clear and otherwise follow A\* paths, re-planned every 0.5–0.9 s.
   They push apart from each other and from the hero, and give up beyond 20 tiles.
 - Idle monsters wander slowly.
-- A monster not damaged for 4 s regenerates 1 % of its max life per second.
+- A monster not damaged for 4 s regenerates 1.5 % of its max life per second.
 - **Melee monsters** wind up for 0.32 s (a visible shake). The blow lands only if the hero is still in reach.
 - **Wraiths** keep 3+ tiles away. They cast a 0.45 s green bolt at 7 tiles/s with a 6.5-tile range; walls
   block it.
