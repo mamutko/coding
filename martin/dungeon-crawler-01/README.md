@@ -9,12 +9,15 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | Path | Purpose |
 |---|---|
 | `index.html` | The whole game: markup, CSS, and JavaScript. Asset metadata (`META`) is inlined so the page also works from `file://`. |
-| `assets/hero.webp`, `skeleton.webp`, `ghoul.webp`, `spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame walk sprite sheets (transparent). |
+| `assets/hero.webp`, `skeleton.webp`, `ghoul.webp` | 8-direction × 8-frame walk cycles (transparent). |
+| `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
 | `assets/items.webp` | 6 × 4 atlas of 96 px item icons. |
 | `assets/props.webp` | Horizontal strip of props (chest, open chest, door, stairs, brazier, bones, urn, gold). |
 | `assets/floor.jpg`, `assets/wall.jpg` | 512 px seamless floor and wall textures. |
 | `assets/meta.json` | Frame sizes and atlas coordinates written by the processing script (copied into `META` in `index.html`). |
-| `tools/process_art.py` | Turns the raw AI images into the files above (chroma-key, slicing, packing). |
+| `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
+| `tools/walk_cycle.py` | Walk-cycle pipeline (hero, skeleton, ghoul): renders the 3D stick-figure pose guides and placeholders, and builds the 8-frame sheets. |
+| `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 
 ## Controls
 
@@ -22,13 +25,19 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 |---|---|
 | Left click on floor | Walk there (A* pathfinding). Holding the button keeps walking toward the cursor. |
 | Left click on chest / door / urn / bones / gold / item / stairs | Walk to it and act on it: open, break, search, pick up, or descend. |
-| Right click | Attack with the equipped weapon (see [Combat](#combat)). Hold to keep attacking. |
+| Right click, or `Shift` + left click | Attack with the equipped weapon (see [Combat](#combat)). Hold to keep attacking. |
 | `I`, `C` or `Tab` | Toggle the equipment overlay (`Esc` closes it). |
 | `1`–`9`, `0` | Quick keys: equip the bound weapon or drink a potion. |
 | `Q` | Drink a health potion. |
 | `M` | Toggle the minimap. |
 | `N` | Toggle sound. |
 | Mouse wheel | Zoom (0.6×–1.5×). |
+
+**Touchpads and touch screens.** `Shift` turns any left click or tap into a right click, everywhere a right
+click does something: attacking in the game view, dropping a pack item and clearing a quick key. The game
+view uses pointer events (mouse, touchpad, touch and pen alike) with `touch-action: none`, so a finger held
+on the screen keeps walking or attacking and dragging doesn't scroll or zoom the page. A press that started
+as `Shift` + click stays a right click until it is released, even if `Shift` is let go first.
 
 The title screen lists the controls and has an **Enter the Crypt** button (enabled once all images have loaded).
 The first level is rendered behind the title screen.
@@ -58,10 +67,21 @@ The first level is rendered behind the title screen.
   brazier, and a small glow per wraith bolt. The result is drawn over the scene, then each brazier adds a warm
   orange glow (`lighter`). Item labels, monster health bars and floating damage numbers are drawn after the
   lighting so they stay readable.
-- **Characters.** Each sheet has 8 rows, one per direction, in the order S, SW, W, NW, N, NE, E, SE, and
-  4 walk frames per row. The facing row comes from the movement or attack direction projected to screen space
-  and rounded to 45° sectors. Frames advance with distance moved; frame 0 is idle. Characters have a shadow
-  ellipse and are anchored bottom-centre at their feet. The wraith hovers and bobs. Attacks show a short
+- **Characters.** Each sheet has 8 rows, one per direction, in the order S, SW, W, NW, N, NE, E, SE. The
+  facing row comes from the movement or attack direction projected to screen space and rounded to 45°
+  sectors. `META.characters.<name>` gives the frame size `fw × fh`, the frame count, an optional idle frame
+  (default 0), an optional `footY`, the ground point's y inside the frame (default `fh − 6`), and `fpt`, walk
+  frames per tile (default 2). The sprite is drawn horizontally centred with `footY` on the entity's position,
+  scaled by the monster's `scale`. Characters have a shadow ellipse.
+  - **Walk frames advance with distance walked**, `anim += distance × fpt / scale` (the hero's scale is 1), so
+    feet don't slide at any move speed and bigger monsters take longer strides.
+  - **Hero, skeleton, ghoul:** 8 frames per direction = one full stride (two steps): 0 left foot forward,
+    1 down, 2 passing, 3 up, 4 right foot forward, 5 down, 6 passing, 7 up. `fpt` is 5 (a stride every 1.6
+    tiles; the ghoul's shorter lurching stride uses 5.5). Idle uses frame 3. `footY` is 128 in a 152 px frame
+    (ghoul: 138 in 162 px, as its hunched back views stand taller), because the foot nearer the camera hangs
+    below the ground point in this view.
+  - **Spider, wraith, demon:** 4 frames per direction, `fpt` 2, frame 0 is idle; `footY` 128 in a 152 px frame.
+    The wraith hovers and bobs. Attacks show a short
   lunge toward the facing direction. A hit flashes the sprite white (`filter: brightness`), and champions get
   a red glow (`drop-shadow`). Dead monsters sink and fade over about 1 s.
 - **Effects.** Melee swings draw a sweeping crescent arc in the attack direction. Arrows are drawn as shafts with
@@ -289,12 +309,12 @@ inventory.
 Opened with `I` / `C` / `Tab` or the **Equipment (I)** button. It is a partly transparent dark panel
 (`rgba(16, 11, 14, 0.78)`); **the game keeps running underneath** and can still be played around it.
 
-- **Paper doll:** eight slots around an animated portrait of the hero slowly turning through all eight
-  directions. Click an equipped item to move it back to the pack.
+- **Paper doll:** eight slots around an animated portrait of the hero walking (12 frames/s) and slowly
+  turning through all eight directions, drawn 128 px tall with the frame's aspect ratio kept. Click an equipped item to move it back to the pack.
 - **Inventory:** 6 × 5 grid (30 items).
   - Click to equip. The previously equipped item swaps into the same cell. Rings fill an empty ring slot
     first, otherwise they replace ring 1.
-  - Right-click to drop the item on the floor; this also clears its quick key.
+  - Right-click (or `Shift` + click) to drop the item on the floor; this also clears its quick key.
   - A potion cell shows the potion count; click it to drink.
 - **Tooltips:** name in rarity colour, type, item level, damage and attacks per second or armor, and every
   bonus. For pack items it also compares with the equipped item in that slot: base DPS difference for
@@ -302,8 +322,8 @@ Opened with `I` / `C` / `Tab` or the **Equipment (I)** button. It is a partly tr
 - **Attributes:** level, XP, STR / DEX / VIT, life (live), regen, armor, damage range, attack speed, crit,
   move speed, kills, gold.
 - **Quick keys:** hover a weapon (in the pack or the weapon slot) or the potion, then press `1`–`9` / `0` to
-  bind it to that key. A weapon can only be on one key, and key tags show on bound items. Right-click a key to
-  clear it.
+  bind it to that key. A weapon can only be on one key, and key tags show on bound items. Right-click (or `Shift` +
+  click) a key to clear it.
 - Outside the overlay (or while hovering nothing in it), a quick key equips its weapon from the pack, or
   drinks a potion. The bottom hotbar shows the bound icons, highlights the equipped weapon, and can also be
   clicked.
@@ -328,8 +348,11 @@ pickups, gold, potions, level-ups, death and stairs. Audio starts on the first c
 
 ## Assets
 
-All art was generated with OpenAI `gpt-image-2` (medium quality) through the `ai-media-generation` skill in
-Martin's notes repo, for about **$0.70** total.
+The art was generated through the `ai-media-generation` skill in Martin's notes repo: monsters, items, props
+and textures with OpenAI `gpt-image-2` (medium quality, about $0.70), and the hero walk cycle with Google
+`gemini-3.1-flash-image` (see [Walk cycles](#walk-cycles-hero-skeleton-ghoul)). Total spend so far is about
+$2.62: about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
+walk cycles, plus small tests.
 
 - **Background.** `gpt-image-2` can't make transparent backgrounds (and a Gemini test returned an opaque JPEG
   too). Every sprite is therefore generated on flat magenta `#FF00FF` and keyed out by `tools/process_art.py`.
@@ -344,8 +367,8 @@ Martin's notes repo, for about **$0.70** total.
   > game-art, muted desaturated colors, strong rim light. Background: perfectly flat solid pure magenta
   > #FF00FF everywhere, no gradient.
 
-- **Subjects:**
-  - hero knight in dark steel plate armor with a tattered crimson cape
+- **Subjects:** (there was also a hero knight sheet, "in dark steel plate armor with a tattered crimson cape";
+  it, and the skeleton and ghoul sheets, now serve only as design references for their walk cycles)
   - undead skeleton warrior with a rusty sword and a broken round shield, glowing blue eye sockets
   - hunched pale grey ghoul with long claws and torn rags, feral
   - giant black cave spider with eight hairy legs and red eyes, legs moving in a scuttling cycle
@@ -363,11 +386,117 @@ Martin's notes repo, for about **$0.70** total.
 
 - **Soft chroma key:** alpha comes from the "magentaness" `min(r, b) − g`. Edge pixels are un-mixed from the
   key colour, and remaining magenta spill is removed.
-- **Fragment cleanup:** stray islands from neighbouring cells are dropped. Islands that are small, or that
-  touch the cell border (items and props), are removed.
-- **Character sheets:** each is cut into its 4 × 8 grid. Every frame is cropped with one shared,
-  horizontally-centred bounding box so the feet stay planted, scaled to 128 px tall, and saved as WebP.
+- **Fragment cleanup (icons, props):** stray islands from neighbouring cells are dropped. Islands that are
+  small, or that touch the cell border, are removed.
+- **Monster sheets (spider, wraith, demon):** the AI let figures cross the 4 × 8 grid lines (heads sliced into
+  the cell above, legs into the cell below), so frames are *not* cut by the grid. Each figure is a whole
+  connected component of the keyed sheet (`components()` from `walk_cycle.py`, specks under 2 % dropped),
+  assigned to the cell that holds its centroid; a component wider or taller than 1.4 cells (two touching
+  figures) is split along the grid lines. Only the base rows S, SW, W, NW, N are used, and SE, E, NE are their
+  horizontal mirrors, because several of the AI's right-facing rows faced the wrong way (for example the
+  skeleton's E row faced down-right). One scale per monster makes the 90th-percentile figure height 124 px.
+  Each frame goes into a 152 px tall frame with the head-and-shoulders (top 45 %) alpha centroid centred and
+  the lowest pixel at `footY + 4` (`footY` = 128); the frame width is the narrowest that fits every frame.
+  Saved as WebP.
 - **Icons and props:** icons are fitted into 96 px cells; props are scaled to 45 % and packed into a strip.
 - **Textures** are resized to 512 px JPEGs.
 - **`meta.json`** gets the frame sizes and atlas coordinates. When assets are regenerated, copy its contents
   into the `META` constant in `index.html`.
+- `process_art.py` keeps every existing `meta.json` character entry with 8 frames (built by `walk_cycle.py`)
+  and skips those characters, so it never overwrites a walk-cycle sheet.
+
+### Walk cycles (hero, skeleton, ghoul)
+
+A single AI image can't be trusted to invent a walk cycle: asked for a whole 8 × 4 direction grid, the model
+draws one pose 32 times. So these characters are generated **one direction per image, painted over a pose
+guide**. `tools/walk_cycle.py` takes the character as its first argument, and `CHARS` holds each one's gait
+and frame settings. The hero is described first; the [skeleton and ghoul](#skeleton-and-ghoul) differences
+follow.
+
+- **Pose model.** `tools/walk_cycle.py` has a small 3D stick figure (1.75 m: hips at 0.95 m, 0.46 m thigh and
+  shin, 0.17 m foot, arms 0.30 + 0.28 m). Over 8 phases the hip swings ±24° (cosine), the knee bends up to
+  52° during swing, and the arms swing ±20° opposite to the same-side leg, with the elbow bending from 18° (arm
+  back) to 32° (arm forward) and a fist blob at each hand. The upper body isn't rigid: the pelvis turns ±6° with
+  the forward leg, the shoulders counter-rotate ±8°, the upper body shifts 3.5 cm sideways over the stance leg
+  (the hips half as much), it leans 4° forward, and the head follows the shoulder motion at 60 %. The figure
+  is lowered so its lowest point touches the ground, which gives the natural body bob. It is rotated to the ground facing angle
+  (k × 45°) and projected with a 30° camera elevation (the 2:1 dimetric view), and parts are drawn far to near.
+  Left limbs are blue and right limbs orange; a red dot marks the face.
+- **Placeholders.** A base direction without an AI image falls back to these stick figures, rendered at game
+  scale (~118 px tall, ground point at `footY`), so it still animates correctly in the game.
+- **Guide** (`python walk_cycle.py guide <CHAR> <DIR> <out.png> --magenta --mannequin`): the 8 poses for one direction
+  in a 4 × 2 grid (1200 × 880) on magenta, as a grey mannequin with thicker limbs (dark grey = left, light
+  grey = right). Coloured limbs leaked into the armour, so the guide is grey.
+- **Generation** (`google_media.py edit`, `gemini-3.1-flash-image`, 1K, aspect 4:3, ~$0.07 per direction). The
+  inputs are the guide (as the image being edited), a clean crop of the knight from the original sheet in the
+  same view (the original NW row actually faced NE, so that crop is mirrored), and a frame of the finished SW
+  knight as the close-up design reference. The prompt names the view (S: front view walking toward the
+  bottom; W: strict side profile facing left; NW: three-quarter back view walking to the top-left, face not
+  visible; N: back view) and spells out the design (rounded dome great helm with a visor slit, nearly black
+  steel with a reddish-brown sheen, red-brown straps, chainmail skirt, dark-red cape draped over both
+  shoulders); without the explicit design, the S view drifted to a flat-topped helm and light grey plate. The prompt asks to paint over every mannequin with the knight, keeping each one's exact
+  position, size and pose (dark grey = left, light grey = right), to copy only the *design* of the reference
+  and not its pose, and to keep the flat magenta background. It also spells out the arms (frame 1 right arm
+  forward and left arm back, frame 5 the reverse, frames 3 and 7 arms close to the body, fists at clearly
+  different positions) and the torso (shoulders twist against the hips, slight forward lean and shift over the
+  supporting leg); without that the model kept the reference's hanging arms and a stiff torso. Giving the
+  knight as the main image and the guide only as a reference produced eight nearly identical poses.
+- **Cleanup.** The model can leave flat grey mannequin pieces behind (found as large flat, unsaturated
+  regions, values 150–240). A second edit pass on the result removes them ("remove the leftover flat grey
+  shapes … change nothing else"). Where that also removed a limb, the missing part is copied from the
+  neighbouring frame with the same pose (SW frame 2 got its forward right arm from frame 1, aligned on the
+  helmet, filling only empty background pixels). `tools/raw/hero_walk_SW.png` is the cleaned result.
+- **Build** (`python walk_cycle.py build <CHAR> tools/raw assets`):
+  - Each figure is found as a whole connected component of the chroma-keyed image. Components are labelled on
+    a 3× downsampled mask, and specks under 2 % of the largest are dropped. Each component is assigned to the
+    4 × 2 cell that holds its centroid, so a grid line never cuts a figure (the original sheet had heads sliced
+    off into the cell above).
+  - One scale per direction: the median ratio of the pose model's bounding-box height to the AI figure's height.
+  - Each frame is placed in an `fw × fh` frame (hero 144 × 152). Horizontally, the head-and-shoulders (top 45 %) alpha centroid is
+    centred. Vertically, the figure's lowest pixel goes where the pose model's lowest foot is for that frame.
+  - Base directions are S, SW, W, NW and N. SE, E and NE are horizontal mirrors of SW, W and NW. Mirroring
+    swaps the legs, which in a walk cycle is just a half-stride phase shift.
+  - Writes `assets/<char>.webp` and its entry in `assets/meta.json` (hero:
+    `{"fw":144,"fh":152,"frames":8,"idle":3,"footY":128,"fpt":5}`), which must be copied into `META` in
+    `index.html`.
+- **Status:** all five base directions (and so all eight) of the hero use AI art. Every raw image was checked
+  for leftover flat-grey guide pieces (none ≥ 150 px remain).
+
+#### Skeleton and ghoul
+
+Same pipeline, with these `CHARS` settings (angles in degrees; arm values are left, right):
+
+| | hero | skeleton | ghoul |
+|---|---|---|---|
+| frame `fw × fh`, `footY` | 144 × 152, 128 | 176 × 152, 128 | 160 × 162, 138 |
+| forward lean (rotation of the upper body about the hip axis) | 4 | 4 | 25 |
+| constant knee bend (half taken up at the hip, feet kept flat) | 0 | 0 | 24 |
+| hip swing amplitude | 24 | 22 | 19 |
+| arm swing amplitude | 20, 20 | 5, 12 | 14, 14 |
+| constant forward offset of the upper arm | 0, 0 | 12, 4 | 8, 8 |
+| base elbow bend (+14 when the arm is fully forward) | 18, 18 | 75, 28 | 14, 14 |
+| `fpt` (frames per tile) | 5 | 5 | 5.5 |
+
+The skeleton's left forearm is held bent in front (the shield) and barely swings, and the sword arm has a
+short swing. The ghoul is hunched with bent knees, a shorter stride, and arms dangling in front.
+
+- **Generation:** the same edit call with three inputs: the mannequin guide, a crop of the monster from its
+  original sheet in the same view (cut with the component method above), and, for every direction after SW, a
+  frame of the finished SW sheet as the close-up design reference. The prompt follows the hero's (paint over
+  every mannequin, keep each pose, dark grey = left and light grey = right, the same per-frame leg
+  description, copy only the design), with a per-monster design and motion text:
+  - skeleton: aged brownish-bronze bones, glowing pale-blue eye sockets, rusted bronze shoulder and chest
+    pieces, tattered loincloth; a rusty sword in the right hand (light grey arm) and a round wooden shield
+    with an iron rim on the bent left forearm (dark grey arm), which barely moves.
+  - ghoul: emaciated, pale grey-brown skin over ribs and sinews, long matted white-grey hair, gaping mouth,
+    long black claws, ragged loincloth, bare feet; strongly hunched, knees always bent, arms dangling loosely
+    in front.
+  - views: S "front view, walks straight toward the viewer"; SW "three-quarter view, walks toward the viewer
+    and to the left"; W "strict side profile, walks to the left, we see only its left side"; NW "three-quarter
+    back view, walks away and to the left, face hidden"; N "back view, face not visible".
+- **Fixes:** S (both monsters) left flat grey mannequin legs behind several figures; the cleanup pass removed
+  them, repainting each as the monster's leg. Skeleton W twice came out with a second shield at its back; a
+  cleanup pass removed it (the second row lost its shoulder armour). Ghoul N stays upright from behind even
+  when the hunch is spelled out; it is used as is, and the ghoul's taller frame keeps it from being clipped.
+- **Raw images used:** `tools/raw/skeleton_walk_<DIR>.png` and `tools/raw/ghoul_walk_<DIR>.png`. In the
+  mirrored rows (SE, E, NE) the skeleton holds its sword in the left hand.

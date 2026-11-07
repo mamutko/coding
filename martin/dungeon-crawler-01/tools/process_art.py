@@ -2,13 +2,19 @@
 
 Usage:  python process_art.py <raw_dir> <out_dir>
 
-raw_dir must contain: hero.png skeleton.png ghoul.png spider.png wraith.png demon.png
+Characters with an 8-frame walk cycle (hero, and any monster already built by walk_cycle.py) are
+skipped and their meta.json entries kept; walk_cycle.py builds those sheets.
+
+raw_dir must contain: skeleton.png ghoul.png spider.png wraith.png demon.png
 (1024x1536, 4 cols x 8 rows), items.png (1536x1024, 6x4), props.png (1536x1024, 4x2),
 floor.png, wall.png (1024x1024 textures).
 """
 import json, sys, pathlib
 from PIL import Image
 import numpy as np
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(pathlib.Path(__file__).parent))
+from walk_cycle import components, FOOT_Y
 
 raw, out = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
 out.mkdir(parents=True, exist_ok=True)
@@ -81,34 +87,84 @@ def bbox(arr):
 
 
 meta = {"characters": {}, "items": {}, "props": {}}
+_old = out / "meta.json"
+old_chars = json.loads(_old.read_text()).get("characters", {}) if _old.exists() else {}
+for n, e in old_chars.items():
+    if e.get("frames") == 8:          # built by walk_cycle.py
+        meta["characters"][n] = e
 
-# ---- characters: 4 frames x 8 directions -------------------------------------------
-FRAME_H = 128
-for name in ["hero", "skeleton", "ghoul", "spider", "wraith", "demon"]:
-    arr = key_out(Image.open(raw / f"{name}.png"))
+# ---- monsters: 4 frames x 8 directions -------------------------------------------------
+# Each figure is found as a whole connected component of the whole sheet and assigned to the grid cell
+# holding its centroid, so grid lines never cut a figure (the AI sheets let heads and legs cross them).
+# Only the base rows S, SW, W, NW, N are used; SE, E, NE are their mirrors (the AI's right-facing rows
+# were often wrong). Frames are placed with the head-and-shoulders centred and the lowest pixel at
+# FOOT_Y + 4 (the nearer foot hangs slightly below the ground point in this view).
+FH_M, TALL = 152, 124              # frame height; 90th-percentile figure height in px
+BASE_ROWS, MIRROR_ROWS = [0, 1, 2, 3, 4], {5: 3, 6: 2, 7: 1}
+
+
+def figures(arr, cols, rows):
     H, W = arr.shape[:2]
-    cw, ch = W // 4, H // 8
-    cells = [[keep_main(arr[r * ch:(r + 1) * ch, c * cw:(c + 1) * cw], 0.04) for c in range(4)] for r in range(8)]
-    # union bbox (cell-relative) over all frames keeps the model's own centring stable
-    boxes = [bbox(cells[r][c]) for r in range(8) for c in range(4)]
-    boxes = [b for b in boxes if b]
-    x0 = min(b[0] for b in boxes); y0 = min(b[1] for b in boxes)
-    x1 = max(b[2] for b in boxes); y1 = max(b[3] for b in boxes)
-    # make horizontally symmetric around the cell centre so the anchor is the centre
-    half = max(cw / 2 - x0, x1 - cw / 2)
-    x0, x1 = int(cw / 2 - half), int(cw / 2 + half)
-    x0, x1 = max(0, x0), min(cw, x1)
-    fw0, fh0 = x1 - x0, y1 - y0
-    s = FRAME_H / fh0
-    fw, fh = max(1, round(fw0 * s)), FRAME_H
-    sheet = Image.new("RGBA", (fw * 4, fh * 8))
-    for r in range(8):
+    cw, ch = W / cols, H / rows
+    lab, sizes = components(arr[..., 3] > 20)
+    big = sizes.max()
+    owner = np.zeros_like(lab)       # label image -> cell index + 1
+    yy, xx = np.indices(lab.shape)
+    gridcell = (np.minimum(rows - 1, (yy / ch).astype(int)) * cols + np.minimum(cols - 1, (xx / cw).astype(int)))
+    for n in range(1, len(sizes)):
+        if sizes[n] < big * 0.02:
+            continue
+        m = lab == n
+        ys, xs = np.nonzero(m)
+        if np.ptp(xs) > 1.4 * cw or np.ptp(ys) > 1.4 * ch:   # two figures touching: split along the grid
+            owner[m] = gridcell[m] + 1
+        else:
+            r = min(rows - 1, int(ys.mean() / ch)); c = min(cols - 1, int(xs.mean() / cw))
+            owner[m] = r * cols + c + 1
+    out = []
+    for i in range(rows * cols):
+        keep = owner == i + 1
+        if not keep.any():
+            raise SystemExit(f"no figure in cell {i}")
+        ys, xs = np.nonzero(keep)
+        rgba = arr.copy(); rgba[~keep, 3] = 0
+        out.append(rgba[ys.min():ys.max() + 1, xs.min():xs.max() + 1])
+    return out
+
+
+for name in ["skeleton", "ghoul", "spider", "wraith", "demon"]:
+    if name in meta["characters"]:
+        print(name, "kept (walk cycle)")
+        continue
+    figs = figures(key_out(Image.open(raw / f"{name}.png")), 4, 8)
+    base = [figs[r * 4 + c] for r in BASE_ROWS for c in range(4)]
+    s_ = TALL / np.percentile([f.shape[0] for f in base], 90)
+    placed = {}
+    for r in BASE_ROWS:
         for c in range(4):
-            crop = Image.fromarray(cells[r][c][y0:y1, x0:x1], "RGBA").resize((fw, fh), Image.LANCZOS)
-            sheet.paste(crop, (c * fw, r * fh))
+            im = Image.fromarray(figs[r * 4 + c], "RGBA")
+            im = im.resize((max(1, round(im.width * s_)), max(1, round(im.height * s_))), Image.LANCZOS)
+            a = np.asarray(im)[..., 3].astype(np.float32)
+            cols_ = a[: max(1, int(a.shape[0] * 0.45))].sum(0)
+            cx = (cols_ * np.arange(len(cols_))).sum() / max(cols_.sum(), 1)
+            placed[r, c] = (im, cx)
+    half = max(max(cx, im.width - cx) for im, cx in placed.values())
+    fw = int(np.ceil(half)) * 2 + 4
+    top = max(im.height for im, _ in placed.values()) - (FOOT_Y + 4)
+    if top > 0:
+        raise SystemExit(f"{name}: tallest frame {top}px too tall for FOOT_Y")
+    sheet = Image.new("RGBA", (fw * 4, FH_M * 8))
+    for (r, c), (im, cx) in placed.items():
+        x, y = round(fw / 2 - cx), FOOT_Y + 4 - im.height
+        f = Image.new("RGBA", (fw, FH_M)); f.paste(im, (x, y), im)
+        sheet.paste(f, (c * fw, r * FH_M))
+        if r in MIRROR_ROWS.values():
+            for mr, br in MIRROR_ROWS.items():
+                if br == r:
+                    sheet.paste(f.transpose(Image.FLIP_LEFT_RIGHT), (c * fw, mr * FH_M))
     sheet.save(out / f"{name}.webp", quality=88, method=6)
-    meta["characters"][name] = {"fw": fw, "fh": fh, "frames": 4}
-    print(name, fw, fh)
+    meta["characters"][name] = {"fw": fw, "fh": FH_M, "frames": 4, "footY": FOOT_Y, "fpt": 2}
+    print(name, fw, FH_M, "scale %.3f" % s_)
 
 # ---- item icons: 6 x 4 ------------------------------------------------------------------
 ICON = 96

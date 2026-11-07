@@ -1,34 +1,49 @@
 {
  "characters": {
   "hero": {
-   "fw": 128,
-   "fh": 128,
-   "frames": 4
+   "fw": 144,
+   "fh": 152,
+   "frames": 8,
+   "idle": 3,
+   "footY": 128,
+   "fpt": 5
   },
   "skeleton": {
-   "fw": 165,
-   "fh": 128,
-   "frames": 4
+   "fw": 176,
+   "fh": 152,
+   "frames": 8,
+   "idle": 3,
+   "footY": 128,
+   "fpt": 5
   },
   "ghoul": {
-   "fw": 144,
-   "fh": 128,
-   "frames": 4
+   "fw": 160,
+   "fh": 162,
+   "frames": 8,
+   "idle": 3,
+   "footY": 138,
+   "fpt": 5.5
   },
   "spider": {
-   "fw": 195,
-   "fh": 128,
-   "frames": 4
+   "fw": 188,
+   "fh": 152,
+   "frames": 4,
+   "footY": 128,
+   "fpt": 2
   },
   "wraith": {
-   "fw": 107,
-   "fh": 128,
-   "frames": 4
+   "fw": 102,
+   "fh": 152,
+   "frames": 4,
+   "footY": 128,
+   "fpt": 2
   },
   "demon": {
-   "fw": 155,
-   "fh": 128,
-   "frames": 4
+   "fw": 150,
+   "fh": 152,
+   "frames": 4,
+   "footY": 128,
+   "fpt": 2
   }
  },
  "items": {
