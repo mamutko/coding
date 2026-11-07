@@ -201,6 +201,16 @@ for i, n in enumerate(PROP_NAMES):
     im = Image.fromarray(cell[b[1]:b[3], b[0]:b[2]], "RGBA")
     im = im.resize((round(im.width * 0.45), round(im.height * 0.45)), Image.LANCZOS)
     pieces.append((n, im))
+# boss-room furnishings: decor.png (1264 x 848, 4 x 2, same style; generated from props.png as a style
+# reference). Cell 8 (a summoning circle) is not used; the game draws its own rune circle. Figures are found
+# as whole components (figures()), so loose rubble and candle flames stay with their prop.
+DECOR_NAMES = ["throne", "altar", "candelabrum", "skullpile", "banner", "pillar", "sarcophagus"]
+if (raw / "decor.png").exists():
+    dfigs = figures(key_out(Image.open(raw / "decor.png")), 4, 2)
+    k = 0.45 * 1536 / 1264      # same pixel scale as props.png
+    for i, n in enumerate(DECOR_NAMES):
+        im = Image.fromarray(dfigs[i], "RGBA")
+        pieces.append((n, im.resize((round(im.width * k), round(im.height * k)), Image.LANCZOS)))
 pw = sum(p.width for _, p in pieces) + 2 * len(pieces)
 ph = max(p.height for _, p in pieces)
 patlas = Image.new("RGBA", (pw, ph))

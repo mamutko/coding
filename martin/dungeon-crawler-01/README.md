@@ -12,7 +12,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `assets/hero.webp`, `skeleton.webp`, `ghoul.webp` | 8-direction × 8-frame walk cycles (transparent). |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
 | `assets/items.webp` | 6 × 4 atlas of 96 px item icons. |
-| `assets/props.webp` | Horizontal strip of props (chest, open chest, door, stairs, brazier, bones, urn, gold). |
+| `assets/props.webp` | Horizontal strip of props (chest, open chest, door, stairs, brazier, bones, urn, gold) and boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus). |
 | `assets/floor.jpg`, `assets/wall.jpg` | 512 px seamless floor and wall textures. |
 | `assets/meta.json` | Frame sizes and atlas coordinates written by the processing script (copied into `META` in `index.html`). |
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
@@ -54,7 +54,7 @@ rendered behind it. The start button is enabled once all images have loaded.
 
 Progress is saved in the browser's `localStorage` under one key, `crypt-of-endless-night.save`:
 `{ v: 1, last: <id of the hero played last>, heroes: { <id>: entry } }`, where an entry is
-`{ id, name, depth, lvl, saved: <timestamp>, hero: { name, lvl, xp, base, equip, inv, potions, gold, hotkeys, kills } }`.
+`{ id, name, depth, lvl, saved: <timestamp>, hero: { name, lvl, xp, base, equip, inv, potions, gold, hotkeys, kills, hp } }`.
 Items are plain data, so the hero's equipment, pack and quick keys are stored as they are. Every read and write
 is wrapped in `try`; if storage is unavailable the game still plays, logs that progress could not be saved,
 and the picker shows no saved heroes.
@@ -65,7 +65,8 @@ and the picker shows no saved heroes.
 - **Hero picker** (the title screen): one button per saved hero, most recently saved first, showing name,
   level and depth, plus **New Hero**. The selected button has a gold border; the hero played last (or the
   newest) is selected at start. Clicking a selected hero (or the button below) starts it.
-  - **Resuming** generates a *new* layout for the saved depth and restores the saved hero at full life. Item
+  - **Resuming** generates a *new* layout for the saved depth and restores the saved hero with the life it had
+    when saved (capped at max life; saves made before life was saved start at full life). Item
     ids continue after the highest saved one, so new drops never clash with owned items.
   - **New Hero** shows a name field (up to 20 characters, spaces collapsed; empty names are refused with a red
     border), and the button becomes **Begin** (Enter also works). The new hero starts at level 1 on depth 1
@@ -99,7 +100,8 @@ and the picker shows no saved heroes.
 - **Lighting.** An offscreen canvas is filled with 93 % near-black. Elliptical radial "holes" are then cut
   into it (`destination-out`): a 7.2-tile radius around the hero, about 4.2 tiles of flickering light per
   brazier, and a small glow per wraith bolt. The result is drawn over the scene, then each brazier adds a warm
-  orange glow (`lighter`). Item labels, monster health bars and floating damage numbers are drawn after the
+  orange glow (`lighter`; green for the boss room's braziers); candelabra light a 2.6-tile radius and the
+  boss room's rune circle 3.4 tiles. Item labels, monster health bars and floating damage numbers are drawn after the
   lighting so they stay readable.
 - **Characters.** Each sheet has 8 rows, one per direction, in the order S, SW, W, NW, N, NE, E, SE. The
   facing row comes from the movement or attack direction projected to screen space and rounded to 45°
@@ -118,6 +120,10 @@ and the picker shows no saved heroes.
     The wraith hovers and bobs. Attacks show a short
   lunge toward the facing direction. A hit flashes the sprite white (`filter: brightness`), champions get
   a red glow and bosses a green glow (`drop-shadow`). Dead monsters sink and fade over about 1 s.
+- **Boss room.** Its braziers are drawn with `hue-rotate(80deg) saturate(1.4)` (green fire, green embers). Its
+  **rune circle** is drawn on the floor, centred on the room, with radius 0.24 × the room's shorter side:
+  a soft green radial glow, two concentric rings, 24 rune ticks turning slowly, and three arcs turning the
+  other way inside, all additive (`lighter`) with a green shadow blur, pulsing at about 0.35 Hz.
 - **Effects.** Melee swings draw a sweeping crescent arc in the attack direction. Arrows are drawn as shafts with
   a tip, and wraith bolts as glowing green orbs. Hits spray blood-coloured sparks (green for wraiths), urns
   burst into shards, and level-ups emit an expanding golden ring.
@@ -154,12 +160,16 @@ Each depth `d` gets a freshly generated level.
   - urns: 0–2; blocking
   - bones: 0–2
   - gold pile: 20 % chance, worth 3–12 × d × `LOOT`
-- **Boss room.** The second room placed is the boss room, 9–12 tiles a side (about twice the area of a normal
+- **Boss room.** The second room placed is the boss room, 11–14 tiles a side (about 2.8× the area of a normal
   5–10 room; it gets the first 300 placement tries, and if it doesn't fit, the room with the largest
   `area × (BFS distance from the start + 10)` other than the start and stairs rooms is used instead). The stairs
-  never go in it. It gets at least 4 braziers, a **guardian's chest** (on the edge, blocking), the boss on a
-  free inner tile, 1–2 ordinary monsters, a 50 % chance of an extra champion (at any depth, without escorts),
-  and no other props.
+  never go in it. Contents:
+  - the boss on the centre tile, standing on the **rune circle** (see Rendering);
+  - at least 4 braziers with **green flames**, and a **guardian's chest**, on the edge (blocking);
+  - furnishings (non-interactive): a throne, an altar, a sarcophagus, 2 banners, 2 broken pillars and
+    2 candelabra on the edge (blocking), and 3 skull piles on inner tiles (not blocking);
+  - 1–2 ordinary monsters and a 50 % chance of an extra champion (at any depth, without escorts);
+  - no chests, urns, bones or gold piles.
   The boss's type is drawn by weight from the types unlocked at depth `d + 1`, so it can be a type not yet
   seen at this depth (a wraith boss at depth 1, a demon boss from depth 2).
 - Blocking props are only placed on a room's edge, against solid wall, and never next to a doorway or
@@ -435,8 +445,8 @@ pickups, gold, potions, level-ups, death and stairs. Audio starts on the first c
 The art was generated through the `ai-media-generation` skill in Martin's notes repo: monsters, items, props
 and textures with OpenAI `gpt-image-2` (medium quality, about $0.70), and the hero walk cycle with Google
 `gemini-3.1-flash-image` (see [Walk cycles](#walk-cycles-hero-skeleton-ghoul)). Total spend so far is about
-$2.62: about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
-walk cycles, plus small tests.
+$2.69 ($0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
+walk cycles, plus small tests).
 
 - **Background.** `gpt-image-2` can't make transparent backgrounds (and a Gemini test returned an opaque JPEG
   too). Every sprite is therefore generated on flat magenta `#FF00FF` and keyed out by `tools/process_art.py`.
@@ -463,6 +473,13 @@ walk cycles, plus small tests.
 - **Props** (1536 × 1024): a 4 × 2 grid (closed chest, open chest with glowing gold, arched gothic door in a
   stone frame, descending stairway seen from above, lit brazier, skull-and-bone pile, cracked funeral urn,
   gold coin pile), on magenta.
+- **Boss-room furnishings** (`decor.png`, Google `gemini-3.1-flash-image` `edit`, 1K, aspect 3:2, ~$0.07):
+  the props sheet as a style reference, asking for a new sheet "in exactly the same art style, camera angle,
+  lighting, painterly detail and scale": a 4 × 2 grid of a black stone and bone throne with a spiked back, a
+  blood-stained altar with a skull and black candles, a wrought-iron candelabrum with lit candles, a heap of
+  skulls, a tattered dark green banner with a skull on an iron pole, a broken gothic pillar with rubble, a
+  closed stone sarcophagus, and a green summoning circle. The circle isn't used (its six-pointed star read
+  like a religious symbol); the game draws its own.
 - **Textures** (1024²): "seamless tileable … dark gothic dungeon floor of worn irregular grey flagstones" and
   "… dungeon wall of large rough grey stone blocks with mortar, moss and grime".
 
@@ -483,6 +500,8 @@ walk cycles, plus small tests.
   the lowest pixel at `footY + 4` (`footY` = 128); the frame width is the narrowest that fits every frame.
   Saved as WebP.
 - **Icons and props:** icons are fitted into 96 px cells; props are scaled to 45 % and packed into a strip.
+  If `decor.png` exists, its first 7 cells are found as whole components (`figures()`, so rubble and flames stay
+  with their prop), scaled to the same pixel scale (45 % × 1536 / 1264) and appended to the strip.
 - **Textures** are resized to 512 px JPEGs.
 - **`meta.json`** gets the frame sizes and atlas coordinates. When assets are regenerated, copy its contents
   into the `META` constant in `index.html`.
