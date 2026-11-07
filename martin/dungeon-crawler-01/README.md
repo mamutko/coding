@@ -145,7 +145,8 @@ Each depth `d` gets a freshly generated level.
 - Every void tile next to floor (8-neighbourhood) becomes a wall.
 - **Doors.** A corridor tile in a room's surrounding ring, with void on both sides along the ring, is a door
   candidate. Each candidate becomes a closed door with 55 % probability.
-- **Stairs down** are placed in the centre of the room farthest from the start room (by BFS walking distance).
+- **Stairs down** are placed in the centre of the room farthest from the start room (by BFS walking distance),
+  never the boss room.
   The hero starts in the centre of the first room, which never has monsters or chests.
 - **Props per room:**
   - brazier: 75 % chance, always in the start room; blocking
@@ -153,9 +154,12 @@ Each depth `d` gets a freshly generated level.
   - urns: 0–2; blocking
   - bones: 0–2
   - gold pile: 20 % chance, worth 3–12 × d × `LOOT`
-- **Boss room.** Of the rooms other than the start and stairs rooms, the one with the largest
-  `area × (BFS distance from the start + 10)` becomes the boss room. It gets two braziers, a **guardian's
-  chest** (on the edge, blocking), the boss on a free inner tile, 1–2 ordinary monsters, and no other props.
+- **Boss room.** The second room placed is the boss room, 9–12 tiles a side (about twice the area of a normal
+  5–10 room; it gets the first 300 placement tries, and if it doesn't fit, the room with the largest
+  `area × (BFS distance from the start + 10)` other than the start and stairs rooms is used instead). The stairs
+  never go in it. It gets at least 4 braziers, a **guardian's chest** (on the edge, blocking), the boss on a
+  free inner tile, 1–2 ordinary monsters, a 50 % chance of an extra champion (at any depth, without escorts),
+  and no other props.
   The boss's type is drawn by weight from the types unlocked at depth `d + 1`, so it can be a type not yet
   seen at this depth (a wraith boss at depth 1, a demon boss from depth 2).
 - Blocking props are only placed on a room's edge, against solid wall, and never next to a doorway or

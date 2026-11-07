@@ -381,9 +381,9 @@ const depthName = d => LEVEL_NAMES[(d - 1) % 8] + (d > 8 ? ' ' + ROMAN(Math.ceil
 // Tiers: normal; champion (10 % from depth 2, red glow); boss (one per level, green glow, see buildLevel).
 const TIER = { normal: { size: 1, hp: 1, dmg: 1, xp: 1, armor: 0 }, champ: { size: 1.15, hp: 2.5, dmg: 1.5, xp: 3, armor: 0 },
   boss: { size: 1.35, hp: 6, dmg: 1.8, xp: 8, armor: 4 } };
-function makeMonster(type, x, y, d, boss = false) {
+function makeMonster(type, x, y, d, boss = false, forceChamp = false) {
   const b = MON[type];
-  const champ = !boss && d >= 2 && rnd() < 0.1, T = TIER[boss ? 'boss' : champ ? 'champ' : 'normal'];
+  const champ = !boss && (forceChamp || (d >= 2 && rnd() < 0.1)), T = TIER[boss ? 'boss' : champ ? 'champ' : 'normal'];
   const hpS = Math.pow(1.22, d - 1), dmS = Math.pow(1.22, d - 1);   // +22 % life and damage per depth
   const m = { type, b, x, y, r: boss ? Math.min(b.r * 1.15, 0.48) : b.r * T.size, scale: b.scale * T.size, lvl: d, champ, boss,
     name: boss ? pick(BOSS_NAMES) + ', ' + b.name + ' Tyrant' : champ ? pick(CHAMP_PRE) + ' ' + b.name : b.name,
@@ -492,9 +492,11 @@ function buildLevel(d) {
   const rooms = [];
   const want = Math.min(9 + Math.floor(d / 2), 18);
   for (let tries = 0; tries < 600 && rooms.length < want; tries++) {
-    const rw = ri(5, 10), rh = ri(5, 10), rx = ri(2, w - rw - 3), ry = ri(2, h - rh - 3);
+    // the second room is the boss room: 9-12 tiles a side, about twice the area of a normal 5-10 room
+    const big = rooms.length === 1 && tries < 300;
+    const rw = big ? ri(9, 12) : ri(5, 10), rh = big ? ri(9, 12) : ri(5, 10), rx = ri(2, w - rw - 3), ry = ri(2, h - rh - 3);
     if (rooms.some(r => rx < r.x + r.w + 3 && rx + rw + 3 > r.x && ry < r.y + r.h + 3 && ry + rh + 3 > r.y)) continue;
-    rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + (rw >> 1), cy: ry + (rh >> 1) });
+    rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + (rw >> 1), cy: ry + (rh >> 1), big });
   }
   for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) t[y * w + x] = T_FLOOR;
   const carve = (a, b) => {
@@ -536,7 +538,7 @@ function buildLevel(d) {
   const start = rooms[0];
   const distArr = bfs(start.cx, start.cy);
   let far = rooms[rooms.length - 1], fd = -1;
-  for (const r of rooms.slice(1)) { const v = distArr[r.cy * w + r.cx]; if (v > fd) { fd = v; far = r; } }
+  for (const r of rooms.slice(1)) { const v = distArr[r.cy * w + r.cx]; if (!r.big && v > fd) { fd = v; far = r; } }
   // object placement helpers
   const isOpening = (x, y) => { // tile touches a doorway/corridor outside of its room
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const v = at(x + dx, y + dy); if (v === T_DOOR) return true; }
@@ -570,11 +572,12 @@ function buildLevel(d) {
   const weighted = []; for (const k of monTypes) for (let i = 0; i < MON[k].w; i++) weighted.push(k);
   // boss room: the largest of the rooms that are neither the start nor the stairs room, preferring rooms far
   // from the start (area x path distance); the boss stands near its middle beside a sealed guardian's chest
-  const bossRoom = rooms.filter(r => r !== start && r !== far)
+  // (fallback if the big room didn't fit: the largest other room, preferring rooms far from the start)
+  const bossRoom = rooms.find(r => r.big) || rooms.filter(r => r !== start && r !== far)
     .sort((a, b) => b.w * b.h * (distArr[b.cy * w + b.cx] + 10) - a.w * a.h * (distArr[a.cy * w + a.cx] + 10))[0] || far;
   for (const r of rooms) {
     if (r === bossRoom) {
-      place('brazier', r, true); place('brazier', r, true);
+      for (let n = 0, k = 0; n < 4 && k < 12; k++) if (place('brazier', r, true)) n++;   // at least 4 braziers
       place('chest', r, true, { boss: true });
       const p = freeInner(r, false) || [r.cx, r.cy]; occ[p[1] * w + p[0]] = 1;
       // boss type: drawn by weight from the types unlocked at depth + 1, so it can be one not yet seen here
@@ -582,6 +585,10 @@ function buildLevel(d) {
       const boss = makeMonster(pick(bossPool), p[0] + 0.5, p[1] + 0.5, d, true); monsters.push(boss); map.boss = boss;
       for (let i = ri(1, 2); i > 0; i--) { const q = freeInner(r, false);
         if (q) { const g = makeMonster(pick(weighted), q[0] + 0.5, q[1] + 0.5, d); g.bossRoom = true; monsters.push(g); } }
+      if (rnd() < 0.5) {   // 50 %: an extra champion (any depth, without escorts)
+        const q = freeInner(r, false);
+        if (q) { const c = makeMonster(pick(weighted), q[0] + 0.5, q[1] + 0.5, d, false, true); c.bossRoom = true; monsters.push(c); }
+      }
       continue;
     }
     if (rnd() < 0.75 || r === start) place('brazier', r, true);
