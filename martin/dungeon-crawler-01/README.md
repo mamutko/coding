@@ -28,7 +28,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | Right click, or `Shift` + left click, or a tap while a finger rests on the attack button (touch) | Attack with the equipped weapon (see [Combat](#combat)). Hold to keep attacking. |
 | `I`, `C` or `Tab` | Toggle the equipment overlay (`Esc` closes it). |
 | `1`–`9`, `0` | Quick keys: equip the bound weapon or drink a potion. |
-| `Q` | Drink a health potion. |
+| `Q`, or a click / tap on the life orb | Drink a health potion. |
 | `M` | Toggle the minimap. |
 | `N` | Toggle sound. |
 | Mouse wheel | Zoom (0.6×–1.5×). |
@@ -177,23 +177,26 @@ Each depth `d` gets a freshly generated level.
   - urns: 0–2; blocking
   - bones: 0–2
   - gold pile: 20 % chance, worth 3–12 × d × `LOOT`
-- **Boss room.** The second room placed is the boss room, 11–14 tiles a side (about 2.8× the area of a normal
+- **Boss room** (from depth 3, `BOSS_ROOM_FROM`; depths 1 and 2 have none, and no boss). From depth 3 the
+  second room placed is the boss room, 11–14 tiles a side (about 2.8× the area of a normal
   5–10 room; it gets the first 300 placement tries, and if it doesn't fit, the room with the largest
   `area × (BFS distance from the start + 10)` other than the start and stairs rooms is used instead). The stairs
-  never go in it. Contents:
+  never go in it. **At depth 3 it stands empty**, a premonition of what is to come: only the rune circle, the
+  braziers and the furnishings, with no boss, guards, champion or guardian's chest. From depth 4
+  (`BOSS_FROM`) it holds:
   - the boss on the centre tile, standing on the **rune circle** (see Rendering);
   - at least 4 ordinary braziers and a **guardian's chest**, on the edge (blocking);
   - furnishings (non-interactive), each type only from its unlock depth (`DECOR_FROM`): 3 skull piles on
-    inner tiles (not blocking) and 2 banners from depth 1, 2 candelabra from depth 2, 2 broken pillars from
-    depth 3, a sarcophagus from depth 4, an altar from depth 5, and a throne from depth 6, all on the edge
+    inner tiles (not blocking) and 2 banners from depth 3, 2 candelabra from depth 4, 2 broken pillars from
+    depth 5, a sarcophagus from depth 6, an altar from depth 7, and a throne from depth 8, all on the edge
     (blocking). The throne's sprite faces down-right (+x), so it always goes against a back wall, facing into
     the room: on the left back wall (`x = r.x`) as drawn, or on the right back wall (`y = r.y`) mirrored, never
     in a corner or next to a doorway;
-  - 1–2 ordinary monsters and a 50 % chance of an extra champion (at any depth, without escorts);
+  - 1–2 ordinary monsters and a 50 % chance of an extra champion (without escorts);
   - no chests, urns, bones or gold piles.
   The boss's type is drawn by weight from the types unlocked at depth `d + 1`, so it can be a type not yet
-  seen at this depth (a wraith boss at depth 1, a demon boss from depth 2).
-- **Green brazier.** With 50 % chance, one room joined to the boss room by a corridor gets an extra brazier
+  seen at this depth (from depth 4 every type is already unlocked, so this only matters if bosses start earlier).
+- **Green brazier.** When there is a boss room, with 50 % chance one room joined to the boss room by a corridor gets an extra brazier
   with green flames, a hint of what lies next door. Corridors are recorded as room pairs when carved.
 - Blocking props are only placed on a room's edge, against solid wall, and never next to a doorway or
   corridor mouth, so they can't cut off a path.
@@ -312,7 +315,7 @@ Spawn weights are 3 : 3 : 2 : 2 : 1 in table order.
 
 | | Normal | Champion | Boss |
 |---|---|---|---|
-| Occurs | always | 10 % of monsters from depth 2 | exactly one per level, in the boss room |
+| Occurs | always | 10 % of monsters from depth 2 (none at depth 1) | one per level from depth 4, in the boss room |
 | Name | type name | prefix + type, e.g. *Dread Ghoul* | *&lt;name&gt;, &lt;type&gt; Tyrant*, e.g. *Morgrath, Ghoul Tyrant* |
 | Life / damage / XP | ×1 | ×2.5 / ×1.5 / ×3 | ×6 / ×1.8 / ×8 |
 | Armor | — | — | + 4·d |
@@ -358,8 +361,8 @@ equipped at a time.
 
 **Slot gates by depth.** On top of the item-level unlocks, no rings drop before depth 3 (`RING_FROM`) and no
 amulets before depth 5 (`AMULET_FROM`); the base is then drawn from the other slots. Like the rarity gates,
-boss-room loot (the boss, its guards and the guardian's chest) uses depth + 2, so the boss room can drop
-rings from depth 1 and amulets from depth 3.
+boss-room loot (the boss, its guards and the guardian's chest) uses depth + 2, so the boss room (which has
+loot from depth 4) can drop amulets from depth 4 rather than 5.
 
 **Scaling.** Weapon damage and armor scale by `1 + 0.14·(ilvl − 1)`; built-in bonuses scale by
 `1 + 0.1·(ilvl − 1)`.
@@ -379,8 +382,8 @@ the roll.
 **Rarity gates by depth.** No magic items before depth 2 (`MAGIC_FROM`) and no rares before depth 4
 (`RARE_FROM`); a roll above what the depth allows is lowered to the best allowed rarity (rare → magic at
 depths 2–3, anything → common at depth 1). Loot from the **boss room** (the boss, its guards and the
-guardian's chest) uses the rules of depth + 2, so the boss room has magic items from depth 1 and rares from
-depth 2.
+guardian's chest) uses the rules of depth + 2; since the boss room only has loot from depth 4, where every
+rarity is already allowed, the rarity gates never limit it.
 
 **Affixes** (value ranges grow with item level `l`):
 
@@ -408,7 +411,7 @@ affected. The guardian's chest's guaranteed item is not thinned.
 | Champion | an item of ilvl d+1 (boost 0.35), plus a 50 % chance of a second (boost 0.2) |
 | Boss | an item of ilvl d+1 (boost 0.35), gold (20–40 × d), plus the normal 6.75 % potion / 30 % gold rolls |
 | Chest | 1–3 items (boost 0.15, 30 % chance of ilvl+1), gold (10–30 × d), 22.5 % potion |
-| Guardian's chest | **always** one item of ilvl d+1 that is rare (30 %, if depth + 2 allows rares, i.e. from depth 2) or else magic, gold (30–60 × d), plus everything a normal chest drops |
+| Guardian's chest | **always** one item of ilvl d+1 that is rare (30 %) or else magic, gold (30–60 × d), plus everything a normal chest drops |
 | Urn | 35 % gold, 9 % potion, 8 % item |
 | Bones | 20 % gold, 10 % item |
 
@@ -467,8 +470,9 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
   you switch between finger and touchpad. In touch mode an **attack button** appears in the life orb's place:
   round and the orb's size, a dark steel disc with a gold rim showing the equipped weapon's icon (80 px; 52 px
   on phones) and an "ATTACK" label below. Holding it is the attack modifier (see Controls). The life orb slides
-  right next to it (to 156 px from the left), so the finger on the button never covers it. The orb itself
-  takes no input.
+  right next to it (to 156 px from the left), so the finger on the button never covers it.
+- **Life orb:** a click or tap on it drinks a health potion (the same as `Q`; "No potions left." when there
+  are none).
 - **Bottom centre:** quick-key hotbar and XP bar.
 - **Bottom right:** Equipment button.
 - Taking damage flashes a red vignette whose strength depends on how big the hit was.
@@ -480,7 +484,10 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
     right of it (96 px from the left), the level name, depth and gold move below them (94 px from the top),
     and the target bar moves down to 160 px;
   - the minimap shrinks to 120 × 71 px (top right), with the Equipment button below it;
-  - the target bar moves down to 120 px from the top; the message log spans the width above the hotbar;
+  - the target bar moves down to 120 px from the top; the message log spans the width above the hotbar
+    (112 px from the bottom);
+  - the hotbar shows only quick keys **1–5**, bigger (64 px, 58 px icons); keys 6–0 can still be bound and
+    used from the equipment overlay or the keyboard;
   - the equipment overlay switches to a 504 px wide layout: paper doll and attributes side by side, the
     inventory below them, quick keys in 2 rows of 5, and no key hint in the header.
 - **Fitting:** on any screen, the hotbar (with the XP bar) is scaled down to fit the width minus 16 px, and

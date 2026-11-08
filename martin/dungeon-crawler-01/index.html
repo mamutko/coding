@@ -31,7 +31,7 @@
   #orb { position: absolute; left: 22px; bottom: 22px; width: 120px; height: 120px; border-radius: 50%;
     background: radial-gradient(circle at 50% 40%, #1a0d10, #070305 70%);
     border: 3px solid var(--gold-dim); box-shadow: 0 0 0 2px #1b130b, 0 0 24px rgba(0,0,0,0.9), inset 0 0 18px #000;
-    overflow: hidden; pointer-events: none; }
+    overflow: hidden; pointer-events: auto; cursor: pointer; touch-action: manipulation; }
   #orbFill { position: absolute; left: 0; right: 0; bottom: 0; height: 100%;
     background: radial-gradient(circle at 40% 30%, #ff5a4a, #b3161a 45%, #4a0508 100%); transition: height 0.15s linear; }
   #orbGlass { position: absolute; inset: 0; border-radius: 50%;
@@ -168,7 +168,7 @@
   body.narrow.touch #orb { left: 96px; }
   body.narrow.touch #topleft { left: 10px; top: 94px; }
   body.narrow.touch #target { top: 160px; }
-  body.narrow #log { left: 10px; bottom: 96px; width: calc(100vw - 20px); font-size: 12px; }
+  body.narrow #log { left: 10px; bottom: 112px; width: calc(100vw - 20px); font-size: 12px; }
   body.narrow #bottom { bottom: 8px; transform-origin: 50% 100%; }
   body.narrow #equip { width: 504px; transform-origin: 50% 50%; }
   body.narrow .eqHead .hint { display: none; }
@@ -176,6 +176,9 @@
   body.narrow .eqBody > div:nth-child(2) { grid-column: 1 / -1; order: 3; }
   body.narrow .eqBody > div:nth-child(3) { order: 2; }
   body.narrow #hkCfg { display: grid; grid-template-columns: repeat(5, 48px); }
+  body.narrow #hotbar .hk:nth-child(n+6) { display: none; }
+  body.narrow #hotbar .hk { width: 64px; height: 64px; }
+  body.narrow #hotbar .hk .num, body.narrow #hotbar .hk .cnt { font-size: 13px; }
 </style>
 </head>
 <body>
@@ -186,7 +189,7 @@
   <div id="target" class="hidden"><div id="targetName"></div><div id="targetBar"><div id="targetFill"></div></div></div>
   <canvas id="minimap" width="220" height="130"></canvas>
   <div id="log"></div>
-  <div id="orb"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
+  <div id="orb" title="Click to drink a health potion"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
   <div id="orbLabel">LIFE</div>
   <div id="atk" title="Hold, then tap to attack"><div id="atkIco"></div></div>
   <div id="atkLabel">ATTACK</div>
@@ -434,7 +437,8 @@ const MON = {
 const CHAMP_PRE = ['Dread', 'Blighted', 'Bloodsoaked', 'Ancient', 'Accursed', 'Ravenous'];
 // Boss-room furnishings: [type, count], and the depth from which each first appears.
 const BOSS_DECOR = [['throne', 1], ['altar', 1], ['sarcophagus', 1], ['banner', 2], ['pillar', 2], ['candelabrum', 2], ['skullpile', 3]];
-const DECOR_FROM = { skullpile: 1, banner: 1, candelabrum: 2, pillar: 3, sarcophagus: 4, altar: 5, throne: 6 };
+const DECOR_FROM = { skullpile: 3, banner: 3, candelabrum: 4, pillar: 5, sarcophagus: 6, altar: 7, throne: 8 };
+const BOSS_ROOM_FROM = 3, BOSS_FROM = 4;   // depth 3's boss room stands empty: a premonition of what is to come
 const BOSS_NAMES = ['Morgrath', 'Vexhollow', 'Ulthane', 'Skarn', 'Belmorah', 'Grisvald', 'Nythra', 'Corvane', 'Drokkar', 'Ashmire'];
 const LEVEL_NAMES = ['The Forsaken Crypt', 'The Ossuary', 'Halls of the Hollow', 'The Weeping Catacombs', 'Sepulchre of Ash',
   'The Blood Vaults', 'Throne of Bones', 'The Abyssal Nave'];
@@ -557,8 +561,8 @@ function buildLevel(d) {
   const rooms = [];
   const want = Math.min(9 + Math.floor(d / 2), 18);
   for (let tries = 0; tries < 600 && rooms.length < want; tries++) {
-    // the second room is the boss room: 11-14 tiles a side, about 2.8x the area of a normal 5-10 room
-    const big = rooms.length === 1 && tries < 300;
+    // the second room is the boss room (from depth 3): 11-14 tiles a side, about 2.8x the area of a normal 5-10 room
+    const big = d >= BOSS_ROOM_FROM && rooms.length === 1 && tries < 300;
     const rw = big ? ri(11, 14) : ri(5, 10), rh = big ? ri(11, 14) : ri(5, 10), rx = ri(2, w - rw - 3), ry = ri(2, h - rh - 3);
     if (rooms.some(r => rx < r.x + r.w + 3 && rx + rw + 3 > r.x && ry < r.y + r.h + 3 && ry + rh + 3 > r.y)) continue;
     rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + (rw >> 1), cy: ry + (rh >> 1), big });
@@ -651,10 +655,10 @@ function buildLevel(d) {
   // boss room: the largest of the rooms that are neither the start nor the stairs room, preferring rooms far
   // from the start (area x path distance); the boss stands near its middle beside a sealed guardian's chest
   // (fallback if the big room didn't fit: the largest other room, preferring rooms far from the start)
-  const bossRoom = rooms.find(r => r.big) || rooms.filter(r => r !== start && r !== far)
+  const bossRoom = d < BOSS_ROOM_FROM ? null : rooms.find(r => r.big) || rooms.filter(r => r !== start && r !== far)
     .sort((a, b) => b.w * b.h * (distArr[b.cy * w + b.cx] + 10) - a.w * a.h * (distArr[a.cy * w + a.cx] + 10))[0] || far;
   // 50 %: one green-flamed brazier in a room joined to the boss room by a corridor (a hint of what's near)
-  const nextToBoss = links.filter(l => l.includes(bossRoom)).map(l => l[0] === bossRoom ? l[1] : l[0]).filter(r => r !== bossRoom);
+  const nextToBoss = !bossRoom ? [] : links.filter(l => l.includes(bossRoom)).map(l => l[0] === bossRoom ? l[1] : l[0]).filter(r => r !== bossRoom);
   const greenRoom = nextToBoss.length && rnd() < 0.5 ? pick(nextToBoss) : null;
   for (const r of rooms) {
     if (r === greenRoom) place('brazier', r, true, { green: true });
@@ -663,11 +667,13 @@ function buildLevel(d) {
       // the boss stands on a rune circle in the middle, ringed by braziers and the furnishings unlocked at this depth
       const p = occ[r.cy * w + r.cx] ? (freeInner(r, false) || [r.cx, r.cy]) : [r.cx, r.cy]; occ[p[1] * w + p[0]] = 1;
       for (let n = 0, k = 0; n < 4 && k < 12; k++) if (place('brazier', r, true)) n++;   // at least 4
-      place('chest', r, true, { boss: true });
+      const empty = d < BOSS_FROM;   // depth 3: no boss, guards or loot, only the circle, braziers and furnishings
+      if (!empty) place('chest', r, true, { boss: true });
       for (const [t, n] of BOSS_DECOR) if (d >= DECOR_FROM[t]) for (let i = 0; i < n; i++) {
         if (t === 'throne') placeBack(t, r, { decor: true });
         else place(t, r, t !== 'skullpile', { decor: true });
       }
+      if (empty) continue;
       // boss type: drawn by weight from the types unlocked at depth + 1, so it can be one not yet seen here
       const bossPool = []; for (const k in MON) if (MON[k].minD <= d + 1) for (let i = 0; i < MON[k].w; i++) bossPool.push(k);
       const boss = makeMonster(pick(bossPool), p[0] + 0.5, p[1] + 0.5, d, true); monsters.push(boss); map.boss = boss;
@@ -1069,6 +1075,7 @@ function buildUI() {
   }
   $('potionSlot').innerHTML = '<div class="ico" style="' + iconCss('potion', 52) + '"></div><span class="bindTag"></span>';
   $('potionSlot').addEventListener('click', drinkPotion);
+  $('orb').addEventListener('click', drinkPotion);   // a click or tap on the life orb drinks a potion
   for (const host of [$('hotbar'), $('hkCfg')]) {
     for (let i = 0; i < 10; i++) {
       const el = document.createElement('div'); el.className = 'hk'; el.dataset.hk = i;
@@ -1192,12 +1199,13 @@ function refreshUI() {
   const pk = h.hotkeys.findIndex(k => k && k.type === 'potion');
   $('potionSlot').querySelector('.bindTag').textContent = pk < 0 ? '' : (pk === 9 ? '0' : '' + (pk + 1));
   $('potionText').textContent = 'Health potions: ' + h.potions;
+  const big = document.body.classList.contains('narrow') ? 58 : 44;   // phones: 5 bigger hotbar keys
   for (const host of [$('hotbar'), $('hkCfg')]) host.querySelectorAll('.hk').forEach((el, i) => {
-    const k = h.hotkeys[i], ico = el.querySelector('.ico'), cnt = el.querySelector('.cnt');
+    const k = h.hotkeys[i], ico = el.querySelector('.ico'), cnt = el.querySelector('.cnt'), is = host.id === 'hotbar' ? big : 44;
     let it = null, active = false;
-    if (k && k.type === 'potion') { ico.style.cssText = iconCss('potion', 44); cnt.textContent = h.potions; }
+    if (k && k.type === 'potion') { ico.style.cssText = iconCss('potion', is); cnt.textContent = h.potions; }
     else { cnt.textContent = ''; if (k) { const f = findOwned(k.id); if (f) { it = f.item; active = f.where === 'eq'; } }
-      ico.style.cssText = it ? iconCss(it.base, 44) : ''; }
+      ico.style.cssText = it ? iconCss(it.base, is) : ''; }
     el.classList.toggle('active', active);
   });
   const st = h.st, [dn, dx] = weaponDamageRange(h), w = weaponOf(h);
