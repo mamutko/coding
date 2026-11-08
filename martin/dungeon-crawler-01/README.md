@@ -109,7 +109,11 @@ and the picker shows no saved heroes.
   (default 0), an optional `footY`, the ground point's y inside the frame (default `fh − 6`), and `fpt`, walk
   frames per tile (default 2). The sprite is drawn horizontally centred with `footY` on the entity's position,
   scaled by the monster's `scale`. Characters have a soft shadow (see Prop shadows),
-  32 × 15 px × scale at 55 % black, 2 px below the ground point.
+  sized per type (`CHAR_SHADOW`: half-width × half-height, opacity, softness, centre offset, in px × scale):
+  hero and most monsters 32 × 15 at 55 % black, 2 px below the ground point; the wide-bodied spider 66 × 30 at
+  60 %, extra soft (70 % shade reached at 0.3 of the radius instead of 0.55), 28 px above it; the demon 42 × 19
+  at 60 %, 14 px above it. Those two sheets stand above their ground point, so their shadows move up under the
+  body.
   - **Walk frames advance with distance walked**, `anim += distance × fpt / scale` (the hero's scale is 1), so
     feet don't slide at any move speed and bigger monsters take longer strides.
   - **Hero, skeleton, ghoul:** 8 frames per direction = one full stride (two steps): 0 left foot forward,

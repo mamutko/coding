@@ -1514,13 +1514,17 @@ function drawWall(x, y) {
 }
 const PROP_STYLE = { chest: [0.6, 8], chestopen: [0.6, 8], stairs: [0.66, 0], brazier: [0.62, 10], bones: [0.5, 6], urn: [0.52, 8], gold: [0.42, 6],
   throne: [0.7, 10], altar: [0.62, 10], candelabrum: [0.62, 6], skullpile: [0.42, 8], banner: [0.66, 6], pillar: [0.72, 8], sarcophagus: [0.64, 10] };
+// Character shadows: [half-width, half-height, opacity, softness, offset of the centre below the ground point]
+// (px, × scale). Wide-bodied monsters get a bigger, softer one; the spider's and demon's sheets stand a little
+// above their ground point, so their shadows move up to sit under the body and the feet.
+const CHAR_SHADOW = { hero: [32, 15, 0.55, 0.55, 2], spider: [66, 30, 0.6, 0.3, -28], demon: [42, 19, 0.6, 0.4, -14] };
 const PROP_SHADOW = { chest: 'box', chestopen: 'box', sarcophagus: 'box', altar: 'box', throne: 'box', skullpile: 'mound', bones: 'mound',
   urn: 'post', brazier: 'post', candelabrum: 'post', banner: 'post', pillar: 'post' };   // stairs and gold cast none
 // A soft-edged elliptical shadow: dark in the middle, fading to nothing at the rim.
-function softShadow(x, y, rx, ry, a) {
+function softShadow(x, y, rx, ry, a, mid = 0.55) {   // mid: where the shade is still at 70 % (smaller = softer)
   ctx.save(); ctx.translate(x, y); ctx.scale(1, ry / rx);
   const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
-  g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(0.55, `rgba(0,0,0,${a * 0.7})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(mid, `rgba(0,0,0,${a * 0.7})`); g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.fill(); ctx.restore();
 }
 const GREEN_FIRE = 'hue-rotate(80deg) saturate(1.4)';   // the rare green brazier next to the boss room
@@ -1581,7 +1585,8 @@ function drawChar(e, isHero) {
   let sy = sy0, alpha = 1;
   if (!isHero && e.dead) { alpha = Math.max(0, 1 - e.deathT / 1.1); sy += e.deathT * 14; }
   if (!isHero && e.b.float) sy -= 8 + Math.sin(G.time * 3 + e.x) * 4;
-  softShadow(sx, sy0 + 2, 32 * s, 15 * s, 0.55 * alpha);
+  const [shw, shh, sha, shm, shy] = CHAR_SHADOW[isHero ? 'hero' : e.type] || CHAR_SHADOW.hero;
+  softShadow(sx, sy0 + shy * s, shw * s, shh * s, sha * alpha, shm);
   const frame = e.moving ? Math.floor(e.anim) % md.frames : (md.idle || 0), row = e.dir;
   // lunge toward facing direction
   let ox = 0, oy = 0;
