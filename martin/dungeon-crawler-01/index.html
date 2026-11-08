@@ -113,6 +113,13 @@
   #tooltip .st { color: #9fb2ff; }
   #tooltip .cmp { margin-top: 6px; padding-top: 5px; border-top: 1px solid #33281a; color: var(--ink-dim); font-size: 13px; }
   #tooltip .up { color: #7fd17f; } #tooltip .dn { color: #e06a5a; }
+  /* tap-to-inspect (touch): the tooltip takes taps and shows action buttons; mouse hints are hidden */
+  #tooltip.touch { pointer-events: auto; }
+  #tooltip.touch .mh { display: none; }
+  #tooltip .tActs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  #tooltip .tActs button { padding: 7px 12px; font-size: 13px; }
+  #tooltip .tKeys { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 7px; font-size: 13px; color: var(--ink-dim); }
+  #tooltip .tKeys button { width: 28px; padding: 5px 0; font-size: 13px; }
 
   /* ---------- Title / death screens ---------- */
   #screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column;
@@ -221,7 +228,7 @@ const ATLAS_W = 576, ATLAS_H = 384;
 // =====================================================================================
 //  Constants & helpers
 // =====================================================================================
-const TW = 96, TH = 48, HW = TW / 2, HH = TH / 2, WALLH = 72;
+const TW = 96, TH = 48, HW = TW / 2, HH = TH / 2, WALLH = 72, LIPH = 22;   // full wall / low front-wall lip height
 const T_VOID = 0, T_FLOOR = 1, T_WALL = 2, T_DOOR = 3, T_OPEN = 4;
 // walk frames advance with distance walked: META.characters.<name>.fpt frames per tile (hero: 8-frame stride / 1.6 tiles)
 const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,W,SW) -> sheet row
@@ -1051,24 +1058,66 @@ function buildUI() {
       el.innerHTML = `<span class="num">${i === 9 ? 0 : i + 1}</span><div class="ico"></div><span class="cnt"></span>`;
       el.addEventListener('click', e => { if (modifier(e)) { G.hero.hotkeys[i] = null; refreshUI(); } else useHotkey(i); });
       el.addEventListener('contextmenu', e => { e.preventDefault(); G.hero.hotkeys[i] = null; refreshUI(); });
-      el.addEventListener('mouseenter', () => showHkTip(i, el)); el.addEventListener('mouseleave', hideTip);
+      el.addEventListener('mouseenter', () => { if (lastPointer !== 'touch') showHkTip(i, el); });
+      el.addEventListener('mouseleave', () => { if (lastPointer !== 'touch') hideTip(); });
       host.appendChild(el);
     }
   }
   document.querySelectorAll('#equip [data-ref]').forEach(el => {
-    el.addEventListener('mouseenter', () => { G.uiHover = el.dataset.ref; showRefTip(el.dataset.ref); });
-    el.addEventListener('mouseleave', () => { G.uiHover = null; hideTip(); });
+    el.addEventListener('mouseenter', () => { if (lastPointer === 'touch') return; G.uiHover = el.dataset.ref; showRefTip(el.dataset.ref); });
+    el.addEventListener('mouseleave', () => { if (lastPointer === 'touch') return; G.uiHover = null; hideTip(); });
   });
+  // tap to inspect: in the equipment overlay a touch tap on an item, the potion or a quick key opens its tooltip
+  // with action buttons instead of acting at once (captured before the element's own click handler)
+  $('equip').addEventListener('click', e => {
+    if (lastPointer !== 'touch') return;
+    const el = e.target.closest('[data-ref], #hkCfg .hk'); if (!el) return;
+    e.stopPropagation(); e.preventDefault(); touchInspect(el);
+  }, true);
+  // a tap anywhere outside the open touch tooltip closes it
+  addEventListener('pointerdown', e => { const t = $('tooltip'); if (t.classList.contains('touch') && !t.contains(e.target)) hideTip(); }, true);
   $('menuBtn').addEventListener('click', toggleEquip);
   $('eqClose').addEventListener('click', toggleEquip);
-  document.addEventListener('mousemove', e => { const t = $('tooltip'); if (!t.classList.contains('hidden')) placeTip(e.clientX, e.clientY); });
+  document.addEventListener('mousemove', e => { const t = $('tooltip'); if (!t.classList.contains('hidden') && !t.classList.contains('touch')) placeTip(e.clientX, e.clientY); });
 }
 function placeTip(x, y) {
   const t = $('tooltip'), r = t.getBoundingClientRect();
   let lx = x + 18, ly = y + 14; if (lx + r.width > W - 6) lx = x - r.width - 14; if (ly + r.height > H - 6) ly = H - r.height - 6;
   t.style.left = lx + 'px'; t.style.top = Math.max(6, ly) + 'px';
 }
-function hideTip() { $('tooltip').classList.add('hidden'); }
+function hideTip() { $('tooltip').classList.add('hidden'); $('tooltip').classList.remove('touch'); }
+// The kind of pointer that last pressed (mouse, pen or touch); touch switches the overlay to tap-to-inspect.
+let lastPointer = 'mouse';
+addEventListener('pointerdown', e => { lastPointer = e.pointerType || 'mouse'; }, true);
+// Tap to inspect: the element's tooltip plus buttons for what a click, a right-click and a number key do.
+function touchInspect(el) {
+  const t = $('tooltip'), h = G.hero, ref = el.dataset.ref, acts = [];
+  G.uiHover = null;
+  if (el.dataset.hk != null) {
+    const i = +el.dataset.hk; showHkTip(i, el);
+    if (h.hotkeys[i]) acts.push(['Clear key', () => { h.hotkeys[i] = null; refreshUI(); }]);
+  } else if (ref === 'potion') { showRefTip('potion'); acts.push(['Drink', drinkPotion]); }
+  else {
+    if (!refItem(ref)) { hideTip(); return; }
+    showRefTip(ref);
+    if (ref.startsWith('inv:')) { const i = +ref.slice(4); acts.push(['Equip', () => equipFromInv(i)], ['Drop', () => { dropFromInv(i); }]); }
+    else acts.push(['Unequip', () => unequip(ref.slice(3))]);
+  }
+  const it = ref && refItem(ref), bindable = ref === 'potion' || (it && it.slot === 'weapon');
+  let html = '<div class="tActs">' + acts.map((a, k) => `<button data-a="${k}">${a[0]}</button>`).join('') + '<button data-a="x">Close</button></div>';
+  if (bindable) html += '<div class="tKeys">Quick key:' + Array.from({ length: 10 }, (_, k) => `<button data-k="${k}">${k === 9 ? 0 : k + 1}</button>`).join('') + '</div>';
+  t.insertAdjacentHTML('beforeend', html); t.classList.add('touch'); t.classList.remove('hidden');
+  t.querySelectorAll('button').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    if (b.dataset.k != null) bindHotkey(+b.dataset.k, ref); else if (b.dataset.a !== 'x') acts[+b.dataset.a][1]();
+    hideTip();
+  }));
+  // centred on the element, below it if it fits, otherwise above it
+  const r = el.getBoundingClientRect(), tr = t.getBoundingClientRect();
+  const lx = clamp(r.left + r.width / 2 - tr.width / 2, 6, Math.max(6, W - tr.width - 6));
+  const ly = r.bottom + 8 + tr.height <= H - 6 ? r.bottom + 8 : Math.max(6, r.top - tr.height - 8);
+  t.style.left = lx + 'px'; t.style.top = ly + 'px';
+}
 function itemLines(it) {
   const b = BASES[it.base]; let s = `<div class="nm" style="color:${rarityHex(it.rarity)}">${it.name}</div>`;
   s += `<div class="ty">${it.rarity !== 'common' ? (it.rarity === 'rare' ? 'Rare ' : 'Magic ') : ''}${it.slot === 'weapon' ? KIND_INFO[it.kind].label : SLOT_LABEL[it.slot]} · item level ${it.ilvl}</div>`;
@@ -1080,7 +1129,7 @@ function itemLines(it) {
 function weaponDps(it) { return it ? (it.min + it.max) / 2 / it.cd : 0; }
 function showRefTip(ref) {
   const t = $('tooltip');
-  if (ref === 'potion') { t.innerHTML = `<div class="nm" style="color:#e06a5a">Health Potion</div><div>Restores 45% of your life.</div><div class="ty">You carry ${G.hero.potions}. Press a number key to bind.</div>`; t.classList.remove('hidden'); return; }
+  if (ref === 'potion') { t.innerHTML = `<div class="nm" style="color:#e06a5a">Health Potion</div><div>Restores 35% of your life.</div><div class="ty">You carry ${G.hero.potions}.<span class="mh"> Press a number key to bind.</span></div>`; t.classList.remove('hidden'); return; }
   const it = refItem(ref); if (!it) { hideTip(); return; }
   let s = itemLines(it);
   if (ref.startsWith('inv:')) {
@@ -1091,15 +1140,15 @@ function showRefTip(ref) {
       if (it.armor || cur.armor) { const d = (it.armor || 0) - (cur.armor || 0); s += `<br>Armor <span class="${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '+' : ''}${d}</span>`; }
       s += '</div>';
     }
-    s += `<div class="ty" style="margin-top:4px">Click to equip · right-click or Shift+click to drop${it.slot === 'weapon' ? ' · 1–0 to bind' : ''}</div>`;
-  } else s += `<div class="ty" style="margin-top:4px">Click to unequip${it.slot === 'weapon' ? ' · 1–0 to bind' : ''}</div>`;
+    s += `<div class="ty mh" style="margin-top:4px">Click to equip · right-click or Shift+click to drop${it.slot === 'weapon' ? ' · 1–0 to bind' : ''}</div>`;
+  } else s += `<div class="ty mh" style="margin-top:4px">Click to unequip${it.slot === 'weapon' ? ' · 1–0 to bind' : ''}</div>`;
   t.innerHTML = s; t.classList.remove('hidden');
 }
 function showHkTip(i, el) {
   const k = G.hero.hotkeys[i], t = $('tooltip');
   if (!k) { t.innerHTML = '<div class="ty">Empty quick key. Bind weapons in the Equipment screen.</div>'; }
   else if (k.type === 'potion') t.innerHTML = '<div class="nm" style="color:#e06a5a">Drink Health Potion</div>';
-  else { const f = findOwned(k.id); t.innerHTML = f ? itemLines(f.item) + '<div class="ty">Press to equip · right-click or Shift+click to clear</div>' : '<div class="ty">Item no longer owned.</div>'; }
+  else { const f = findOwned(k.id); t.innerHTML = f ? itemLines(f.item) + '<div class="ty mh">Press to equip · right-click or Shift+click to clear</div>' : '<div class="ty">Item no longer owned.</div>'; }
   t.classList.remove('hidden'); const r = el.getBoundingClientRect(); placeTip(r.left, r.top - 120);
 }
 function setIco(el, it, size) {
@@ -1516,37 +1565,39 @@ function render() {
   $('fade').style.opacity = G.fade;
 }
 
-function wallTransparent(x, y) {
-  const h = G.hero, cx = x + 0.5, cy = y + 0.5, dk = (cx + cy) - (h.x + h.y);
-  return dk > 0.2 && dk < 4.5 && Math.abs((cx - cy) - (h.x - h.y)) < 2.2;
+// Walls with walkable floor behind them (up-screen: at x-1, y-1 or the diagonal) are "front" (south) walls that
+// would hide the floor and anyone on it; they are drawn as a low lip (LIPH) instead of full height.
+const walkable = (a, b) => { const t = G.map.at(a, b); return t === T_FLOOR || t === T_OPEN; };
+function wallHeight(x, y) {
+  const t = G.map.at(x, y); if (t !== T_WALL && t !== T_DOOR) return 0;
+  return walkable(x - 1, y) || walkable(x, y - 1) || walkable(x - 1, y - 1) ? LIPH : WALLH;
 }
-function face(img, sx, sy, sw, sh, A, B, shade) {
-  const ux = B[0] - A[0], uy = B[1] - A[1];
-  ctx.save(); ctx.transform(ux / sw, uy / sw, 0, WALLH / sh, A[0], A[1] - WALLH);
-  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw * 1.02, sh * 1.01);
-  if (shade) { ctx.fillStyle = `rgba(0,0,0,${shade})`; ctx.fillRect(0, 0, sw * 1.02, sh * 1.01); }
+// A wall face from A to B, `h` tall; the texture's bottom `h / WALLH` part is used, so a low lip keeps the
+// texture's scale (it shows the base of the wall or door) instead of squashing it.
+function face(img, sx, sy, sw, sh, A, B, shade, h = WALLH) {
+  const ux = B[0] - A[0], uy = B[1] - A[1], csh = sh * h / WALLH;
+  ctx.save(); ctx.transform(ux / sw, uy / sw, 0, h / csh, A[0], A[1] - h);
+  ctx.drawImage(img, sx, sy + sh - csh, sw, csh, 0, 0, sw * 1.02, csh * 1.01);
+  if (shade) { ctx.fillStyle = `rgba(0,0,0,${shade})`; ctx.fillRect(0, 0, sw * 1.02, csh * 1.01); }
   ctx.restore();
 }
 function drawWall(x, y) {
-  const m = G.map, v = m.t[y * m.w + x];
+  const m = G.map, v = m.t[y * m.w + x], h = wallHeight(x, y);
   const L = iso(x, y + 1), B = iso(x + 1, y + 1), R = iso(x + 1, y), T = iso(x, y);
-  const wallish = (a, b) => { const t = m.at(a, b); return t === T_WALL || t === T_DOOR; };
-  const alpha = wallTransparent(x, y) ? 0.3 : 1;
-  ctx.globalAlpha = alpha;
   const door = v === T_DOOR ? G.objects.find(o => o.type === 'door' && o.x === x && o.y === y) : null;
   const tsx = ((x * 131 + y * 71) % 4) * 128, tsy = ((x * 37 + y * 113) % 4) * 100;
   const [dx, dy, dw, dh] = META.props.door;
-  if (!wallish(x, y + 1)) {
-    if (door && door.axis === 'x') face(IMG.props, dx, dy, dw, dh, L, B, 0.15); else face(IMG.wall, tsx, tsy, 128, 75, L, B, 0.42);
+  // a face shows unless a wall at least as tall stands in front of it (a lower lip in front is drawn later, over it)
+  if (wallHeight(x, y + 1) < h) {
+    if (door && door.axis === 'x') face(IMG.props, dx, dy, dw, dh, L, B, 0.15, h); else face(IMG.wall, tsx, tsy, 128, 75, L, B, 0.42, h);
   }
-  if (!wallish(x + 1, y)) {
-    if (door && door.axis === 'y') face(IMG.props, dx, dy, dw, dh, B, R, 0.05); else face(IMG.wall, (tsx + 256) % 512, tsy, 128, 75, B, R, 0.18);
+  if (wallHeight(x + 1, y) < h) {
+    if (door && door.axis === 'y') face(IMG.props, dx, dy, dw, dh, B, R, 0.05, h); else face(IMG.wall, (tsx + 256) % 512, tsy, 128, 75, B, R, 0.18, h);
   }
-  ctx.beginPath(); ctx.moveTo(T[0], T[1] - WALLH); ctx.lineTo(R[0], R[1] - WALLH); ctx.lineTo(B[0], B[1] - WALLH); ctx.lineTo(L[0], L[1] - WALLH); ctx.closePath();
-  ctx.fillStyle = door ? '#2b1d14' : '#1f1b1e'; ctx.fill();
-  ctx.strokeStyle = 'rgba(255,240,220,0.07)'; ctx.lineWidth = 1; ctx.stroke();
-  ctx.globalAlpha = 1;
-  if (door) G.pick.push({ kind: 'obj', r: door, x: Math.min(L[0], R[0]), y: T[1] - WALLH, w: TW, h: TH + WALLH });
+  ctx.beginPath(); ctx.moveTo(T[0], T[1] - h); ctx.lineTo(R[0], R[1] - h); ctx.lineTo(B[0], B[1] - h); ctx.lineTo(L[0], L[1] - h); ctx.closePath();
+  ctx.fillStyle = door ? '#2b1d14' : h < WALLH ? '#2a2427' : '#1f1b1e'; ctx.fill();
+  ctx.strokeStyle = h < WALLH ? 'rgba(255,240,220,0.12)' : 'rgba(255,240,220,0.07)'; ctx.lineWidth = 1; ctx.stroke();
+  if (door) G.pick.push({ kind: 'obj', r: door, x: Math.min(L[0], R[0]), y: T[1] - h, w: TW, h: TH + h });
 }
 const PROP_STYLE = { chest: [0.6, 8], chestopen: [0.6, 8], stairs: [0.66, 0], brazier: [0.62, 10], bones: [0.5, 6], urn: [0.52, 8], gold: [0.42, 6],
   throne: [0.7, 10], altar: [0.62, 10], candelabrum: [0.62, 6], skullpile: [0.42, 8], banner: [0.66, 6], pillar: [0.72, 8], sarcophagus: [0.64, 10] };

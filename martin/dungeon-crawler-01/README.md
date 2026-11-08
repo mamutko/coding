@@ -86,10 +86,15 @@ and the picker shows no saved heroes.
 - **Floor.** Every visible floor and doorway tile is added to one path in iso-transformed space
   (`transform(48, 24, −48, 24)`). It is filled with the floor texture pattern, which spans 3 tiles, and faint
   seams are stroked.
-- **Walls** are 72 px tall blocks. Only the two faces facing the viewer (+y and +x) are drawn, and only where the
-  neighbour isn't also a wall. Faces are affine-mapped slices of the wall texture, picked per tile so the
-  pattern varies. The left face is shaded 42 %, the right 18 %, and the top is a dark cap. Walls within about
-  4 tiles *in front of* the hero are drawn at 30 % opacity so the hero is never hidden.
+- **Walls** are 72 px tall blocks (`WALLH`), except **front (south) walls**: any wall or door tile with walkable
+  floor (floor or an open door) behind it, at `x − 1`, `y − 1` or the diagonal `(x − 1, y − 1)`, is drawn as a
+  **low lip** 22 px tall (`LIPH`, under half a tile's height), so it marks the wall but never hides the floor or
+  anyone on it. Back walls stay full height; nothing is ever drawn transparent. Only the two faces facing the
+  viewer (+y and +x) are drawn, and only where the neighbour on that side isn't a wall at least as tall (so a
+  tall wall shows its face above a lower lip next to it). Faces are affine-mapped slices of the wall texture,
+  picked per tile so the pattern varies; a lip uses the bottom 22/72 of the texture (or of the door sprite) at
+  the same scale rather than squashing it. The left face is shaded 42 %, the right 18 %, and the top is a dark
+  cap (slightly lighter on a lip, with a brighter edge line).
 - **Doors** are wall blocks whose passage-facing face shows the door sprite. A door between walls on x±1 shows it
   on the +y face; one between walls on y±1 shows it on the +x face. Opened doors become plain floor.
 - **Depth sorting.** Walls, props, monsters, the hero and projectiles are sorted by `x + y`. A wall or prop on
@@ -440,6 +445,14 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
 - Outside the overlay (or while hovering nothing in it), a quick key equips its weapon from the pack, or
   drinks a potion. The bottom hotbar shows the bound icons, highlights the equipped weapon, and can also be
   clicked.
+- **Tap to inspect (touch):** the last pointer type is tracked on every `pointerdown`. In the overlay, a touch
+  tap on an equipped item, a pack item, the potion or a quick key (captured before the element's own click)
+  opens its tooltip instead of acting, placed centred on the element, below it if it fits, otherwise above
+  it, without the mouse hints. It adds buttons for the actions: **Equip** and **Drop** (pack item),
+  **Unequip** (equipped item), **Drink** (potion), **Clear key** (bound quick key), always **Close**, and
+  for weapons and the potion a **Quick key: 1–0** row to bind it. A button acts and closes the tooltip; a
+  tap anywhere outside it also closes it. Hover handlers ignore touch input (emulated mouse events would
+  otherwise show, move or hide the tooltip). Mouse and pen work as before; the HUD hotbar still acts on tap.
 
 ## HUD
 
