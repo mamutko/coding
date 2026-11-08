@@ -31,16 +31,25 @@
   #orb { position: absolute; left: 22px; bottom: 22px; width: 120px; height: 120px; border-radius: 50%;
     background: radial-gradient(circle at 50% 40%, #1a0d10, #070305 70%);
     border: 3px solid var(--gold-dim); box-shadow: 0 0 0 2px #1b130b, 0 0 24px rgba(0,0,0,0.9), inset 0 0 18px #000;
-    overflow: hidden; pointer-events: auto; touch-action: none; }
-  #orb.held { border-color: var(--gold); box-shadow: 0 0 0 2px #1b130b, 0 0 22px rgba(230,180,80,0.75), inset 0 0 18px #000; }
+    overflow: hidden; pointer-events: none; }
   #orbFill { position: absolute; left: 0; right: 0; bottom: 0; height: 100%;
     background: radial-gradient(circle at 40% 30%, #ff5a4a, #b3161a 45%, #4a0508 100%); transition: height 0.15s linear; }
   #orbGlass { position: absolute; inset: 0; border-radius: 50%;
     background: radial-gradient(circle at 35% 25%, rgba(255,255,255,0.35), rgba(255,255,255,0) 35%); }
   #orbText { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     font-family: Cinzel, serif; font-weight: 700; font-size: 17px; text-shadow: 0 0 4px #000, 0 0 2px #000; }
-  #orbLabel { position: absolute; left: 22px; width: 120px; bottom: 4px; text-align: center; font-family: Cinzel, serif;
+  #orbLabel, #atkLabel { position: absolute; left: 22px; width: 120px; bottom: 4px; text-align: center; font-family: Cinzel, serif;
     font-size: 11px; letter-spacing: 2px; color: var(--ink-dim); text-shadow: 0 0 3px #000; }
+  /* attack button (touch only, body.touch): round like the orb, in the orb's place; the orb slides right */
+  #atk { display: none; position: absolute; left: 22px; bottom: 22px; width: 120px; height: 120px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 38%, #3a3236, #141012 72%);
+    border: 3px solid var(--gold-dim); box-shadow: 0 0 0 2px #1b130b, 0 0 24px rgba(0,0,0,0.9), inset 0 0 18px #000;
+    pointer-events: auto; touch-action: none; }
+  #atk.held { border-color: var(--gold); box-shadow: 0 0 0 2px #1b130b, 0 0 22px rgba(230,180,80,0.75), inset 0 0 18px #000; }
+  #atkIco { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background-repeat: no-repeat; }
+  #atkLabel { display: none; }
+  body.touch #atk, body.touch #atkLabel { display: block; }
+  body.touch #orb, body.touch #orbLabel { left: 156px; }
 
   #bottom { position: absolute; left: 50%; transform: translateX(-50%); bottom: 14px; display: flex; flex-direction: column;
     align-items: center; gap: 6px; pointer-events: auto; }
@@ -154,6 +163,11 @@
   body.narrow #minimap { right: 8px; top: 8px; width: 120px; height: 71px; }
   body.narrow #menuBtn { right: 8px; top: 86px; bottom: auto; padding: 5px 9px; font-size: 12px; }
   body.narrow #target { top: 120px; width: min(300px, 80vw); }
+  body.narrow #atk { left: 10px; top: 10px; bottom: auto; width: 76px; height: 76px; }
+  body.narrow #atkLabel { display: none; }
+  body.narrow.touch #orb { left: 96px; }
+  body.narrow.touch #topleft { left: 10px; top: 94px; }
+  body.narrow.touch #target { top: 160px; }
   body.narrow #log { left: 10px; bottom: 96px; width: calc(100vw - 20px); font-size: 12px; }
   body.narrow #bottom { bottom: 8px; transform-origin: 50% 100%; }
   body.narrow #equip { width: 504px; transform-origin: 50% 50%; }
@@ -174,6 +188,8 @@
   <div id="log"></div>
   <div id="orb"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
   <div id="orbLabel">LIFE</div>
+  <div id="atk" title="Hold, then tap to attack"><div id="atkIco"></div></div>
+  <div id="atkLabel">ATTACK</div>
   <div id="bottom">
     <div id="hotbar"></div>
     <div id="xpbar"><div id="xpFill"></div><div id="xpText"></div></div>
@@ -209,7 +225,7 @@
   <h1>Crypt of Endless Night</h1>
   <p id="screenText">Descend the endless crypt alone. Every stair leads deeper, and every depth breeds fouler things.</p>
   <div class="controls" id="screenControls">
-    <b>Left click</b> — walk / open / pick up &nbsp;·&nbsp; <b>Right click</b> (or <b>Shift + click</b>, or tap while holding the life orb) — attack<br>
+    <b>Left click</b> — walk / open / pick up &nbsp;·&nbsp; <b>Right click</b> (or <b>Shift + click</b>, or tap while holding the attack button) — attack<br>
     <b>I</b> or <b>Tab</b> — equipment &nbsp;·&nbsp; <b>1–9, 0</b> — quick keys &nbsp;·&nbsp; <b>Q</b> — drink potion<br>
     <b>M</b> — minimap &nbsp;·&nbsp; <b>N</b> — sound &nbsp;·&nbsp; <b>Mouse wheel</b> — zoom
   </div>
@@ -262,6 +278,7 @@ function fitUI() {
     const es = Math.min(1, (innerWidth - 12) / eq.offsetWidth, (innerHeight - 12) / eq.offsetHeight);
     eq.style.transform = narrow || es < 1 ? `translate(-50%, -50%) scale(${es})` : '';
   }
+  if (G) refreshUI();   // icon sizes depend on the layout
 }
 addEventListener('resize', () => { resize(); fitUI(); }); resize();
 
@@ -445,7 +462,7 @@ function makeMonster(type, x, y, d, boss = false, forceChamp = false) {
 //  Game state
 // =====================================================================================
 let G = null;
-const mouse = { x: 0, y: 0, left: false, right: false, holdWalk: false, walkT: 0, leftId: null, rightId: null, orbId: null };
+const mouse = { x: 0, y: 0, left: false, right: false, holdWalk: false, walkT: 0, leftId: null, rightId: null, atkId: null };
 
 function newHero() {
   const h = { x: 0, y: 0, r: 0.28, dir: 0, anim: 0, moving: false, path: [], intent: null, attackTarget: null, attackPending: false,
@@ -1088,7 +1105,15 @@ function placeTip(x, y) {
 function hideTip() { $('tooltip').classList.add('hidden'); $('tooltip').classList.remove('touch'); }
 // The kind of pointer that last pressed (mouse, pen or touch); touch switches the overlay to tap-to-inspect.
 let lastPointer = 'mouse';
-addEventListener('pointerdown', e => { lastPointer = e.pointerType || 'mouse'; }, true);
+// The last touch or mouse press also switches the HUD: touch shows the attack button (body.touch), mouse hides it.
+addEventListener('pointerdown', e => {
+  lastPointer = e.pointerType || 'mouse';
+  if (lastPointer === 'touch' || lastPointer === 'mouse') {
+    const was = document.body.classList.contains('touch');
+    document.body.classList.toggle('touch', lastPointer === 'touch');
+    if (was !== (lastPointer === 'touch') && G) refreshUI();
+  }
+}, true);
 // Tap to inspect: the element's tooltip plus buttons for what a click, a right-click and a number key do.
 function touchInspect(el) {
   const t = $('tooltip'), h = G.hero, ref = el.dataset.ref, acts = [];
@@ -1181,6 +1206,8 @@ function refreshUI() {
     ['Damage', Math.round(dn) + '–' + Math.round(dx)], ['Attack speed', (1 / w.cd).toFixed(2) + ' / s'], ['Critical', st.crit.toFixed(1) + '%'],
     ['Move speed', Math.round(st.speed / 4.2 * 100) + '%'], ['Kills', h.kills], ['Gold', h.gold]];
   $('eqTitle').textContent = G.hero.name || 'Equipment';
+  const ai = $('atkIco'), as = document.body.classList.contains('narrow') ? 52 : 80;   // attack button: equipped weapon
+  ai.style.cssText = h.equip.weapon ? iconCss(h.equip.weapon.base, as) + `width:${as}px;height:${as}px;` : '';
   $('stats').innerHTML = rows.map(r => `<div class="row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
   if (G.uiHover) showRefTip(G.uiHover);
 }
@@ -1224,12 +1251,13 @@ function pickAt(mx, my) {
 document.addEventListener('contextmenu', e => e.preventDefault());
 // Pointer events cover mouse, touchpad, touch screen and pen alike. For devices without a right button, a
 // left click or tap counts as a right click while a modifier is held: the Shift key, or a finger resting on
-// the life orb. Each press remembers its pointerId, so lifting one finger never ends another finger's press.
-const modifier = e => e.shiftKey || mouse.orbId != null;
+// the attack button (touch screens). Each press remembers its pointerId, so lifting one finger never ends
+// another finger's press.
+const modifier = e => e.shiftKey || mouse.atkId != null;
 const rightClick = e => e.button === 2 || (e.button === 0 && modifier(e));
-const orbEl = $('orb');
-orbEl.addEventListener('pointerdown', e => { if (e.button !== 0) return; e.preventDefault(); mouse.orbId = e.pointerId; orbEl.classList.add('held'); });
-const releaseOrb = () => { mouse.orbId = null; orbEl.classList.remove('held'); };
+const atkEl = $('atk');
+atkEl.addEventListener('pointerdown', e => { if (e.button !== 0) return; e.preventDefault(); mouse.atkId = e.pointerId; atkEl.classList.add('held'); });
+const releaseAtk = () => { mouse.atkId = null; atkEl.classList.remove('held'); };
 // A second mouse button pressed or released while another is held ("chorded") arrives as a pointermove
 // with e.button set, not as pointerdown / pointerup.
 const BTN_BIT = { 0: 1, 1: 4, 2: 2 };
@@ -1263,16 +1291,16 @@ function pointerDown(e) {
 // A mouse shares one pointerId between its buttons, so match the button too.
 addEventListener('pointerup', e => pointerUp(e));
 function pointerUp(e) {
-  if (e.pointerId === mouse.orbId && e.button === 0) releaseOrb();
+  if (e.pointerId === mouse.atkId && e.button === 0) releaseAtk();
   if (e.pointerId === mouse.rightId && (e.button === 2 || !mouse.left || e.pointerId !== mouse.leftId)) { mouse.right = false; mouse.rightId = null; }
   else if (e.pointerId === mouse.leftId && e.button === 0) { mouse.left = false; mouse.holdWalk = false; mouse.leftId = null; }
 }
 addEventListener('pointercancel', e => {
-  if (e.pointerId === mouse.orbId) releaseOrb();
+  if (e.pointerId === mouse.atkId) releaseAtk();
   if (e.pointerId === mouse.rightId) { mouse.right = false; mouse.rightId = null; }
   if (e.pointerId === mouse.leftId) { mouse.left = mouse.holdWalk = false; mouse.leftId = null; }
 });
-addEventListener('blur', () => { mouse.left = mouse.right = mouse.holdWalk = false; mouse.leftId = mouse.rightId = null; releaseOrb(); });
+addEventListener('blur', () => { mouse.left = mouse.right = mouse.holdWalk = false; mouse.leftId = mouse.rightId = null; releaseAtk(); });
 cv.addEventListener('wheel', e => { if (G) G.zoom = clamp(G.zoom * (e.deltaY > 0 ? 0.9 : 1.1), 0.6, 1.5); e.preventDefault(); }, { passive: false });
 function rightAction(ref, fresh) {
   const h = G.hero, w = weaponOf(h);

@@ -25,7 +25,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 |---|---|
 | Left click on floor | Walk there (A* pathfinding). Holding the button keeps walking toward the cursor. |
 | Left click on chest / door / urn / bones / gold / item / stairs | Walk to it and act on it: open, break, search, pick up, or descend. |
-| Right click, or `Shift` + left click, or a tap while a finger rests on the life orb | Attack with the equipped weapon (see [Combat](#combat)). Hold to keep attacking. |
+| Right click, or `Shift` + left click, or a tap while a finger rests on the attack button (touch) | Attack with the equipped weapon (see [Combat](#combat)). Hold to keep attacking. |
 | `I`, `C` or `Tab` | Toggle the equipment overlay (`Esc` closes it). |
 | `1`–`9`, `0` | Quick keys: equip the bound weapon or drink a potion. |
 | `Q` | Drink a health potion. |
@@ -35,13 +35,13 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 
 **Touchpads and touch screens.** A *modifier* turns any left click or tap into a right click, everywhere a
 right click does something: attacking in the game view, dropping a pack item and clearing a quick key. The
-modifier is the `Shift` key, or, on a touch screen, a finger resting on the life orb (the orb's rim glows gold
-while it is held). The game view and the orb use pointer events (mouse, touchpad, touch and pen alike) with
+modifier is the `Shift` key, or, on a touch screen, a finger resting on the **attack button** (its rim glows
+gold while it is held). The game view and the button use pointer events (mouse, touchpad, touch and pen alike) with
 `touch-action: none`, so a finger held on the screen keeps walking or attacking and dragging doesn't scroll
 or zoom the page.
 
 - Each press remembers its `pointerId` (and, for a mouse, which button), so with several fingers down,
-  lifting one never ends another's press: lifting the orb finger doesn't stop a walk or an attack already
+  lifting one never ends another's press: lifting the attack-button finger doesn't stop a walk or an attack already
   under way, and a press that started as a right click stays one until it is released.
 - A second mouse button pressed or released while another is held arrives as a `pointermove` with
   `e.button` set (a "chorded" press), so the game treats those as presses and releases too. Holding left to
@@ -462,6 +462,13 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
   green for bosses).
 - **Top right:** minimap.
 - **Bottom left:** the life orb, and above it a message log (6 lines, each fading after 6 s).
+- **Touch mode** (`body.touch`): every `pointerdown` records its pointer type; a **touch** press turns touch
+  mode on and a **mouse** press turns it off (pen leaves it as it is), so a touch-screen laptop switches as
+  you switch between finger and touchpad. In touch mode an **attack button** appears in the life orb's place:
+  round and the orb's size, a dark steel disc with a gold rim showing the equipped weapon's icon (80 px; 52 px
+  on phones) and an "ATTACK" label below. Holding it is the attack modifier (see Controls). The life orb slides
+  right next to it (to 156 px from the left), so the finger on the button never covers it. The orb itself
+  takes no input.
 - **Bottom centre:** quick-key hotbar and XP bar.
 - **Bottom right:** Equipment button.
 - Taking damage flashes a red vignette whose strength depends on how big the hit was.
@@ -469,7 +476,9 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
 - **Phones** (narrow portrait screens: width under 700 px and taller than wide; `fitUI()` on load, on resize
   and when the overlay opens sets `body.narrow`):
   - the life orb moves to the **top left** at 76 px (no "LIFE" label), with the level name, depth and gold to
-    its right in smaller type;
+    its right in smaller type; in touch mode the attack button (76 px) takes the top-left corner, the orb sits
+    right of it (96 px from the left), the level name, depth and gold move below them (94 px from the top),
+    and the target bar moves down to 160 px;
   - the minimap shrinks to 120 × 71 px (top right), with the Equipment button below it;
   - the target bar moves down to 120 px from the top; the message log spans the width above the hotbar;
   - the equipment overlay switches to a 504 px wide layout: paper doll and attributes side by side, the
