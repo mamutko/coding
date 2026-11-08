@@ -230,7 +230,7 @@
   <div class="controls" id="screenControls">
     <b>Left click</b> — walk / open / pick up &nbsp;·&nbsp; <b>Right click</b> (or <b>Shift + click</b>, or tap while holding the attack button) — attack<br>
     <b>I</b> or <b>Tab</b> — equipment &nbsp;·&nbsp; <b>1–9, 0</b> — quick keys &nbsp;·&nbsp; <b>Q</b> — drink potion<br>
-    <b>M</b> — minimap &nbsp;·&nbsp; <b>N</b> — sound &nbsp;·&nbsp; <b>Mouse wheel</b> — zoom
+    <b>M</b> — minimap &nbsp;·&nbsp; <b>N</b> — sound &nbsp;·&nbsp; <b>Mouse wheel</b> (or pinch) — zoom
   </div>
   <div id="heroPick"></div>
   <button id="startBtn" disabled>Loading…</button>
@@ -1285,7 +1285,32 @@ cv.addEventListener('pointermove', e => {
   if (e.button > -1 && BTN_BIT[e.button]) (e.buttons & BTN_BIT[e.button] ? pointerDown : pointerUp)(e);
 });
 addEventListener('pointermove', e => { if (e.target !== cv && e.button > -1 && BTN_BIT[e.button] && !(e.buttons & BTN_BIT[e.button])) pointerUp(e); });
-cv.addEventListener('pointerdown', e => pointerDown(e));
+// Pinch zoom (touch): a second finger on the game view starts a pinch, which cancels the first finger's walk
+// or attack; the zoom follows the change in distance between the two fingers (same 0.6-1.5 range as the wheel).
+// Until every finger that took part is lifted, no finger on the game view walks or attacks.
+const touches = new Map();   // pointerId -> [x, y] of touch pointers down on the game view
+const pinch = { on: false, a: null, b: null, d0: 1, z0: 1 };
+const pinchDist = () => Math.hypot(touches.get(pinch.a)[0] - touches.get(pinch.b)[0], touches.get(pinch.a)[1] - touches.get(pinch.b)[1]) || 1;
+cv.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch') {
+    touches.set(e.pointerId, [e.clientX, e.clientY]);
+    if (touches.size >= 2 && G) {
+      const ids = [...touches.keys()]; pinch.on = true; pinch.a = ids[0]; pinch.b = ids[1]; pinch.d0 = pinchDist(); pinch.z0 = G.zoom;
+      const h = G.hero; mouse.left = mouse.holdWalk = mouse.right = false; mouse.leftId = mouse.rightId = null;
+      h.path = []; h.intent = null; h.attackTarget = null; h.attackPending = false;
+      return;
+    }
+    if (pinch.on) return;
+  }
+  pointerDown(e);
+});
+cv.addEventListener('pointermove', e => {
+  if (!touches.has(e.pointerId)) return;
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pinch.on && G && touches.has(pinch.a) && touches.has(pinch.b)) G.zoom = clamp(pinch.z0 * pinchDist() / pinch.d0, 0.6, 1.5);
+});
+const touchUp = e => { touches.delete(e.pointerId); if (!touches.size) pinch.on = false; };
+addEventListener('pointerup', touchUp); addEventListener('pointercancel', touchUp);
 function pointerDown(e) {
   if (!G || !G.running || G.dead) return;
   audio(); mouse.x = e.clientX; mouse.y = e.clientY;
@@ -1363,6 +1388,15 @@ function update(dt) {
       if (dist(h, { x: wx, y: wy }) > 0.4) pathTo(h, wx, wy, false); }
   }
   if (mouse.right && h.atkCd <= 0) rightAction(G.hover, false);
+  // auto attack: while the attack button is held with a melee weapon (and no finger is walking or attacking
+  // on the game view), the hero attacks the nearest monster in reach, then the next one, without a tap
+  const autoAtk = mouse.atkId != null && !mouse.left && !mouse.right && weaponOf(h).kind !== 'bow';
+  if (autoAtk && (!h.attackTarget || h.attackTarget.dead)) {
+    const reach = KIND_INFO[weaponOf(h).kind].reach * 0.85;
+    let best = null, bd = 1e9;
+    for (const mo of G.monsters) { if (mo.dead) continue; const dd = dist(h, mo) - mo.r; if (dd <= reach && dd < bd) { bd = dd; best = mo; } }
+    if (best) { h.attackTarget = best; h.attackPending = false; h.intent = null; }
+  }
 
   // hero
   h.atkCd = Math.max(0, h.atkCd - dt); h.potionCd = Math.max(0, h.potionCd - dt); h.hitT = Math.max(0, h.hitT - dt);
@@ -1377,7 +1411,7 @@ function update(dt) {
       if (w.kind === 'bow') { if ((mouse.right || h.attackPending) && h.atkCd <= 0) { heroAttack(0, 0, at); h.attackPending = false; } else if (!mouse.right && !h.attackPending) h.attackTarget = null; }
       else {
         const inReach = dist(h, at) - at.r <= info.reach * 0.85;
-        if (inReach) { h.path = []; if (h.atkCd <= 0 && !h.swing && (h.attackPending || mouse.right)) { heroAttack(0, 0, at); h.attackPending = false; } }
+        if (inReach) { h.path = []; if (h.atkCd <= 0 && !h.swing && (h.attackPending || mouse.right || autoAtk)) { heroAttack(0, 0, at); h.attackPending = false; } }
         else if (h.attackPending || mouse.right) { h.repath -= dt; if (h.repath <= 0 || !h.path.length) { h.repath = 0.25; pathTo(h, at.x, at.y, true); } }
         else h.attackTarget = null;
       }

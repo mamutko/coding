@@ -31,7 +31,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `Q`, or a click / tap on the life orb | Drink a health potion. |
 | `M` | Toggle the minimap. |
 | `N` | Toggle sound. |
-| Mouse wheel | Zoom (0.6×–1.5×). |
+| Mouse wheel, or pinch with two fingers (touch) | Zoom (0.6×–1.5×). |
 
 **Touchpads and touch screens.** A *modifier* turns any left click or tap into a right click, everywhere a
 right click does something: attacking in the game view, dropping a pack item and clearing a quick key. The
@@ -43,6 +43,16 @@ or zoom the page.
 - Each press remembers its `pointerId` (and, for a mouse, which button), so with several fingers down,
   lifting one never ends another's press: lifting the attack-button finger doesn't stop a walk or an attack already
   under way, and a press that started as a right click stays one until it is released.
+- **Auto attack:** while the attack button is held with a melee weapon (and no finger is walking or attacking
+  on the game view), the hero attacks the nearest monster within reach (`reach × 0.85`, as for a targeted
+  attack) at once, with no tap on it, and keeps attacking (when it dies or steps out of reach, the next nearest
+  in reach) until the button is released. It never walks toward a monster. With a bow it does nothing; tap a
+  monster as before.
+- **Pinch zoom:** touch pointers on the game view are tracked. When a second finger touches it, a pinch
+  starts: the first finger's walk or attack is cancelled, and the zoom becomes the zoom at the start × the
+  current finger distance ÷ the starting distance (clamped to 0.6×–1.5×). Until every finger on the game view
+  is lifted, no finger there walks or attacks. A finger on the attack button is not on the game view, so it
+  never starts a pinch.
 - A second mouse button pressed or released while another is held arrives as a `pointermove` with
   `e.button` set (a "chorded" press), so the game treats those as presses and releases too. Holding left to
   walk and then holding right attacks, as before.
