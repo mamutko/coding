@@ -100,15 +100,16 @@ and the picker shows no saved heroes.
 - **Lighting.** An offscreen canvas is filled with 93 % near-black. Elliptical radial "holes" are then cut
   into it (`destination-out`): a 7.2-tile radius around the hero, about 4.2 tiles of flickering light per
   brazier, and a small glow per wraith bolt. The result is drawn over the scene, then each brazier adds a warm
-  orange glow (`lighter`; green for the boss room's braziers); candelabra light a 2.6-tile radius and the
-  boss room's rune circle 3.4 tiles. Item labels, monster health bars and floating damage numbers are drawn after the
+  orange glow (`lighter`; green for a green brazier); candelabra light a 2.6-tile radius and the boss room's
+  rune circle, faintly (strength 0.4), a 3-tile radius. Item labels, monster health bars and floating damage numbers are drawn after the
   lighting so they stay readable.
 - **Characters.** Each sheet has 8 rows, one per direction, in the order S, SW, W, NW, N, NE, E, SE. The
   facing row comes from the movement or attack direction projected to screen space and rounded to 45°
   sectors. `META.characters.<name>` gives the frame size `fw × fh`, the frame count, an optional idle frame
   (default 0), an optional `footY`, the ground point's y inside the frame (default `fh − 6`), and `fpt`, walk
   frames per tile (default 2). The sprite is drawn horizontally centred with `footY` on the entity's position,
-  scaled by the monster's `scale`. Characters have a shadow ellipse.
+  scaled by the monster's `scale`. Characters have a soft shadow (see Prop shadows),
+  32 × 15 px × scale at 55 % black, 2 px below the ground point.
   - **Walk frames advance with distance walked**, `anim += distance × fpt / scale` (the hero's scale is 1), so
     feet don't slide at any move speed and bigger monsters take longer strides.
   - **Hero, skeleton, ghoul:** 8 frames per direction = one full stride (two steps): 0 left foot forward,
@@ -120,10 +121,17 @@ and the picker shows no saved heroes.
     The wraith hovers and bobs. Attacks show a short
   lunge toward the facing direction. A hit flashes the sprite white (`filter: brightness`), champions get
   a red glow and bosses a green glow (`drop-shadow`). Dead monsters sink and fade over about 1 s.
-- **Boss room.** Its braziers are drawn with `hue-rotate(80deg) saturate(1.4)` (green fire, green embers). Its
-  **rune circle** is drawn on the floor, centred on the room, with radius 0.24 × the room's shorter side:
-  a soft green radial glow, two concentric rings, 24 rune ticks turning slowly, and three arcs turning the
-  other way inside, all additive (`lighter`) with a green shadow blur, pulsing at about 0.35 Hz.
+- **Prop shadows** are soft-edged ellipses (a radial gradient from 50 % black to transparent) under each prop's
+  base, by shape. The sprite's bottom is the prop's front-most ground point, so: **boxes** (chest, sarcophagus,
+  altar, throne) centre the shadow `w/4` above it (the middle of a `w`-wide base diamond), radii 0.62w × 0.32w;
+  **mounds** (skull pile, bones) 0.2w above, 0.58w × 0.28w; **posts** (brazier, candelabrum, banner, pillar,
+  urn) 0.08w above, 0.46w × 0.21w. Stairs and gold have none. A prop with `flip` (a throne on the right back
+  wall) is drawn mirrored.
+- **Green brazier** (see Dungeon generation): drawn with `hue-rotate(80deg) saturate(1.4)`, with green embers.
+- **Rune circle** in the boss room: drawn on the floor, centred on the room, radius 0.24 × the room's shorter
+  side. A very faint green radial glow, then two thin concentric rings, 24 rune ticks turning slowly and three
+  arcs turning the other way inside, in a muted green (about 40 % opacity), blurred (`blur(1.5px)` plus an
+  18 px green shadow blur), all additive (`lighter`), pulsing gently (±15 %) at about 0.25 Hz.
 - **Effects.** Melee swings draw a sweeping crescent arc in the attack direction. Arrows are drawn as shafts with
   a tip, and wraith bolts as glowing green orbs. Hits spray blood-coloured sparks (green for wraiths), urns
   burst into shards, and level-ups emit an expanding golden ring.
@@ -165,13 +173,19 @@ Each depth `d` gets a freshly generated level.
   `area × (BFS distance from the start + 10)` other than the start and stairs rooms is used instead). The stairs
   never go in it. Contents:
   - the boss on the centre tile, standing on the **rune circle** (see Rendering);
-  - at least 4 braziers with **green flames**, and a **guardian's chest**, on the edge (blocking);
-  - furnishings (non-interactive): a throne, an altar, a sarcophagus, 2 banners, 2 broken pillars and
-    2 candelabra on the edge (blocking), and 3 skull piles on inner tiles (not blocking);
+  - at least 4 ordinary braziers and a **guardian's chest**, on the edge (blocking);
+  - furnishings (non-interactive), each type only from its unlock depth (`DECOR_FROM`): 3 skull piles on
+    inner tiles (not blocking) and 2 banners from depth 1, 2 candelabra from depth 2, 2 broken pillars from
+    depth 3, a sarcophagus from depth 4, an altar from depth 5, and a throne from depth 6, all on the edge
+    (blocking). The throne's sprite faces down-right (+x), so it always goes against a back wall, facing into
+    the room: on the left back wall (`x = r.x`) as drawn, or on the right back wall (`y = r.y`) mirrored, never
+    in a corner or next to a doorway;
   - 1–2 ordinary monsters and a 50 % chance of an extra champion (at any depth, without escorts);
   - no chests, urns, bones or gold piles.
   The boss's type is drawn by weight from the types unlocked at depth `d + 1`, so it can be a type not yet
   seen at this depth (a wraith boss at depth 1, a demon boss from depth 2).
+- **Green brazier.** With 50 % chance, one room joined to the boss room by a corridor gets an extra brazier
+  with green flames, a hint of what lies next door. Corridors are recorded as room pairs when carved.
 - Blocking props are only placed on a room's edge, against solid wall, and never next to a doorway or
   corridor mouth, so they can't cut off a path.
 - **Monsters per room** (not the start or boss room): `min(7, 1 + ⌊area/22⌋ + ⌊d/3⌋ + (40 % chance of +1))`.

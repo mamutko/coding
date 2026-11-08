@@ -373,6 +373,9 @@ const MON = {
   demon:    { name: 'Pit Demon', scale: 1.3, hp: 75, dmg: [8, 13], armor: 12, speed: 2.1, reach: 1.35, cd: 1.5, xp: 60, r: 0.45, minD: 3, w: 1 },
 };
 const CHAMP_PRE = ['Dread', 'Blighted', 'Bloodsoaked', 'Ancient', 'Accursed', 'Ravenous'];
+// Boss-room furnishings: [type, count], and the depth from which each first appears.
+const BOSS_DECOR = [['throne', 1], ['altar', 1], ['sarcophagus', 1], ['banner', 2], ['pillar', 2], ['candelabrum', 2], ['skullpile', 3]];
+const DECOR_FROM = { skullpile: 1, banner: 1, candelabrum: 2, pillar: 3, sarcophagus: 4, altar: 5, throne: 6 };
 const BOSS_NAMES = ['Morgrath', 'Vexhollow', 'Ulthane', 'Skarn', 'Belmorah', 'Grisvald', 'Nythra', 'Corvane', 'Drokkar', 'Ashmire'];
 const LEVEL_NAMES = ['The Forsaken Crypt', 'The Ossuary', 'Halls of the Hollow', 'The Weeping Catacombs', 'Sepulchre of Ash',
   'The Blood Vaults', 'Throne of Bones', 'The Abyssal Nave'];
@@ -502,7 +505,9 @@ function buildLevel(d) {
     rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + (rw >> 1), cy: ry + (rh >> 1), big });
   }
   for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) t[y * w + x] = T_FLOOR;
+  const links = [];   // pairs of rooms joined by a carved corridor
   const carve = (a, b) => {
+    links.push([a, b]);
     let x = a.cx, y = a.cy; const hf = rnd() < 0.5;
     const stepX = () => { while (x !== b.cx) { x += Math.sign(b.cx - x); t[y * w + x] = T_FLOOR; } };
     const stepY = () => { while (y !== b.cy) { y += Math.sign(b.cy - y); t[y * w + x] = T_FLOOR; } };
@@ -568,6 +573,17 @@ function buildLevel(d) {
     occ[p[1] * w + p[0]] = 1;
     const o = Object.assign({ type, x: p[0], y: p[1], used: false, block: edgeOnly }, extra); objects.push(o); return o;
   };
+  // a prop that faces down-right on screen (+x), like the throne: put it against a back wall so it faces into
+  // the room, on the left back wall (x = r.x) as drawn, or on the right back wall (y = r.y) mirrored to face +y
+  const placeBack = (type, r, extra = {}) => {
+    for (let tries = 0; tries < 40; tries++) {
+      const left = rnd() < 0.5, x = left ? r.x : ri(r.x + 1, r.x + r.w - 2), y = left ? ri(r.y + 1, r.y + r.h - 2) : r.y;
+      if (occ[y * w + x] || isOpening(x, y) || at(left ? x - 1 : x, left ? y : y - 1) !== T_WALL) continue;
+      occ[y * w + x] = 1;
+      const o = Object.assign({ type, x, y, used: false, block: true, flip: !left }, extra); objects.push(o); return o;
+    }
+    return null;
+  };
   occ[start.cy * w + start.cx] = 1;
   occ[far.cy * w + far.cx] = 1;
   objects.push({ type: 'stairs', x: far.cx, y: far.cy, used: false, block: false });
@@ -578,16 +594,21 @@ function buildLevel(d) {
   // (fallback if the big room didn't fit: the largest other room, preferring rooms far from the start)
   const bossRoom = rooms.find(r => r.big) || rooms.filter(r => r !== start && r !== far)
     .sort((a, b) => b.w * b.h * (distArr[b.cy * w + b.cx] + 10) - a.w * a.h * (distArr[a.cy * w + a.cx] + 10))[0] || far;
+  // 50 %: one green-flamed brazier in a room joined to the boss room by a corridor (a hint of what's near)
+  const nextToBoss = links.filter(l => l.includes(bossRoom)).map(l => l[0] === bossRoom ? l[1] : l[0]).filter(r => r !== bossRoom);
+  const greenRoom = nextToBoss.length && rnd() < 0.5 ? pick(nextToBoss) : null;
   for (const r of rooms) {
+    if (r === greenRoom) place('brazier', r, true, { green: true });
     if (r === bossRoom) {
       map.bossRoom = r;
-      // the boss stands on a glowing rune circle in the middle, ringed by green-flamed braziers and furnishings
+      // the boss stands on a rune circle in the middle, ringed by braziers and the furnishings unlocked at this depth
       const p = occ[r.cy * w + r.cx] ? (freeInner(r, false) || [r.cx, r.cy]) : [r.cx, r.cy]; occ[p[1] * w + p[0]] = 1;
-      for (let n = 0, k = 0; n < 4 && k < 12; k++) if (place('brazier', r, true, { green: true })) n++;   // at least 4
+      for (let n = 0, k = 0; n < 4 && k < 12; k++) if (place('brazier', r, true)) n++;   // at least 4
       place('chest', r, true, { boss: true });
-      for (const t of ['throne', 'altar', 'sarcophagus', 'banner', 'banner', 'pillar', 'pillar', 'candelabrum', 'candelabrum'])
-        place(t, r, true, { decor: true });
-      for (let i = 0; i < 3; i++) place('skullpile', r, false, { decor: true });
+      for (const [t, n] of BOSS_DECOR) if (d >= DECOR_FROM[t]) for (let i = 0; i < n; i++) {
+        if (t === 'throne') placeBack(t, r, { decor: true });
+        else place(t, r, t !== 'skullpile', { decor: true });
+      }
       // boss type: drawn by weight from the types unlocked at depth + 1, so it can be one not yet seen here
       const bossPool = []; for (const k in MON) if (MON[k].minD <= d + 1) for (let i = 0; i < MON[k].w; i++) bossPool.push(k);
       const boss = makeMonster(pick(bossPool), p[0] + 0.5, p[1] + 0.5, d, true); monsters.push(boss); map.boss = boss;
@@ -1415,7 +1436,7 @@ function render() {
   for (const b of braziers) hole(b.x + 0.5, b.y + 0.5, 4.2 + Math.sin(G.time * 9 + b.x) * 0.15 + Math.sin(G.time * 13.7 + b.y) * 0.1, 0.95, 40);
   for (const p of G.proj) if (p.type === 'bolt') hole(p.x, p.y, 1.6, 0.8, 40);
   for (const o of G.objects) if (o.type === 'candelabrum' && Math.abs(o.x - h.x) < 18 && Math.abs(o.y - h.y) < 18) hole(o.x + 0.5, o.y + 0.5, 2.6, 0.8, 60);
-  const br = G.map.bossRoom; if (br && Math.abs(br.cx - h.x) < 20 && Math.abs(br.cy - h.y) < 20) hole(br.cx + 0.5, br.cy + 0.5, 3.4, 0.7, 0);
+  const br = G.map.bossRoom; if (br && Math.abs(br.cx - h.x) < 20 && Math.abs(br.cy - h.y) < 20) hole(br.cx + 0.5, br.cy + 0.5, 3, 0.4, 0);
   ctx.drawImage(lc, 0, 0);
   ctx.globalCompositeOperation = 'lighter';
   for (const b of braziers) { const [X, Y] = toDev(b.x + 0.5, b.y + 0.5, 50); const r = 170 * z * DPR;
@@ -1493,26 +1514,36 @@ function drawWall(x, y) {
 }
 const PROP_STYLE = { chest: [0.6, 8], chestopen: [0.6, 8], stairs: [0.66, 0], brazier: [0.62, 10], bones: [0.5, 6], urn: [0.52, 8], gold: [0.42, 6],
   throne: [0.7, 10], altar: [0.62, 10], candelabrum: [0.62, 6], skullpile: [0.42, 8], banner: [0.66, 6], pillar: [0.72, 8], sarcophagus: [0.64, 10] };
-const GREEN_FIRE = 'hue-rotate(80deg) saturate(1.4)';   // boss-room braziers burn green
-// The boss room's summoning circle: two concentric rings with turning rune ticks and three arcs turning
-// the other way inside, pulsing green, drawn additively on the floor around the room centre.
+const PROP_SHADOW = { chest: 'box', chestopen: 'box', sarcophagus: 'box', altar: 'box', throne: 'box', skullpile: 'mound', bones: 'mound',
+  urn: 'post', brazier: 'post', candelabrum: 'post', banner: 'post', pillar: 'post' };   // stairs and gold cast none
+// A soft-edged elliptical shadow: dark in the middle, fading to nothing at the rim.
+function softShadow(x, y, rx, ry, a) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(1, ry / rx);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(0.55, `rgba(0,0,0,${a * 0.7})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.fill(); ctx.restore();
+}
+const GREEN_FIRE = 'hue-rotate(80deg) saturate(1.4)';   // the rare green brazier next to the boss room
+// The boss room's rune circle: two thin concentric rings with slowly turning rune ticks and three arcs turning
+// the other way inside, in a muted green, softly blurred, with a very faint green glow around it.
 function drawRuneCircle(r) {
   const cx = r.cx + 0.5, cy = r.cy + 0.5, [sx, sy] = iso(cx, cy), R = Math.min(r.w, r.h) * 0.24;
-  const rx = R * HW * Math.SQRT2, ry = R * HH * Math.SQRT2, pulse = 0.55 + 0.25 * Math.sin(G.time * 2.2);
+  const rx = R * HW * Math.SQRT2, ry = R * HH * Math.SQRT2, pulse = 0.85 + 0.15 * Math.sin(G.time * 1.6);
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(sx, sy); ctx.scale(1, ry / rx);
-  const glow = ctx.createRadialGradient(0, 0, rx * 0.2, 0, 0, rx * 1.15);
-  glow.addColorStop(0, `rgba(60,200,90,${0.18 * pulse})`); glow.addColorStop(1, 'rgba(60,200,90,0)');
-  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, rx * 1.15, 0, 7); ctx.fill();
-  ctx.strokeStyle = `rgba(110,255,140,${0.7 * pulse})`; ctx.shadowColor = 'rgba(80,255,120,0.9)'; ctx.shadowBlur = 12;
-  ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.stroke();
-  ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, rx * 0.82, 0, 7); ctx.stroke();
+  const glow = ctx.createRadialGradient(0, 0, rx * 0.5, 0, 0, rx * 1.35);
+  glow.addColorStop(0, `rgba(60,150,90,${0.06 * pulse})`); glow.addColorStop(0.75, `rgba(60,150,90,${0.045 * pulse})`); glow.addColorStop(1, 'rgba(60,150,90,0)');
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, rx * 1.35, 0, 7); ctx.fill();
+  ctx.filter = 'blur(1.5px)';
+  ctx.strokeStyle = `rgba(110,170,120,${0.42 * pulse})`; ctx.shadowColor = 'rgba(80,170,110,0.5)'; ctx.shadowBlur = 18;
+  ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.stroke();
+  ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, rx * 0.82, 0, 7); ctx.stroke();
   for (let i = 0; i < 24; i++) {   // rune ticks between the rings
-    const a = i / 24 * Math.PI * 2 + G.time * 0.15, l = i % 3 === 0 ? 0.12 : 0.06;
+    const a = i / 24 * Math.PI * 2 + G.time * 0.12, l = i % 3 === 0 ? 0.12 : 0.06;
     ctx.beginPath(); ctx.moveTo(Math.cos(a) * rx * 0.84, Math.sin(a) * rx * 0.84);
     ctx.lineTo(Math.cos(a) * rx * (0.84 + l), Math.sin(a) * rx * (0.84 + l)); ctx.stroke();
   }
   for (let i = 0; i < 3; i++) {   // three turning arcs inside
-    const a = i / 3 * Math.PI * 2 - G.time * 0.4;
+    const a = i / 3 * Math.PI * 2 - G.time * 0.3;
     ctx.beginPath(); ctx.arc(0, 0, rx * 0.5, a, a + 1.4); ctx.stroke();
   }
   ctx.restore();
@@ -1524,11 +1555,18 @@ function drawProp(o) {
   const [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy), w = pw * s, hh = ph * s;
   const top = key === 'stairs' ? sy - hh / 2 : sy - hh + off;
   const hov = G.hover && G.hover.r === o;
-  if (key !== 'stairs' && key !== 'gold') { ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.ellipse(sx, sy + 2, w * 0.42, w * 0.2, 0, 0, 7); ctx.fill(); }
+  // shadow under the prop's base: the sprite's bottom is its front-most ground point, so a box (whose base is
+  // a diamond about w wide and w/2 deep) has its base centre w/4 above that; posts stand on a small base
+  const shape = PROP_SHADOW[key];
+  if (shape) {
+    const bottom = top + hh, [k, rxF, ryF] = shape === 'box' ? [0.25, 0.62, 0.32] : shape === 'mound' ? [0.2, 0.58, 0.28] : [0.08, 0.46, 0.21];
+    softShadow(sx, bottom - w * k, w * rxF, w * ryF, 0.5);
+  }
   const glow = o.boss && !o.used ? 'drop-shadow(0 0 6px rgba(70,235,110,0.9))' : '';
   const fire = o.green ? GREEN_FIRE : '';
   if (hov || glow || fire) ctx.filter = [hov ? 'brightness(1.45)' : '', glow, fire].filter(Boolean).join(' ');
-  ctx.drawImage(IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh);
+  if (o.flip) { ctx.save(); ctx.translate(sx, 0); ctx.scale(-1, 1); ctx.drawImage(IMG.props, px, py, pw, ph, -w / 2, top, w, hh); ctx.restore(); }
+  else ctx.drawImage(IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh);
   ctx.filter = 'none';
   if (o.type === 'brazier') { // flickering embers
     for (let i = 0; i < 2; i++) { const t = (G.time * 0.9 + i * 0.5 + o.x * 0.13) % 1;
@@ -1543,7 +1581,7 @@ function drawChar(e, isHero) {
   let sy = sy0, alpha = 1;
   if (!isHero && e.dead) { alpha = Math.max(0, 1 - e.deathT / 1.1); sy += e.deathT * 14; }
   if (!isHero && e.b.float) sy -= 8 + Math.sin(G.time * 3 + e.x) * 4;
-  ctx.fillStyle = `rgba(0,0,0,${0.45 * alpha})`; ctx.beginPath(); ctx.ellipse(sx, sy0 + 2, 26 * s, 12 * s, 0, 0, 7); ctx.fill();
+  softShadow(sx, sy0 + 2, 32 * s, 15 * s, 0.55 * alpha);
   const frame = e.moving ? Math.floor(e.anim) % md.frames : (md.idle || 0), row = e.dir;
   // lunge toward facing direction
   let ox = 0, oy = 0;
