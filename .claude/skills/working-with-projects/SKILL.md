@@ -59,7 +59,9 @@ explanation in every project.
 
 - **Work directly on `main` with no branching** unless the user explicitly asks
   you to create a branch. This repo favors a simple linear history.
-- **Commit or push only when the user asks.** Don't auto-commit after edits.
+- **Commit and push to `main` when a change is done.** Once a requested change
+  (code plus its README update) is complete, commit it with a clear message and
+  push it, without asking first. Don't commit half-finished work mid-task.
 - Commits to `main` also drive Supabase migrations (the GitHub integration
   applies new files under `supabase/migrations/` on merge to `main`), so treat
   pushing to `main` as a deploy for any backend changes.
@@ -77,8 +79,7 @@ When creating a new project:
   open before any real work is done
 - if the user didn't provide details on what the project should be, instruct the user to edit README.md to provide details about the project and then prompt AI to implement it
 - if the user provided details in the initial prompt, put them in README.md
-- commit and push the new project to `main` so GitHub Pages deploys it — this
-  is an explicit exception to the "push only when the user asks" rule above; the
+- commit and push the new project to `main` so GitHub Pages deploys it — the
   initial scaffold (README + placeholder `index.html`) is always pushed as part
   of creating the project
 - after pushing, give the user **both** links so they can open the project:
