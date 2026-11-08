@@ -133,6 +133,28 @@
   #heroPick input:focus { border-color: var(--gold); }
   #heroPick input.bad { border-color: #c4291f; }
   #fade { position: fixed; inset: 0; background: #000; pointer-events: none; opacity: 0; z-index: 30; }
+  #eqClose { padding: 3px 10px; font-size: 15px; }
+  .eqHead .right { display: flex; align-items: baseline; gap: 12px; }
+
+  /* ---------- Narrow portrait screens (phones): body.narrow, set by fitUI() ---------- */
+  body.narrow #orb { left: 10px; top: 10px; bottom: auto; width: 76px; height: 76px; }
+  body.narrow #orbText { font-size: 13px; }
+  body.narrow #orbLabel { display: none; }
+  body.narrow #topleft { left: 96px; top: 10px; }
+  body.narrow #depthName { font-size: 15px; }
+  body.narrow #depthSub { font-size: 11px; }
+  body.narrow #goldText { font-size: 12px; }
+  body.narrow #minimap { right: 8px; top: 8px; width: 120px; height: 71px; }
+  body.narrow #menuBtn { right: 8px; top: 86px; bottom: auto; padding: 5px 9px; font-size: 12px; }
+  body.narrow #target { top: 120px; width: min(300px, 80vw); }
+  body.narrow #log { left: 10px; bottom: 96px; width: calc(100vw - 20px); font-size: 12px; }
+  body.narrow #bottom { bottom: 8px; transform-origin: 50% 100%; }
+  body.narrow #equip { width: 504px; transform-origin: 50% 50%; }
+  body.narrow .eqHead .hint { display: none; }
+  body.narrow .eqBody { grid-template-columns: 250px 200px; }
+  body.narrow .eqBody > div:nth-child(2) { grid-column: 1 / -1; order: 3; }
+  body.narrow .eqBody > div:nth-child(3) { order: 2; }
+  body.narrow #hkCfg { display: grid; grid-template-columns: repeat(5, 48px); }
 </style>
 </head>
 <body>
@@ -154,7 +176,7 @@
 <div id="flash"></div>
 
 <div id="equip" class="hidden">
-  <div class="eqHead"><h2 id="eqTitle">Equipment</h2><span class="hint">I / Tab / Esc to close — the world does not wait for you.</span></div>
+  <div class="eqHead"><h2 id="eqTitle">Equipment</h2><div class="right"><span class="hint">I / Tab / Esc to close — the world does not wait for you.</span><button id="eqClose" title="Close">✕</button></div></div>
   <div class="eqBody">
     <div>
       <div id="doll"><canvas id="portrait" width="128" height="128"></canvas></div>
@@ -221,7 +243,20 @@ function resize() {
   cv.width = lc.width = Math.round(W * DPR); cv.height = lc.height = Math.round(H * DPR);
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
 }
-addEventListener('resize', resize); resize();
+// Narrow portrait screens (phones) get the compact HUD (body.narrow); the hotbar and the equipment overlay are
+// scaled down, never up, so they fit the screen width (and the overlay the height too).
+function fitUI() {
+  const narrow = innerWidth < 700 && innerHeight > innerWidth;
+  document.body.classList.toggle('narrow', narrow);
+  const bottom = document.getElementById('bottom'), eq = document.getElementById('equip');
+  const bs = Math.min(1, (innerWidth - 16) / bottom.offsetWidth);
+  bottom.style.transform = `translateX(-50%) scale(${bs})`;
+  if (!eq.classList.contains('hidden')) {
+    const es = Math.min(1, (innerWidth - 12) / eq.offsetWidth, (innerHeight - 12) / eq.offsetHeight);
+    eq.style.transform = narrow || es < 1 ? `translate(-50%, -50%) scale(${es})` : '';
+  }
+}
+addEventListener('resize', () => { resize(); fitUI(); }); resize();
 
 // =====================================================================================
 //  Images
@@ -1025,6 +1060,7 @@ function buildUI() {
     el.addEventListener('mouseleave', () => { G.uiHover = null; hideTip(); });
   });
   $('menuBtn').addEventListener('click', toggleEquip);
+  $('eqClose').addEventListener('click', toggleEquip);
   document.addEventListener('mousemove', e => { const t = $('tooltip'); if (!t.classList.contains('hidden')) placeTip(e.clientX, e.clientY); });
 }
 function placeTip(x, y) {
@@ -1099,7 +1135,7 @@ function refreshUI() {
   $('stats').innerHTML = rows.map(r => `<div class="row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
   if (G.uiHover) showRefTip(G.uiHover);
 }
-function toggleEquip() { const e = $('equip'); e.classList.toggle('hidden'); if (e.classList.contains('hidden')) { G.uiHover = null; hideTip(); } else refreshUI(); }
+function toggleEquip() { const e = $('equip'); e.classList.toggle('hidden'); if (e.classList.contains('hidden')) { G.uiHover = null; hideTip(); } else { refreshUI(); fitUI(); } }
 function equipOpen() { return !$('equip').classList.contains('hidden'); }
 const logEl = $('log');
 function log(msg, color = '#e8dcc4') {
@@ -1528,26 +1564,26 @@ function softShadow(x, y, rx, ry, a, mid = 0.55) {   // mid: where the shade is 
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.fill(); ctx.restore();
 }
 const GREEN_FIRE = 'hue-rotate(80deg) saturate(1.4)';   // the rare green brazier next to the boss room
-// The boss room's rune circle: two thin concentric rings with slowly turning rune ticks and three arcs turning
-// the other way inside, in a muted green, softly blurred, with a very faint green glow around it.
+// The boss room's rune circle: two thin concentric rings with rune ticks between them and three arcs inside, in
+// a muted green, static, heavily blurred, with a very faint green glow around it.
 function drawRuneCircle(r) {
   const cx = r.cx + 0.5, cy = r.cy + 0.5, [sx, sy] = iso(cx, cy), R = Math.min(r.w, r.h) * 0.24;
-  const rx = R * HW * Math.SQRT2, ry = R * HH * Math.SQRT2, pulse = 0.85 + 0.15 * Math.sin(G.time * 1.6);
+  const rx = R * HW * Math.SQRT2, ry = R * HH * Math.SQRT2;
   ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(sx, sy); ctx.scale(1, ry / rx);
-  const glow = ctx.createRadialGradient(0, 0, rx * 0.5, 0, 0, rx * 1.35);
-  glow.addColorStop(0, `rgba(60,150,90,${0.06 * pulse})`); glow.addColorStop(0.75, `rgba(60,150,90,${0.045 * pulse})`); glow.addColorStop(1, 'rgba(60,150,90,0)');
-  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, rx * 1.35, 0, 7); ctx.fill();
-  ctx.filter = 'blur(1.5px)';
-  ctx.strokeStyle = `rgba(110,170,120,${0.42 * pulse})`; ctx.shadowColor = 'rgba(80,170,110,0.5)'; ctx.shadowBlur = 18;
-  ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.stroke();
-  ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(0, 0, rx * 0.82, 0, 7); ctx.stroke();
+  const glow = ctx.createRadialGradient(0, 0, rx * 0.4, 0, 0, rx * 1.45);
+  glow.addColorStop(0, 'rgba(60,150,90,0.055)'); glow.addColorStop(0.7, 'rgba(60,150,90,0.04)'); glow.addColorStop(1, 'rgba(60,150,90,0)');
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, rx * 1.45, 0, 7); ctx.fill();
+  ctx.filter = 'blur(3px)';
+  ctx.strokeStyle = 'rgba(110,170,120,0.4)'; ctx.shadowColor = 'rgba(80,170,110,0.5)'; ctx.shadowBlur = 26;
+  ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.stroke();
+  ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, rx * 0.82, 0, 7); ctx.stroke();
   for (let i = 0; i < 24; i++) {   // rune ticks between the rings
-    const a = i / 24 * Math.PI * 2 + G.time * 0.12, l = i % 3 === 0 ? 0.12 : 0.06;
+    const a = i / 24 * Math.PI * 2, l = i % 3 === 0 ? 0.12 : 0.06;
     ctx.beginPath(); ctx.moveTo(Math.cos(a) * rx * 0.84, Math.sin(a) * rx * 0.84);
     ctx.lineTo(Math.cos(a) * rx * (0.84 + l), Math.sin(a) * rx * (0.84 + l)); ctx.stroke();
   }
-  for (let i = 0; i < 3; i++) {   // three turning arcs inside
-    const a = i / 3 * Math.PI * 2 - G.time * 0.3;
+  for (let i = 0; i < 3; i++) {   // three arcs inside
+    const a = i / 3 * Math.PI * 2 - Math.PI / 2;
     ctx.beginPath(); ctx.arc(0, 0, rx * 0.5, a, a + 1.4); ctx.stroke();
   }
   ctx.restore();
@@ -1733,7 +1769,7 @@ function frame(now) {
 loadAll().then(() => {
   floorPat = ctx.createPattern(IMG.floor, 'repeat');
   floorPat.setTransform(new DOMMatrix().scale(3 / 512));
-  buildUI();
+  buildUI(); fitUI();
   newGame(null); G.running = false; G.camSnap = true;   // render a first level behind the title screen
   const b = $('startBtn'); b.disabled = false; renderHeroPick();
   requestAnimationFrame(frame);

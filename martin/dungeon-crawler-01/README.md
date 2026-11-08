@@ -133,9 +133,9 @@ and the picker shows no saved heroes.
   wall) is drawn mirrored.
 - **Green brazier** (see Dungeon generation): drawn with `hue-rotate(80deg) saturate(1.4)`, with green embers.
 - **Rune circle** in the boss room: drawn on the floor, centred on the room, radius 0.24 × the room's shorter
-  side. A very faint green radial glow, then two thin concentric rings, 24 rune ticks turning slowly and three
-  arcs turning the other way inside, in a muted green (about 40 % opacity), blurred (`blur(1.5px)` plus an
-  18 px green shadow blur), all additive (`lighter`), pulsing gently (±15 %) at about 0.25 Hz.
+  side. Static (no animation): a very faint green radial glow out to 1.45 × the radius, then two thin
+  concentric rings, 24 rune ticks between them (every third one longer) and three arcs inside, in a muted green
+  (40 % opacity), heavily blurred (`blur(3px)` plus a 26 px green shadow blur), all additive (`lighter`).
 - **Effects.** Melee swings draw a sweeping crescent arc in the attack direction. Arrows are drawn as shafts with
   a tip, and wraith bolts as glowing green orbs. Hits spray blood-coloured sparks (green for wraiths), urns
   burst into shards, and level-ups emit an expanding golden ring.
@@ -417,8 +417,10 @@ inventory.
 
 ## Equipment overlay
 
-Opened with `I` / `C` / `Tab` or the **Equipment (I)** button. It is a partly transparent dark panel
+Opened with `I` / `C` / `Tab` or the **Equipment (I)** button, closed with the same keys, `Esc`, the button,
+or the **✕** in its header (for touch screens). It is a partly transparent dark panel
 (`rgba(16, 11, 14, 0.78)`); **the game keeps running underneath** and can still be played around it.
+If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
 
 - **Paper doll:** eight slots around an animated portrait of the hero walking (12 frames/s) and slowly
   turning through all eight directions, drawn 128 px tall with the frame's aspect ratio kept. Click an equipped item to move it back to the pack.
@@ -451,6 +453,16 @@ Opened with `I` / `C` / `Tab` or the **Equipment (I)** button. It is a partly tr
 - **Bottom right:** Equipment button.
 - Taking damage flashes a red vignette whose strength depends on how big the hit was.
 - Descending fades in from black.
+- **Phones** (narrow portrait screens: width under 700 px and taller than wide; `fitUI()` on load, on resize
+  and when the overlay opens sets `body.narrow`):
+  - the life orb moves to the **top left** at 76 px (no "LIFE" label), with the level name, depth and gold to
+    its right in smaller type;
+  - the minimap shrinks to 120 × 71 px (top right), with the Equipment button below it;
+  - the target bar moves down to 120 px from the top; the message log spans the width above the hotbar;
+  - the equipment overlay switches to a 504 px wide layout: paper doll and attributes side by side, the
+    inventory below them, quick keys in 2 rows of 5, and no key hint in the header.
+- **Fitting:** on any screen, the hotbar (with the XP bar) is scaled down to fit the width minus 16 px, and
+  the open equipment overlay to fit the width and height minus 12 px (never scaled up; centred).
 
 ## Sound
 
