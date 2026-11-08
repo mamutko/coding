@@ -457,7 +457,8 @@ function makeMonster(type, x, y, d, boss = false, forceChamp = false) {
     armor: Math.round(b.armor + 3 * (d - 1) + T.armor * d), speed: b.speed * Math.min(1.35, 1 + 0.015 * (d - 1)),
     xp: Math.round(b.xp * Math.pow(1.17, d - 1) * T.xp),
     state: 'idle', cd: rnd(), windup: 0, path: [], repath: 0, dir: ri(0, 7), anim: rnd() * 4, moving: false,
-    hitT: 0, dead: false, deathT: 0, wander: 1 + rnd() * 4, lunge: 0, lastHit: -99 };
+    hitT: 0, dead: false, deathT: 0, wander: 1 + rnd() * 4, lunge: 0, lastHit: -99,
+    stuckT: 0, anchor: null, calm: null, provoked: false, lastSeen: 0 };
   m.hp = m.maxHp;
   return m;
 }
@@ -831,16 +832,26 @@ function damageMonster(m, raw, crit) {
   floatText(m.x, m.y, (crit ? v + '!' : '' + v), crit ? '#ffd36a' : '#f2e6d0', 0.8, crit ? 20 : 15);
   for (let i = 0; i < 5; i++) G.fx.push({ type: 'spark', x: m.x, y: m.y, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 40 + rnd() * 20, vz: 60 + rnd() * 60, t: 0, dur: 0.45, color: m.type === 'wraith' ? '120,255,170' : '170,20,20' });
   sfx('hit');
-  alert(m, true);
+  if (m.calm) m.provoked = true; else alert(m, true);
   if (m.hp <= 0) killMonster(m);
 }
 // A monster that notices the hero wakes idle monsters within 6 tiles; one that is hit (roomWide) also wakes
 // every monster in the same room.
 const roomAt = (x, y) => G.map.rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+// A monster that lost interest (calm) is never woken by others.
 function alert(m, roomWide = false) {
-  m.state = 'chase';
+  chase(m);
   const room = roomWide ? roomAt(m.x, m.y) : null;
-  for (const o of G.monsters) if (!o.dead && o.state === 'idle' && (dist(o, m) < 6 || (room && roomAt(o.x, o.y) === room))) o.state = 'chase';
+  for (const o of G.monsters) if (!o.dead && o.state === 'idle' && !o.calm && (dist(o, m) < 6 || (room && roomAt(o.x, o.y) === room))) chase(o);
+}
+function chase(m) { m.state = 'chase'; m.lastSeen = G.time; m.stuckT = 0; m.anchor = null; m.calm = null; m.provoked = false; }
+// Losing interest: back to a random walk. After being stuck (calm) it ignores the hero for at least CALM_MIN s
+// and until it is unstuck (has walked UNSTUCK tiles of its random walk; pushes don't count); a hit meanwhile
+// re-engages it once unstuck.
+const STUCK_GIVEUP = 3, STUCK_MOVE = 0.5, UNSTUCK = 1, CALM_MIN = 6, LOST_SIGHT = 15;
+function loseInterest(m, stuck) {
+  m.state = 'idle'; m.path = []; m.wander = 0; m.stuckT = 0; m.anchor = null;
+  m.calm = stuck ? { walked: 0, t: G.time } : null; m.provoked = false;
 }
 function killMonster(m) {
   m.dead = true; m.deathT = 0; m.hp = 0; G.hero.kills++;
@@ -1431,12 +1442,17 @@ function updateMonster(m, dt) {
   if (G.time - m.lastHit > 4) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.015 * dt);
   m.cd -= dt; m.moving = false;
   if (m.state === 'idle') {
-    if (d < 8.5 && los(m.x, m.y, h.x, h.y)) { alert(m); }
+    if (m.calm && m.calm.walked >= UNSTUCK) {   // unstuck: a provoked monster re-engages at once
+      if (m.provoked) { alert(m); return; }
+      if (G.time - m.calm.t >= CALM_MIN) m.calm = null;
+    }
+    if (!m.calm && d < 8.5 && los(m.x, m.y, h.x, h.y)) { alert(m); }
     else if (d < 30) {
       m.wander -= dt;
       if (m.wander <= 0) { m.wander = 2 + rnd() * 5; const tx = m.x + (rnd() - 0.5) * 4, ty = m.y + (rnd() - 0.5) * 4;
         if (canStand(tx, ty, m.r) && lineWalkable(m.x, m.y, tx, ty, m.r)) m.path = [[tx, ty]]; }
-      if (m.path.length) m.moving = followPath(m, m.speed * 0.4, dt);
+      if (m.path.length) { const px = m.x, py = m.y; m.moving = followPath(m, m.speed * 0.4, dt);
+        if (m.calm) m.calm.walked += Math.hypot(m.x - px, m.y - py); }
     }
     return;
   }
@@ -1452,15 +1468,20 @@ function updateMonster(m, dt) {
     return;
   }
   const seen = los(m.x, m.y, h.x, h.y);
+  if (seen) m.lastSeen = G.time; else if (G.time - m.lastSeen > LOST_SIGHT) { loseInterest(m, false); return; }
   let goal = null;
   if (b.ranged) {
     if (seen && d <= b.range) { if (m.cd <= 0) { m.windup = 0.45; m.cd = b.cd; return; } if (d < 3.2) { const ax = m.x - h.x, ay = m.y - h.y; goal = [m.x + ax / d, m.y + ay / d]; } }
     else goal = [h.x, h.y];
   } else {
-    if (d - h.r <= b.reach) { if (m.cd <= 0) { m.windup = 0.32; m.cd = b.cd; } setDir(m, h.x - m.x, h.y - m.y); return; }
+    if (d - h.r <= b.reach) { if (m.cd <= 0) { m.windup = 0.32; m.cd = b.cd; } setDir(m, h.x - m.x, h.y - m.y); m.stuckT = 0; return; }
     goal = [h.x, h.y];
   }
-  if (!goal) return;
+  if (!goal) { m.stuckT = 0; return; }
+  // stuck: trying to move but staying within STUCK_MOVE of one spot for STUCK_GIVEUP s (e.g. a pack plugging a
+  // corridor mouth) -> it loses interest
+  if (!m.anchor || dist(m, m.anchor) > STUCK_MOVE) { m.anchor = { x: m.x, y: m.y }; m.stuckT = 0; }
+  else if ((m.stuckT += dt) >= STUCK_GIVEUP) { loseInterest(m, true); return; }
   const spd = m.speed;
   if (seen && d < 9 && lineWalkable(m.x, m.y, goal[0], goal[1], m.r * 0.9)) {
     const dx = goal[0] - m.x, dy = goal[1] - m.y, dd = Math.hypot(dx, dy) || 1; m.path = [];

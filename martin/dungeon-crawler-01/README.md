@@ -284,6 +284,14 @@ gets its own damage and crit roll, then its own armor reduction.
   room.
 - They chase directly when the way is clear and otherwise follow A\* paths, re-planned every 0.5–0.9 s.
   They push apart from each other and from the hero, and give up beyond 20 tiles.
+- **Losing interest.** A chasing monster goes back to wandering when:
+  - it is **stuck** for 3 s (`STUCK_GIVEUP`): it is trying to move toward the hero (not in reach, not winding
+    up, not standing to shoot) but stays within 0.5 tiles (`STUCK_MOVE`) of one spot, e.g. a pack plugging a
+    corridor mouth. Plugging is intended; giving up thins the plug out. A monster that gave up this way is
+    **calm**: it ignores the hero and isn't woken by other monsters for at least 6 s (`CALM_MIN`) and until it is
+    unstuck (it has walked 1 tile, `UNSTUCK`, of its own random walk; pushes don't count). A hit on a calm
+    monster doesn't wake it at once: it marks it **provoked**, and it re-engages the moment it is unstuck;
+  - it has **not seen** the hero for 15 s (`LOST_SIGHT`). It isn't calm afterwards, so it wakes again normally.
 - Idle monsters wander slowly.
 - A monster not damaged for 4 s regenerates 1.5 % of its max life per second.
 - **Melee monsters** wind up for 0.32 s (a visible shake). The blow lands only if the hero is still in reach.
