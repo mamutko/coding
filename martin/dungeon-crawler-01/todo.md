@@ -45,7 +45,7 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
       quiver of limitless arrows* that never runs out.
 
 16. **Item quality and wear.**
-    - **Quality** — a roll on an item's base stats (weapon damage, armor, built-in jewelry bonus), e.g. ±15 %, so
+    - **Quality** — a roll on an item's base stats (weapon damage, armor), e.g. ±15 %, so
       two common items of the same type can differ. Shown in the name (*Crude*, *Fine*,
       *Superior*, …) and/or only in the numbers.
     - **Wear** — items wear out with use (weapons when hitting, armor when hit) and lose effectiveness as they do.
