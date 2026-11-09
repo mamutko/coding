@@ -142,6 +142,78 @@
   "potion": [
    480,
    288
+  ],
+  "broadsword": [
+   0,
+   384
+  ],
+  "bastardsword": [
+   96,
+   384
+  ],
+  "knightsword": [
+   192,
+   384
+  ],
+  "beardedaxe": [
+   288,
+   384
+  ],
+  "greataxe": [
+   384,
+   384
+  ],
+  "huntingbow": [
+   480,
+   384
+  ],
+  "ironhelm": [
+   0,
+   480
+  ],
+  "visoredhelm": [
+   96,
+   480
+  ],
+  "studded": [
+   192,
+   480
+  ],
+  "platedgloves": [
+   288,
+   480
+  ],
+  "heavygloves": [
+   384,
+   480
+  ],
+  "chainmail": [
+   480,
+   480
+  ],
+  "quiver": [
+   0,
+   576
+  ],
+  "warbow": [
+   96,
+   576
+  ],
+  "compositebow": [
+   192,
+   576
+  ],
+  "fullplate": [
+   288,
+   576
+  ],
+  "greaves": [
+   384,
+   576
+  ],
+  "heavygreaves": [
+   480,
+   576
   ]
  },
  "props": {

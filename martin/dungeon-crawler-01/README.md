@@ -11,12 +11,13 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `index.html` | The whole game: markup, CSS, and JavaScript. Asset metadata (`META`) is inlined so the page also works from `file://`. |
 | `assets/hero.webp`, `skeleton.webp`, `ghoul.webp` | 8-direction × 8-frame walk cycles (transparent). |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
-| `assets/items.webp` | 6 × 4 atlas of 96 px item icons. |
+| `assets/items.webp` | 6 × 7 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–7 from `add_items.py`). |
 | `assets/props.webp` | Horizontal strip of props (chest, open chest, door, stairs, brazier, bones, urn, gold) and boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus). |
 | `assets/floor.jpg`, `assets/wall.jpg` | 512 px seamless floor and wall textures. |
 | `assets/meta.json` | Frame sizes and atlas coordinates written by the processing script (copied into `META` in `index.html`). |
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
 | `tools/walk_cycle.py` | Walk-cycle pipeline (hero, skeleton, ghoul): renders the 3D stick-figure pose guides and placeholders, and builds the 8-frame sheets. |
+| `tools/add_items.py`, `tools/raw/items2.png`, `items3.png` | Appends the icons of the newer item types (and a quiver) to `assets/items.webp` from the two raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
 | `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
@@ -479,47 +480,47 @@ equipped at a time. Potions are not equipped; they are used (see [Potions](#poti
 
 **Item types.** An item's stats are fixed by its type: a Longsword is 7–14 damage wherever it drops (there are
 no item levels). Each slot has a ladder of types; a type can drop once the **loot depth** reaches its unlock depth
-(`lvl`). The loot depth is the current depth, + 1 for champions' and the boss's loot and 30 % of chest items. Types
-without an icon of their own reuse the icon in the last column.
+(`lvl`). The loot depth is the current depth, + 1 for champions' and the boss's loot and 30 % of chest items. Every
+type has its own icon.
 
-| Item | Type | Stats | Unlocks at | Icon |
-|---|---|---|---|---|
-| Short Sword | sword | 4–8, 0.55 s | 1 | |
-| Longsword | sword | 7–14, 0.65 s | 2 | |
-| Broadsword | sword | 13–22, 0.7 s | 4 | Longsword |
-| Blackened Greatsword | sword | 20–34, 0.85 s | 6 | |
-| Bastard Sword | sword | 24–40, 0.8 s | 8 | Greatsword |
-| Knight's Greatsword | sword | 32–52, 0.85 s | 11 | Greatsword |
-| Hand Axe | axe | 5–10, 0.7 s | 1 | |
-| Bearded Axe | axe | 10–18, 0.8 s | 3 | Hand Axe |
-| Battle Axe | axe | 17–29, 0.9 s | 5 | |
-| Executioner's Axe | axe | 26–46, 1.05 s | 7 | |
-| Great Axe | axe | 34–58, 1.05 s | 10 | Executioner's Axe |
-| Short Bow | bow | 3–7, 0.6 s | 1 | |
-| Hunting Bow | bow | 5–10, 0.65 s | 2 | Short Bow |
-| Yew Longbow | bow | 9–16, 0.75 s | 4 | |
-| Bone Bow | bow | 14–25, 0.9 s | 6 | |
-| Composite Bow | bow | 18–31, 0.85 s | 8 | Yew Longbow |
-| War Bow | bow | 25–42, 0.9 s | 11 | Bone Bow |
-| Leather Cap | helm | armor 3 | 1 | |
-| Iron Helm | helm | armor 7 | 3 | Horned Great Helm |
-| Horned Great Helm | helm | armor 13 | 6 | |
-| Visored Helm | helm | armor 19 | 9 | Horned Great Helm |
-| Leather Tunic | armor | armor 6 | 1 | |
-| Studded Leather | armor | armor 11 | 3 | Leather Tunic |
-| Chain Mail | armor | armor 18 | 5 | Plate Cuirass |
-| Plate Cuirass | armor | armor 28 | 8 | |
-| Full Plate | armor | armor 36 | 11 | Plate Cuirass |
-| Leather Gloves | gloves | armor 2 | 1 | |
-| Iron Gauntlets | gloves | armor 6 | 3 | |
-| Plated Gauntlets | gloves | armor 10 | 7 | Iron Gauntlets |
-| Heavy Gauntlets | gloves | armor 13 | 10 | Iron Gauntlets |
-| Leather Boots | boots | armor 2, +5 % move speed | 1 | |
-| Plated Boots | boots | armor 6 | 3 | |
-| Iron Greaves | boots | armor 10 | 7 | Plated Boots |
-| Heavy Greaves | boots | armor 13 | 10 | Plated Boots |
-| Silver Ring, Ruby Ring, Grave Ring | ring | none | 1 | |
-| Sapphire Amulet, Blood Amulet, Bone Talisman | amulet | none | 1 | |
+| Item | Type | Stats | Unlocks at |
+|---|---|---|---|
+| Short Sword | sword | 4–8, 0.55 s | 1 |
+| Longsword | sword | 7–14, 0.65 s | 2 |
+| Broadsword | sword | 13–22, 0.7 s | 4 |
+| Blackened Greatsword | sword | 20–34, 0.85 s | 6 |
+| Bastard Sword | sword | 24–40, 0.8 s | 8 |
+| Knight's Greatsword | sword | 32–52, 0.85 s | 11 |
+| Hand Axe | axe | 5–10, 0.7 s | 1 |
+| Bearded Axe | axe | 10–18, 0.8 s | 3 |
+| Battle Axe | axe | 17–29, 0.9 s | 5 |
+| Executioner's Axe | axe | 26–46, 1.05 s | 7 |
+| Great Axe | axe | 34–58, 1.05 s | 10 |
+| Short Bow | bow | 3–7, 0.6 s | 1 |
+| Hunting Bow | bow | 5–10, 0.65 s | 2 |
+| Yew Longbow | bow | 9–16, 0.75 s | 4 |
+| Bone Bow | bow | 14–25, 0.9 s | 6 |
+| Composite Bow | bow | 18–31, 0.85 s | 8 |
+| War Bow | bow | 25–42, 0.9 s | 11 |
+| Leather Cap | helm | armor 3 | 1 |
+| Iron Helm | helm | armor 7 | 3 |
+| Horned Great Helm | helm | armor 13 | 6 |
+| Visored Helm | helm | armor 19 | 9 |
+| Leather Tunic | armor | armor 6 | 1 |
+| Studded Leather | armor | armor 11 | 3 |
+| Chain Mail | armor | armor 18 | 5 |
+| Plate Cuirass | armor | armor 28 | 8 |
+| Full Plate | armor | armor 36 | 11 |
+| Leather Gloves | gloves | armor 2 | 1 |
+| Iron Gauntlets | gloves | armor 6 | 3 |
+| Plated Gauntlets | gloves | armor 10 | 7 |
+| Heavy Gauntlets | gloves | armor 13 | 10 |
+| Leather Boots | boots | armor 2, +5 % move speed | 1 |
+| Plated Boots | boots | armor 6 | 3 |
+| Iron Greaves | boots | armor 10 | 7 |
+| Heavy Greaves | boots | armor 13 | 10 |
+| Silver Ring, Ruby Ring, Grave Ring | ring | none | 1 |
+| Sapphire Amulet, Blood Amulet, Bone Talisman | amulet | none | 1 |
 
 **Choosing a drop** (`genItem`): the rarity is rolled first (see below). Then a **group** is drawn evenly from
 sword, axe, bow, helm, armor, gloves, boots, ring and amulet, and then a type of that group unlocked at the loot
@@ -688,7 +689,7 @@ pickups, gold, potions, level-ups, death and stairs. Audio starts on the first c
 The art was generated through the `ai-media-generation` skill in Martin's notes repo: monsters, items, props
 and textures with OpenAI `gpt-image-2` (medium quality, about $0.70), and the hero walk cycle with Google
 `gemini-3.1-flash-image` (see [Walk cycles](#walk-cycles-hero-skeleton-ghoul)). Total spend so far is about
-$2.69 ($0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
+$2.83 ($0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
 walk cycles, plus small tests).
 
 - **Background.** `gpt-image-2` can't make transparent backgrounds (and a Gemini test returned an opaque JPEG
@@ -712,7 +713,20 @@ walk cycles, plus small tests).
   - floating hooded wraith in tattered black robes with ghostly green glow and skeletal hands
   - horned red-black demon brute with bat wings folded and a cleaver, muscular
 - **Item icons** (1536 × 1024): a 6 × 4 grid listing the 24 icons in the order of the `META.items` keys
-  (weapons, bows, helms, armor, gloves, boots, rings, amulets, potion), on magenta.
+  (weapons, bows, helms, armor, gloves, boots, rings, amulets, potion), on magenta. These are the first 4 rows of
+  `items.webp` (6 × 7 cells of 96 px).
+- **Newer item icons** (rows 5–7 of `items.webp`, 18 icons; built by `tools/add_items.py`, ~$0.14):
+  - `tools/raw/items2.png`: Google `gemini-3.1-flash-image` `edit` (1K, 3:2) with the old atlas on magenta as a
+    style reference, asking for a 6 × 3 sheet of broadsword, bastard sword, knight's greatsword, bearded axe, great
+    axe, hunting bow, composite bow, war bow, iron helm, visored helm, studded leather, chain mail, full plate,
+    plated gauntlets, heavy gauntlets, greaves, heavy sabatons and a quiver, "in exactly the same art style …
+    no glow, no magical effects". It kept the reference's 6 × 4 layout, copied several old icons and painted the
+    top rows on dark purple, so `add_items.py` takes only 13 cells (the swords, axes, hunting bow, both helms,
+    studded leather, both gauntlets, chain mail and the quiver) and keys each cell against its own border colour
+    (flood fill from the border, enclosed background too, plus the magenta key and despill).
+  - `tools/raw/items3.png`: OpenAI `gpt-image-2` (medium, 1536 × 1024), a 3 × 2 sheet on magenta for the rest:
+    war bow, composite bow, full plate, iron greaves, heavy sabatons (and a belt pouch, unused).
+  - The **quiver** icon (`quiver`) isn't used yet; it is meant for limited ammo (todo #15).
 - **Props** (1536 × 1024): a 4 × 2 grid (closed chest, open chest with glowing gold, arched gothic door in a
   stone frame, descending stairway seen from above, lit brazier, skull-and-bone pile, cracked funeral urn,
   gold coin pile), on magenta.
