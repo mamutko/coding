@@ -346,45 +346,75 @@ function sfx(type) {
 // =====================================================================================
 //  Item data
 // =====================================================================================
+// Item types (bases). Stats are fixed: an item of a type is the same at every depth. Each slot has a ladder of
+// types, each unlocking at a depth (lvl, compared with the loot depth, see genItem); deeper types are better.
+// icon: the atlas icon (META.items) when the type has none of its own. Rings and amulets have no base stats:
+// they only drop as magic or rare items, and all their worth is in their affixes.
 const BASES = {
   shortsword:   { name: 'Short Sword', slot: 'weapon', kind: 'sword', min: 4, max: 8, cd: 0.55, lvl: 1 },
-  longsword:    { name: 'Longsword', slot: 'weapon', kind: 'sword', min: 6, max: 12, cd: 0.65, lvl: 2 },
-  greatsword:   { name: 'Blackened Greatsword', slot: 'weapon', kind: 'sword', min: 11, max: 19, cd: 0.85, lvl: 4 },
+  longsword:    { name: 'Longsword', slot: 'weapon', kind: 'sword', min: 7, max: 14, cd: 0.65, lvl: 2 },
+  broadsword:   { name: 'Broadsword', slot: 'weapon', kind: 'sword', min: 13, max: 22, cd: 0.7, lvl: 4, icon: 'longsword' },
+  greatsword:   { name: 'Blackened Greatsword', slot: 'weapon', kind: 'sword', min: 20, max: 34, cd: 0.85, lvl: 6 },
+  bastardsword: { name: 'Bastard Sword', slot: 'weapon', kind: 'sword', min: 24, max: 40, cd: 0.8, lvl: 8, icon: 'greatsword' },
+  knightsword:  { name: "Knight's Greatsword", slot: 'weapon', kind: 'sword', min: 32, max: 52, cd: 0.85, lvl: 11, icon: 'greatsword' },
   handaxe:      { name: 'Hand Axe', slot: 'weapon', kind: 'axe', min: 5, max: 10, cd: 0.7, lvl: 1 },
-  battleaxe:    { name: 'Battle Axe', slot: 'weapon', kind: 'axe', min: 9, max: 16, cd: 0.85, lvl: 3 },
-  execaxe:      { name: "Executioner's Axe", slot: 'weapon', kind: 'axe', min: 14, max: 26, cd: 1.05, lvl: 5 },
+  beardedaxe:   { name: 'Bearded Axe', slot: 'weapon', kind: 'axe', min: 10, max: 18, cd: 0.8, lvl: 3, icon: 'handaxe' },
+  battleaxe:    { name: 'Battle Axe', slot: 'weapon', kind: 'axe', min: 17, max: 29, cd: 0.9, lvl: 5 },
+  execaxe:      { name: "Executioner's Axe", slot: 'weapon', kind: 'axe', min: 26, max: 46, cd: 1.05, lvl: 7 },
+  greataxe:     { name: 'Great Axe', slot: 'weapon', kind: 'axe', min: 34, max: 58, cd: 1.05, lvl: 10, icon: 'execaxe' },
   shortbow:     { name: 'Short Bow', slot: 'weapon', kind: 'bow', min: 3, max: 7, cd: 0.6, lvl: 1 },
-  longbow:      { name: 'Yew Longbow', slot: 'weapon', kind: 'bow', min: 6, max: 12, cd: 0.75, lvl: 3 },
-  bonebow:      { name: 'Bone Bow', slot: 'weapon', kind: 'bow', min: 10, max: 18, cd: 0.9, lvl: 5 },
+  huntingbow:   { name: 'Hunting Bow', slot: 'weapon', kind: 'bow', min: 5, max: 10, cd: 0.65, lvl: 2, icon: 'shortbow' },
+  longbow:      { name: 'Yew Longbow', slot: 'weapon', kind: 'bow', min: 9, max: 16, cd: 0.75, lvl: 4 },
+  bonebow:      { name: 'Bone Bow', slot: 'weapon', kind: 'bow', min: 14, max: 25, cd: 0.9, lvl: 6 },
+  compositebow: { name: 'Composite Bow', slot: 'weapon', kind: 'bow', min: 18, max: 31, cd: 0.85, lvl: 8, icon: 'longbow' },
+  warbow:       { name: 'War Bow', slot: 'weapon', kind: 'bow', min: 25, max: 42, cd: 0.9, lvl: 11, icon: 'bonebow' },
   leathercap:   { name: 'Leather Cap', slot: 'head', armor: 3, lvl: 1 },
-  greathelm:    { name: 'Horned Great Helm', slot: 'head', armor: 8, lvl: 3 },
+  ironhelm:     { name: 'Iron Helm', slot: 'head', armor: 7, lvl: 3, icon: 'greathelm' },
+  greathelm:    { name: 'Horned Great Helm', slot: 'head', armor: 13, lvl: 6 },
+  visoredhelm:  { name: 'Visored Helm', slot: 'head', armor: 19, lvl: 9, icon: 'greathelm' },
   leathertunic: { name: 'Leather Tunic', slot: 'chest', armor: 6, lvl: 1 },
-  platemail:    { name: 'Plate Cuirass', slot: 'chest', armor: 15, lvl: 4 },
+  studded:      { name: 'Studded Leather', slot: 'chest', armor: 11, lvl: 3, icon: 'leathertunic' },
+  chainmail:    { name: 'Chain Mail', slot: 'chest', armor: 18, lvl: 5, icon: 'platemail' },
+  platemail:    { name: 'Plate Cuirass', slot: 'chest', armor: 28, lvl: 8 },
+  fullplate:    { name: 'Full Plate', slot: 'chest', armor: 36, lvl: 11, icon: 'platemail' },
   leathergloves:{ name: 'Leather Gloves', slot: 'hands', armor: 2, lvl: 1 },
-  gauntlets:    { name: 'Iron Gauntlets', slot: 'hands', armor: 5, lvl: 2 },
+  gauntlets:    { name: 'Iron Gauntlets', slot: 'hands', armor: 6, lvl: 3 },
+  platedgloves: { name: 'Plated Gauntlets', slot: 'hands', armor: 10, lvl: 7, icon: 'gauntlets' },
+  heavygloves:  { name: 'Heavy Gauntlets', slot: 'hands', armor: 13, lvl: 10, icon: 'gauntlets' },
   leatherboots: { name: 'Leather Boots', slot: 'feet', armor: 2, implicit: { speed: 5 }, lvl: 1 },
-  ironboots:    { name: 'Plated Boots', slot: 'feet', armor: 5, lvl: 2 },
-  silverring:   { name: 'Silver Ring', slot: 'ring', implicit: { vit: 2 }, lvl: 1 },
-  rubyring:     { name: 'Ruby Ring', slot: 'ring', implicit: { str: 3 }, lvl: 3 },
-  skullring:    { name: 'Grave Ring', slot: 'ring', implicit: { dmg: 8 }, lvl: 5 },
-  sapphireamulet:{ name: 'Sapphire Amulet', slot: 'amulet', implicit: { dex: 3 }, lvl: 1 },
-  bloodamulet:  { name: 'Blood Amulet', slot: 'amulet', implicit: { hp: 15 }, lvl: 3 },
-  bonetalisman: { name: 'Bone Talisman', slot: 'amulet', implicit: { crit: 3 }, lvl: 5 },
+  ironboots:    { name: 'Plated Boots', slot: 'feet', armor: 6, lvl: 3 },
+  greaves:      { name: 'Iron Greaves', slot: 'feet', armor: 10, lvl: 7, icon: 'ironboots' },
+  heavygreaves: { name: 'Heavy Greaves', slot: 'feet', armor: 13, lvl: 10, icon: 'ironboots' },
+  silverring:   { name: 'Silver Ring', slot: 'ring', lvl: 1 },
+  rubyring:     { name: 'Ruby Ring', slot: 'ring', lvl: 1 },
+  skullring:    { name: 'Grave Ring', slot: 'ring', lvl: 1 },
+  sapphireamulet:{ name: 'Sapphire Amulet', slot: 'amulet', lvl: 1 },
+  bloodamulet:  { name: 'Blood Amulet', slot: 'amulet', lvl: 1 },
+  bonetalisman: { name: 'Bone Talisman', slot: 'amulet', lvl: 1 },
 };
+const iconKey = base => (BASES[base] && BASES[base].icon) || base;
+// Item groups a drop first chooses from (evenly): each weapon kind, each armor slot, rings, amulets.
+const ITEM_GROUP = b => b.kind || b.slot;
+const JEWELRY = { ring: 1, amulet: 1 };
 const KIND_INFO = { sword: { reach: 1.55, arc: 0.9, label: 'Sword (melee)' }, axe: { reach: 1.45, arc: 1.25, label: 'Axe (melee, wide cleave)' },
   bow: { reach: 12, label: 'Bow (ranged)' }, fist: { reach: 1.25, arc: 0.8, label: 'Bare hands' } };
 const SLOT_LABEL = { weapon: 'Weapon', head: 'Helm', chest: 'Armor', hands: 'Gloves', feet: 'Boots', ring: 'Ring', ring1: 'Ring', ring2: 'Ring', amulet: 'Amulet' };
 const STAT_LABEL = { str: 'Strength', dex: 'Dexterity', vit: 'Vitality', hp: 'Life', regen: 'Life regen / s', armor: 'Armor',
   crit: '% Critical chance', dmg: '% Damage', speed: '% Move speed' };
+// Affixes: the bonuses of magic and rare items (prefixes before the type's name, suffixes after it). Each kind
+// has 3 tiers with fixed value ranges and their own prefix / suffix; a tier can roll once the loot depth reaches
+// AFFIX_FROM[tier], higher unlocked tiers being likelier (weights 1 : 2 : 4). On rings and amulets every range is
+// × JEWEL_MULT, as they have no base stats.
+const AFFIX_FROM = [1, 5, 9], AFFIX_W = [1, 2, 4], JEWEL_MULT = 2;
 const AFFIX = [
-  { k: 'str', pre: 'Mighty', suf: 'of the Bear', min: 1, max: l => 2 + l },
-  { k: 'dex', pre: 'Nimble', suf: 'of the Fox', min: 1, max: l => 2 + l },
-  { k: 'vit', pre: 'Stalwart', suf: 'of the Ox', min: 1, max: l => 2 + l },
-  { k: 'hp', pre: 'Hale', suf: 'of Life', min: 5, max: l => 8 + l * 4 },
-  { k: 'armor', pre: 'Warded', suf: 'of Iron', min: 2, max: l => 3 + l * 2, noWeapon: true },
-  { k: 'crit', pre: 'Keen', suf: 'of Precision', min: 1, max: l => Math.min(3 + l * 0.5, 12) },
-  { k: 'dmg', pre: 'Cruel', suf: 'of Slaughter', min: 5, max: l => 10 + l * 3 },
-  { k: 'speed', pre: 'Swift', suf: 'of Haste', min: 3, max: l => Math.min(6 + l, 15), only: 'feet' },
+  { k: 'str', tiers: [['Mighty', 'of the Bear', 1, 4], ['Brutal', 'of the Boar', 5, 8], ['Titanic', 'of the Giant', 9, 12]] },
+  { k: 'dex', tiers: [['Nimble', 'of the Fox', 1, 4], ['Deft', 'of the Lynx', 5, 8], ['Lithe', 'of the Falcon', 9, 12]] },
+  { k: 'vit', tiers: [['Sturdy', 'of the Ox', 1, 4], ['Stalwart', 'of the Bull', 5, 8], ['Unyielding', 'of the Mountain', 9, 12]] },
+  { k: 'hp', tiers: [['Hale', 'of Life', 5, 16], ['Robust', 'of Vigor', 17, 30], ['Vigorous', 'of Endurance', 31, 45]] },
+  { k: 'armor', tiers: [['Warded', 'of Iron', 2, 8], ['Fortified', 'of Steel', 9, 15], ['Impregnable', 'of Adamant', 16, 22]], noWeapon: true },
+  { k: 'crit', tiers: [['Keen', 'of Precision', 1, 3], ['Precise', 'of Striking', 3, 5], ['Deadly', 'of Slaying', 5, 8]] },
+  { k: 'dmg', tiers: [['Cruel', 'of Slaughter', 5, 15], ['Savage', 'of Carnage', 16, 26], ['Merciless', 'of Ruin', 27, 38]] },
+  { k: 'speed', tiers: [['Swift', 'of Haste', 3, 6], ['Fleet', 'of Speed', 7, 10], ['Windborne', 'of the Wind', 11, 15]], only: 'feet' },
 ];
 const RARE_A = ['Grim', 'Dread', 'Bone', 'Night', 'Blood', 'Ash', 'Grave', 'Wraith', 'Raven', 'Doom', 'Hollow', 'Sorrow'];
 const RARE_B = ['bite', 'song', 'fang', 'ward', 'veil', 'shroud', 'mark', 'brand', 'coil', 'howl', 'spire', 'grasp'];
@@ -394,38 +424,49 @@ let nextId = 1;
 // the rare / magic odds are scaled by RARE_ODDS / MAGIC_ODDS. Health potions are not affected.
 const LOOT = 0.8, RARE_ODDS = 0.1, MAGIC_ODDS = 0.25;
 // Rarity gates by depth: no magic items before MAGIC_FROM, no rares before RARE_FROM. A roll above the
-// allowed rarity is lowered to the best allowed one. ruleDepth is the depth these rules use: the current
-// depth, or depth + 2 for loot from the boss room (boss, its guards and the guardian's chest).
-const MAGIC_FROM = 2, RARE_FROM = 4;
+// allowed rarity is lowered to the best allowed one. ruleDepth is the depth these rules use: the current depth,
+// + 1 for champions' loot and chests in the big room, + 2 for the boss's loot and the guardian's chest.
+const MAGIC_FROM = 3, RARE_FROM = 6;
 // Slot gates by depth (same ruleDepth): no rings before RING_FROM, no amulets before AMULET_FROM.
 const RING_FROM = 3, AMULET_FROM = 5;
 const maxRarity = rd => rd >= RARE_FROM ? 'rare' : rd >= MAGIC_FROM ? 'magic' : 'common';
-function genItem(ilvl, boost = 0, forceBase = null, forceRarity = null, ruleDepth = G ? G.depth : 1) {
-  const keys = Object.keys(BASES).filter(k => BASES[k].lvl <= ilvl &&
-    !(BASES[k].slot === 'ring' && ruleDepth < RING_FROM) && !(BASES[k].slot === 'amulet' && ruleDepth < AMULET_FROM));
-  const baseKey = forceBase || pick(keys);
-  const b = BASES[baseKey];
-  const it = { id: nextId++, base: baseKey, slot: b.slot, kind: b.kind || null, ilvl, stats: {} };
-  const sc = 1 + 0.14 * (ilvl - 1);
-  if (b.slot === 'weapon') { it.min = Math.max(1, Math.round(b.min * sc)); it.max = Math.max(it.min + 1, Math.round(b.max * sc)); it.cd = b.cd; }
-  if (b.armor) it.armor = Math.round(b.armor * sc);
-  if (b.implicit) for (const k in b.implicit) it.stats[k] = +(b.implicit[k] * (1 + 0.1 * (ilvl - 1))).toFixed(k === 'regen' ? 1 : 0);
+// ld: the loot depth (usually the depth, + 1 for some sources): it decides which types and affix tiers can drop.
+// The rarity is rolled first; a common drop never picks a ring or amulet. Then a group is drawn evenly (each weapon
+// kind, each armor slot, rings, amulets), then a type of that group unlocked at ld, older types less likely
+// (weight 0.5 per 4 depths since the type unlocked).
+function genItem(ld, boost = 0, forceBase = null, forceRarity = null, ruleDepth = G ? G.depth : 1) {
   let rarity = forceRarity;
   if (!rarity) { const r = rnd(), rare = (0.07 + boost * 0.5) * RARE_ODDS, magic = (0.3 + boost) * MAGIC_ODDS;
     rarity = r < rare ? 'rare' : r < rare + magic ? 'magic' : 'common';
     const cap = maxRarity(ruleDepth);
     if (cap === 'common') rarity = 'common'; else if (cap === 'magic' && rarity === 'rare') rarity = 'magic'; }
+  let baseKey = forceBase;
+  if (!baseKey) {
+    const ok = k => BASES[k].lvl <= ld && !(JEWELRY[BASES[k].slot] && rarity === 'common') &&
+      !(BASES[k].slot === 'ring' && ruleDepth < RING_FROM) && !(BASES[k].slot === 'amulet' && ruleDepth < AMULET_FROM);
+    const keys = Object.keys(BASES).filter(ok), groups = [...new Set(keys.map(k => ITEM_GROUP(BASES[k])))];
+    const g = pick(groups), cand = keys.filter(k => ITEM_GROUP(BASES[k]) === g);
+    const wt = cand.map(k => Math.pow(0.5, (ld - BASES[k].lvl) / 4));
+    let x = rnd() * wt.reduce((p, q) => p + q, 0), i = 0; while (i < cand.length - 1 && (x -= wt[i]) > 0) i++;
+    baseKey = cand[i];
+  }
+  const b = BASES[baseKey];
+  const it = { id: nextId++, base: baseKey, slot: b.slot, kind: b.kind || null, stats: {} };
+  if (b.slot === 'weapon') { it.min = b.min; it.max = b.max; it.cd = b.cd; }
+  if (b.armor) it.armor = b.armor;
+  if (b.implicit) for (const k in b.implicit) it.stats[k] = b.implicit[k];
   it.rarity = rarity;
   const n = rarity === 'rare' ? ri(3, 4) : rarity === 'magic' ? ri(1, 2) : 0;
   const pool = AFFIX.filter(a => !(a.noWeapon && b.slot === 'weapon') && !(a.only && a.only !== b.slot));
-  const chosen = [];
-  while (chosen.length < n && pool.length) { const a = pool.splice(Math.floor(rnd() * pool.length), 1)[0]; chosen.push(a); }
-  for (const a of chosen) {
-    let v = a.min + rnd() * (a.max(ilvl) - a.min);
-    v = a.dec ? +v.toFixed(1) : Math.round(v);
-    it.stats[a.k] = +((it.stats[a.k] || 0) + v).toFixed(a.dec ? 1 : 0);
+  const chosen = [], mult = JEWELRY[b.slot] ? JEWEL_MULT : 1;
+  while (chosen.length < n && pool.length) {
+    const a = pool.splice(Math.floor(rnd() * pool.length), 1)[0];
+    const tw = a.tiers.map((t, i) => AFFIX_FROM[i] <= ld ? AFFIX_W[i] : 0);
+    let x = rnd() * tw.reduce((p, q) => p + q, 0), ti = 0; while (ti < tw.length - 1 && (x -= tw[ti]) > 0) ti++;
+    const t = a.tiers[ti], v = Math.round((t[2] + rnd() * (t[3] - t[2])) * mult);
+    it.stats[a.k] = (it.stats[a.k] || 0) + v; chosen.push(t);
   }
-  if (rarity === 'magic') it.name = [chosen[0] && chosen[0].pre, b.name, chosen[1] && chosen[1].suf].filter(Boolean).join(' ');
+  if (rarity === 'magic') it.name = [chosen[0] && chosen[0][0], b.name, chosen[1] && chosen[1][1]].filter(Boolean).join(' ');
   else if (rarity === 'rare') it.name = pick(RARE_A) + pick(RARE_B) + ', ' + b.name;
   else it.name = b.name;
   return it;
@@ -786,7 +827,7 @@ function buildLevel(d) {
     }
     if (r === bigRoom) for (let i = 0; i < 2; i++) place('banner', r, true, { decor: true, grey: true });
     if (rnd() < 0.75 || r === start) place('brazier', r, true);
-    if (r !== start && rnd() < 0.38) place('chest', r, true);
+    if (r !== start && rnd() < 0.38) place('chest', r, true, { big: r === bigRoom });   // big: depth + 1 rarity rules
     for (let i = ri(0, 2); i > 0; i--) place('urn', r, true);
     for (let i = ri(0, 2); i > 0; i--) place('bones', r, false);
     if (rnd() < 0.2) place('gold', r, false, { amount: Math.max(1, Math.round(ri(3, 12) * d * LOOT)) });
@@ -973,7 +1014,7 @@ function killMonster(m) {
   sfx('die');
   gainXp(m.xp); floatText(m.x, m.y - 0.3, '+' + m.xp + ' xp', '#c9b37a', 1.1, 13);
   const d = G.depth;
-  const rd = m.boss || m.bossRoom ? d + 2 : d;   // boss-room loot uses the depth + 2 rarity rules
+  const rd = m.boss ? d + 2 : m.champ ? d + 1 : d;   // rarity rules: boss loot depth + 2, champion loot depth + 1
   if (m.boss) { lootItem(genItem(d + 1, 0.35, null, null, rd), m.x, m.y); dropGold(ri(20, 40) * d, m.x, m.y); log(m.name + ' is destroyed. The guardian\'s chest unseals.', '#7fe08a'); }
   else if (m.champ) { lootItem(genItem(d + 1, 0.35, null, null, rd), m.x, m.y); if (rnd() < 0.5) lootItem(genItem(d + 1, 0.2, null, null, rd), m.x, m.y); }
   else if (rnd() < 0.13) lootItem(genItem(d, 0, null, null, rd), m.x, m.y);
@@ -1090,7 +1131,7 @@ function act(ref) {
         dropGold(ri(30, 60) * d, o.x + 0.5, o.y + 0.5);
       }
       const n = ri(1, 2) + (rnd() < 0.4 ? 1 : 0);
-      for (let i = 0; i < n; i++) lootItem(genItem(d + (rnd() < 0.3 ? 1 : 0), 0.15, null, null, o.boss ? d + 2 : d), o.x + 0.5, o.y + 0.5);
+      for (let i = 0; i < n; i++) lootItem(genItem(d + (rnd() < 0.3 ? 1 : 0), 0.15, null, null, o.boss ? d + 2 : o.big ? d + 1 : d), o.x + 0.5, o.y + 0.5);
       dropGold(ri(10, 30) * d, o.x + 0.5, o.y + 0.5);
       if (rnd() < 0.225 * POTION_ODDS) dropPotion(o.x + 0.5, o.y + 0.5);
       log('The chest creaks open.', '#c9a45c');
@@ -1227,7 +1268,7 @@ function bindHotkey(idx, ref) {
 //  UI (DOM)
 // =====================================================================================
 function iconCss(name, size) {
-  const [x, y] = META.items[name], k = size / 96;
+  const [x, y] = META.items[iconKey(name)], k = size / 96;
   return `background-image:url(assets/items.webp);background-size:${ATLAS_W * k}px ${ATLAS_H * k}px;background-position:-${x * k}px -${y * k}px;`;
 }
 const itemIconCss = (it, size) => iconCss(it.base, size) + (potionFilter(it) ? `filter:${potionFilter(it)};` : '');
@@ -1348,7 +1389,7 @@ function itemLines(it) {
   if (it.slot === 'use') { const P = POTIONS[it.pot];
     return `<div class="nm" style="color:${P.color}">${P.name}</div><div class="ty">Potion · instant use</div><div>${P.desc}</div><div class="ty">You carry ${it.count}.</div>`; }
   const b = BASES[it.base]; let s = `<div class="nm" style="color:${rarityHex(it.rarity)}">${it.name}</div>`;
-  s += `<div class="ty">${it.rarity !== 'common' ? (it.rarity === 'rare' ? 'Rare ' : 'Magic ') : ''}${it.slot === 'weapon' ? KIND_INFO[it.kind].label : SLOT_LABEL[it.slot]} · item level ${it.ilvl}</div>`;
+  s += `<div class="ty">${it.rarity !== 'common' ? (it.rarity === 'rare' ? 'Rare ' : 'Magic ') : ''}${it.slot === 'weapon' ? KIND_INFO[it.kind].label : SLOT_LABEL[it.slot]}</div>`;
   if (it.slot === 'weapon') s += `<div>Damage: <b>${it.min}–${it.max}</b></div><div>Attacks per second: <b>${(1 / it.cd).toFixed(2)}</b></div>`;
   if (it.armor) s += `<div>Armor: <b>${it.armor}</b></div>`;
   for (const k in it.stats) s += `<div class="st">+${it.stats[k]} ${STAT_LABEL[k]}</div>`;
@@ -1772,7 +1813,7 @@ function render() {
     const it = fi.item, [sx, sy] = iso(fi.x, fi.y), col = it.slot === 'use' ? POTIONS[it.pot].glow : (it.rarity === 'rare' ? '230,200,74' : it.rarity === 'magic' ? '111,140,255' : '216,210,196');
     const gr = ctx.createRadialGradient(sx, sy, 0, sx, sy, 30); gr.addColorStop(0, `rgba(${col},0.45)`); gr.addColorStop(1, `rgba(${col},0)`);
     ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(sx, sy, 30, 15, 0, 0, 7); ctx.fill();
-    const s = 44, bob = Math.sin(fi.t * 2.5) * 2, [ix, iy] = META.items[it.base];
+    const s = 44, bob = Math.sin(fi.t * 2.5) * 2, [ix, iy] = META.items[iconKey(it.base)];
     const hov = G.hover && G.hover.r === fi, flt = [potionFilter(it), hov ? 'brightness(1.5)' : ''].filter(Boolean).join(' ');
     drawSprite(IMG.items, ix, iy, 96, 96, sx - s / 2, sy - s + 6 + bob, s, s,
       { filter: flt, bright: hov ? 1.5 : 1, tint: potionFilter(it) ? POTIONS[it.pot].color : null });

@@ -81,6 +81,9 @@ pessimistic. Compare depths with each other, and compare runs before and after a
 
 ## Results
 
+- [results-2026-11-09-1929.md](results-2026-11-09-1929.md): ninth pass, fixed item stats (type ladders, affix tiers,
+  magic from 3, rare from 6, rings and amulets magic/rare only). Depths 3–8 harder, mainly from the later rarity
+  gates; depth 10 the same.
 - [results-2026-11-09-1906.md](results-2026-11-09-1906.md): eighth pass after a play-test (potion drops × 1.2, monster
   speed × 0.85). Potions found now clearly exceed potions drunk; deaths down by a third to a half from depth 3.
 - [results-2026-11-09-1813.md](results-2026-11-09-1813.md): seventh pass (boss life ×8 instead of ×6). Bosses cause

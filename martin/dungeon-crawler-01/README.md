@@ -84,7 +84,7 @@ Items are plain data, so the hero's equipment, pack (potion stacks included) and
 the counter becomes a health potion stack in the first free pack cell (if the pack is full, the stack is dropped
 on the floor at the start of the level), with an id after the highest saved one, and the key becomes a
 `{ type: 'use', pot: 'health' }` key. Items from before regeneration was removed lose their life regen bonus,
-and an old *Bone Talisman* gets the current crit bonus instead (`3 × (1 + 0.1·(item level − 1))`, rounded).
+and an old *Bone Talisman* gets the current crit bonus instead (`3 × (1 + 0.1·(item level − 1))`, rounded; items from before fixed item stats carry an `ilvl`).
 The iron skin effect is not saved. Every read and write
 is wrapped in `try`; if storage is unavailable the game still plays, logs that progress could not be saved,
 and the picker shows no saved heroes.
@@ -451,92 +451,92 @@ and Ashmire.
 **Slots:** weapon, helm, armor (chest), gloves, boots, two rings and an amulet. Only one weapon can be
 equipped at a time. Potions are not equipped; they are used (see [Potions](#potions)).
 
-**Base items.** They unlock at an item level, which normally equals the depth:
+**Item types.** An item's stats are fixed by its type: a Longsword is 7–14 damage wherever it drops (there are
+no item levels). Each slot has a ladder of types; a type can drop once the **loot depth** reaches its unlock depth
+(`lvl`). The loot depth is the current depth, + 1 for champions' and the boss's loot and 30 % of chest items. Types
+without an icon of their own reuse the icon in the last column.
 
-| Item | Slot / type | Base stats | Unlocks at |
-|---|---|---|---|
-| Short Sword | sword | 4–8, 0.55 s | 1 |
-| Longsword | sword | 6–12, 0.65 s | 2 |
-| Blackened Greatsword | sword | 11–19, 0.85 s | 4 |
-| Hand Axe | axe | 5–10, 0.7 s | 1 |
-| Battle Axe | axe | 9–16, 0.85 s | 3 |
-| Executioner's Axe | axe | 14–26, 1.05 s | 5 |
-| Short Bow | bow | 3–7, 0.6 s | 1 |
-| Yew Longbow | bow | 6–12, 0.75 s | 3 |
-| Bone Bow | bow | 10–18, 0.9 s | 5 |
-| Leather Cap | helm | armor 3 | 1 |
-| Horned Great Helm | helm | armor 8 | 3 |
-| Leather Tunic | armor | armor 6 | 1 |
-| Plate Cuirass | armor | armor 15 | 4 |
-| Leather Gloves | gloves | armor 2 | 1 |
-| Iron Gauntlets | gloves | armor 5 | 2 |
-| Leather Boots | boots | armor 2, +5 % move speed | 1 |
-| Plated Boots | boots | armor 5 | 2 |
-| Silver Ring | ring | +2 VIT | 1 |
-| Ruby Ring | ring | +3 STR | 3 |
-| Grave Ring | ring | +8 % damage | 5 |
-| Sapphire Amulet | amulet | +3 DEX | 1 |
-| Blood Amulet | amulet | +15 life | 3 |
-| Bone Talisman | amulet | +3 % crit | 5 |
+| Item | Type | Stats | Unlocks at | Icon |
+|---|---|---|---|---|
+| Short Sword | sword | 4–8, 0.55 s | 1 | |
+| Longsword | sword | 7–14, 0.65 s | 2 | |
+| Broadsword | sword | 13–22, 0.7 s | 4 | Longsword |
+| Blackened Greatsword | sword | 20–34, 0.85 s | 6 | |
+| Bastard Sword | sword | 24–40, 0.8 s | 8 | Greatsword |
+| Knight's Greatsword | sword | 32–52, 0.85 s | 11 | Greatsword |
+| Hand Axe | axe | 5–10, 0.7 s | 1 | |
+| Bearded Axe | axe | 10–18, 0.8 s | 3 | Hand Axe |
+| Battle Axe | axe | 17–29, 0.9 s | 5 | |
+| Executioner's Axe | axe | 26–46, 1.05 s | 7 | |
+| Great Axe | axe | 34–58, 1.05 s | 10 | Executioner's Axe |
+| Short Bow | bow | 3–7, 0.6 s | 1 | |
+| Hunting Bow | bow | 5–10, 0.65 s | 2 | Short Bow |
+| Yew Longbow | bow | 9–16, 0.75 s | 4 | |
+| Bone Bow | bow | 14–25, 0.9 s | 6 | |
+| Composite Bow | bow | 18–31, 0.85 s | 8 | Yew Longbow |
+| War Bow | bow | 25–42, 0.9 s | 11 | Bone Bow |
+| Leather Cap | helm | armor 3 | 1 | |
+| Iron Helm | helm | armor 7 | 3 | Horned Great Helm |
+| Horned Great Helm | helm | armor 13 | 6 | |
+| Visored Helm | helm | armor 19 | 9 | Horned Great Helm |
+| Leather Tunic | armor | armor 6 | 1 | |
+| Studded Leather | armor | armor 11 | 3 | Leather Tunic |
+| Chain Mail | armor | armor 18 | 5 | Plate Cuirass |
+| Plate Cuirass | armor | armor 28 | 8 | |
+| Full Plate | armor | armor 36 | 11 | Plate Cuirass |
+| Leather Gloves | gloves | armor 2 | 1 | |
+| Iron Gauntlets | gloves | armor 6 | 3 | |
+| Plated Gauntlets | gloves | armor 10 | 7 | Iron Gauntlets |
+| Heavy Gauntlets | gloves | armor 13 | 10 | Iron Gauntlets |
+| Leather Boots | boots | armor 2, +5 % move speed | 1 | |
+| Plated Boots | boots | armor 6 | 3 | |
+| Iron Greaves | boots | armor 10 | 7 | Plated Boots |
+| Heavy Greaves | boots | armor 13 | 10 | Plated Boots |
+| Silver Ring, Ruby Ring, Grave Ring | ring | none | 1 | |
+| Sapphire Amulet, Blood Amulet, Bone Talisman | amulet | none | 1 | |
 
-**Slot gates by depth.** On top of the item-level unlocks, no rings drop before depth 3 (`RING_FROM`) and no
-amulets before depth 5 (`AMULET_FROM`); the base is then drawn from the other slots. Like the rarity gates,
-boss-room loot (the boss, its guards and the guardian's chest) uses depth + 2 (the boss room only has loot
-from depth 6, where amulets are already allowed).
+**Choosing a drop** (`genItem`): the rarity is rolled first (see below). Then a **group** is drawn evenly from
+sword, axe, bow, helm, armor, gloves, boots, ring and amulet, and then a type of that group unlocked at the loot
+depth, older types less likely (weight × 0.5 for every 4 depths since the type unlocked; e.g. at loot depth 6 a
+sword is a Blackened Greatsword 38 % of the time, a Short Sword 16 %).
 
-**Scaling.** Weapon damage and armor scale by `1 + 0.14·(ilvl − 1)`; built-in bonuses scale by
-`1 + 0.1·(ilvl − 1)`.
+**Rings and amulets** have no stats of their own: they only drop as **magic or rare** items (a common roll never
+picks them), and all their worth is in their affixes, whose ranges are doubled on them (`JEWEL_MULT`). With the
+rarity gates below they appear from depth 3 at the earliest (amulets from depth 5, `AMULET_FROM`; rings from 3,
+`RING_FROM`). Old saves keep their rings and amulets as they were.
 
 **Rarity.**
 
 | Rarity | Base chance | Affixes | Name |
 |---|---|---|---|
-| Common (white) | the rest | 0 | base name |
-| Magic (blue) | (30 % + boost) × `MAGIC_ODDS` (0.25) | 1–2 | "Prefix Base of Suffix", e.g. *Mighty Longsword of the Fox* |
+| Common (white) | the rest | 0 | type name |
+| Magic (blue) | (30 % + boost) × `MAGIC_ODDS` (0.25) | 1–2 | "Prefix Type Suffix", e.g. *Mighty Longsword of the Fox* |
 | Rare (gold) | (7 % + half the boost) × `RARE_ODDS` (0.1) | 3–4 | random name, e.g. *Gravefang, Longsword* |
 
-So a plain drop is 0.7 % rare and 7.5 % magic. Chests, champions and bosses add a rarity boost (with a 0.35
-boost: 2.45 % rare, 16.25 % magic). An item with a forced rarity (the starting kit, the guardian's chest) skips
-the roll.
+So a plain drop is 0.7 % rare and 7.5 % magic, at every depth where the rarity is allowed. Chests, champions and
+bosses add a rarity boost (with a 0.35 boost: 2.45 % rare, 16.25 % magic). An item with a forced rarity (the
+starting kit, the guardian's chest) skips the roll.
 
-**Rarity gates by depth.** No magic items before depth 2 (`MAGIC_FROM`) and no rares before depth 4
-(`RARE_FROM`); a roll above what the depth allows is lowered to the best allowed rarity (rare → magic at
-depths 2–3, anything → common at depth 1). Loot from the **boss room** (the boss, its guards and the
-guardian's chest) uses the rules of depth + 2; since the boss room only has loot from depth 6, where every
-rarity is already allowed, the rarity gates never limit it.
+**Rarity gates by depth.** No magic items before depth 3 (`MAGIC_FROM`) and no rares before depth 6 (`RARE_FROM`);
+a roll above what the depth allows is lowered to the best allowed rarity. Some sources count as deeper for these
+gates (and for the ring and amulet gates): **champions** + 1, **chests in the big room** + 1, the **boss** and the
+**guardian's chest** + 2. So a champion can drop magic items from depth 2 and rares from depth 5.
 
-**Affixes** (value ranges grow with item level `l`):
+**Affixes** are the bonuses of magic and rare items: **prefixes** go before the type's name, **suffixes** after it.
+Each kind has 3 tiers with fixed ranges and their own names. A tier can roll once the loot depth reaches 1, 5 or 9
+(`AFFIX_FROM`); among the unlocked tiers, higher ones are likelier (weights 1 : 2 : 4). A kind appears at most once
+per item. On rings and amulets every range is doubled.
 
-| Stat | Prefix / suffix | Range |
-|---|---|---|
-| +STR | Mighty / of the Bear | 1 – 2+l |
-| +DEX | Nimble / of the Fox | 1 – 2+l |
-| +VIT | Stalwart / of the Ox | 1 – 2+l |
-| +Life | Hale / of Life | 5 – 8+4l |
-| +Armor | Warded / of Iron | 2 – 3+2l (not on weapons) |
-| +Crit % | Keen / of Precision | 1 – min(3+0.5l, 12) |
-| +Damage % | Cruel / of Slaughter | 5 – 10+3l |
-| +Move speed % | Swift / of Haste | 3 – min(6+l, 15) (boots only) |
-
-### Potions
-
-Potions are instant-use pack items (`slot: 'use'`, `base: 'potion'`, `pot` = the type, `count`) that **stack**:
-the pack holds at most one stack per type, in a single cell, with its count shown at the bottom right of the
-cell. Both types use the potion icon; the iron skin potion's is tinted (`hue-rotate(195deg) saturate(0.55)
-brightness(1.2)`, in the pack, on quick keys and on the floor).
-
-| Potion | Effect | Colour |
-|---|---|---|
-| Health Potion | restores 44 % of max life (`HEAL`) | red `#e06a5a` |
-| Iron Skin Potion | armor × 2 + 20 for 30 s (`IRON`), meant for the hard rooms; the hero gets a steel-blue glow (`drop-shadow`), and "Your iron skin fades." is logged at the end | steel blue `#a9c1d6` |
-
-- **Drops:** wherever a potion drops (see below), it is an iron skin potion with 25 % chance, otherwise a health
-  potion. A dropped potion is a stack of 1.
-- **Picking up** a potion adds it to the stack of its type, or puts it in a free cell if there is none (or
-  logs "Your pack is full."). It gives 1 + d XP.
-- **Dropping** a stack (right-click or **Drop**) drops the whole stack as one floor item, labelled with its count
-  (e.g. *Health Potion ×3*), and clears its quick key.
-- A stack used up to 0 leaves its cell empty; its quick key stays bound and shows 0 (dimmed).
+| Stat | Tier 1 (from 1) | Tier 2 (from 5) | Tier 3 (from 9) |
+|---|---|---|---|
+| +STR | Mighty / of the Bear, 1–4 | Brutal / of the Boar, 5–8 | Titanic / of the Giant, 9–12 |
+| +DEX | Nimble / of the Fox, 1–4 | Deft / of the Lynx, 5–8 | Lithe / of the Falcon, 9–12 |
+| +VIT | Sturdy / of the Ox, 1–4 | Stalwart / of the Bull, 5–8 | Unyielding / of the Mountain, 9–12 |
+| +Life | Hale / of Life, 5–16 | Robust / of Vigor, 17–30 | Vigorous / of Endurance, 31–45 |
+| +Armor (not on weapons) | Warded / of Iron, 2–8 | Fortified / of Steel, 9–15 | Impregnable / of Adamant, 16–22 |
+| +Crit % | Keen / of Precision, 1–3 | Precise / of Striking, 3–5 | Deadly / of Slaying, 5–8 |
+| +Damage % | Cruel / of Slaughter, 5–15 | Savage / of Carnage, 16–26 | Merciless / of Ruin, 27–38 |
+| +Move speed % (boots only) | Swift / of Haste, 3–6 | Fleet / of Speed, 7–10 | Windborne / of the Wind, 11–15 |
 
 **Loot sources:**
 
@@ -548,10 +548,10 @@ chests 27 %, urns 10.8 %. The guardian's chest's guaranteed item is not thinned.
 | Source | Drops (item chances before `LOOT`) |
 |---|---|
 | Monster | 13 % item, 6.75 % × 1.2 potion, 30 % gold (2–8 × d) |
-| Champion | an item of ilvl d+1 (boost 0.35), plus a 50 % chance of a second (boost 0.2) |
-| Boss | an item of ilvl d+1 (boost 0.35), gold (20–40 × d), plus the normal potion / gold rolls of a monster |
-| Chest | 1–3 items (boost 0.15, 30 % chance of ilvl+1), gold (10–30 × d), 22.5 % × 1.2 potion |
-| Guardian's chest | **always** one item of ilvl d+1 that is rare (30 %) or else magic, gold (30–60 × d), plus everything a normal chest drops |
+| Champion | an item of loot depth d+1 (boost 0.35), plus a 50 % chance of a second (boost 0.2); rarity gates at d+1 |
+| Boss | an item of loot depth d+1 (boost 0.35, rarity gates at d+2), gold (20–40 × d), plus the normal potion / gold rolls of a monster |
+| Chest | 1–3 items (boost 0.15, 30 % chance of loot depth d+1; in the big room rarity gates at d+1), gold (10–30 × d), 22.5 % × 1.2 potion |
+| Guardian's chest | **always** one item of loot depth d+1 that is rare (30 %) or else magic (rarity gates at d+2), gold (30–60 × d), plus everything a normal chest drops |
 | Urn | 35 % gold, 9 % × 1.2 potion, 8 % item |
 | Bones | 20 % gold, 10 % item |
 
@@ -590,7 +590,7 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
   - These are captured on the overlay before the elements' own click handlers. The last pointer type is tracked
     on every `pointerdown`; hover handlers ignore touch input (emulated mouse events would otherwise show, move
     or hide the tooltip). The HUD hotbar is not part of the overlay and still acts on a click or tap (see *HUD taps* under Controls).
-- **Tooltips** (on mouse hover): name in rarity colour, type, item level, damage and attacks per second or
+- **Tooltips** (on mouse hover): name in rarity colour, type, damage and attacks per second or
   armor, and every bonus. For pack items it also compares with the equipped item in that slot: base DPS
   difference for weapons, armor difference otherwise. A potion's tooltip shows its name in its colour, "Potion ·
   instant use", its effect and the stack count. A hint line lists the mouse actions.
