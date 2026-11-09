@@ -37,7 +37,9 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
 
 15. **Limited ammo** — bows need arrows; each shot uses one. Arrows are a stackable pack item (like potions).
     - **Different kinds of arrows**, e.g. explosive and freeze arrows.
-    - Open question: how the player picks which arrows the bow shoots — there is no mechanism yet for equipping
-      a combination of bow + arrows. Possible approaches: a quiver slot on the paper doll that holds the active
-      arrow stack; or an arrow stack bound to a quick key that, when pressed, becomes the active ammo (a queued
-      action like a weapon swap); or the hero always shoots the best / first arrow stack in the pack.
+    - **Quiver slot** (preferred): a new paper-doll slot holds the arrow stack the bow shoots, so the player
+      equips a bow + arrows combination by filling both slots. (Alternatives considered: an arrow quick key that
+      makes a stack the active ammo — could still be added on top, as a queued action like a weapon swap; or
+      always shooting the best / first arrow stack in the pack.)
+    - **Special quivers** — unique items that go in the quiver slot instead of an arrow stack, e.g. a *magic
+      quiver of limitless arrows* that never runs out.
