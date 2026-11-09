@@ -467,7 +467,7 @@ const depthName = d => LEVEL_NAMES[(d - 1) % 8] + (d > 8 ? ' ' + ROMAN(Math.ceil
 
 // Tiers: normal; champion (10 % from depth 2, red glow); boss (one per level, green glow, see buildLevel).
 const TIER = { normal: { size: 1, hp: 1, dmg: 1, xp: 1, armor: 0 }, champ: { size: 1.15, hp: 2.5, dmg: 1.5, xp: 3, armor: 0 },
-  boss: { size: 1.35, hp: 6, dmg: 1.8, xp: 8, armor: 4 } };
+  boss: { size: 1.35, hp: 8, dmg: 1.8, xp: 8, armor: 4 } };
 // New monster types: from the depth L where a type first appears (its minD), a room may hold at most
 // NEW_LIMIT[d - L] of it (1 at L, 2 at L+1 to L+3, no limit after; escorts included). Skeletons and spiders are
 // exempt. A type can be a champion only from depth L + CHAMP_AFTER.
@@ -622,12 +622,12 @@ function buildLevel(d) {
     rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + (rw >> 1), cy: ry + (rh >> 1), big });
   }
   for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) t[y * w + x] = T_FLOOR;
-  const links = [];   // pairs of rooms joined by a carved corridor
+  const links = [];   // rooms joined by a carved corridor: [a, b, path], path = the carved tiles from a's centre to b's
   const carve = (a, b) => {
-    links.push([a, b]);
+    const path = [[a.cx, a.cy]]; links.push([a, b, path]);
     let x = a.cx, y = a.cy; const hf = rnd() < 0.5;
-    const stepX = () => { while (x !== b.cx) { x += Math.sign(b.cx - x); t[y * w + x] = T_FLOOR; } };
-    const stepY = () => { while (y !== b.cy) { y += Math.sign(b.cy - y); t[y * w + x] = T_FLOOR; } };
+    const stepX = () => { while (x !== b.cx) { x += Math.sign(b.cx - x); t[y * w + x] = T_FLOOR; path.push([x, y]); } };
+    const stepY = () => { while (y !== b.cy) { y += Math.sign(b.cy - y); t[y * w + x] = T_FLOOR; path.push([x, y]); } };
     if (hf) { stepX(); stepY(); } else { stepY(); stepX(); }
   };
   for (let i = 1; i < rooms.length; i++) {
@@ -692,6 +692,23 @@ function buildLevel(d) {
   };
   // a prop that faces down-right on screen (+x), like the throne: put it against a back wall so it faces into
   // the room, on the left back wall (x = r.x) as drawn, or on the right back wall (y = r.y) mirrored to face +y
+  // a blocking prop on r's edge as close as possible to tile (tx, ty), on a spot that freeInner's edge rule allows
+  // (no doorway nearby, solid wall behind it), so it never blocks a corridor mouth
+  const placeNear = (type, r, tx, ty, extra = {}) => {
+    let best = null, bd = 1e9;
+    for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+      if (x !== r.x && x !== r.x + r.w - 1 && y !== r.y && y !== r.y + r.h - 1) continue;
+      if (occ[y * w + x] || isOpening(x, y)) continue;
+      let ok = true;
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const nx = x + dx, ny = y + dy;
+        const inside = nx >= r.x && nx < r.x + r.w && ny >= r.y && ny < r.y + r.h; if (!inside && at(nx, ny) !== T_WALL) ok = false; }
+      if (!ok) continue;
+      const dd = Math.hypot(x - tx, y - ty); if (dd < bd) { bd = dd; best = [x, y]; }
+    }
+    if (!best) return null;
+    occ[best[1] * w + best[0]] = 1;
+    const o = Object.assign({ type, x: best[0], y: best[1], used: false, block: true }, extra); objects.push(o); return o;
+  };
   const placeBack = (type, r, extra = {}) => {
     for (let tries = 0; tries < 40; tries++) {
       const left = rnd() < 0.5, x = left ? r.x : ri(r.x + 1, r.x + r.w - 2), y = left ? ri(r.y + 1, r.y + r.h - 2) : r.y;
@@ -721,7 +738,19 @@ function buildLevel(d) {
   // 50 %: one green-flamed brazier in a room joined to the boss room by a corridor (a hint of what's near)
   const nextToBoss = !bossRoom ? [] : links.filter(l => l.includes(bossRoom)).map(l => l[0] === bossRoom ? l[1] : l[0]).filter(r => r !== bossRoom);
   const greenRoom = nextToBoss.length && rnd() < 0.5 ? pick(nextToBoss) : null;
+  // green banners: every room joined to the boss room by a corridor gets a (green) banner at the mouth of that
+  // corridor: the room's last tile on the corridor's way out toward the boss room (first such corridor per room)
+  const bannerAt = new Map();
+  if (bossRoom) for (const [a, b, path] of links) {
+    if (a !== bossRoom && b !== bossRoom) continue;
+    const r = a === bossRoom ? b : a; if (r === bossRoom || bannerAt.has(r)) continue;
+    const way = a === r ? path : path.slice().reverse();   // from r's centre toward the boss room
+    const inR = ([x, y]) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+    const k = way.findIndex(p => !inR(p));
+    if (k > 0) bannerAt.set(r, way[k - 1]);
+  }
   for (const r of rooms) {
+    if (bannerAt.has(r)) placeNear('banner', r, ...bannerAt.get(r), { decor: true, bossSign: true });
     if (r === greenRoom) place('brazier', r, true, { green: true });
     if (r === bossRoom) {
       map.bossRoom = r;

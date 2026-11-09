@@ -245,8 +245,13 @@ Each depth `d` gets a freshly generated level.
   depth 5: skeletons, ghouls, spiders; depth 7: also wraiths).
 - **The lone demon** (depth 4, `DEMON_ROOM_AT`): one random normal room (not the start room) holds a single
   Pit Demon (normal tier, never a champion) and nothing else, a foretaste before demons appear from depth 5.
+- **Green banners.** Every room joined to the boss room by a corridor (also at depth 3, where it stands empty)
+  gets a banner (the normal banner sprite: dark green with a skull) on its edge, as close as possible to the mouth
+  of that corridor: the room's last tile on the carved corridor's way toward the boss room (corridors are
+  recorded with their tiles; with several corridors to the boss room, the first counts). The spot follows the
+  usual edge rule (solid wall behind it, no doorway next to it), so it never blocks the corridor.
 - **Green brazier.** When there is a boss room, with 50 % chance one room joined to the boss room by a corridor gets an extra brazier
-  with green flames, a hint of what lies next door. Corridors are recorded as room pairs when carved.
+  with green flames, a hint of what lies next door.
 - Blocking props are only placed on a room's edge, against solid wall, and never next to a doorway or
   corridor mouth, so they can't cut off a path.
 - **Monsters per room** (normal rooms: not the start, boss, big or lone-demon room): an even draw from 1 to
@@ -427,7 +432,7 @@ monster has 1.2× them (`MON_BASE`), e.g. a depth-1 skeleton has 31 life and hit
 |---|---|---|---|
 | Occurs | always | 10 % of monsters of a type at least 4 depths past its first depth (`canChamp`; none at depths 1–4; never in the big room, the lone demon or as escorts) | one per level from depth 6, in the boss room |
 | Name | type name | prefix + type, e.g. *Dread Ghoul* | *&lt;name&gt;, &lt;type&gt; Tyrant*, e.g. *Morgrath, Ghoul Tyrant* |
-| Life / damage / XP | ×1 | ×2.5 / ×1.5 / ×3 | ×6 / ×1.8 / ×8 |
+| Life / damage / XP | ×1 | ×2.5 / ×1.5 / ×3 | ×8 / ×1.8 / ×8 |
 | Armor | — | — | + 4·d |
 | Size | ×1 | ×1.15 (radius too) | ×1.35 drawn; radius ×1.15, at most 0.48 so it fits corridors |
 | Look | — | red glow, gold health bar and target name | green glow, green health bar and target name |

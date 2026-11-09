@@ -81,6 +81,8 @@ pessimistic. Compare depths with each other, and compare runs before and after a
 
 ## Results
 
+- [results-2026-11-09-1813.md](results-2026-11-09-1813.md): seventh pass (boss life ×8 instead of ×6). Bosses cause
+  about a third more damage; a boss room is now about as deadly as a champion room.
 - [results-2026-11-09-1803.md](results-2026-11-09-1803.md): sixth pass (monster scaling +12 % per depth). Every depth
   from 1 to 10 at or below the 3–4× damage target; the depth-9 cliff is now a step.
 - [results-2026-11-09-1745.md](results-2026-11-09-1745.md): the fifth pass simulated to depth 10. Depths 5–8 flat at
