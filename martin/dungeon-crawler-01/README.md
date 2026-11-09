@@ -45,9 +45,10 @@ or zoom the page. A long press never opens iOS's "save image" / link menu: the p
 `touchstart` (a non-passive listener), so holding it alone for auto attack doesn't pop the menu up on iOS
 (Safari, and Edge / Chrome on iOS, which use WebKit). Pointer events still arrive.
 
-**HUD taps.** The HUD hotbar keys and the life orb act on a touch's `pointerdown` instead of on `click`: iOS
-often fires no click for a second finger while another one rests on the attack button, so drinking a potion
-during auto attack would fail. The click that may follow a touch is ignored (no double use), and the attack
+**HUD taps.** The HUD hotbar keys and the life orb act on a touch's `touchstart` (a non-passive listener; one
+call per new finger on the element) instead of on `click`: iOS often fires no click for a second finger while
+another one rests on the attack button, so drinking a potion during auto attack would fail. Cancelling the
+`touchstart` also cancels the click that would follow (no double use), and the attack
 button modifier does not apply there: a tap on a hotbar key while attacking uses the key (only `Shift` + click
 or a right-click clears a HUD key).
 

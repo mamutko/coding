@@ -1162,11 +1162,15 @@ function buildUI() {
     el.addEventListener('contextmenu', e => { e.preventDefault(); dropFromInv(i); hideTip(); });
     inv.appendChild(el);
   }
-  // HUD controls (life orb, hotbar keys) act on a touch at once, on the touch's pointerdown: iOS often fires no
-  // click for a second finger while another one rests on the attack button. The click that may follow a touch is
-  // ignored, and a finger on the attack button is no modifier here (it would clear the key instead of using it).
+  // HUD controls (life orb, hotbar keys) act on a touch at once, on its touchstart (one per new finger on the
+  // element, the most reliable touch signal on iOS): iOS often fires no click for a second finger while another
+  // one rests on the attack button. Cancelling the touchstart also cancels the click that would follow, and a
+  // finger on the attack button is no modifier here (it would clear the key instead of using it).
   const hudTap = (el, fn) => {
-    el.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') { e.preventDefault(); fn(); } });
+    el.addEventListener('touchstart', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) if (el.contains(t.target)) fn();
+    }, { passive: false });
     el.addEventListener('click', e => { if (lastPointer !== 'touch') fn(e); });
   };
   hudTap($('orb'), () => queueUse('health'));   // a click or tap on the life orb drinks a health potion
