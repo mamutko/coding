@@ -36,3 +36,8 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
 14. **Closing doors** — the hero can close an open door again.
 
 15. **Limited ammo** — bows need arrows; each shot uses one. Arrows are a stackable pack item (like potions).
+    - **Different kinds of arrows**, e.g. explosive and freeze arrows.
+    - Open question: how the player picks which arrows the bow shoots — there is no mechanism yet for equipping
+      a combination of bow + arrows. Possible approaches: a quiver slot on the paper doll that holds the active
+      arrow stack; or an arrow stack bound to a quick key that, when pressed, becomes the active ammo (a queued
+      action like a weapon swap); or the hero always shoots the best / first arrow stack in the pack.
