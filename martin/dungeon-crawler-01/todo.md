@@ -41,6 +41,12 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
    - **Point-to-attack clicks are not queued** this way. If the player clicks a monster 4 times in 2 s but one
      attack takes 1 s, this must not build a 4 s queue. Instead, a click attack is queued for the next moment
      the hero is free, and any further click attack replaces the one already waiting in the queue.
+   - **Walking is independent of the queue.** The hero can keep walking while items are being equipped and used.
+   - **Avoiding a long queue** that leaves the player watching while monsters attack:
+     - when a queued use comes up and would be pointless (e.g. a health potion at full life, or a scroll whose
+       effect is already active), it is skipped and takes no time;
+     - item uses are short, so even a well-filled queue drains quickly.
+   - The queue has no length cap, isn't cleared by player input, and isn't shown on screen.
 
 9. **Health potions in the inventory grid.** Stop treating the health potion as a special item with its own
    counter: it goes in the regular inventory grid, but stays stackable — one stack takes a single cell and
