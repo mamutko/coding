@@ -21,3 +21,6 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
 6. **Item valuation** — items have a value.
 
 7. **Keepers of the Crypt** — merchants where the hero can buy and sell items and services.
+
+10. **Multiplayer** — several players exploring the crypt together online. See the `multiplayer-game` skill for
+    the generic mechanics (PeerJS handshake, WebRTC data channels, host-authoritative simulation).
