@@ -24,3 +24,7 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
 
 10. **Multiplayer** — several players exploring the crypt together online. See the `multiplayer-game` skill for
     the generic mechanics (PeerJS handshake, WebRTC data channels, host-authoritative simulation).
+
+11. **Stairs up** — going back up the stairs to earlier (shallower) levels, i.e. lower depth numbers. Open
+    question: levels are currently generated fresh and never kept, so going up either regenerates the level or
+    requires remembering visited levels (layout, what was looted and killed).
