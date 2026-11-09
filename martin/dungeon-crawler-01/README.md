@@ -18,9 +18,35 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
 | `tools/walk_cycle.py` | Walk-cycle pipeline (hero, skeleton, ghoul): renders the 3D stick-figure pose guides and placeholders, and builds the 8-frame sheets. |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
+| `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
+| `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
 | `tools/simulation/` | Balance simulation: `simulate.js` runs simulated heroes through the real game and reports how hero and monsters compare per depth. How to use it: [`tools/simulation/README.md`](tools/simulation/README.md); dated results with conclusions: `results-YYYY-MM-DD.md`. |
 | `todo.md` | Numbered list of ideas for future work (not yet implemented). |
 | `backup/index.NN.html` | Old snapshots of `index.html`, numbered `01`, `02`, … in the order they were made; not used by the game and not described by this README. `index.01.html` is an early version of the game. |
+
+## Version
+
+`VERSION` (an integer near the top of the script) is shown muted at the bottom right of the title screen as `v<N>`.
+**Increment it before every push**, so a player can tell whether the page they have open is up to date.
+
+## Catalog
+
+`catalog.html` is a stand-alone page listing every monster (with its stats at any depth, via a slider), the champion
+and boss multipliers, every item type, the potions, the affixes with their ranges, the rarity rules, and a
+**depth by depth** table of what first appears where. It uses the game's sprites and floor texture and states the
+game version it was built from.
+
+It is generated from the game's own data, so **regenerate it whenever stats change or monsters, items, affixes or
+potions are added** (and after bumping `VERSION`):
+
+```
+node tools/catalog/build.js
+```
+
+The script (Node.js + Playwright, like the simulation) opens `index.html` in headless Chromium, reads `MON`, `TIER`,
+`BASES`, `AFFIX`, `POTIONS` and the depth rules, computes each monster's stats per depth with `makeMonster`, and
+writes them into `tools/catalog/template.html`, saving the result as `catalog.html`. Change the page's look in the
+template, never in `catalog.html`.
 
 ## Controls
 

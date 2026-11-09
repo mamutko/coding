@@ -146,6 +146,8 @@
   #screen .controls { font-size: 15px; color: var(--ink); line-height: 1.6; margin: 6px 0 20px; }
   #screen button { font-size: 17px; padding: 10px 26px; }
   #screenText.fallen { color: #e0a090; }
+  #version { position: absolute; right: 12px; bottom: 8px; font-family: Cinzel, serif; font-size: 11px; letter-spacing: 1px;
+    color: var(--ink-dim); opacity: 0.45; }
   #heroPick { display: flex; flex-direction: column; gap: 6px; width: min(420px, 100%); margin: 0 0 16px; }
   #heroPick .heroBtn { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 15px;
     padding: 8px 14px; text-align: left; }
@@ -242,6 +244,7 @@
   </div>
   <div id="heroPick"></div>
   <button id="startBtn" disabled>Loading…</button>
+  <div id="version"></div>
 </div>
 
 <script>
@@ -260,6 +263,9 @@ const T_VOID = 0, T_FLOOR = 1, T_WALL = 2, T_DOOR = 3, T_OPEN = 4;
 // walk frames advance with distance walked: META.characters.<name>.fpt frames per tile (hero: 8-frame stride / 1.6 tiles)
 const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,W,SW) -> sheet row
 const $ = id => document.getElementById(id);
+// Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
+// can tell whether the page is up to date (and regenerate catalog.html, see README).
+const VERSION = 1;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2200,6 +2206,7 @@ function frame(now) {
     }
   }
 }
+$('version').textContent = 'v' + VERSION;
 loadAll().then(() => {
   floorPat = ctx.createPattern(IMG.floor, 'repeat');
   floorPat.setTransform(new DOMMatrix().scale(3 / 512));
