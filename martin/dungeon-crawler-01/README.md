@@ -407,14 +407,15 @@ and item uses:
 | Wraith (ranged) | 22 | 4–7 | 3 | 2.3 | 1.9 s | 22 | 3 |
 | Pit Demon | 75 | 8–13 | 12 | 2.1 | 1.5 s | 60 | 5 (one lone demon at depth 4) |
 
-Spawn weights are 3 : 3 : 2 : 2 : 1 in table order.
+Spawn weights are 3 : 3 : 2 : 2 : 1 in table order. Life and damage in the table are base values: at depth 1 a
+monster has 1.5× them (`MON_BASE`), e.g. a depth-1 skeleton has 39 life and hits for 4.5–9.
 
 **Scaling with depth `d`** (the dungeon is endless):
 
 | Stat | Scaling |
 |---|---|
-| Life | × 1.22^(d−1) |
-| Damage | × 1.22^(d−1) |
+| Life | × 1.5 × 1.15^(d−1) (`MON_BASE`, `MON_SCALE`) |
+| Damage | × 1.5 × 1.15^(d−1) |
 | Armor | + 3·(d−1) |
 | Speed | × min(1.35, 1 + 0.015·(d−1)) |
 | XP | × 1.17^(d−1) |

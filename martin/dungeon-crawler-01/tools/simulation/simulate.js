@@ -140,20 +140,20 @@ const server = http.createServer((req, res) => {
       }
       out.push(runOut);
     }
-    return { out, MON: { skeleton: MON.skeleton, demon: MON.demon } };
+    return { out, MON: { skeleton: MON.skeleton, demon: MON.demon }, SC: { base: MON_BASE, scale: MON_SCALE } };
   }, [RUNS, MAXD, P]);
   await b.close(); server.close();
   if (errs.length) console.error('Page errors:', errs.slice(0, 3));
   if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify(res.out));
-  report(res.out, res.MON);
+  report(res.out, res.MON, res.SC);
 })();
 
-function report(r, MONS) {
+function report(r, MONS, SC) {
   const med = a => { a = a.filter(x => x != null).sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : null; };
   const mean = a => a.reduce((s, x) => s + x, 0) / a.length;
   const f = (x, n = 1) => x == null ? '—' : x.toFixed(n);
-  // normal-tier stats at depth d, as makeMonster computes them (+22 % life and damage, +3 armor per depth)
-  const mon = (k, d) => { const m = MONS[k], s = Math.pow(1.22, d - 1); return `${Math.round(m.hp * s)} / ${((m.dmg[0] + m.dmg[1]) / 2 * s).toFixed(1)} / ${m.armor + 3 * (d - 1)}`; };
+  // normal-tier stats at depth d, as makeMonster computes them (life and damage × MON_BASE × MON_SCALE^(d−1), +3 armor per depth)
+  const mon = (k, d) => { const m = MONS[k], s = SC.base * Math.pow(SC.scale, d - 1); return `${Math.round(m.hp * s)} / ${((m.dmg[0] + m.dmg[1]) / 2 * s).toFixed(1)} / ${m.armor + 3 * (d - 1)}`; };
   const DEM = MONS.demon.minD;
   const out = [];
   out.push(`Runs: ${r.length}, depths 1–${r[0].length}, travel ${P.TRAVEL} s between rooms, potion below ${P.POT_AT * 100} % life, max ${P.MELEE_MAX} in melee.`, '');

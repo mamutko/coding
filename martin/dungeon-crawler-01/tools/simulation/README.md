@@ -81,6 +81,9 @@ pessimistic. Compare depths with each other, and compare runs before and after a
 
 ## Results
 
+- [results-2026-11-09-1736.md](results-2026-11-09-1736.md): fourth pass (monster life and damage × 1.5 at depth 1,
+  +15 % per depth instead of +22 %). Much harder at every depth simulated: the new curve only crosses the old
+  one at depth 8.
 - [results-2026-11-09-1720.md](results-2026-11-09-1720.md): third pass (new types limited to 1 / 2 / 2 / 2 per
   room for 4 depths; champions only 4 depths after a type appears, so none before depth 5). Depths 1–4 easy to
   moderate, but depth 5 becomes a cliff (first champions, Pit Demons and a big room at once).
