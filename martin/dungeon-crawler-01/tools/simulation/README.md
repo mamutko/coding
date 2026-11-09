@@ -81,6 +81,9 @@ pessimistic. Compare depths with each other, and compare runs before and after a
 
 ## Results
 
+- [results-2026-11-09-1745.md](results-2026-11-09-1745.md): the fifth pass simulated to depth 10. Depths 5–8 flat at
+  about 3.5× damage; depth 9 jumps to 5.3× (Pit Demons lose their room limit and become champions, the room cap
+  reaches 7).
 - [results-2026-11-09-1739.md](results-2026-11-09-1739.md): fifth pass (depth-1 bump reduced to × 1.2, +15 % per
   depth). Every depth within the 3–4× damage target or below; depth 3 (skeleton big room) and depths 5–6 are the
   hardest.
