@@ -43,3 +43,11 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
       always shooting the best / first arrow stack in the pack.)
     - **Special quivers** — unique items that go in the quiver slot instead of an arrow stack, e.g. a *magic
       quiver of limitless arrows* that never runs out.
+
+16. **Item quality and wear.**
+    - **Quality** — a roll on an item's base stats (weapon damage, armor, built-in jewelry bonus), e.g. ±15 %, so
+      two common items of the same type and item level can differ. Shown in the name (*Crude*, *Fine*,
+      *Superior*, …) and/or only in the numbers.
+    - **Wear** — items wear out with use (weapons when hitting, armor when hit) and lose effectiveness as they do.
+    - **Fixing** — some of it can be fixed: repairing wear (and perhaps improving quality) at a shop (see 7) or
+      with a hero skill.
