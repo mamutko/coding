@@ -18,13 +18,14 @@ Claude's cloud sessions). 200 runs of 6 depths take a few seconds.
 |---|---|---|
 | `--runs` | 200 | Number of simulated heroes (each starts fresh at depth 1). |
 | `--depths` | 6 | How many depths each hero clears. |
-| `--travel` | 40 | Seconds of walking between two rooms, during which the hero regenerates life. |
+| `--travel` | 40 | Seconds of walking between two rooms, during which the hero regenerates life (no effect while the game's regeneration is 0). |
 | `--pot` | 0.35 | The hero drinks a health potion when life falls below this share of max life. |
 | `--melee` | 5 | At most this many monsters attack in melee at once (ranged wraiths always attack). |
 | `--json` | — | Also write the raw per-run, per-depth data to this file. |
 
 The report goes to stdout. To keep a result, save it as a dated file in this folder (e.g.
-`results-2026-11-09.md`) together with the conclusions drawn from it.
+`results-2026-11-09.md`, with the time added when there are several on one day) together with the conclusions
+drawn from it.
 
 ## How it works
 
@@ -75,9 +76,14 @@ pessimistic. Compare depths with each other, and compare runs before and after a
   deaths per run.
 - **Share of damage taken, by source:** which monsters cause the damage (champions and the boss are counted
   separately from their type).
+- **Deaths per run, by room kind:** where the deaths happen: a normal room, a room with a champion (and its
+  escorts), the big room (found by its grey banners) or the boss room.
 
 ## Results
 
+- [results-2026-11-09-1630.md](results-2026-11-09-1630.md): after the first balance pass (no regeneration,
+  fewer monsters per room, wraiths from depth 3, Pit Demons from 5, bosses from 6, big rooms). Damage per level
+  roughly halved; champion rooms are now the main killer, and with no regeneration healing is short.
 - [results-2026-11-09.md](results-2026-11-09.md): baseline before any balance change. The difficulty comes from
   numbers, champion packs, the Pit Demon at depth 3, and healing that doesn't keep up; one on one, the hero
   stays ahead.

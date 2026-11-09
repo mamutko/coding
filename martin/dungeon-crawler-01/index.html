@@ -363,7 +363,7 @@ const BASES = {
   skullring:    { name: 'Grave Ring', slot: 'ring', implicit: { dmg: 8 }, lvl: 5 },
   sapphireamulet:{ name: 'Sapphire Amulet', slot: 'amulet', implicit: { dex: 3 }, lvl: 1 },
   bloodamulet:  { name: 'Blood Amulet', slot: 'amulet', implicit: { hp: 15 }, lvl: 3 },
-  bonetalisman: { name: 'Bone Talisman', slot: 'amulet', implicit: { regen: 1 }, lvl: 5 },
+  bonetalisman: { name: 'Bone Talisman', slot: 'amulet', implicit: { crit: 3 }, lvl: 5 },
 };
 const KIND_INFO = { sword: { reach: 1.55, arc: 0.9, label: 'Sword (melee)' }, axe: { reach: 1.45, arc: 1.25, label: 'Axe (melee, wide cleave)' },
   bow: { reach: 12, label: 'Bow (ranged)' }, fist: { reach: 1.25, arc: 0.8, label: 'Bare hands' } };
@@ -375,7 +375,6 @@ const AFFIX = [
   { k: 'dex', pre: 'Nimble', suf: 'of the Fox', min: 1, max: l => 2 + l },
   { k: 'vit', pre: 'Stalwart', suf: 'of the Ox', min: 1, max: l => 2 + l },
   { k: 'hp', pre: 'Hale', suf: 'of Life', min: 5, max: l => 8 + l * 4 },
-  { k: 'regen', pre: 'Mending', suf: 'of Renewal', min: 0.3, max: l => 0.6 + l * 0.2, dec: true },
   { k: 'armor', pre: 'Warded', suf: 'of Iron', min: 2, max: l => 3 + l * 2, noWeapon: true },
   { k: 'crit', pre: 'Keen', suf: 'of Precision', min: 1, max: l => Math.min(3 + l * 0.5, 12) },
   { k: 'dmg', pre: 'Cruel', suf: 'of Slaughter', min: 5, max: l => 10 + l * 3 },
@@ -446,14 +445,20 @@ const MON = {
   skeleton: { name: 'Skeleton Warrior', scale: 1.0, hp: 26, dmg: [3, 6], armor: 5, speed: 2.5, reach: 1.1, cd: 1.2, xp: 16, r: 0.32, minD: 1, w: 3 },
   ghoul:    { name: 'Ghoul', scale: 0.95, hp: 20, dmg: [2, 5], armor: 2, speed: 3.3, reach: 1.0, cd: 0.9, xp: 13, r: 0.3, minD: 1, w: 3 },
   spider:   { name: 'Cave Spider', scale: 0.78, hp: 15, dmg: [2, 4], armor: 1, speed: 3.9, reach: 1.0, cd: 0.8, xp: 11, r: 0.34, minD: 1, w: 2 },
-  wraith:   { name: 'Wraith', scale: 1.0, hp: 22, dmg: [4, 7], armor: 3, speed: 2.3, ranged: true, range: 6.5, cd: 1.9, xp: 22, r: 0.3, minD: 2, w: 2, float: true },
-  demon:    { name: 'Pit Demon', scale: 1.3, hp: 75, dmg: [8, 13], armor: 12, speed: 2.1, reach: 1.35, cd: 1.5, xp: 60, r: 0.45, minD: 3, w: 1 },
+  wraith:   { name: 'Wraith', scale: 1.0, hp: 22, dmg: [4, 7], armor: 3, speed: 2.3, ranged: true, range: 6.5, cd: 1.9, xp: 22, r: 0.3, minD: 3, w: 2, float: true },
+  demon:    { name: 'Pit Demon', scale: 1.3, hp: 75, dmg: [8, 13], armor: 12, speed: 2.1, reach: 1.35, cd: 1.5, xp: 60, r: 0.45, minD: 5, w: 1 },
 };
 const CHAMP_PRE = ['Dread', 'Blighted', 'Bloodsoaked', 'Ancient', 'Accursed', 'Ravenous'];
 // Boss-room furnishings: [type, count], and the depth from which each first appears.
 const BOSS_DECOR = [['throne', 1], ['altar', 1], ['sarcophagus', 1], ['banner', 2], ['pillar', 2], ['candelabrum', 2], ['skullpile', 3]];
 const DECOR_FROM = { skullpile: 3, banner: 3, candelabrum: 4, pillar: 5, sarcophagus: 6, altar: 7, throne: 8 };
-const BOSS_ROOM_FROM = 3, BOSS_FROM = 4;   // depth 3's boss room stands empty: a premonition of what is to come
+const BOSS_ROOM_FROM = 3, BOSS_FROM = 6;   // depth 3's boss room stands empty: a premonition of what is to come;
+                                           // depths 4 and 5 have none, from depth 6 every level has a boss
+const bossRoomAt = d => d === BOSS_ROOM_FROM || d >= BOSS_FROM;
+// Big rooms: from depth 3, every second depth (3, 5, 7, ...) has one: boss-room sized, with 2 grey banners and
+// a larger pack of easier monsters (see buildLevel).
+const bigRoomAt = d => d >= 3 && d % 2 === 1;
+const DEMON_ROOM_AT = 4;   // depth 4 has one room holding a single Pit Demon, a foretaste before depth 5
 const BOSS_NAMES = ['Morgrath', 'Vexhollow', 'Ulthane', 'Skarn', 'Belmorah', 'Grisvald', 'Nythra', 'Corvane', 'Drokkar', 'Ashmire'];
 const LEVEL_NAMES = ['The Forsaken Crypt', 'The Ossuary', 'Halls of the Hollow', 'The Weeping Catacombs', 'Sepulchre of Ash',
   'The Blood Vaults', 'Throne of Bones', 'The Abyssal Nave'];
@@ -462,9 +467,9 @@ const depthName = d => LEVEL_NAMES[(d - 1) % 8] + (d > 8 ? ' ' + ROMAN(Math.ceil
 // Tiers: normal; champion (10 % from depth 2, red glow); boss (one per level, green glow, see buildLevel).
 const TIER = { normal: { size: 1, hp: 1, dmg: 1, xp: 1, armor: 0 }, champ: { size: 1.15, hp: 2.5, dmg: 1.5, xp: 3, armor: 0 },
   boss: { size: 1.35, hp: 6, dmg: 1.8, xp: 8, armor: 4 } };
-function makeMonster(type, x, y, d, boss = false, forceChamp = false) {
+function makeMonster(type, x, y, d, boss = false, forceChamp = false, noChamp = false) {
   const b = MON[type];
-  const champ = !boss && (forceChamp || (d >= 2 && rnd() < 0.1)), T = TIER[boss ? 'boss' : champ ? 'champ' : 'normal'];
+  const champ = !boss && !noChamp && (forceChamp || (d >= 2 && rnd() < 0.1)), T = TIER[boss ? 'boss' : champ ? 'champ' : 'normal'];
   const hpS = Math.pow(1.22, d - 1), dmS = Math.pow(1.22, d - 1);   // +22 % life and damage per depth
   const m = { type, b, x, y, r: boss ? Math.min(b.r * 1.15, 0.48) : b.r * T.size, scale: b.scale * T.size, lvl: d, champ, boss,
     name: boss ? pick(BOSS_NAMES) + ', ' + b.name + ' Tyrant' : champ ? pick(CHAMP_PRE) + ' ' + b.name : b.name,
@@ -537,6 +542,12 @@ function migrateHero(h) {
     delete h.potions;
   }
   h.hotkeys = h.hotkeys.map(k => k && k.type === 'potion' ? { type: 'use', pot: 'health' } : k);
+  // regeneration was removed from items: drop regen bonuses; an old Bone Talisman gets the new crit bonus instead
+  for (const it of [...Object.values(h.equip), ...h.inv]) {
+    if (!it || !it.stats || it.stats.regen == null) continue;
+    delete it.stats.regen;
+    if (it.base === 'bonetalisman' && it.stats.crit == null) it.stats.crit = Math.round(3 * (1 + 0.1 * (it.ilvl - 1)));
+  }
 }
 function readSave() {
   try { const sv = JSON.parse(localStorage.getItem(SAVE_KEY)); if (sv && sv.v === 1 && sv.heroes) return sv; } catch (e) {}
@@ -554,6 +565,9 @@ function saveHero() {
 // =====================================================================================
 //  Hero stats
 // =====================================================================================
+// Life regeneration is switched off (it rewarded stalling): REGEN, the share of max life regenerated per second,
+// is 0, and no item has a regen bonus. The mechanics stay (h.st.regen, applied every frame) for later use.
+const REGEN = 0;
 const xpNeed = l => Math.round(120 * Math.pow(l, 1.7));
 function recalc() {
   const h = G.hero, s = { str: h.base.str, dex: h.base.dex, vit: h.base.vit, hp: 0, regen: 0, armor: 0, crit: 0, dmg: 0, speed: 0 };
@@ -561,7 +575,7 @@ function recalc() {
   if (h.ironT > 0) s.armor = Math.round(s.armor * IRON.mult + IRON.add);   // iron skin potion
   const maxHp = Math.round(40 + s.vit * 4 + h.lvl * 6 + s.hp);
   h.st = { str: s.str, dex: s.dex, vit: s.vit, maxHp, armor: s.armor, crit: 5 + s.dex * 0.2 + s.crit, dmgPct: s.dmg,
-    speed: 4.2 * (1 + s.speed / 100), regen: maxHp * 0.002 + s.regen, bonusRegen: s.regen };
+    speed: 4.2 * (1 + s.speed / 100), regen: maxHp * REGEN + s.regen };
   h.hp = Math.min(h.hp, maxHp);
 }
 function weaponOf(h) { return h.equip.weapon || { kind: 'fist', min: 1, max: 3, cd: 0.6, name: 'Bare hands' }; }
@@ -590,8 +604,10 @@ function buildLevel(d) {
   const rooms = [];
   const want = Math.min(9 + Math.floor(d / 2), 18);
   for (let tries = 0; tries < 600 && rooms.length < want; tries++) {
-    // the second room is the boss room (from depth 3): 11-14 tiles a side, about 2.8x the area of a normal 5-10 room
-    const big = d >= BOSS_ROOM_FROM && rooms.length === 1 && tries < 300;
+    // after the start room come the big rooms of this depth: the boss room (bossRoomAt), then the big room
+    // (bigRoomAt); 11-14 tiles a side, about 2.8x the area of a normal 5-10 room
+    const bigKinds = [bossRoomAt(d) && 'boss', bigRoomAt(d) && 'horde'].filter(Boolean);
+    const big = rooms.length >= 1 && rooms.length <= bigKinds.length && tries < 300 ? bigKinds[rooms.length - 1] : false;
     const rw = big ? ri(11, 14) : ri(5, 10), rh = big ? ri(11, 14) : ri(5, 10), rx = ri(2, w - rw - 3), ry = ri(2, h - rh - 3);
     if (rooms.some(r => rx < r.x + r.w + 3 && rx + rw + 3 > r.x && ry < r.y + r.h + 3 && ry + rh + 3 > r.y)) continue;
     rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + (rw >> 1), cy: ry + (rh >> 1), big });
@@ -684,8 +700,17 @@ function buildLevel(d) {
   // boss room: the largest of the rooms that are neither the start nor the stairs room, preferring rooms far
   // from the start (area x path distance); the boss stands near its middle beside a sealed guardian's chest
   // (fallback if the big room didn't fit: the largest other room, preferring rooms far from the start)
-  const bossRoom = d < BOSS_ROOM_FROM ? null : rooms.find(r => r.big) || rooms.filter(r => r !== start && r !== far)
+  const bossRoom = !bossRoomAt(d) ? null : rooms.find(r => r.big === 'boss') || rooms.filter(r => r !== start && r !== far && !r.big)
     .sort((a, b) => b.w * b.h * (distArr[b.cy * w + b.cx] + 10) - a.w * a.h * (distArr[a.cy * w + a.cx] + 10))[0] || far;
+  // the big room (fallback: the largest remaining room); depth 4's single Pit Demon gets a random normal room
+  const bigRoom = !bigRoomAt(d) ? null : rooms.find(r => r.big === 'horde') || rooms.filter(r => r !== start && r !== far && r !== bossRoom)
+    .sort((a, b) => b.w * b.h - a.w * a.h)[0] || null;
+  const normalRooms = rooms.filter(r => r !== start && r !== bossRoom && r !== bigRoom);
+  const demonRoom = d === DEMON_ROOM_AT && normalRooms.length ? pick(normalRooms) : null;
+  // a type is "new" on the depth where it first appears: then at most 2 of it per room (skeletons and spiders
+  // are exempt); typeFor draws a type by weight, skipping new types that already have 2 in the room
+  const isNew = k => MON[k].minD === d && k !== 'skeleton' && k !== 'spider';
+  const typeFor = (pool, cnt) => { for (let k = 0; k < 30; k++) { const t = pick(pool); if (!isNew(t) || (cnt[t] || 0) < 2) return t; } return 'skeleton'; };
   // 50 %: one green-flamed brazier in a room joined to the boss room by a corridor (a hint of what's near)
   const nextToBoss = !bossRoom ? [] : links.filter(l => l.includes(bossRoom)).map(l => l[0] === bossRoom ? l[1] : l[0]).filter(r => r !== bossRoom);
   const greenRoom = nextToBoss.length && rnd() < 0.5 ? pick(nextToBoss) : null;
@@ -714,23 +739,39 @@ function buildLevel(d) {
       }
       continue;
     }
+    if (r === bigRoom) for (let i = 0; i < 2; i++) place('banner', r, true, { decor: true, grey: true });
     if (rnd() < 0.75 || r === start) place('brazier', r, true);
     if (r !== start && rnd() < 0.38) place('chest', r, true);
     for (let i = ri(0, 2); i > 0; i--) place('urn', r, true);
     for (let i = ri(0, 2); i > 0; i--) place('bones', r, false);
     if (rnd() < 0.2) place('gold', r, false, { amount: Math.max(1, Math.round(ri(3, 12) * d * LOOT)) });
     if (r === start) continue;
-    const n = Math.min(7, 1 + Math.floor((r.w * r.h) / 22) + Math.floor(d / 3) + (rnd() < 0.4 ? 1 : 0));
+    const spot = () => { const p = freeInner(r, false); return p && [p[0] + 0.5 + (rnd() - 0.5) * 0.4, p[1] + 0.5 + (rnd() - 0.5) * 0.4]; };
+    if (r === demonRoom) { const p = spot(); if (p) monsters.push(makeMonster('demon', p[0], p[1], d, false, false, true)); continue; }
+    if (r === bigRoom) {
+      // big room: 5-7 monsters (+1 every 2 depths after 3), no champions, only the easier types, those available
+      // from depth - 4 or earlier (skeletons always), with skeletons weighted x3
+      const pool = []; for (const k in MON) if (k === 'skeleton' || MON[k].minD <= d - 4) for (let i = 0; i < MON[k].w * (k === 'skeleton' ? 3 : 1); i++) pool.push(k);
+      const cnt = {};
+      for (let i = ri(5, 7) + Math.floor((d - 3) / 2); i > 0; i--) { const p = spot(); if (!p) break;
+        const t = typeFor(pool, cnt); cnt[t] = (cnt[t] || 0) + 1; monsters.push(makeMonster(t, p[0], p[1], d, false, false, true)); }
+      continue;
+    }
+    // normal room: 1 to cap monsters, evenly (cap 3 at depths 1-2, +1 every 2 depths, at most 7), +1 half the
+    // time in a large room (64+ tiles); champions bring escorts on top
+    const cap = Math.min(7, 3 + Math.floor((d - 1) / 2));
+    const n = ri(1, cap) + (r.w * r.h >= 64 && rnd() < 0.5 ? 1 : 0), cnt = {};
     for (let i = 0; i < n; i++) {
-      const p = freeInner(r, false); if (!p) break;
-      const m = makeMonster(pick(weighted), p[0] + 0.5 + (rnd() - 0.5) * 0.4, p[1] + 0.5 + (rnd() - 0.5) * 0.4, d);
+      const p = spot(); if (!p) break;
+      const t = typeFor(weighted, cnt); cnt[t] = (cnt[t] || 0) + 1;
+      const m = makeMonster(t, p[0], p[1], d);
       monsters.push(m);
-      if (m.champ) {   // a champion brings 2-3 escorts of its own type, on free tiles within 2 of it
-        for (let e = ri(2, 3), k = 0; e > 0 && k < 30; k++) {
+      if (m.champ) {   // a champion brings 2-3 escorts of its own type (a new type: up to 2 in the room), on free tiles within 2 of it
+        for (let e = isNew(t) ? Math.min(ri(2, 3), 2 - cnt[t]) : ri(2, 3), k = 0; e > 0 && k < 30; k++) {
           const ex = Math.floor(m.x) + ri(-2, 2), ey = Math.floor(m.y) + ri(-2, 2);
           if (at(ex, ey) !== T_FLOOR || occ[ey * w + ex] || monsters.some(o => Math.floor(o.x) === ex && Math.floor(o.y) === ey)) continue;
-          const esc = makeMonster(m.type, ex + 0.5, ey + 0.5, d); if (esc.champ) continue;
-          monsters.push(esc); e--;
+          const esc = makeMonster(m.type, ex + 0.5, ey + 0.5, d, false, false, true);
+          monsters.push(esc); cnt[t]++; e--;
         }
       }
     }
@@ -1320,7 +1361,7 @@ function refreshUI() {
   });
   const st = h.st, [dn, dx] = weaponDamageRange(h), w = weaponOf(h);
   const rows = [['Level', h.lvl], ['Experience', h.xp + ' / ' + xpNeed(h.lvl)], ['Strength', st.str], ['Dexterity', st.dex], ['Vitality', st.vit],
-    ['Life', Math.ceil(h.hp) + ' / ' + st.maxHp], ['Life regen', st.regen.toFixed(1) + ' / s'], ['Armor', st.armor],
+    ['Life', Math.ceil(h.hp) + ' / ' + st.maxHp], ['Armor', st.armor],
     ['Damage', Math.round(dn) + '–' + Math.round(dx)], ['Attack speed', (1 / w.cd).toFixed(2) + ' / s'], ['Critical', st.crit.toFixed(1) + '%'],
     ['Move speed', Math.round(st.speed / 4.2 * 100) + '%'], ['Kills', h.kills], ['Gold', h.gold]];
   $('eqTitle').textContent = G.hero.name || 'Equipment';
@@ -1814,6 +1855,7 @@ function softShadow(x, y, rx, ry, a, mid = 0.55) {   // mid: where the shade is 
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.fill(); ctx.restore();
 }
 const GREEN_FIRE = 'hue-rotate(80deg) saturate(1.4)';   // the rare green brazier next to the boss room
+const GREY_BANNER = 'grayscale(1) brightness(0.85)';      // the big room's banners
 // Sprite effects. Canvas filters (ctx.filter) are missing in WebKit (Safari, and every browser on iOS), so drawSprite
 // draws each effect either as a filter or, without filter support, by other means:
 //   fx.filter  the CSS filter string used where filters work;
@@ -1887,9 +1929,9 @@ function drawProp(o) {
     softShadow(sx, bottom - w * k, w * rxF, w * ryF, 0.5);
   }
   const glow = o.boss && !o.used ? 'drop-shadow(0 0 6px rgba(70,235,110,0.9))' : '';
-  const fire = o.green ? GREEN_FIRE : '';
+  const fire = o.green ? GREEN_FIRE : o.grey ? GREY_BANNER : '';
   const fx = { filter: [hov ? 'brightness(1.45)' : '', glow, fire].filter(Boolean).join(' '), bright: hov ? 1.45 : 1,
-    glow: glow ? [6, 'rgba(70,235,110,0.9)'] : null, tint: fire ? 'rgb(90,235,110)' : null };
+    glow: glow ? [6, 'rgba(70,235,110,0.9)'] : null, tint: o.green ? 'rgb(90,235,110)' : o.grey ? 'rgb(128,128,128)' : null };
   if (o.flip) { ctx.save(); ctx.translate(sx, 0); ctx.scale(-1, 1); drawSprite(IMG.props, px, py, pw, ph, -w / 2, top, w, hh, fx); ctx.restore(); }
   else drawSprite(IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh, fx);
   if (o.type === 'brazier') { // flickering embers

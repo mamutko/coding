@@ -82,7 +82,9 @@ Items are plain data, so the hero's equipment, pack (potion stacks included) and
 **Older saves** kept health potions as a counter (`hero.potions`) and a `{ type: 'potion' }` quick key; on loading,
 the counter becomes a health potion stack in the first free pack cell (if the pack is full, the stack is dropped
 on the floor at the start of the level), with an id after the highest saved one, and the key becomes a
-`{ type: 'use', pot: 'health' }` key. The iron skin effect is not saved. Every read and write
+`{ type: 'use', pot: 'health' }` key. Items from before regeneration was removed lose their life regen bonus,
+and an old *Bone Talisman* gets the current crit bonus instead (`3 × (1 + 0.1·(item level − 1))`, rounded).
+The iron skin effect is not saved. Every read and write
 is wrapped in `try`; if storage is unavailable the game still plays, logs that progress could not be saved,
 and the picker shows no saved heroes.
 
@@ -174,12 +176,12 @@ and the picker shows no saved heroes.
   like its stack) rises 18 px above the hero's head and fades out over the 0.4 s; iron skin gives the hero a
   steel-blue glow (`drop-shadow`).
 - **Sprite effects without canvas filters.** The effects above (hit flash, hover brightening, champion / boss /
-  iron skin / guardian's chest glows, potion tints, the green brazier) are canvas filters (`ctx.filter`), which
+  iron skin / guardian's chest glows, potion tints, the green brazier, grey banners) are canvas filters (`ctx.filter`), which
   WebKit lacks: Safari, and every browser on iOS (Edge and Chrome there too). `drawSprite` draws each sprite
   with its filter where `ctx.filter` exists (`CANVAS_FILTER`), and otherwise imitates each effect: a glow
   becomes a canvas shadow (`shadowBlur` = 2 × the drop-shadow's blur), brightening extra copies of the sprite
   drawn with `lighter` (alpha = the brightness above 1), and a hue tint a cached copy of the sprite recoloured
-  with the `color` blend (potions in their colour, the green brazier green). The rune circle's `blur(3px)` has
+  with the `color` blend (potions in their colour, the green brazier green, the big room's banners grey). The rune circle's `blur(3px)` has
   no fallback (its 26 px shadow blur still softens it).
 - **Hover.** Monsters, items and interactable objects register screen-space hit boxes every frame. Monsters
   take priority over everything else. A hovered thing is brightened, objects show a name label, and the
@@ -206,7 +208,7 @@ Each depth `d` gets a freshly generated level.
 - **Doors.** A corridor tile in a room's surrounding ring, with void on both sides along the ring, is a door
   candidate. Each candidate becomes a closed door with 55 % probability.
 - **Stairs down** are placed in the centre of the room farthest from the start room (by BFS walking distance),
-  never the boss room.
+  never the boss room or the big room.
   The hero starts in the centre of the first room, which never has monsters or chests.
 - **Props per room:**
   - brazier: 75 % chance, always in the start room; blocking
@@ -214,13 +216,15 @@ Each depth `d` gets a freshly generated level.
   - urns: 0–2; blocking
   - bones: 0–2
   - gold pile: 20 % chance, worth 3–12 × d × `LOOT`
-- **Boss room** (from depth 3, `BOSS_ROOM_FROM`; depths 1 and 2 have none, and no boss). From depth 3 the
-  second room placed is the boss room, 11–14 tiles a side (about 2.8× the area of a normal
-  5–10 room; it gets the first 300 placement tries, and if it doesn't fit, the room with the largest
-  `area × (BFS distance from the start + 10)` other than the start and stairs rooms is used instead). The stairs
-  never go in it. **At depth 3 it stands empty**, a premonition of what is to come: only the rune circle, the
-  braziers and the furnishings, with no boss, guards, champion or guardian's chest. From depth 4
-  (`BOSS_FROM`) it holds:
+- **Big rooms.** Right after the start room, the generator places this depth's big rooms, each 11–14 tiles a
+  side (about 2.8× the area of a normal 5–10 room): first the boss room (if the depth has one), then the big
+  room (if it has one). They get the first 300 placement tries; one that doesn't fit falls back to an existing
+  room (see below).
+- **Boss room** at depth 3 (`BOSS_ROOM_FROM`) and from depth 6 (`BOSS_FROM`) on (`bossRoomAt`); depths 1–2 and
+  4–5 have none, and no boss. If the big boss room doesn't fit, the room with the largest
+  `area × (BFS distance from the start + 10)` other than the start, stairs and big rooms is used instead. The
+  stairs never go in it. **At depth 3 it stands empty**, a premonition of what is to come: only the rune circle,
+  the braziers and the furnishings, with no boss, guards, champion or guardian's chest. From depth 6 it holds:
   - the boss on the centre tile, standing on the **rune circle** (see Rendering);
   - at least 4 ordinary braziers and a **guardian's chest**, on the edge (blocking);
   - furnishings (non-interactive), each type only from its unlock depth (`DECOR_FROM`): 3 skull piles on
@@ -232,14 +236,27 @@ Each depth `d` gets a freshly generated level.
   - 1–2 ordinary monsters and a 50 % chance of an extra champion (without escorts);
   - no chests, urns, bones or gold piles.
   The boss's type is drawn by weight from the types unlocked at depth `d + 1`, so it can be a type not yet
-  seen at this depth (from depth 4 every type is already unlocked, so this only matters if bosses start earlier).
+  seen at this depth (from depth 6 every type is already unlocked, so this only matters if bosses start earlier).
+- **Big room** at depths 3, 5, 7, … (every second depth from 3, `bigRoomAt`). If the big one doesn't fit, the
+  largest room other than the start, stairs and boss rooms is used. It has the props of a normal room plus
+  **2 grey banners** (the banner sprite drawn with `grayscale(1) brightness(0.85)`; without canvas filters, tinted
+  grey) on its edge, and a larger pack of easier monsters: `5–7 + ⌊(d − 3)/2⌋`, never champions, of the types
+  unlocked at depth `d − 4` or earlier, skeletons always allowed and weighted ×3 (depth 3: skeletons only;
+  depth 5: skeletons, ghouls, spiders; depth 7: also wraiths).
+- **The lone demon** (depth 4, `DEMON_ROOM_AT`): one random normal room (not the start room) holds a single
+  Pit Demon (normal tier, never a champion) and nothing else, a foretaste before demons appear from depth 5.
 - **Green brazier.** When there is a boss room, with 50 % chance one room joined to the boss room by a corridor gets an extra brazier
   with green flames, a hint of what lies next door. Corridors are recorded as room pairs when carved.
 - Blocking props are only placed on a room's edge, against solid wall, and never next to a doorway or
   corridor mouth, so they can't cut off a path.
-- **Monsters per room** (not the start or boss room): `min(7, 1 + ⌊area/22⌋ + ⌊d/3⌋ + (40 % chance of +1))`.
-  The type is drawn by weight from the types unlocked at that depth. A **champion** also brings 2–3 escorts of
-  its own type (never champions themselves) on free floor tiles within 2 tiles of it.
+- **Monsters per room** (normal rooms: not the start, boss, big or lone-demon room): an even draw from 1 to
+  `cap = min(7, 3 + ⌊(d − 1)/2⌋)` (3 at depths 1–2, 4 at 3–4, 5 at 5–6, …), plus 1 with 50 % chance in a room
+  of 64+ tiles. So a single monster stays possible at every depth. The type is drawn by weight from the types
+  unlocked at that depth. A **champion** also brings 2–3 escorts of its own type (never champions themselves)
+  on free floor tiles within 2 tiles of it.
+- **New types** (`isNew`): on the depth where a type first appears (ghouls at 1, wraiths at 3, Pit Demons at
+  5), a room holds at most 2 of it, escorts included; further draws pick another type. Skeletons and spiders
+  are exempt.
 
 ## Movement & pathfinding
 
@@ -260,8 +277,11 @@ Each depth `d` gets a freshly generated level.
 - Starts with: STR 10, DEX 10, VIT 10, a *Rusty Short Sword* (equipped), a *Short Bow* in the pack, and a
   stack of 3 health potions in the pack. Quick keys start as 1 = sword, 2 = bow, 3 = health potion.
 - **Maximum life:** `40 + 4·VIT + 6·level + life bonuses`.
-- **Regeneration:** `0.2 % of max life per second + item regen`, always active. Life is shown in the red
-  orb at the bottom left.
+- **No regeneration.** Life regeneration is switched off because it rewarded stalling: `REGEN` (the share of
+  max life regenerated per second) is 0, and no item has a regen bonus. The mechanics stay in the code
+  (`h.st.regen = REGEN × max life + item regen`, applied every frame) but always add 0, and the stats panel
+  doesn't show it. Life comes back only from potions and level-ups. Life is shown in the red orb at the bottom
+  left.
 - **Critical chance:** `5 % + 0.2 %·DEX + item crit`. Criticals deal ×1.75.
 - **Experience:** level `L` needs `round(120 · L^1.7)` XP (120, 390, 1851 … for levels 1, 2, 5). On a level-up, STR, DEX and VIT each gain +2 and
   the hero heals 20 % of max life (not fully). XP comes from:
@@ -379,8 +399,8 @@ and item uses:
 | Skeleton Warrior | 26 | 3–6 | 5 | 2.5 | 1.2 s | 16 | 1 |
 | Ghoul | 20 | 2–5 | 2 | 3.3 | 0.9 s | 13 | 1 |
 | Cave Spider | 15 | 2–4 | 1 | 3.9 | 0.8 s | 11 | 1 |
-| Wraith (ranged) | 22 | 4–7 | 3 | 2.3 | 1.9 s | 22 | 2 |
-| Pit Demon | 75 | 8–13 | 12 | 2.1 | 1.5 s | 60 | 3 |
+| Wraith (ranged) | 22 | 4–7 | 3 | 2.3 | 1.9 s | 22 | 3 |
+| Pit Demon | 75 | 8–13 | 12 | 2.1 | 1.5 s | 60 | 5 (one lone demon at depth 4) |
 
 Spawn weights are 3 : 3 : 2 : 2 : 1 in table order.
 
@@ -399,7 +419,7 @@ Spawn weights are 3 : 3 : 2 : 2 : 1 in table order.
 
 | | Normal | Champion | Boss |
 |---|---|---|---|
-| Occurs | always | 10 % of monsters from depth 2 (none at depth 1) | one per level from depth 4, in the boss room |
+| Occurs | always | 10 % of monsters from depth 2 (none at depth 1; never in the big room or as escorts) | one per level from depth 6, in the boss room |
 | Name | type name | prefix + type, e.g. *Dread Ghoul* | *&lt;name&gt;, &lt;type&gt; Tyrant*, e.g. *Morgrath, Ghoul Tyrant* |
 | Life / damage / XP | ×1 | ×2.5 / ×1.5 / ×3 | ×6 / ×1.8 / ×8 |
 | Armor | — | — | + 4·d |
@@ -441,12 +461,12 @@ equipped at a time. Potions are not equipped; they are used (see [Potions](#poti
 | Grave Ring | ring | +8 % damage | 5 |
 | Sapphire Amulet | amulet | +3 DEX | 1 |
 | Blood Amulet | amulet | +15 life | 3 |
-| Bone Talisman | amulet | +1 life regen/s | 5 |
+| Bone Talisman | amulet | +3 % crit | 5 |
 
 **Slot gates by depth.** On top of the item-level unlocks, no rings drop before depth 3 (`RING_FROM`) and no
 amulets before depth 5 (`AMULET_FROM`); the base is then drawn from the other slots. Like the rarity gates,
-boss-room loot (the boss, its guards and the guardian's chest) uses depth + 2, so the boss room (which has
-loot from depth 4) can drop amulets from depth 4 rather than 5.
+boss-room loot (the boss, its guards and the guardian's chest) uses depth + 2 (the boss room only has loot
+from depth 6, where amulets are already allowed).
 
 **Scaling.** Weapon damage and armor scale by `1 + 0.14·(ilvl − 1)`; built-in bonuses scale by
 `1 + 0.1·(ilvl − 1)`.
@@ -466,7 +486,7 @@ the roll.
 **Rarity gates by depth.** No magic items before depth 2 (`MAGIC_FROM`) and no rares before depth 4
 (`RARE_FROM`); a roll above what the depth allows is lowered to the best allowed rarity (rare → magic at
 depths 2–3, anything → common at depth 1). Loot from the **boss room** (the boss, its guards and the
-guardian's chest) uses the rules of depth + 2; since the boss room only has loot from depth 4, where every
+guardian's chest) uses the rules of depth + 2; since the boss room only has loot from depth 6, where every
 rarity is already allowed, the rarity gates never limit it.
 
 **Affixes** (value ranges grow with item level `l`):
@@ -477,7 +497,6 @@ rarity is already allowed, the rarity gates never limit it.
 | +DEX | Nimble / of the Fox | 1 – 2+l |
 | +VIT | Stalwart / of the Ox | 1 – 2+l |
 | +Life | Hale / of Life | 5 – 8+4l |
-| +Life regen/s | Mending / of Renewal | 0.3 – 0.6+0.2l |
 | +Armor | Warded / of Iron | 2 – 3+2l (not on weapons) |
 | +Crit % | Keen / of Precision | 1 – min(3+0.5l, 12) |
 | +Damage % | Cruel / of Slaughter | 5 – 10+3l |
@@ -558,7 +577,7 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
   armor, and every bonus. For pack items it also compares with the equipped item in that slot: base DPS
   difference for weapons, armor difference otherwise. A potion's tooltip shows its name in its colour, "Potion ·
   instant use", its effect and the stack count. A hint line lists the mouse actions.
-- **Attributes:** level, XP, STR / DEX / VIT, life (live), regen, armor, damage range, attack speed, crit,
+- **Attributes:** level, XP, STR / DEX / VIT, life (live), armor, damage range, attack speed, crit,
   move speed, kills, gold.
 - **Quick keys:** hover a weapon (in the pack or the weapon slot) or a potion stack, then press `1`–`9` / `0`
   to bind it to that key (or use the action box's key row). A weapon, or a potion type, can only be on one key,

@@ -91,7 +91,7 @@ const server = http.createServer((req, res) => {
           const raw = m.dmg[0] + rnd() * (m.dmg[1] - m.dmg[0]);
           const v = Math.max(1, Math.round(raw * (1 - armorReduce(h.st.armor, m.lvl))));
           h.hp -= v; st.taken += v; const cat = m.boss ? 'boss' : m.champ ? 'champ' : m.type; st.src[cat] = (st.src[cat] || 0) + v;
-          if (h.hp <= 0) { st.deaths++; h.hp = h.st.maxHp; }
+          if (h.hp <= 0) { st.deaths++; st.deathAt[st.room] = (st.deathAt[st.room] || 0) + 1; h.hp = h.st.maxHp; }
           st.minHp = Math.min(st.minHp, Math.max(0, h.hp) / h.st.maxHp);
         }
       }
@@ -103,8 +103,7 @@ const server = http.createServer((req, res) => {
       const [mn, mx] = weaponDamageRange(h);
       return { lvl: h.lvl, hp: h.st.maxHp, armor: h.st.armor, dr: armorReduce(h.st.armor, d), weapon: w.kind, wname: w.name,
         dmin: mn, dmax: mx, aps: 1 / w.cd, crit: h.st.crit, dps, score: score(h, d),
-        skelTTK: m.maxHp / dps, skelKillsHero: h.st.maxHp / mDps(m), demonTTK: d >= 3 ? dm.maxHp / dpsVs(h, dm) : null,
-        demonKillsHero: d >= 3 ? h.st.maxHp / mDps(dm) : null,
+        skelTTK: m.maxHp / dps, skelKillsHero: h.st.maxHp / mDps(m), demonTTK: dm.maxHp / dpsVs(h, dm), demonKillsHero: h.st.maxHp / mDps(dm),
         rarity: Object.values(h.equip).filter(Boolean).map(i => i.rarity[0]).join('') };
     }
     const out = [];
@@ -115,7 +114,7 @@ const server = http.createServer((req, res) => {
         G.depth = d; G.items = []; G.fx = []; G.texts = []; G.proj = [];
         buildLevel(d);
         const st = { d, enter: snap(h, d), deaths: 0, pots: { health: 0, ironskin: 0 }, taken: 0, minHp: 1, fightT: 0,
-          mons: G.monsters.length, champs: G.monsters.filter(m => m.champ).length, boss: !!G.map.boss, potsFound: 0, items: 0, src: {}, groups: [] };
+          mons: G.monsters.length, champs: G.monsters.filter(m => m.champ).length, boss: !!G.map.boss, potsFound: 0, items: 0, src: {}, groups: [], deathAt: {}, room: '' };
         const rooms = G.map.rooms.slice().sort((a, b) => (a === G.map.bossRoom) - (b === G.map.bossRoom));
         const bag = [];
         const loot = () => {
@@ -128,6 +127,7 @@ const server = http.createServer((req, res) => {
         };
         for (const r of rooms) {
           const group = G.monsters.filter(m => !m.dead && roomAt(m.x, m.y) === r);
+          st.room = r === G.map.bossRoom ? 'boss' : G.objects.some(o => o.grey && roomAt(o.x, o.y) === r) ? 'big' : group.some(m => m.champ) ? 'champ' : 'normal';
           if (group.length) { st.groups.push(group.length); fight(group, d, st); }
           for (const o of G.objects.slice()) if (['chest', 'urn', 'bones', 'gold', 'door'].includes(o.type) && roomAt(o.x, o.y) === r) act({ kind: 'obj', r: o });
           loot();
@@ -140,20 +140,21 @@ const server = http.createServer((req, res) => {
       }
       out.push(runOut);
     }
-    return out;
+    return { out, MON: { skeleton: MON.skeleton, demon: MON.demon } };
   }, [RUNS, MAXD, P]);
   await b.close(); server.close();
   if (errs.length) console.error('Page errors:', errs.slice(0, 3));
-  if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify(res));
-  report(res);
+  if (JSON_OUT) fs.writeFileSync(JSON_OUT, JSON.stringify(res.out));
+  report(res.out, res.MON);
 })();
 
-function report(r) {
+function report(r, MONS) {
   const med = a => { a = a.filter(x => x != null).sort((x, y) => x - y); return a.length ? a[Math.floor(a.length / 2)] : null; };
   const mean = a => a.reduce((s, x) => s + x, 0) / a.length;
   const f = (x, n = 1) => x == null ? '—' : x.toFixed(n);
-  const MON = { skeleton: [26, 3, 6, 5], demon: [75, 8, 13, 12] };   // from MON in index.html (life, hit min, hit max, armor)
-  const mon = (k, d) => { const [hp, a, b, ar] = MON[k], s = Math.pow(1.22, d - 1); return `${Math.round(hp * s)} / ${((a + b) / 2 * s).toFixed(1)} / ${ar + 3 * (d - 1)}`; };
+  // normal-tier stats at depth d, as makeMonster computes them (+22 % life and damage, +3 armor per depth)
+  const mon = (k, d) => { const m = MONS[k], s = Math.pow(1.22, d - 1); return `${Math.round(m.hp * s)} / ${((m.dmg[0] + m.dmg[1]) / 2 * s).toFixed(1)} / ${m.armor + 3 * (d - 1)}`; };
+  const DEM = MONS.demon.minD;
   const out = [];
   out.push(`Runs: ${r.length}, depths 1–${r[0].length}, travel ${P.TRAVEL} s between rooms, potion below ${P.POT_AT * 100} % life, max ${P.MELEE_MAX} in melee.`, '');
   out.push('### Hero vs. normal monsters (hero on arrival, medians)', '',
@@ -161,7 +162,7 @@ function report(r) {
     '|---|---|---|---|---|---|---|---|---|---|---|');
   for (let d = 0; d < r[0].length; d++) {
     const L = r.map(x => x[d]), e = k => med(L.map(x => x.enter[k])), D = d + 1;
-    out.push(`| ${D} | ${e('lvl')} | ${e('hp')} | ${e('armor')} (${f(e('dr') * 100, 0)} %) | ${f(e('dps'))} | ${mon('skeleton', D)} | ${D >= 3 ? mon('demon', D) : '—'} | ${f(e('skelTTK'), 2)} s | ${f(e('skelKillsHero'), 0)} s | ${D >= 3 ? f(e('demonTTK')) + ' s' : '—'} | ${D >= 3 ? f(e('demonKillsHero'), 0) + ' s' : '—'} |`);
+    out.push(`| ${D} | ${e('lvl')} | ${e('hp')} | ${e('armor')} (${f(e('dr') * 100, 0)} %) | ${f(e('dps'))} | ${mon('skeleton', D)} | ${D >= DEM ? mon('demon', D) : '—'} | ${f(e('skelTTK'), 2)} s | ${f(e('skelKillsHero'), 0)} s | ${D >= DEM ? f(e('demonTTK')) + ' s' : '—'} | ${D >= DEM ? f(e('demonKillsHero'), 0) + ' s' : '—'} |`);
   }
   out.push('', '### Whole level (means)', '',
     '| Depth | Monsters | Champions | Avg / largest room pack | Damage taken (× max life) | Potions found | Health potions drunk | Iron skin drunk | Runs with a death | Deaths per run |',
@@ -174,6 +175,11 @@ function report(r) {
   for (let d = 0; d < r[0].length; d++) {
     const src = {}; let tot = 0; for (const x of r.map(x => x[d])) for (const k in x.src) { src[k] = (src[k] || 0) + x.src[k]; tot += x.src[k]; }
     out.push(`| ${d + 1} | ` + ['skeleton', 'ghoul', 'spider', 'wraith', 'demon', 'champ', 'boss'].map(k => src[k] ? f(src[k] / tot * 100, 0) + ' %' : '—').join(' | ') + ' |');
+  }
+  out.push('', '### Deaths per run, by room kind', '', '| Depth | Normal room | Room with a champion | Big room | Boss room |', '|---|---|---|---|---|');
+  for (let d = 0; d < r[0].length; d++) {
+    const L = r.map(x => x[d]), k = n => f(mean(L.map(x => x.deathAt[n] || 0)), 2);
+    out.push(`| ${d + 1} | ${k('normal')} | ${k('champ')} | ${k('big')} | ${k('boss')} |`);
   }
   console.log(out.join('\n'));
 }
