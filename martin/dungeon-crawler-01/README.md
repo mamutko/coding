@@ -29,8 +29,8 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | Left click on chest / door / urn / bones / gold / item / stairs | Walk to it and act on it: open, break, search, pick up, or descend. |
 | Right click, or `Shift` + left click, or a tap while a finger rests on the attack button (touch) | Attack with the equipped weapon (see [Combat](#combat)). Hold to keep attacking. |
 | `I`, `C` or `Tab` | Toggle the equipment overlay (`Esc` closes it). |
-| `1`–`9`, `0` | Quick keys: equip the bound weapon or drink a potion. |
-| `Q`, or a click / tap on the life orb | Drink a health potion. |
+| `1`–`9`, `0` | Quick keys: equip the bound weapon or use the bound potion (both are queued; see [Actions](#actions)). |
+| `Q`, or a click / tap on the life orb | Drink a health potion (queued like a quick key). |
 | `M` | Toggle the minimap. |
 | `N` | Toggle sound. |
 | Mouse wheel, or pinch with two fingers (touch) | Zoom (0.6×–1.5×). |
@@ -66,8 +66,12 @@ rendered behind it. The start button is enabled once all images have loaded.
 
 Progress is saved in the browser's `localStorage` under one key, `crypt-of-endless-night.save`:
 `{ v: 1, last: <id of the hero played last>, heroes: { <id>: entry } }`, where an entry is
-`{ id, name, depth, lvl, saved: <timestamp>, hero: { name, lvl, xp, base, equip, inv, potions, gold, hotkeys, kills, hp } }`.
-Items are plain data, so the hero's equipment, pack and quick keys are stored as they are. Every read and write
+`{ id, name, depth, lvl, saved: <timestamp>, hero: { name, lvl, xp, base, equip, inv, gold, hotkeys, kills, hp } }`.
+Items are plain data, so the hero's equipment, pack (potion stacks included) and quick keys are stored as they are.
+**Older saves** kept health potions as a counter (`hero.potions`) and a `{ type: 'potion' }` quick key; on loading,
+the counter becomes a health potion stack in the first free pack cell (if the pack is full, the stack is dropped
+on the floor at the start of the level), with an id after the highest saved one, and the key becomes a
+`{ type: 'use', pot: 'health' }` key. The iron skin effect is not saved. Every read and write
 is wrapped in `try`; if storage is unavailable the game still plays, logs that progress could not be saved,
 and the picker shows no saved heroes.
 
@@ -155,7 +159,9 @@ and the picker shows no saved heroes.
   (40 % opacity), heavily blurred (`blur(3px)` plus a 26 px green shadow blur), all additive (`lighter`).
 - **Effects.** Melee swings draw a sweeping crescent arc in the attack direction. Arrows are drawn as shafts with
   a tip, and wraith bolts as glowing green orbs. Hits spray blood-coloured sparks (green for wraiths), urns
-  burst into shards, and level-ups emit an expanding golden ring.
+  burst into shards, and level-ups emit an expanding golden ring. While a potion is being used, its icon (30 px, tinted
+  like its stack) rises 18 px above the hero's head and fades out over the 0.4 s; iron skin gives the hero a
+  steel-blue glow (`drop-shadow`).
 - **Hover.** Monsters, items and interactable objects register screen-space hit boxes every frame. Monsters
   take priority over everything else. A hovered thing is brightened, objects show a name label, and the
   cursor becomes a crosshair over monsters or a pointer over interactables.
@@ -232,8 +238,8 @@ Each depth `d` gets a freshly generated level.
 
 ## Hero
 
-- Starts with: STR 10, DEX 10, VIT 10, a *Rusty Short Sword* (equipped), a *Short Bow* in the pack, and
-  3 health potions. Quick keys start as 1 = sword, 2 = bow, 3 = potion.
+- Starts with: STR 10, DEX 10, VIT 10, a *Rusty Short Sword* (equipped), a *Short Bow* in the pack, and a
+  stack of 3 health potions in the pack. Quick keys start as 1 = sword, 2 = bow, 3 = health potion.
 - **Maximum life:** `40 + 4·VIT + 6·level + life bonuses`.
 - **Regeneration:** `0.2 % of max life per second + item regen`, always active. Life is shown in the red
   orb at the bottom left.
@@ -251,7 +257,8 @@ Each depth `d` gets a freshly generated level.
   | Picking up an item | 2·d |
   | Picking up a potion | 1 + d |
   | Descending stairs | 10 × the new depth |
-- **Health potion:** restores 35 % of max life, with a 0.8 s cooldown (minimum time between two potions). There is no limit on how many the hero carries. It can't be drunk at full life.
+- **Potions** (see [Potions](#potions)): the health potion restores 35 % of max life; the iron skin potion hardens
+  the hero's armor for 20 s. Using one takes 0.4 s of the hero's action time (see [Actions](#actions)).
 - **Death** returns to the title screen with the fallen hero selected; the hero resumes from its last save
   (see [Saving](#saving)).
 
@@ -286,8 +293,42 @@ gets its own damage and crit roll, then its own armor reduction.
 **Ranged (bows).** A right click fires an arrow at the hovered monster, or toward the cursor. Arrows travel
 15 tiles/s for up to 12 tiles, hit the first monster they touch, and stop at walls and closed doors.
 
-**Attack speed.** Each weapon has a cooldown (attacks per second = 1 / cooldown). Swapping weapons adds a
-0.2 s delay before the next attack.
+**Attack speed.** Each weapon has a cooldown (attacks per second = 1 / cooldown). It is the action time of an
+attack (see [Actions](#actions)).
+
+### Actions
+
+The hero has one action timeline (`h.atkCd`, the time until the hero is free) shared by attacks, weapon swaps
+and item uses:
+
+| Action | Action time |
+|---|---|
+| Attack | the weapon's cooldown |
+| Weapon swap from a quick key (`SWAP_T`) | 0.2 s |
+| Potion use (`USE_T`) | 0.4 s |
+
+- **The action queue.** Quick-key presses (weapon swaps and potions), `Q`, the life orb, and **Use** / double-click
+  in the equipment overlay add an action to `h.queue`. Whenever the hero is free (no action time left and no
+  swing in progress), queued actions run in order (`runQueue()`), one per free moment, and always before any
+  attack: while the queue holds anything, no attack starts. The queue has no length cap, isn't cleared by other
+  input, and isn't shown on screen; it is cleared on a new level.
+- **Pointless uses are skipped.** When a queued action comes up and would do nothing, it is skipped and takes no
+  time, and the next one runs at once: a health potion at full life ("You are already at full health."), an
+  iron skin potion while iron skin is active ("Iron skin is already active."), a potion of a type no longer in
+  the pack ("No health potions left."), or a swap to a weapon that is already equipped or no longer owned.
+  Pressing a potion key with no potions of that type at all logs the same message and queues nothing.
+- **A potion in use shows as equipped:** for its 0.4 s its quick key lights up instead of the weapon's, the
+  attack button shows the potion, and the potion's icon rises above the hero's head and fades. Then the weapon
+  comes back.
+- **Walking is independent of the queue.** The hero keeps walking while items are swapped and used (only a melee
+  swing stops the hero, as before).
+- **Click attacks are not queued:** at most one click attack waits. A right-click on a monster while the hero is
+  busy keeps it as the target with an attack pending (as before); a right-click on the ground while busy keeps
+  the point as the one pending ground attack (`h.pendingAt`), fired as soon as the hero is free. A newer click
+  replaces the waiting one, and a left click (walk / interact) or a pinch clears it. Holding the button keeps
+  attacking whenever the hero is free.
+- Equipping or unequipping from the equipment overlay (a click on **Equip**, or a double-click) happens at once,
+  not through the queue; equipping a weapon there sets the action time to at least 0.2 s.
 
 **Monsters:**
 
@@ -349,7 +390,7 @@ and Ashmire.
 ## Items
 
 **Slots:** weapon, helm, armor (chest), gloves, boots, two rings and an amulet. Only one weapon can be
-equipped at a time.
+equipped at a time. Potions are not equipped; they are used (see [Potions](#potions)).
 
 **Base items.** They unlock at an item level, which normally equals the depth:
 
@@ -419,10 +460,30 @@ rarity is already allowed, the rarity gates never limit it.
 | +Damage % | Cruel / of Slaughter | 5 – 10+3l |
 | +Move speed % | Swift / of Haste | 3 – min(6+l, 15) (boots only) |
 
+### Potions
+
+Potions are instant-use pack items (`slot: 'use'`, `base: 'potion'`, `pot` = the type, `count`) that **stack**:
+the pack holds at most one stack per type, in a single cell, with its count shown at the bottom right of the
+cell. Both types use the potion icon; the iron skin potion's is tinted (`hue-rotate(195deg) saturate(0.55)
+brightness(1.2)`, in the pack, on quick keys and on the floor).
+
+| Potion | Effect | Colour |
+|---|---|---|
+| Health Potion | restores 35 % of max life | red `#e06a5a` |
+| Iron Skin Potion | armor × 1.5 + 10 for 20 s (`IRON`); the hero gets a steel-blue glow (`drop-shadow`), and "Your iron skin fades." is logged at the end | steel blue `#a9c1d6` |
+
+- **Drops:** wherever a potion drops (see below), it is an iron skin potion with 25 % chance, otherwise a health
+  potion. A dropped potion is a stack of 1.
+- **Picking up** a potion adds it to the stack of its type, or puts it in a free cell if there is none (or
+  logs "Your pack is full."). It gives 1 + d XP.
+- **Dropping** a stack (right-click or **Drop**) drops the whole stack as one floor item, labelled with its count
+  (e.g. *Health Potion ×3*), and clears its quick key.
+- A stack used up to 0 leaves its cell empty; its quick key stays bound and shows 0 (dimmed).
+
 **Loot sources:**
 
 `LOOT` (0.8) thins all loot by 20 %: each random item drop below happens only with probability `LOOT`
-(`lootItem()`), and every gold amount is multiplied by `LOOT` (`dropGold()`, at least 1). Potions are not
+(`lootItem()`), and every gold amount is multiplied by `LOOT` (`dropGold()`, at least 1). Potion drops are not
 affected. The guardian's chest's guaranteed item is not thinned.
 
 | Source | Drops (item chances before `LOOT`) |
@@ -439,9 +500,8 @@ affected. The guardian's chest's guaranteed item is not thinned.
 sealed: clicking it only logs "The chest is sealed while its guardian lives." When the boss dies, the log says
 "<boss> is destroyed. The guardian's chest unseals."
 
-Dropped things land on nearby free tiles. Floor items bob, glow in their rarity colour, and show a name
-label when within 7.5 tiles. Gold is counted at the top left. Potions go to a potion counter, not the
-inventory.
+Dropped things land on nearby free tiles. Floor items bob, glow in their rarity colour (potions in their
+potion colour), and show a name label when within 7.5 tiles. Gold is counted at the top left.
 
 ## Equipment overlay
 
@@ -451,31 +511,39 @@ or the **✕** in its header (for touch screens). It is a partly transparent dar
 If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
 
 - **Paper doll:** eight slots around an animated portrait of the hero walking (12 frames/s) and slowly
-  turning through all eight directions, drawn 128 px tall with the frame's aspect ratio kept. Click an equipped item to move it back to the pack.
-- **Inventory:** 6 × 5 grid (30 items).
-  - Click to equip. The previously equipped item swaps into the same cell. Rings fill an empty ring slot
-    first, otherwise they replace ring 1.
-  - Right-click (or `Shift` + click) to drop the item on the floor; this also clears its quick key.
-  - A potion cell shows the potion count; click it to drink.
-- **Tooltips:** name in rarity colour, type, item level, damage and attacks per second or armor, and every
-  bonus. For pack items it also compares with the equipped item in that slot: base DPS difference for
-  weapons, armor difference otherwise.
+  turning through all eight directions, drawn 128 px tall with the frame's aspect ratio kept.
+- **Inventory:** 6 × 5 grid (30 items). Potion stacks sit in it like any item, with their count.
+- **Clicking items** (an equipped item, a pack item, or a quick key in the overlay), with any pointer:
+  - **a click or tap opens the action box:** the item's tooltip, without the mouse hints, placed centred on the
+    element, below it if it fits, otherwise above it, with buttons: **Equip** (pack item) or **Use** (pack
+    potion), **Drop** (pack item), **Unequip** (equipped item), **Equip** / **Use** and **Clear key** (bound
+    quick key), always **Close**, and for weapons and potions a **Quick key: 1–0** row to bind it. A button acts
+    and closes the box; a click or tap anywhere outside it also closes it. While the box is open, hovering other
+    items doesn't show their tooltips.
+  - **a mouse double-click acts at once:** equips a pack item (a potion is queued for use instead; see
+    [Actions](#actions)), unequips an equipped item, or uses a quick key. The first click of the double-click
+    opens the action box, and the second closes it. (On touch screens a tap always opens the box.)
+  - Equipping swaps the previously equipped item into the same cell. Rings fill an empty ring slot first,
+    otherwise they replace ring 1. Unequipping needs a free pack cell.
+  - Right-click (or `Shift` + click) a pack item to drop it on the floor (this also clears its quick key), or a
+    quick key to clear it; these act at once, without the box.
+  - These are captured on the overlay before the elements' own click handlers. The last pointer type is tracked
+    on every `pointerdown`; hover handlers ignore touch input (emulated mouse events would otherwise show, move
+    or hide the tooltip). The HUD hotbar is not part of the overlay and still acts on a click or tap.
+- **Tooltips** (on mouse hover): name in rarity colour, type, item level, damage and attacks per second or
+  armor, and every bonus. For pack items it also compares with the equipped item in that slot: base DPS
+  difference for weapons, armor difference otherwise. A potion's tooltip shows its name in its colour, "Potion ·
+  instant use", its effect and the stack count. A hint line lists the mouse actions.
 - **Attributes:** level, XP, STR / DEX / VIT, life (live), regen, armor, damage range, attack speed, crit,
   move speed, kills, gold.
-- **Quick keys:** hover a weapon (in the pack or the weapon slot) or the potion, then press `1`–`9` / `0` to
-  bind it to that key. A weapon can only be on one key, and key tags show on bound items. Right-click (or `Shift` +
-  click) a key to clear it.
-- Outside the overlay (or while hovering nothing in it), a quick key equips its weapon from the pack, or
-  drinks a potion. The bottom hotbar shows the bound icons, highlights the equipped weapon, and can also be
-  clicked.
-- **Tap to inspect (touch):** the last pointer type is tracked on every `pointerdown`. In the overlay, a touch
-  tap on an equipped item, a pack item, the potion or a quick key (captured before the element's own click)
-  opens its tooltip instead of acting, placed centred on the element, below it if it fits, otherwise above
-  it, without the mouse hints. It adds buttons for the actions: **Equip** and **Drop** (pack item),
-  **Unequip** (equipped item), **Drink** (potion), **Clear key** (bound quick key), always **Close**, and
-  for weapons and the potion a **Quick key: 1–0** row to bind it. A button acts and closes the tooltip; a
-  tap anywhere outside it also closes it. Hover handlers ignore touch input (emulated mouse events would
-  otherwise show, move or hide the tooltip). Mouse and pen work as before; the HUD hotbar still acts on tap.
+- **Quick keys:** hover a weapon (in the pack or the weapon slot) or a potion stack, then press `1`–`9` / `0`
+  to bind it to that key (or use the action box's key row). A weapon, or a potion type, can only be on one key,
+  and key tags show on bound items. A weapon key is `{ type: 'item', id }`; a potion key is
+  `{ type: 'use', pot }`, bound to the potion type rather than the stack.
+- Outside the overlay (or while hovering nothing in it), a quick key queues equipping its weapon from the pack,
+  or queues a use of its potion (see [Actions](#actions)). The bottom hotbar shows the bound icons and the
+  stack count on potion keys (dimmed at 0), highlights the equipped weapon (or the potion being used), and can
+  also be clicked.
 
 ## HUD
 
@@ -488,11 +556,12 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
 - **Touch mode** (`body.touch`): every `pointerdown` records its pointer type; a **touch** press turns touch
   mode on and a **mouse** press turns it off (pen leaves it as it is), so a touch-screen laptop switches as
   you switch between finger and touchpad. In touch mode an **attack button** appears in the life orb's place:
-  round and the orb's size, a dark steel disc with a gold rim showing the equipped weapon's icon (80 px; 52 px
+  round and the orb's size, a dark steel disc with a gold rim showing the equipped weapon's icon (or the
+  potion being used) (80 px; 52 px
   on phones) and an "ATTACK" label below. Holding it is the attack modifier (see Controls). The life orb slides
   right next to it (to 156 px from the left), so the finger on the button never covers it.
-- **Life orb:** a click or tap on it drinks a health potion (the same as `Q`; "No potions left." when there
-  are none).
+- **Life orb:** a click or tap on it drinks a health potion (the same as `Q`, queued; "No health potions
+  left." when there are none).
 - **Bottom centre:** quick-key hotbar and XP bar.
 - **Bottom right:** Equipment button.
 - Taking damage flashes a red vignette whose strength depends on how big the hit was.
