@@ -81,6 +81,9 @@ pessimistic. Compare depths with each other, and compare runs before and after a
 
 ## Results
 
+- [results-2026-11-09-1650.md](results-2026-11-09-1650.md): second pass (XP per level −40 %, health potion 44 %,
+  iron skin × 2 + 20 for 30 s). Deaths at depths 2–4 roughly halved; depths 5–6 (Pit Demons, boss) and champion
+  rooms are what's left.
 - [results-2026-11-09-1630.md](results-2026-11-09-1630.md): after the first balance pass (no regeneration,
   fewer monsters per room, wraiths from depth 3, Pit Demons from 5, bosses from 6, big rooms). Damage per level
   roughly halved; champion rooms are now the main killer, and with no regeneration healing is short.
