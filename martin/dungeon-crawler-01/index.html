@@ -1162,12 +1162,20 @@ function buildUI() {
     el.addEventListener('contextmenu', e => { e.preventDefault(); dropFromInv(i); hideTip(); });
     inv.appendChild(el);
   }
-  $('orb').addEventListener('click', () => queueUse('health'));   // a click or tap on the life orb drinks a health potion
+  // HUD controls (life orb, hotbar keys) act on a touch at once, on the touch's pointerdown: iOS often fires no
+  // click for a second finger while another one rests on the attack button. The click that may follow a touch is
+  // ignored, and a finger on the attack button is no modifier here (it would clear the key instead of using it).
+  const hudTap = (el, fn) => {
+    el.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') { e.preventDefault(); fn(); } });
+    el.addEventListener('click', e => { if (lastPointer !== 'touch') fn(e); });
+  };
+  hudTap($('orb'), () => queueUse('health'));   // a click or tap on the life orb drinks a health potion
   for (const host of [$('hotbar'), $('hkCfg')]) {
     for (let i = 0; i < 10; i++) {
       const el = document.createElement('div'); el.className = 'hk'; el.dataset.hk = i;
       el.innerHTML = `<span class="num">${i === 9 ? 0 : i + 1}</span><div class="ico"></div><span class="cnt"></span>`;
-      el.addEventListener('click', e => { if (modifier(e)) { G.hero.hotkeys[i] = null; refreshUI(); } else useHotkey(i); });
+      if (host.id === 'hotbar') hudTap(el, e => { if (e && e.shiftKey) { G.hero.hotkeys[i] = null; refreshUI(); } else useHotkey(i); });
+      else el.addEventListener('click', e => { if (modifier(e)) { G.hero.hotkeys[i] = null; refreshUI(); } else useHotkey(i); });
       el.addEventListener('contextmenu', e => { e.preventDefault(); G.hero.hotkeys[i] = null; refreshUI(); });
       el.addEventListener('mouseenter', () => { if (lastPointer !== 'touch' && !tipPinned()) showHkTip(i, el); });
       el.addEventListener('mouseleave', () => { if (lastPointer !== 'touch' && !tipPinned()) hideTip(); });

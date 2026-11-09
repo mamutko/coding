@@ -36,14 +36,20 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | Mouse wheel, or pinch with two fingers (touch) | Zoom (0.6×–1.5×). |
 
 **Touchpads and touch screens.** A *modifier* turns any left click or tap into a right click, everywhere a
-right click does something: attacking in the game view, dropping a pack item and clearing a quick key. The
-modifier is the `Shift` key, or, on a touch screen, a finger resting on the **attack button** (its rim glows
+right click does something: attacking in the game view, dropping a pack item and clearing a quick key in the
+equipment overlay. The modifier is the `Shift` key, or, on a touch screen, a finger resting on the **attack button** (its rim glows
 gold while it is held). The game view and the button use pointer events (mouse, touchpad, touch and pen alike) with
 `touch-action: none`, so a finger held on the screen keeps walking or attacking and dragging doesn't scroll
 or zoom the page. A long press never opens iOS's "save image" / link menu: the page sets
 `-webkit-touch-callout: none` (inherited everywhere), and the attack button cancels the default action of its
 `touchstart` (a non-passive listener), so holding it alone for auto attack doesn't pop the menu up on iOS
 (Safari, and Edge / Chrome on iOS, which use WebKit). Pointer events still arrive.
+
+**HUD taps.** The HUD hotbar keys and the life orb act on a touch's `pointerdown` instead of on `click`: iOS
+often fires no click for a second finger while another one rests on the attack button, so drinking a potion
+during auto attack would fail. The click that may follow a touch is ignored (no double use), and the attack
+button modifier does not apply there: a tap on a hotbar key while attacking uses the key (only `Shift` + click
+or a right-click clears a HUD key).
 
 - Each press remembers its `pointerId` (and, for a mouse, which button), so with several fingers down,
   lifting one never ends another's press: lifting the attack-button finger doesn't stop a walk or an attack already
@@ -537,7 +543,7 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
     quick key to clear it; these act at once, without the box.
   - These are captured on the overlay before the elements' own click handlers. The last pointer type is tracked
     on every `pointerdown`; hover handlers ignore touch input (emulated mouse events would otherwise show, move
-    or hide the tooltip). The HUD hotbar is not part of the overlay and still acts on a click or tap.
+    or hide the tooltip). The HUD hotbar is not part of the overlay and still acts on a click or tap (see *HUD taps* under Controls).
 - **Tooltips** (on mouse hover): name in rarity colour, type, item level, damage and attacks per second or
   armor, and every bonus. For pack items it also compares with the equipped item in that slot: base DPS
   difference for weapons, armor difference otherwise. A potion's tooltip shows its name in its colour, "Potion ·
