@@ -61,7 +61,7 @@ const server = http.createServer((req, res) => {
     }
     function drink(h, pot, st) { const s = stackOf(pot); if (!s || s.count <= 0) return false;
       s.count--; if (!s.count) h.inv[h.inv.indexOf(s)] = null;
-      if (pot === 'health') h.hp = Math.min(h.st.maxHp, h.hp + h.st.maxHp * 0.35); else { h.ironT = IRON.dur; recalc(); }
+      if (pot === 'health') h.hp = Math.min(h.st.maxHp, h.hp + h.st.maxHp * HEAL); else { h.ironT = IRON.dur; recalc(); }
       st.pots[pot]++; return true; }
     function fight(group, d, st) {
       const h = G.hero, w0 = weaponOf(h), bow = w0.kind === 'bow';

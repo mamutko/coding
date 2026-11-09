@@ -283,7 +283,7 @@ Each depth `d` gets a freshly generated level.
   doesn't show it. Life comes back only from potions and level-ups. Life is shown in the red orb at the bottom
   left.
 - **Critical chance:** `5 % + 0.2 %·DEX + item crit`. Criticals deal ×1.75.
-- **Experience:** level `L` needs `round(120 · L^1.7)` XP (120, 390, 1851 … for levels 1, 2, 5). On a level-up, STR, DEX and VIT each gain +2 and
+- **Experience:** level `L` needs `round(72 · L^1.7)` XP (72, 234, 1111 … for levels 1, 2, 5; 40 % less than the original `120 · L^1.7`). On a level-up, STR, DEX and VIT each gain +2 and
   the hero heals 20 % of max life (not fully). XP comes from:
 
   | Source | XP |
@@ -296,8 +296,8 @@ Each depth `d` gets a freshly generated level.
   | Picking up an item | 2·d |
   | Picking up a potion | 1 + d |
   | Descending stairs | 10 × the new depth |
-- **Potions** (see [Potions](#potions)): the health potion restores 35 % of max life; the iron skin potion hardens
-  the hero's armor for 20 s. Using one takes 0.4 s of the hero's action time (see [Actions](#actions)).
+- **Potions** (see [Potions](#potions)): the health potion restores 44 % of max life (`HEAL`); the iron skin potion hardens
+  the hero's armor for 30 s. Using one takes 0.4 s of the hero's action time (see [Actions](#actions)).
 - **Death** returns to the title screen with the fallen hero selected; the hero resumes from its last save
   (see [Saving](#saving)).
 
@@ -511,8 +511,8 @@ brightness(1.2)`, in the pack, on quick keys and on the floor).
 
 | Potion | Effect | Colour |
 |---|---|---|
-| Health Potion | restores 35 % of max life | red `#e06a5a` |
-| Iron Skin Potion | armor × 1.5 + 10 for 20 s (`IRON`); the hero gets a steel-blue glow (`drop-shadow`), and "Your iron skin fades." is logged at the end | steel blue `#a9c1d6` |
+| Health Potion | restores 44 % of max life (`HEAL`) | red `#e06a5a` |
+| Iron Skin Potion | armor × 2 + 20 for 30 s (`IRON`), meant for the hard rooms; the hero gets a steel-blue glow (`drop-shadow`), and "Your iron skin fades." is logged at the end | steel blue `#a9c1d6` |
 
 - **Drops:** wherever a potion drops (see below), it is an iron skin potion with 25 % chance, otherwise a health
   potion. A dropped potion is a stack of 1.

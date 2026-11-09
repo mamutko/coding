@@ -50,7 +50,7 @@ depth completely:
    - Each monster hits every `cd` seconds of its type, after a random first delay. Its damage is reduced by
      the hero's armor exactly as in `damageHero`. Only `--melee` melee monsters attack at once.
    - The hero regenerates `regen` life per second, drinks a health potion below `--pot` of max life (0.4 s,
-     heals 35 %), and drinks an iron skin potion at the start of a fight with a boss, a champion, or 6 or more
+     heals `HEAL` of max life), and drinks an iron skin potion at the start of a fight with a boss, a champion, or 6 or more
      monsters.
    - **Death:** counted, then the hero continues at full life (the real game would send it back to the start
      of the depth). The death numbers are therefore "how often it would have died", not a run ending.

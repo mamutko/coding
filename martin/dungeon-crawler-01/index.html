@@ -428,11 +428,12 @@ function genItem(ilvl, boost = 0, forceBase = null, forceRarity = null, ruleDept
 // filter tints the shared potion icon (CSS / canvas filter syntax).
 const POTIONS = {
   health:   { name: 'Health Potion', plural: 'health potions', color: '#e06a5a', glow: '224,90,80', filter: '',
-              desc: 'Restores 35% of your life.' },
+              desc: 'Restores 44% of your life.' },
   ironskin: { name: 'Iron Skin Potion', plural: 'iron skin potions', color: '#a9c1d6', glow: '150,180,210',
-              filter: 'hue-rotate(195deg) saturate(0.55) brightness(1.2)', desc: 'Armor ×1.5 + 10 for 20 seconds.' },
+              filter: 'hue-rotate(195deg) saturate(0.55) brightness(1.2)', desc: 'Armor ×2 + 20 for 30 seconds.' },
 };
-const IRON = { mult: 1.5, add: 10, dur: 20 };   // iron skin: armor × mult + add for dur seconds
+const IRON = { mult: 2, add: 20, dur: 30 };     // iron skin: armor × mult + add for dur seconds
+const HEAL = 0.44;                              // health potion: restores this share of max life
 const USE_T = 0.4, SWAP_T = 0.2;                // action time of an item use and of a weapon swap (s)
 const makePotion = (pot, count = 1) => ({ id: nextId++, base: 'potion', slot: 'use', pot, count, rarity: 'common', name: POTIONS[pot].name });
 const potionFilter = it => it && it.slot === 'use' ? POTIONS[it.pot].filter : '';
@@ -568,7 +569,7 @@ function saveHero() {
 // Life regeneration is switched off (it rewarded stalling): REGEN, the share of max life regenerated per second,
 // is 0, and no item has a regen bonus. The mechanics stay (h.st.regen, applied every frame) for later use.
 const REGEN = 0;
-const xpNeed = l => Math.round(120 * Math.pow(l, 1.7));
+const xpNeed = l => Math.round(72 * Math.pow(l, 1.7));   // 40 % less than the original 120 · L^1.7
 function recalc() {
   const h = G.hero, s = { str: h.base.str, dex: h.base.dex, vit: h.base.vit, hp: 0, regen: 0, armor: 0, crit: 0, dmg: 0, speed: 0 };
   for (const k in h.equip) { const it = h.equip[k]; if (!it) continue; if (it.armor) s.armor += it.armor; for (const st in it.stats) s[st] += it.stats[st]; }
@@ -1108,7 +1109,7 @@ function runAction(a) {
   if (!st) { log('No ' + POTIONS[a.pot].plural + ' left.', '#e06a5a'); return false; }
   const why = useWhy(a.pot); if (why) { log(why, '#a99c86'); return false; }
   if (--st.count <= 0) h.inv[h.inv.indexOf(st)] = null;
-  if (a.pot === 'health') { const v = Math.round(h.st.maxHp * 0.35); h.hp = Math.min(h.st.maxHp, h.hp + v); floatText(h.x, h.y, '+' + v, '#7fd17f', 0.9, 16); }
+  if (a.pot === 'health') { const v = Math.round(h.st.maxHp * HEAL); h.hp = Math.min(h.st.maxHp, h.hp + v); floatText(h.x, h.y, '+' + v, '#7fd17f', 0.9, 16); }
   else { h.ironT = IRON.dur; recalc(); floatText(h.x, h.y, 'Iron skin', POTIONS.ironskin.color, 1.1, 15); log('Your skin hardens like iron.', POTIONS.ironskin.color); }
   h.atkCd = USE_T; h.using = { pot: a.pot, t: 0, dur: USE_T };
   sfx('potion'); refreshUI(); return true;
