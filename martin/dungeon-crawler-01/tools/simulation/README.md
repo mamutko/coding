@@ -81,6 +81,9 @@ pessimistic. Compare depths with each other, and compare runs before and after a
 
 ## Results
 
+- [results-2026-11-09-1739.md](results-2026-11-09-1739.md): fifth pass (depth-1 bump reduced to × 1.2, +15 % per
+  depth). Every depth within the 3–4× damage target or below; depth 3 (skeleton big room) and depths 5–6 are the
+  hardest.
 - [results-2026-11-09-1736.md](results-2026-11-09-1736.md): fourth pass (monster life and damage × 1.5 at depth 1,
   +15 % per depth instead of +22 %). Much harder at every depth simulated: the new curve only crosses the old
   one at depth 8.

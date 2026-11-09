@@ -475,11 +475,11 @@ const NEW_LIMIT = [1, 2, 2, 2], CHAMP_AFTER = 4;
 const roomLimit = (k, d) => k === 'skeleton' || k === 'spider' ? Infinity : NEW_LIMIT[d - MON[k].minD] ?? Infinity;
 const canChamp = (k, d) => d >= MON[k].minD + CHAMP_AFTER;
 // Monster life and damage: the MON values × MON_BASE at depth 1, then × MON_SCALE per depth (compounding).
-const MON_BASE = 1.5, MON_SCALE = 1.15;
+const MON_BASE = 1.2, MON_SCALE = 1.15;
 function makeMonster(type, x, y, d, boss = false, forceChamp = false, noChamp = false) {
   const b = MON[type];
   const champ = !boss && !noChamp && canChamp(type, d) && (forceChamp || rnd() < 0.1), T = TIER[boss ? 'boss' : champ ? 'champ' : 'normal'];
-  const hpS = MON_BASE * Math.pow(MON_SCALE, d - 1), dmS = hpS;   // life and damage: ×1.5 at depth 1, +15 % per depth
+  const hpS = MON_BASE * Math.pow(MON_SCALE, d - 1), dmS = hpS;   // life and damage: ×1.2 at depth 1, +15 % per depth
   const m = { type, b, x, y, r: boss ? Math.min(b.r * 1.15, 0.48) : b.r * T.size, scale: b.scale * T.size, lvl: d, champ, boss,
     name: boss ? pick(BOSS_NAMES) + ', ' + b.name + ' Tyrant' : champ ? pick(CHAMP_PRE) + ' ' + b.name : b.name,
     maxHp: Math.round(b.hp * hpS * T.hp), dmg: [b.dmg[0] * dmS * T.dmg, b.dmg[1] * dmS * T.dmg],
