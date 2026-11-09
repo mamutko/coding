@@ -40,7 +40,10 @@ right click does something: attacking in the game view, dropping a pack item and
 modifier is the `Shift` key, or, on a touch screen, a finger resting on the **attack button** (its rim glows
 gold while it is held). The game view and the button use pointer events (mouse, touchpad, touch and pen alike) with
 `touch-action: none`, so a finger held on the screen keeps walking or attacking and dragging doesn't scroll
-or zoom the page.
+or zoom the page. A long press never opens iOS's "save image" / link menu: the page sets
+`-webkit-touch-callout: none` (inherited everywhere), and the attack button cancels the default action of its
+`touchstart` (a non-passive listener), so holding it alone for auto attack doesn't pop the menu up on iOS
+(Safari, and Edge / Chrome on iOS, which use WebKit). Pointer events still arrive.
 
 - Each press remembers its `pointerId` (and, for a mouse, which button), so with several fingers down,
   lifting one never ends another's press: lifting the attack-button finger doesn't stop a walk or an attack already
