@@ -1053,9 +1053,15 @@ function useWhy(pot) {   // why using this potion now would be pointless, or ''
 // Runs one queued action; true if it took time (then the next action waits until the hero is free again).
 function runAction(a) {
   const h = G.hero;
-  if (a.kind === 'equip') {
+  if (a.kind === 'equip') {   // weapons take SWAP_T, other gear no time
     const f = findOwned(a.id); if (!f || f.where !== 'inv') return false;
-    equipFromInv(f.i); log('Equipped ' + f.item.name + '.', rarityColor(f.item.rarity)); return true;
+    equipFromInv(f.i); log('Equipped ' + f.item.name + '.', rarityColor(f.item.rarity)); return f.item.slot === 'weapon';
+  }
+  if (a.kind === 'unequip') {   // likewise
+    const f = findOwned(a.id); if (!f || f.where !== 'eq') return false;
+    if (!unequip(f.slot)) return false;
+    if (f.slot === 'weapon') { h.atkCd = Math.max(h.atkCd, SWAP_T); return true; }
+    return false;
   }
   const st = stackOf(a.pot);
   if (!st) { log('No ' + POTIONS[a.pot].plural + ' left.', '#e06a5a'); return false; }
@@ -1086,10 +1092,16 @@ function equipFromInv(i) {
   if (slot === 'weapon') h.atkCd = Math.max(h.atkCd, SWAP_T);
   recalc(); sfx('pick'); refreshUI();
 }
-function unequip(slot) {
-  const h = G.hero, it = h.equip[slot]; if (!it) return;
-  const i = h.inv.indexOf(null); if (i < 0) { log('Your pack is full.', '#e06a5a'); return; }
-  h.inv[i] = it; h.equip[slot] = null; recalc(); refreshUI();
+function unequip(slot) {   // true if the item went back to the pack
+  const h = G.hero, it = h.equip[slot]; if (!it) return false;
+  const i = h.inv.indexOf(null); if (i < 0) { log('Your pack is full.', '#e06a5a'); return false; }
+  h.inv[i] = it; h.equip[slot] = null; recalc(); refreshUI(); return true;
+}
+// The equipment screen queues its equips, unequips and uses like the quick keys do (see Actions).
+function queueItem(ref) {
+  const h = G.hero, it = refItem(ref); if (!it || G.dead) return;
+  if (it.slot === 'use') queueUse(it.pot);
+  else h.queue.push({ kind: ref.startsWith('inv:') ? 'equip' : 'unequip', id: it.id });
 }
 function dropFromInv(i) {
   const h = G.hero, it = h.inv[i]; if (!it) return;
@@ -1099,7 +1111,7 @@ function dropFromInv(i) {
 }
 function findOwned(id) {
   const h = G.hero;
-  if (h.equip.weapon && h.equip.weapon.id === id) return { where: 'eq', item: h.equip.weapon };
+  for (const sl in h.equip) if (h.equip[sl] && h.equip[sl].id === id) return { where: 'eq', slot: sl, item: h.equip[sl] };
   const i = h.inv.findIndex(x => x && x.id === id); return i >= 0 ? { where: 'inv', i, item: h.inv[i] } : null;
 }
 function useHotkey(idx) {
@@ -1139,14 +1151,14 @@ function buildUI() {
     const el = document.createElement('div'); el.className = 'slot'; el.dataset.ref = 'eq:' + s;
     el.style.left = DOLL[s][0] + 'px'; el.style.top = DOLL[s][1] + 'px';
     el.innerHTML = `<div class="lbl">${SLOT_LABEL[s]}</div><div class="ico"></div><span class="bindTag"></span>`;
-    el.addEventListener('click', () => unequip(s));
+    el.addEventListener('click', () => queueItem('eq:' + s));
     doll.appendChild(el);
   }
   const inv = $('inv');
   for (let i = 0; i < 30; i++) {
     const el = document.createElement('div'); el.className = 'cell'; el.dataset.ref = 'inv:' + i;
     el.innerHTML = '<div class="ico"></div><span class="bindTag"></span><span class="cnt"></span>';
-    el.addEventListener('click', e => { if (modifier(e)) { dropFromInv(i); hideTip(); } else equipFromInv(i); });
+    el.addEventListener('click', e => { if (modifier(e)) { dropFromInv(i); hideTip(); } else queueItem('inv:' + i); });
     el.addEventListener('contextmenu', e => { e.preventDefault(); dropFromInv(i); hideTip(); });
     inv.appendChild(el);
   }
@@ -1203,8 +1215,7 @@ addEventListener('pointerdown', e => {
 function mainAction(el) {
   const ref = el.dataset.ref;
   if (el.dataset.hk != null) useHotkey(+el.dataset.hk);
-  else if (ref.startsWith('inv:')) equipFromInv(+ref.slice(4));   // a potion is queued for use instead
-  else unequip(ref.slice(3));
+  else queueItem(ref);   // equip / unequip / use, queued
 }
 // Action box (any pointer): the element's tooltip plus buttons for what a click, a right-click and a number key do.
 function inspect(el) {
@@ -1216,8 +1227,8 @@ function inspect(el) {
   } else {
     const it = refItem(ref); if (!it) { hideTip(); return; }
     showRefTip(ref);
-    if (ref.startsWith('inv:')) { const i = +ref.slice(4); acts.push([it.slot === 'use' ? 'Use' : 'Equip', () => equipFromInv(i)], ['Drop', () => { dropFromInv(i); }]); }
-    else acts.push(['Unequip', () => unequip(ref.slice(3))]);
+    if (ref.startsWith('inv:')) { const i = +ref.slice(4); acts.push([it.slot === 'use' ? 'Use' : 'Equip', () => queueItem(ref)], ['Drop', () => { dropFromInv(i); }]); }
+    else acts.push(['Unequip', () => queueItem(ref)]);
   }
   const it = ref && refItem(ref), bindable = it && (it.slot === 'weapon' || it.slot === 'use');
   let html = '<div class="tActs">' + acts.map((a, k) => `<button data-a="${k}">${a[0]}</button>`).join('') + '<button data-a="x">Close</button></div>';

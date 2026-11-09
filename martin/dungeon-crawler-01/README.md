@@ -307,18 +307,21 @@ and item uses:
 | Action | Action time |
 |---|---|
 | Attack | the weapon's cooldown |
-| Weapon swap from a quick key (`SWAP_T`) | 0.2 s |
+| Equipping or unequipping a weapon (`SWAP_T`) | 0.2 s |
+| Equipping or unequipping other gear (armor, rings, amulet) | none (it still waits its turn) |
 | Potion use (`USE_T`) | 0.4 s |
 
-- **The action queue.** Quick-key presses (weapon swaps and potions), `Q`, the life orb, and **Use** / double-click
-  in the equipment overlay add an action to `h.queue`. Whenever the hero is free (no action time left and no
-  swing in progress), queued actions run in order (`runQueue()`), one per free moment, and always before any
-  attack: while the queue holds anything, no attack starts. The queue has no length cap, isn't cleared by other
+- **The action queue.** Quick-key presses (weapon swaps and potions), `Q`, the life orb, and every equip,
+  unequip and use in the equipment overlay (its buttons and double-clicks) add an action to `h.queue`
+  (`{ kind: 'equip' | 'unequip', id }` or `{ kind: 'use', pot }`). Whenever the hero is free (no action time left and no
+  swing in progress), queued actions run in order (`runQueue()`), and always before any attack; an action that takes
+  no time lets the next one run at once: while the queue holds anything, no attack starts. The queue has no length cap, isn't cleared by other
   input, and isn't shown on screen; it is cleared on a new level.
 - **Pointless uses are skipped.** When a queued action comes up and would do nothing, it is skipped and takes no
   time, and the next one runs at once: a health potion at full life ("You are already at full health."), an
   iron skin potion while iron skin is active ("Iron skin is already active."), a potion of a type no longer in
-  the pack ("No health potions left."), or a swap to a weapon that is already equipped or no longer owned.
+  the pack ("No health potions left."), an equip of an item no longer in the pack, or an unequip of an item no longer equipped (or with
+  a full pack: "Your pack is full.").
   Pressing a potion key with no potions of that type at all logs the same message and queues nothing.
 - **A potion in use shows as equipped:** for its 0.4 s its quick key lights up instead of the weapon's, the
   attack button shows the potion, and the potion's icon rises above the hero's head and fades. Then the weapon
@@ -330,8 +333,9 @@ and item uses:
   the point as the one pending ground attack (`h.pendingAt`), fired as soon as the hero is free. A newer click
   replaces the waiting one, and a left click (walk / interact) or a pinch clears it. Holding the button keeps
   attacking whenever the hero is free.
-- Equipping or unequipping from the equipment overlay (a click on **Equip**, or a double-click) happens at once,
-  not through the queue; equipping a weapon there sets the action time to at least 0.2 s.
+- The equipment overlay goes through the same queue, so an equip clicked while the hero is busy happens when
+  the hero is free (at most one attack's time later). The ring slot and the pack cell the old item goes to are
+  decided when the action runs.
 
 **Monsters:**
 
@@ -523,8 +527,9 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
     quick key), always **Close**, and for weapons and potions a **Quick key: 1–0** row to bind it. A button acts
     and closes the box; a click or tap anywhere outside it also closes it. While the box is open, hovering other
     items doesn't show their tooltips.
-  - **a mouse double-click acts at once:** equips a pack item (a potion is queued for use instead; see
-    [Actions](#actions)), unequips an equipped item, or uses a quick key. The first click of the double-click
+  - **a mouse double-click acts without the box:** queues equipping a pack item (or using a potion), unequipping
+    an equipped item, or using a quick key (see [Actions](#actions)); the box's **Equip** / **Use** /
+    **Unequip** buttons queue the same way. The first click of the double-click
     opens the action box, and the second closes it. (On touch screens a tap always opens the box.)
   - Equipping swaps the previously equipped item into the same cell. Rings fill an empty ring slot first,
     otherwise they replace ring 1. Unequipping needs a free pack cell.
