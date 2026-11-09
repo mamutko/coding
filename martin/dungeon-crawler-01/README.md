@@ -34,6 +34,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `Q`, or a click / tap on the life orb | Drink a health potion (queued like a quick key). |
 | `M` | Toggle the minimap. |
 | `N` | Toggle sound. |
+| `Ctrl` + `D` | Toggle the debug overlay (see [Debug overlay](#debug-overlay)). |
 | Mouse wheel, or pinch with two fingers (touch) | Zoom (0.6×–1.5×). |
 
 **Touchpads and touch screens.** A *modifier* turns any left click or tap into a right click, everywhere a
@@ -388,15 +389,18 @@ and item uses:
 - Monsters wake when the hero is within 8.5 tiles with line of sight, or when they are hit. A monster that
   wakes also wakes idle monsters within 6 tiles of it; one that is **hit** also wakes every monster in the same
   room.
-- They chase directly when the way is clear and otherwise follow A\* paths, re-planned every 0.5–0.9 s.
-  They push apart from each other and from the hero, and give up beyond 20 tiles.
+- They chase directly when the way is clear for their whole body (`lineWalkable` with 1.05 × their radius) and
+  otherwise follow A\* paths, re-planned every 0.5–0.9 s. A waypoint within 0.12 tiles counts as reached.
+  **Detour:** a chasing monster that has stayed within 0.5 tiles of one spot for 0.6 s (`DETOUR_AFTER`, e.g.
+  sliding against a corner or a prop) follows a fresh A\* path for 2 s (`DETOUR_T`) instead of walking straight
+  at the hero. They push apart from each other and from the hero, and give up beyond 20 tiles.
 - **Losing interest.** A chasing monster goes back to wandering when:
   - it is **stuck** for 3 s (`STUCK_GIVEUP`): it is trying to move toward the hero (not in reach, not winding
     up, not standing to shoot) but stays within 0.5 tiles (`STUCK_MOVE`) of one spot, e.g. a pack plugging a
     corridor mouth. Plugging is intended; giving up thins the plug out. A monster that gave up this way is
     **calm**: it ignores the hero and isn't woken by other monsters for at least 6 s (`CALM_MIN`) and until it is
-    unstuck (it has walked 1 tile, `UNSTUCK`, of its own random walk; pushes don't count). A hit on a calm
-    monster doesn't wake it at once: it marks it **provoked**, and it re-engages the moment it is unstuck;
+    unstuck (it has walked 1 tile, `UNSTUCK`, of its own random walk; pushes don't count). **A hit always starts
+    pursuit**, also of a calm monster (its calm ends at once);
   - it has **not seen** the hero for 15 s (`LOST_SIGHT`). It isn't calm afterwards, so it wakes again normally.
 - Idle monsters wander slowly.
 - A monster not damaged for 4 s regenerates 1.5 % of its max life per second.
@@ -404,7 +408,7 @@ and item uses:
 - **Wraiths** keep 3+ tiles away. They cast a 0.45 s green bolt at 7 tiles/s with a 6.5-tile range; walls
   block it.
 
-| Monster | Life | Damage | Armor | Speed | Attack every | XP | From depth |
+| Monster | Life | Damage | Armor | Speed (× 0.85) | Attack every | XP | From depth |
 |---|---|---|---|---|---|---|---|
 | Skeleton Warrior | 26 | 3–6 | 5 | 2.5 | 1.2 s | 16 | 1 |
 | Ghoul | 20 | 2–5 | 2 | 3.3 | 0.9 s | 13 | 1 |
@@ -412,7 +416,8 @@ and item uses:
 | Wraith (ranged) | 22 | 4–7 | 3 | 2.3 | 1.9 s | 22 | 3 |
 | Pit Demon | 75 | 8–13 | 12 | 2.1 | 1.5 s | 60 | 5 (one lone demon at depth 4) |
 
-Spawn weights are 3 : 3 : 2 : 2 : 1 in table order. Life and damage in the table are base values: at depth 1 a
+Spawn weights are 3 : 3 : 2 : 2 : 1 in table order. Every monster's speed is the table value × 0.85 (`MON_SPEED`):
+2.1 / 2.8 / 3.3 / 2.0 / 1.8 tiles/s at depth 1, so the hero (4.2) can outrun them all. Life and damage in the table are base values: at depth 1 a
 monster has 1.2× them (`MON_BASE`), e.g. a depth-1 skeleton has 31 life and hits for 3.6–7.2.
 
 **Scaling with depth `d`** (the dungeon is endless):
@@ -537,16 +542,17 @@ brightness(1.2)`, in the pack, on quick keys and on the floor).
 
 `LOOT` (0.8) thins all loot by 20 %: each random item drop below happens only with probability `LOOT`
 (`lootItem()`), and every gold amount is multiplied by `LOOT` (`dropGold()`, at least 1). Potion drops are not
-affected. The guardian's chest's guaranteed item is not thinned.
+affected by `LOOT`; instead every potion chance below is the base chance × 1.2 (`POTION_ODDS`): monsters 8.1 %,
+chests 27 %, urns 10.8 %. The guardian's chest's guaranteed item is not thinned.
 
 | Source | Drops (item chances before `LOOT`) |
 |---|---|
-| Monster | 13 % item, 6.75 % potion, 30 % gold (2–8 × d) |
+| Monster | 13 % item, 6.75 % × 1.2 potion, 30 % gold (2–8 × d) |
 | Champion | an item of ilvl d+1 (boost 0.35), plus a 50 % chance of a second (boost 0.2) |
-| Boss | an item of ilvl d+1 (boost 0.35), gold (20–40 × d), plus the normal 6.75 % potion / 30 % gold rolls |
-| Chest | 1–3 items (boost 0.15, 30 % chance of ilvl+1), gold (10–30 × d), 22.5 % potion |
+| Boss | an item of ilvl d+1 (boost 0.35), gold (20–40 × d), plus the normal potion / gold rolls of a monster |
+| Chest | 1–3 items (boost 0.15, 30 % chance of ilvl+1), gold (10–30 × d), 22.5 % × 1.2 potion |
 | Guardian's chest | **always** one item of ilvl d+1 that is rare (30 %) or else magic, gold (30–60 × d), plus everything a normal chest drops |
-| Urn | 35 % gold, 9 % potion, 8 % item |
+| Urn | 35 % gold, 9 % × 1.2 potion, 8 % item |
 | Bones | 20 % gold, 10 % item |
 
 **Guardian's chest.** It glows green and is labelled *Guardian's Chest* on hover. While the boss lives it is
@@ -598,6 +604,15 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
   or queues a use of its potion (see [Actions](#actions)). The bottom hotbar shows the bound icons and the
   stack count on potion keys (dimmed at 0), highlights the equipped weapon (or the potion being used), and can
   also be clicked.
+
+## Debug overlay
+
+`Ctrl` + `D` opens and closes a small **Debug** panel at the top right, under the minimap (it works with the
+game paused or running; the browser's bookmark shortcut is suppressed). Its switches are remembered in
+`localStorage` (`dc01-debug`, wrapped in `try`):
+
+- **Pursuit indicator** — a red dot (5 px, black outline) above every monster that is pursuing the hero
+  (`state === 'chase'`).
 
 ## HUD
 

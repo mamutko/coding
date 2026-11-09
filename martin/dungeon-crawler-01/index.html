@@ -81,6 +81,10 @@
     gap: 2px; text-shadow: 0 0 3px #000, 0 0 2px #000; }
   #log div { transition: opacity 1s; }
 
+  #debug { position: absolute; right: 14px; top: 160px; z-index: 30; pointer-events: auto; padding: 8px 12px;
+    background: rgba(10, 7, 9, 0.92); border: 1px solid var(--gold-dim); font-size: 13px; color: var(--ink); }
+  #debug h4 { margin: 0 0 6px; font-family: Cinzel, serif; color: var(--gold); font-size: 13px; letter-spacing: 1px; }
+  #debug label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
   #minimap { position: absolute; right: 14px; top: 14px; width: 220px; height: 130px; background: rgba(6,4,6,0.55);
     border: 1px solid var(--panel-edge); }
   #menuBtn { position: absolute; right: 14px; bottom: 16px; pointer-events: auto; }
@@ -191,6 +195,8 @@
   <div id="topleft"><div id="depthName"></div><div id="depthSub"></div><div id="goldText"></div></div>
   <div id="target" class="hidden"><div id="targetName"></div><div id="targetBar"><div id="targetFill"></div></div></div>
   <canvas id="minimap" width="220" height="130"></canvas>
+  <div id="debug" class="hidden"><h4>Debug (Ctrl+D)</h4>
+    <label><input type="checkbox" id="dbgPursuit"> Pursuit indicator</label></div>
   <div id="log"></div>
   <div id="orb" title="Click to drink a health potion"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
   <div id="orbLabel">LIFE</div>
@@ -476,6 +482,7 @@ const roomLimit = (k, d) => k === 'skeleton' || k === 'spider' ? Infinity : NEW_
 const canChamp = (k, d) => d >= MON[k].minD + CHAMP_AFTER;
 // Monster life and damage: the MON values × MON_BASE at depth 1, then × MON_SCALE per depth (compounding).
 const MON_BASE = 1.2, MON_SCALE = 1.12;
+const MON_SPEED = 0.85;   // scales every monster's base speed (MON speed), so the hero (4.2 tiles/s) can outrun them all
 function makeMonster(type, x, y, d, boss = false, forceChamp = false, noChamp = false) {
   const b = MON[type];
   const champ = !boss && !noChamp && canChamp(type, d) && (forceChamp || rnd() < 0.1), T = TIER[boss ? 'boss' : champ ? 'champ' : 'normal'];
@@ -483,11 +490,11 @@ function makeMonster(type, x, y, d, boss = false, forceChamp = false, noChamp = 
   const m = { type, b, x, y, r: boss ? Math.min(b.r * 1.15, 0.48) : b.r * T.size, scale: b.scale * T.size, lvl: d, champ, boss,
     name: boss ? pick(BOSS_NAMES) + ', ' + b.name + ' Tyrant' : champ ? pick(CHAMP_PRE) + ' ' + b.name : b.name,
     maxHp: Math.round(b.hp * hpS * T.hp), dmg: [b.dmg[0] * dmS * T.dmg, b.dmg[1] * dmS * T.dmg],
-    armor: Math.round(b.armor + 3 * (d - 1) + T.armor * d), speed: b.speed * Math.min(1.35, 1 + 0.015 * (d - 1)),
+    armor: Math.round(b.armor + 3 * (d - 1) + T.armor * d), speed: b.speed * MON_SPEED * Math.min(1.35, 1 + 0.015 * (d - 1)),
     xp: Math.round(b.xp * Math.pow(1.17, d - 1) * T.xp),
     state: 'idle', cd: rnd(), windup: 0, path: [], repath: 0, dir: ri(0, 7), anim: rnd() * 4, moving: false,
     hitT: 0, dead: false, deathT: 0, wander: 1 + rnd() * 4, lunge: 0, lastHit: -99,
-    stuckT: 0, anchor: null, calm: null, provoked: false, lastSeen: 0 };
+    stuckT: 0, anchor: null, calm: null, lastSeen: 0, detourT: 0 };
   m.hp = m.maxHp;
   return m;
 }
@@ -922,7 +929,7 @@ function followPath(e, speed, dt) {
   if (!e.path.length) return false;
   const [tx, ty] = e.path[0], dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy), step = speed * dt;
   setDir(e, dx, dy);
-  if (d <= step) { moveEnt(e, dx, dy); e.path.shift(); }
+  if (d <= Math.max(step, 0.12)) { moveEnt(e, dx, dy); e.path.shift(); }   // close enough counts as reached
   else moveEnt(e, dx / d * step, dy / d * step);
   return true;
 }
@@ -940,7 +947,7 @@ function damageMonster(m, raw, crit) {
   floatText(m.x, m.y, (crit ? v + '!' : '' + v), crit ? '#ffd36a' : '#f2e6d0', 0.8, crit ? 20 : 15);
   for (let i = 0; i < 5; i++) G.fx.push({ type: 'spark', x: m.x, y: m.y, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 40 + rnd() * 20, vz: 60 + rnd() * 60, t: 0, dur: 0.45, color: m.type === 'wraith' ? '120,255,170' : '170,20,20' });
   sfx('hit');
-  if (m.calm) m.provoked = true; else alert(m, true);
+  alert(m, true);   // a hit always starts pursuit, even of a calm (gave-up) monster
   if (m.hp <= 0) killMonster(m);
 }
 // A monster that notices the hero wakes idle monsters within 6 tiles; one that is hit (roomWide) also wakes
@@ -952,14 +959,14 @@ function alert(m, roomWide = false) {
   const room = roomWide ? roomAt(m.x, m.y) : null;
   for (const o of G.monsters) if (!o.dead && o.state === 'idle' && !o.calm && (dist(o, m) < 6 || (room && roomAt(o.x, o.y) === room))) chase(o);
 }
-function chase(m) { m.state = 'chase'; m.lastSeen = G.time; m.stuckT = 0; m.anchor = null; m.calm = null; m.provoked = false; }
+function chase(m) { m.state = 'chase'; m.lastSeen = G.time; m.stuckT = 0; m.anchor = null; m.calm = null; m.detourT = 0; }
 // Losing interest: back to a random walk. After being stuck (calm) it ignores the hero for at least CALM_MIN s
-// and until it is unstuck (has walked UNSTUCK tiles of its random walk; pushes don't count); a hit meanwhile
-// re-engages it once unstuck.
-const STUCK_GIVEUP = 3, STUCK_MOVE = 0.5, UNSTUCK = 1, CALM_MIN = 6, LOST_SIGHT = 15;
+// and until it is unstuck (has walked UNSTUCK tiles of its random walk; pushes don't count); a hit ends that at
+// once (pursuit). A chasing monster stalled for DETOUR_AFTER s follows an A* path for DETOUR_T s.
+const STUCK_GIVEUP = 3, STUCK_MOVE = 0.5, UNSTUCK = 1, CALM_MIN = 6, LOST_SIGHT = 15, DETOUR_AFTER = 0.6, DETOUR_T = 2;
 function loseInterest(m, stuck) {
   m.state = 'idle'; m.path = []; m.wander = 0; m.stuckT = 0; m.anchor = null;
-  m.calm = stuck ? { walked: 0, t: G.time } : null; m.provoked = false;
+  m.calm = stuck ? { walked: 0, t: G.time } : null;
 }
 function killMonster(m) {
   m.dead = true; m.deathT = 0; m.hp = 0; G.hero.kills++;
@@ -970,7 +977,7 @@ function killMonster(m) {
   if (m.boss) { lootItem(genItem(d + 1, 0.35, null, null, rd), m.x, m.y); dropGold(ri(20, 40) * d, m.x, m.y); log(m.name + ' is destroyed. The guardian\'s chest unseals.', '#7fe08a'); }
   else if (m.champ) { lootItem(genItem(d + 1, 0.35, null, null, rd), m.x, m.y); if (rnd() < 0.5) lootItem(genItem(d + 1, 0.2, null, null, rd), m.x, m.y); }
   else if (rnd() < 0.13) lootItem(genItem(d, 0, null, null, rd), m.x, m.y);
-  if (rnd() < 0.0675) dropPotion(m.x, m.y);
+  if (rnd() < 0.0675 * POTION_ODDS) dropPotion(m.x, m.y);
   if (rnd() < 0.3) dropGold(ri(2, 8) * d, m.x, m.y);
 }
 function heroAttack(px, py, target) {
@@ -1041,6 +1048,7 @@ function dropSpot(x, y) {
 }
 function dropItem(item, x, y) { const [px, py] = dropSpot(x, y); G.items.push({ item, x: px, y: py, t: rnd() * 6 }); }
 function lootItem(item, x, y) { if (rnd() < LOOT) dropItem(item, x, y); }   // a random drop, thinned by LOOT
+const POTION_ODDS = 1.2;   // scales every potion drop chance (monsters, chests, urns)
 function dropPotion(x, y) { dropItem(makePotion(rnd() < 0.25 ? 'ironskin' : 'health'), x, y); }   // 25 % iron skin
 function dropGold(n, x, y) { n = Math.max(1, Math.round(n * LOOT)); const [px, py] = dropSpot(x, y); G.objects.push({ type: 'gold', x: Math.floor(px), y: Math.floor(py), fx: px, fy: py, amount: n, used: false, block: false }); }
 
@@ -1084,7 +1092,7 @@ function act(ref) {
       const n = ri(1, 2) + (rnd() < 0.4 ? 1 : 0);
       for (let i = 0; i < n; i++) lootItem(genItem(d + (rnd() < 0.3 ? 1 : 0), 0.15, null, null, o.boss ? d + 2 : d), o.x + 0.5, o.y + 0.5);
       dropGold(ri(10, 30) * d, o.x + 0.5, o.y + 0.5);
-      if (rnd() < 0.225) dropPotion(o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.225 * POTION_ODDS) dropPotion(o.x + 0.5, o.y + 0.5);
       log('The chest creaks open.', '#c9a45c');
       break;
     }
@@ -1092,7 +1100,7 @@ function act(ref) {
       if (o.used) return; o.used = true; G.map.block[o.y * G.map.w + o.x] = 0; sfx('hit'); gainXp(2 * d);
       for (let i = 0; i < 8; i++) G.fx.push({ type: 'spark', x: o.x + 0.5, y: o.y + 0.5, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 20, vz: 80, t: 0, dur: 0.5, color: '140,120,90' });
       if (rnd() < 0.35) dropGold(ri(3, 10) * d, o.x + 0.5, o.y + 0.5);
-      if (rnd() < 0.09) dropPotion(o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.09 * POTION_ODDS) dropPotion(o.x + 0.5, o.y + 0.5);
       if (rnd() < 0.08) lootItem(genItem(d), o.x + 0.5, o.y + 0.5);
       break;
     case 'bones':
@@ -1540,7 +1548,13 @@ function rightAction(ref, fresh) {
     if (!h.attackTarget) { const [wx, wy] = isoToWorld(...screenToIso(mouse.x, mouse.y)); h.pendingAt = heroAttack(wx, wy, null) ? null : { x: wx, y: wy }; }
   }
 }
+// Debug overlay (Ctrl+D): developer switches, remembered in localStorage (dc01-debug).
+const DEBUG = (() => { try { return Object.assign({ pursuit: false }, JSON.parse(localStorage.getItem('dc01-debug')) || {}); } catch (e) { return { pursuit: false }; } })();
+const saveDebug = () => { try { localStorage.setItem('dc01-debug', JSON.stringify(DEBUG)); } catch (e) {} };
+$('dbgPursuit').checked = DEBUG.pursuit;
+$('dbgPursuit').addEventListener('change', e => { DEBUG.pursuit = e.target.checked; saveDebug(); });
 addEventListener('keydown', e => {
+  if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); $('debug').classList.toggle('hidden'); return; }
   if (!G || !G.running) return;
   const k = e.key;
   if (k === 'i' || k === 'I' || k === 'Tab' || k === 'c' || k === 'C') { e.preventDefault(); toggleEquip(); return; }
@@ -1664,10 +1678,7 @@ function updateMonster(m, dt) {
   if (G.time - m.lastHit > 4) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.015 * dt);
   m.cd -= dt; m.moving = false;
   if (m.state === 'idle') {
-    if (m.calm && m.calm.walked >= UNSTUCK) {   // unstuck: a provoked monster re-engages at once
-      if (m.provoked) { alert(m); return; }
-      if (G.time - m.calm.t >= CALM_MIN) m.calm = null;
-    }
+    if (m.calm && m.calm.walked >= UNSTUCK && G.time - m.calm.t >= CALM_MIN) m.calm = null;   // calm ends
     if (!m.calm && d < 8.5 && los(m.x, m.y, h.x, h.y)) { alert(m); }
     else if (d < 30) {
       m.wander -= dt;
@@ -1704,8 +1715,12 @@ function updateMonster(m, dt) {
   // corridor mouth) -> it loses interest
   if (!m.anchor || dist(m, m.anchor) > STUCK_MOVE) { m.anchor = { x: m.x, y: m.y }; m.stuckT = 0; }
   else if ((m.stuckT += dt) >= STUCK_GIVEUP) { loseInterest(m, true); return; }
+  // stalled for DETOUR_AFTER s (e.g. sliding against a corner or a prop): follow a fresh A* path for DETOUR_T s
+  // instead of walking straight at the goal
+  if (m.stuckT >= DETOUR_AFTER && !(m.detourT > 0)) { m.detourT = DETOUR_T; m.repath = 0; }
+  if (m.detourT > 0) m.detourT -= dt;
   const spd = m.speed;
-  if (seen && d < 9 && lineWalkable(m.x, m.y, goal[0], goal[1], m.r * 0.9)) {
+  if (!(m.detourT > 0) && seen && d < 9 && lineWalkable(m.x, m.y, goal[0], goal[1], m.r * 1.05)) {
     const dx = goal[0] - m.x, dy = goal[1] - m.y, dd = Math.hypot(dx, dy) || 1; m.path = [];
     moveEnt(m, dx / dd * spd * dt, dy / dd * spd * dt); setDir(m, dx, dy); m.moving = true;
   } else {
@@ -2007,6 +2022,10 @@ function drawChar(e, isHero) {
   drawSprite(img, frame * md.fw, row * md.fh, md.fw, md.fh, dx, dy, w, hgt, fx);
   ctx.globalAlpha = 1;
   if (!isHero && !e.dead) G.pick.push({ kind: 'mon', r: e, x: sx - w * 0.32, y: dy + hgt * 0.15, w: w * 0.64, h: hgt * 0.85 });
+  if (DEBUG.pursuit && !isHero && !e.dead && e.state === 'chase') {   // debug: a red dot above a pursuing monster
+    ctx.fillStyle = '#ff2a2a'; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(sx, dy + hgt * 0.08, 5, 0, 7); ctx.fill(); ctx.stroke();
+  }
   if (isHero && e.swing) drawSwing(e);
   if (isHero && e.using) drawUsing(e);
 }
