@@ -34,3 +34,5 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
 13. **Animated doors** — doors visibly swing open (and shut, see 14) instead of switching state instantly.
 
 14. **Closing doors** — the hero can close an open door again.
+
+15. **Limited ammo** — bows need arrows; each shot uses one. Arrows are a stackable pack item (like potions).
