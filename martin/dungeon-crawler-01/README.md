@@ -172,6 +172,14 @@ and the picker shows no saved heroes.
   burst into shards, and level-ups emit an expanding golden ring. While a potion is being used, its icon (30 px, tinted
   like its stack) rises 18 px above the hero's head and fades out over the 0.4 s; iron skin gives the hero a
   steel-blue glow (`drop-shadow`).
+- **Sprite effects without canvas filters.** The effects above (hit flash, hover brightening, champion / boss /
+  iron skin / guardian's chest glows, potion tints, the green brazier) are canvas filters (`ctx.filter`), which
+  WebKit lacks: Safari, and every browser on iOS (Edge and Chrome there too). `drawSprite` draws each sprite
+  with its filter where `ctx.filter` exists (`CANVAS_FILTER`), and otherwise imitates each effect: a glow
+  becomes a canvas shadow (`shadowBlur` = 2 × the drop-shadow's blur), brightening extra copies of the sprite
+  drawn with `lighter` (alpha = the brightness above 1), and a hue tint a cached copy of the sprite recoloured
+  with the `color` blend (potions in their colour, the green brazier green). The rune circle's `blur(3px)` has
+  no fallback (its 26 px shadow blur still softens it).
 - **Hover.** Monsters, items and interactable objects register screen-space hit boxes every frame. Monsters
   take priority over everything else. A hovered thing is brightened, objects show a name label, and the
   cursor becomes a crosshair over monsters or a pointer over interactables.

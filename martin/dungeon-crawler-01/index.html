@@ -1680,9 +1680,8 @@ function render() {
     ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(sx, sy, 30, 15, 0, 0, 7); ctx.fill();
     const s = 44, bob = Math.sin(fi.t * 2.5) * 2, [ix, iy] = META.items[it.base];
     const hov = G.hover && G.hover.r === fi, flt = [potionFilter(it), hov ? 'brightness(1.5)' : ''].filter(Boolean).join(' ');
-    if (flt) ctx.filter = flt;
-    ctx.drawImage(IMG.items, ix, iy, 96, 96, sx - s / 2, sy - s + 6 + bob, s, s);
-    ctx.filter = 'none';
+    drawSprite(IMG.items, ix, iy, 96, 96, sx - s / 2, sy - s + 6 + bob, s, s,
+      { filter: flt, bright: hov ? 1.5 : 1, tint: potionFilter(it) ? POTIONS[it.pot].color : null });
     G.pick.push({ kind: 'item', r: fi, x: sx - s / 2 - 4, y: sy - s, w: s + 8, h: s + 10 });
   }
 
@@ -1815,6 +1814,40 @@ function softShadow(x, y, rx, ry, a, mid = 0.55) {   // mid: where the shade is 
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.fill(); ctx.restore();
 }
 const GREEN_FIRE = 'hue-rotate(80deg) saturate(1.4)';   // the rare green brazier next to the boss room
+// Sprite effects. Canvas filters (ctx.filter) are missing in WebKit (Safari, and every browser on iOS), so drawSprite
+// draws each effect either as a filter or, without filter support, by other means:
+//   fx.filter  the CSS filter string used where filters work;
+//   fx.glow    [blur px, colour]: a glow around the sprite -> a canvas shadow (shadowBlur = 2 x blur);
+//   fx.bright  brightness factor -> extra copies of the sprite drawn with 'lighter' (alpha = the excess);
+//   fx.tint    colour: a hue tint (potions, the green brazier) -> a cached copy recoloured with the 'color' blend.
+let CANVAS_FILTER = 'filter' in CanvasRenderingContext2D.prototype;
+const tintCache = new Map();
+function tinted(img, sx, sy, sw, sh, color) {
+  const key = img.src + '|' + sx + ',' + sy + ',' + sw + ',' + sh + '|' + color;
+  let c = tintCache.get(key);
+  if (!c) {
+    c = document.createElement('canvas'); c.width = sw; c.height = sh; const t = c.getContext('2d');
+    t.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    t.globalCompositeOperation = 'color'; t.fillStyle = color; t.fillRect(0, 0, sw, sh);
+    t.globalCompositeOperation = 'destination-in'; t.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    tintCache.set(key, c);
+  }
+  return c;
+}
+function drawSprite(img, sx, sy, sw, sh, dx, dy, dw, dh, fx) {
+  if (CANVAS_FILTER || !fx) {
+    if (fx && fx.filter) ctx.filter = fx.filter;
+    ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh); ctx.filter = 'none'; return;
+  }
+  if (fx.tint) { img = tinted(img, sx, sy, sw, sh, fx.tint); sx = sy = 0; }
+  ctx.save();
+  if (fx.glow) { ctx.shadowColor = fx.glow[1]; ctx.shadowBlur = fx.glow[0] * 2; }
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+  const a = ctx.globalAlpha; ctx.globalCompositeOperation = 'lighter';
+  for (let b = (fx.bright || 1) - 1; b > 0.01; b -= 1) { ctx.globalAlpha = a * Math.min(1, b); ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh); }
+  ctx.restore();
+}
 // The boss room's rune circle: two thin concentric rings with rune ticks between them and three arcs inside, in
 // a muted green, static, heavily blurred, with a very faint green glow around it.
 function drawRuneCircle(r) {
@@ -1855,10 +1888,10 @@ function drawProp(o) {
   }
   const glow = o.boss && !o.used ? 'drop-shadow(0 0 6px rgba(70,235,110,0.9))' : '';
   const fire = o.green ? GREEN_FIRE : '';
-  if (hov || glow || fire) ctx.filter = [hov ? 'brightness(1.45)' : '', glow, fire].filter(Boolean).join(' ');
-  if (o.flip) { ctx.save(); ctx.translate(sx, 0); ctx.scale(-1, 1); ctx.drawImage(IMG.props, px, py, pw, ph, -w / 2, top, w, hh); ctx.restore(); }
-  else ctx.drawImage(IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh);
-  ctx.filter = 'none';
+  const fx = { filter: [hov ? 'brightness(1.45)' : '', glow, fire].filter(Boolean).join(' '), bright: hov ? 1.45 : 1,
+    glow: glow ? [6, 'rgba(70,235,110,0.9)'] : null, tint: fire ? 'rgb(90,235,110)' : null };
+  if (o.flip) { ctx.save(); ctx.translate(sx, 0); ctx.scale(-1, 1); drawSprite(IMG.props, px, py, pw, ph, -w / 2, top, w, hh, fx); ctx.restore(); }
+  else drawSprite(IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh, fx);
   if (o.type === 'brazier') { // flickering embers
     for (let i = 0; i < 2; i++) { const t = (G.time * 0.9 + i * 0.5 + o.x * 0.13) % 1;
       ctx.fillStyle = o.green ? `rgba(${90 + i * 40},255,120,${1 - t})` : `rgba(255,${150 + i * 40},60,${1 - t})`;
@@ -1883,15 +1916,16 @@ function drawChar(e, isHero) {
   const w = md.fw * s, hgt = md.fh * s, dx = sx - w / 2 + ox, dy = sy - footY * s + oy;
   ctx.globalAlpha = alpha;
   const hover = !isHero && G.hover && G.hover.r === e;
-  const filters = [];
+  const filters = [], fx = { bright: e.hitT > 0 ? 2.4 : hover ? 1.35 : 1, glow: null };
   if (e.hitT > 0) filters.push('brightness(2.4) saturate(0.3)');
   else if (hover) filters.push('brightness(1.35)');
-  if (!isHero && e.champ) filters.push('drop-shadow(0 0 5px rgba(220,40,30,0.9))');
-  if (!isHero && e.boss) filters.push('drop-shadow(0 0 7px rgba(70,235,110,0.95))');
-  if (isHero && e.ironT > 0) filters.push('drop-shadow(0 0 6px rgba(160,190,225,0.9))');   // iron skin potion
-  if (filters.length) ctx.filter = filters.join(' ');
-  ctx.drawImage(img, frame * md.fw, row * md.fh, md.fw, md.fh, dx, dy, w, hgt);
-  ctx.filter = 'none'; ctx.globalAlpha = 1;
+  const glow = (b, c) => { filters.push(`drop-shadow(0 0 ${b}px ${c})`); fx.glow = [b, c]; };
+  if (!isHero && e.champ) glow(5, 'rgba(220,40,30,0.9)');
+  if (!isHero && e.boss) glow(7, 'rgba(70,235,110,0.95)');
+  if (isHero && e.ironT > 0) glow(6, 'rgba(160,190,225,0.9)');   // iron skin potion
+  fx.filter = filters.join(' ');
+  drawSprite(img, frame * md.fw, row * md.fh, md.fw, md.fh, dx, dy, w, hgt, fx);
+  ctx.globalAlpha = 1;
   if (!isHero && !e.dead) G.pick.push({ kind: 'mon', r: e, x: sx - w * 0.32, y: dy + hgt * 0.15, w: w * 0.64, h: hgt * 0.85 });
   if (isHero && e.swing) drawSwing(e);
   if (isHero && e.using) drawUsing(e);
@@ -1899,9 +1933,9 @@ function drawChar(e, isHero) {
 // A potion being used: its icon rises above the hero's head and fades out.
 function drawUsing(h) {
   const k = h.using.t / h.using.dur, [sx, sy] = iso(h.x, h.y), s = 30, [ix, iy] = META.items.potion, f = POTIONS[h.using.pot].filter;
-  ctx.globalAlpha = 1 - k * k; if (f) ctx.filter = f;
-  ctx.drawImage(IMG.items, ix, iy, 96, 96, sx - s / 2, sy - 150 - k * 18, s, s);
-  ctx.filter = 'none'; ctx.globalAlpha = 1;
+  ctx.globalAlpha = 1 - k * k;
+  drawSprite(IMG.items, ix, iy, 96, 96, sx - s / 2, sy - 150 - k * 18, s, s, { filter: f, tint: f ? POTIONS[h.using.pot].color : null });
+  ctx.globalAlpha = 1;
 }
 function drawSwing(h) {
   const s = h.swing, k = s.t / s.dur, [sx, sy] = iso(h.x, h.y), cy = sy - 50;
