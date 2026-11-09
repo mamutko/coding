@@ -414,8 +414,8 @@ monster has 1.2× them (`MON_BASE`), e.g. a depth-1 skeleton has 31 life and hit
 
 | Stat | Scaling |
 |---|---|
-| Life | × 1.2 × 1.15^(d−1) (`MON_BASE`, `MON_SCALE`) |
-| Damage | × 1.2 × 1.15^(d−1) |
+| Life | × 1.2 × 1.12^(d−1) (`MON_BASE`, `MON_SCALE`) |
+| Damage | × 1.2 × 1.12^(d−1) |
 | Armor | + 3·(d−1) |
 | Speed | × min(1.35, 1 + 0.015·(d−1)) |
 | XP | × 1.17^(d−1) |

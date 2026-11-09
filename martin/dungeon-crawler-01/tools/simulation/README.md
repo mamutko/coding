@@ -81,6 +81,8 @@ pessimistic. Compare depths with each other, and compare runs before and after a
 
 ## Results
 
+- [results-2026-11-09-1803.md](results-2026-11-09-1803.md): sixth pass (monster scaling +12 % per depth). Every depth
+  from 1 to 10 at or below the 3–4× damage target; the depth-9 cliff is now a step.
 - [results-2026-11-09-1745.md](results-2026-11-09-1745.md): the fifth pass simulated to depth 10. Depths 5–8 flat at
   about 3.5× damage; depth 9 jumps to 5.3× (Pit Demons lose their room limit and become champions, the room cap
   reaches 7).
