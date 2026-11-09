@@ -233,7 +233,7 @@ Each depth `d` gets a freshly generated level.
     (blocking). The throne's sprite faces down-right (+x), so it always goes against a back wall, facing into
     the room: on the left back wall (`x = r.x`) as drawn, or on the right back wall (`y = r.y`) mirrored, never
     in a corner or next to a doorway;
-  - 1–2 ordinary monsters and a 50 % chance of an extra champion (without escorts);
+  - 1–2 ordinary monsters and a 50 % chance of an extra champion (without escorts; of a type allowed to be one);
   - no chests, urns, bones or gold piles.
   The boss's type is drawn by weight from the types unlocked at depth `d + 1`, so it can be a type not yet
   seen at this depth (from depth 6 every type is already unlocked, so this only matters if bosses start earlier).
@@ -254,9 +254,14 @@ Each depth `d` gets a freshly generated level.
   of 64+ tiles. So a single monster stays possible at every depth. The type is drawn by weight from the types
   unlocked at that depth. A **champion** also brings 2–3 escorts of its own type (never champions themselves)
   on free floor tiles within 2 tiles of it.
-- **New types** (`isNew`): on the depth where a type first appears (ghouls at 1, wraiths at 3, Pit Demons at
-  5), a room holds at most 2 of it, escorts included; further draws pick another type. Skeletons and spiders
-  are exempt.
+- **New types** (`roomLimit`, `NEW_LIMIT`): counting from the depth `L` where a type first appears (its
+  `minD`: ghouls 1, wraiths 3, Pit Demons 5), a room holds at most **1** of it at `L` and at most **2** at
+  `L+1` to `L+3`; from `L+4` there is no limit. Escorts and boss-room guards count; a draw that would break
+  the limit picks another type, and a champion's escorts stop at the limit. Skeletons and spiders are exempt.
+  Other types can share the room. (The lone Pit Demon at depth 4 is outside this rule.)
+- **Champions only from `L+4`** (`canChamp`, `CHAMP_AFTER`): a type can be a champion only from 4 depths after
+  it first appears: skeletons, ghouls and spiders from depth 5, wraiths from 7, Pit Demons from 9. So there
+  are no champions at depths 1–4. The boss room's extra champion is drawn only from such types.
 
 ## Movement & pathfinding
 
@@ -419,7 +424,7 @@ Spawn weights are 3 : 3 : 2 : 2 : 1 in table order.
 
 | | Normal | Champion | Boss |
 |---|---|---|---|
-| Occurs | always | 10 % of monsters from depth 2 (none at depth 1; never in the big room or as escorts) | one per level from depth 6, in the boss room |
+| Occurs | always | 10 % of monsters of a type at least 4 depths past its first depth (`canChamp`; none at depths 1–4; never in the big room, the lone demon or as escorts) | one per level from depth 6, in the boss room |
 | Name | type name | prefix + type, e.g. *Dread Ghoul* | *&lt;name&gt;, &lt;type&gt; Tyrant*, e.g. *Morgrath, Ghoul Tyrant* |
 | Life / damage / XP | ×1 | ×2.5 / ×1.5 / ×3 | ×6 / ×1.8 / ×8 |
 | Armor | — | — | + 4·d |

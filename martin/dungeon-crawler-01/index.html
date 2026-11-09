@@ -468,9 +468,15 @@ const depthName = d => LEVEL_NAMES[(d - 1) % 8] + (d > 8 ? ' ' + ROMAN(Math.ceil
 // Tiers: normal; champion (10 % from depth 2, red glow); boss (one per level, green glow, see buildLevel).
 const TIER = { normal: { size: 1, hp: 1, dmg: 1, xp: 1, armor: 0 }, champ: { size: 1.15, hp: 2.5, dmg: 1.5, xp: 3, armor: 0 },
   boss: { size: 1.35, hp: 6, dmg: 1.8, xp: 8, armor: 4 } };
+// New monster types: from the depth L where a type first appears (its minD), a room may hold at most
+// NEW_LIMIT[d - L] of it (1 at L, 2 at L+1 to L+3, no limit after; escorts included). Skeletons and spiders are
+// exempt. A type can be a champion only from depth L + CHAMP_AFTER.
+const NEW_LIMIT = [1, 2, 2, 2], CHAMP_AFTER = 4;
+const roomLimit = (k, d) => k === 'skeleton' || k === 'spider' ? Infinity : NEW_LIMIT[d - MON[k].minD] ?? Infinity;
+const canChamp = (k, d) => d >= MON[k].minD + CHAMP_AFTER;
 function makeMonster(type, x, y, d, boss = false, forceChamp = false, noChamp = false) {
   const b = MON[type];
-  const champ = !boss && !noChamp && (forceChamp || (d >= 2 && rnd() < 0.1)), T = TIER[boss ? 'boss' : champ ? 'champ' : 'normal'];
+  const champ = !boss && !noChamp && canChamp(type, d) && (forceChamp || rnd() < 0.1), T = TIER[boss ? 'boss' : champ ? 'champ' : 'normal'];
   const hpS = Math.pow(1.22, d - 1), dmS = Math.pow(1.22, d - 1);   // +22 % life and damage per depth
   const m = { type, b, x, y, r: boss ? Math.min(b.r * 1.15, 0.48) : b.r * T.size, scale: b.scale * T.size, lvl: d, champ, boss,
     name: boss ? pick(BOSS_NAMES) + ', ' + b.name + ' Tyrant' : champ ? pick(CHAMP_PRE) + ' ' + b.name : b.name,
@@ -708,10 +714,8 @@ function buildLevel(d) {
     .sort((a, b) => b.w * b.h - a.w * a.h)[0] || null;
   const normalRooms = rooms.filter(r => r !== start && r !== bossRoom && r !== bigRoom);
   const demonRoom = d === DEMON_ROOM_AT && normalRooms.length ? pick(normalRooms) : null;
-  // a type is "new" on the depth where it first appears: then at most 2 of it per room (skeletons and spiders
-  // are exempt); typeFor draws a type by weight, skipping new types that already have 2 in the room
-  const isNew = k => MON[k].minD === d && k !== 'skeleton' && k !== 'spider';
-  const typeFor = (pool, cnt) => { for (let k = 0; k < 30; k++) { const t = pick(pool); if (!isNew(t) || (cnt[t] || 0) < 2) return t; } return 'skeleton'; };
+  // typeFor draws a type by weight, skipping types that have reached their room limit (roomLimit) in this room
+  const typeFor = (pool, cnt) => { for (let k = 0; k < 30; k++) { const t = pick(pool); if ((cnt[t] || 0) < roomLimit(t, d)) return t; } return 'skeleton'; };
   // 50 %: one green-flamed brazier in a room joined to the boss room by a corridor (a hint of what's near)
   const nextToBoss = !bossRoom ? [] : links.filter(l => l.includes(bossRoom)).map(l => l[0] === bossRoom ? l[1] : l[0]).filter(r => r !== bossRoom);
   const greenRoom = nextToBoss.length && rnd() < 0.5 ? pick(nextToBoss) : null;
@@ -732,11 +736,13 @@ function buildLevel(d) {
       // boss type: drawn by weight from the types unlocked at depth + 1, so it can be one not yet seen here
       const bossPool = []; for (const k in MON) if (MON[k].minD <= d + 1) for (let i = 0; i < MON[k].w; i++) bossPool.push(k);
       const boss = makeMonster(pick(bossPool), p[0] + 0.5, p[1] + 0.5, d, true); monsters.push(boss); map.boss = boss;
+      const cnt = {};   // per-type count in the boss room, for the room limits
       for (let i = ri(1, 2); i > 0; i--) { const q = freeInner(r, false);
-        if (q) { const g = makeMonster(pick(weighted), q[0] + 0.5, q[1] + 0.5, d); g.bossRoom = true; monsters.push(g); } }
-      if (rnd() < 0.5) {   // 50 %: an extra champion (any depth, without escorts)
+        if (q) { const t = typeFor(weighted, cnt); cnt[t] = (cnt[t] || 0) + 1; const g = makeMonster(t, q[0] + 0.5, q[1] + 0.5, d); g.bossRoom = true; monsters.push(g); } }
+      const champTypes = weighted.filter(k => canChamp(k, d) && (cnt[k] || 0) < roomLimit(k, d));
+      if (rnd() < 0.5 && champTypes.length) {   // 50 %: an extra champion (without escorts), of a type old enough to be one
         const q = freeInner(r, false);
-        if (q) { const c = makeMonster(pick(weighted), q[0] + 0.5, q[1] + 0.5, d, false, true); c.bossRoom = true; monsters.push(c); }
+        if (q) { const t = pick(champTypes); cnt[t] = (cnt[t] || 0) + 1; const c = makeMonster(t, q[0] + 0.5, q[1] + 0.5, d, false, true); c.bossRoom = true; monsters.push(c); }
       }
       continue;
     }
@@ -767,8 +773,8 @@ function buildLevel(d) {
       const t = typeFor(weighted, cnt); cnt[t] = (cnt[t] || 0) + 1;
       const m = makeMonster(t, p[0], p[1], d);
       monsters.push(m);
-      if (m.champ) {   // a champion brings 2-3 escorts of its own type (a new type: up to 2 in the room), on free tiles within 2 of it
-        for (let e = isNew(t) ? Math.min(ri(2, 3), 2 - cnt[t]) : ri(2, 3), k = 0; e > 0 && k < 30; k++) {
+      if (m.champ) {   // a champion brings 2-3 escorts of its own type (within its room limit), on free tiles within 2 of it
+        for (let e = Math.min(ri(2, 3), roomLimit(t, d) - cnt[t]), k = 0; e > 0 && k < 30; k++) {
           const ex = Math.floor(m.x) + ri(-2, 2), ey = Math.floor(m.y) + ri(-2, 2);
           if (at(ex, ey) !== T_FLOOR || occ[ey * w + ex] || monsters.some(o => Math.floor(o.x) === ex && Math.floor(o.y) === ey)) continue;
           const esc = makeMonster(m.type, ex + 0.5, ey + 0.5, d, false, false, true);

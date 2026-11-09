@@ -81,6 +81,9 @@ pessimistic. Compare depths with each other, and compare runs before and after a
 
 ## Results
 
+- [results-2026-11-09-1720.md](results-2026-11-09-1720.md): third pass (new types limited to 1 / 2 / 2 / 2 per
+  room for 4 depths; champions only 4 depths after a type appears, so none before depth 5). Depths 1–4 easy to
+  moderate, but depth 5 becomes a cliff (first champions, Pit Demons and a big room at once).
 - [results-2026-11-09-1650.md](results-2026-11-09-1650.md): second pass (XP per level −40 %, health potion 44 %,
   iron skin × 2 + 20 for 30 s). Deaths at depths 2–4 roughly halved; depths 5–6 (Pit Demons, boss) and champion
   rooms are what's left.
