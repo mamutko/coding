@@ -4,6 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dungeon Crawler</title>
+<!-- web app: opened from a home-screen icon, the game runs without browser bars (see README "Home screen app") -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png">
+<meta name="theme-color" content="#050204">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Crypt">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
@@ -295,7 +304,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 19;
+const VERSION = 20;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];

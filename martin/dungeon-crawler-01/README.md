@@ -26,6 +26,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
 | `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
 | `tools/simulation/` | Balance simulation: `simulate.js` runs simulated heroes through the real game and reports how hero and monsters compare per depth. How to use it: [`tools/simulation/README.md`](tools/simulation/README.md); dated results with conclusions: `results-YYYY-MM-DD.md`. |
+| `manifest.webmanifest`, `assets/icons/`, `tools/make_icons.py` | Web app manifest and home-screen icons (made from the hero sprite by `make_icons.py`): see [Home screen app](#home-screen-app). |
 | `todo.md` | Numbered list of ideas for future work (not yet implemented). |
 | `backup/index.NN.html` | Old snapshots of `index.html`, numbered `01`, `02`, … in the order they were made; not used by the game and not described by this README. `index.01.html` is an early version of the game. |
 
@@ -33,6 +34,25 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 
 `VERSION` (an integer near the top of the script) is shown muted at the bottom right of the title screen as `v<N>`.
 **Increment it before every push**, so a player can tell whether the page they have open is up to date.
+
+## Home screen app
+
+The game can be installed as a home-screen app, which then opens **without browser bars**:
+
+- **iPhone / iPad:** in Safari, Share → **Add to Home Screen**. The `apple-mobile-web-app-*` meta tags make the
+  icon open the game full screen (iOS has no full-screen mode for web pages in the browser itself). The status
+  bar stays visible in portrait (style `black`, so nothing of the game is drawn under it); iOS hides it in
+  landscape.
+- **Android** (Chrome and others): menu → **Add to Home screen** / **Install app**. `manifest.webmanifest`
+  asks for `"display": "fullscreen"`, so no status or navigation bar either.
+- The manifest names the app *Crypt of Endless Night* (short name *Crypt*), with a near-black background and theme
+  colour and the icons in `assets/icons/` (192 and 512 px, also usable as maskable; `apple-touch-icon.png`,
+  180 px, for iOS). They show the hero facing the viewer on a dark crimson glow, made by
+  `python tools/make_icons.py` from `assets/hero.webp`.
+- The screen can be turned either way (no orientation lock): the game's layout handles portrait and landscape.
+- There is no service worker, so the app still loads from the web (no offline play). Saved heroes live in the
+  app's own storage: on iOS a home-screen app does **not** share `localStorage` with Safari, so heroes saved in
+  the browser don't appear in the app, and the other way round.
 
 ## Catalog
 

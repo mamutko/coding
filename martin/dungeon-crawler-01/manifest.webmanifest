@@ -1,0 +1,14 @@
+{
+  "name": "Crypt of Endless Night",
+  "short_name": "Crypt",
+  "description": "An isometric dungeon crawler: descend the endless crypt.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "fullscreen",
+  "background_color": "#050204",
+  "theme_color": "#050204",
+  "icons": [
+    { "src": "assets/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "assets/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
