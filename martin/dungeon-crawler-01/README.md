@@ -12,12 +12,14 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `assets/hero.webp`, `skeleton.webp`, `ghoul.webp` | 8-direction × 8-frame walk cycles (transparent). |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
 | `assets/items.webp` | 6 × 7 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–7 from `add_items.py`). |
-| `assets/props.webp` | Horizontal strip of props (chest, open chest, door, stairs, brazier, bones, urn, gold) and boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus). |
+| `assets/props.webp` | Props: row 1 has the chest, open chest, door, stairs, brazier, bones, urn and gold, and the boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus), from `process_art.py`; row 2 has the searched bones (`bonesused`), from `add_props.py`. |
 | `assets/floor.jpg`, `assets/wall.jpg` | 512 px seamless floor and wall textures. |
+| `assets/dirt.jpg` | 512 px seamless dirt texture for wall tops and wall faces toward solid ground (from `add_props.py`). |
 | `assets/meta.json` | Frame sizes and atlas coordinates written by the processing script (copied into `META` in `index.html`). |
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
 | `tools/walk_cycle.py` | Walk-cycle pipeline (hero, skeleton, ghoul): renders the 3D stick-figure pose guides and placeholders, and builds the 8-frame sheets. |
 | `tools/add_items.py`, `tools/raw/items2.png`, `items3.png` | Appends the icons of the newer item types (and a quiver) to `assets/items.webp` from the two raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
+| `tools/add_props.py`, `tools/raw/bones_searched.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
 | `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
@@ -143,18 +145,19 @@ and the picker shows no saved heroes.
 - **Floor.** Every visible floor and doorway tile is added to one path in iso-transformed space
   (`transform(48, 24, −48, 24)`). It is filled with the floor texture pattern, which spans 3 tiles, and faint
   seams are stroked.
-- **Walls** are 72 px tall blocks (`WALLH`), except **front (south) walls**: any wall or door tile with walkable
-  floor (floor or an open door) behind it, at `x − 1`, `y − 1` or the diagonal `(x − 1, y − 1)`, is drawn as a
-  **low lip** 22 px tall (`LIPH`, under half a tile's height), so it marks the wall but never hides the floor or
-  anyone on it. Back walls stay full height; nothing is ever drawn transparent. Only the two faces facing the
-  viewer (+y and +x) are drawn, and only where the neighbour on that side isn't a wall at least as tall (so a
-  tall wall shows its face above a lower lip next to it). Faces are affine-mapped slices of the wall texture,
-  picked per tile so the pattern varies; a lip uses the bottom 22/72 of the texture (or of the door sprite) at
-  the same scale rather than squashing it. The left face is shaded 42 %, the right 18 %, and the top is a dark
-  cap (slightly lighter on a lip, with a brighter edge line).
-- **Doors** are wall blocks whose passage-facing face shows the door sprite. A door between walls on x±1 shows it
-  on the +y face; one between walls on y±1 shows it on the +x face. Opened doors become plain floor.
-- **Depth sorting.** Walls, props, monsters, the hero and projectiles are sorted by `x + y`. A wall or prop on
+- **Walls** are full-height blocks, 72 px tall (`WALLH`), south walls included, so the south and east walls of a
+  room hide the floor right behind them (see Level generation for how props stay in view). Only the two faces
+  facing the viewer (+y and +x) are drawn, and only where the neighbour on that side isn't a wall. A face that
+  looks into a room or corridor (floor, open door or doorway in front of it, `roomSide`) shows the stone wall
+  texture; a face toward solid ground (void) shows the **dirt** texture (`assets/dirt.jpg`). Faces are
+  affine-mapped 128 × 75 cells of the texture, picked per tile so the pattern varies. The left face is shaded
+  42 %, the right 18 % (`SHADE_Y`, `SHADE_X`). The top of every wall is dirt too, drawn in iso-transformed space
+  like the floor (the pattern spans 1.5 tiles), darkened 25 %, with a faint edge line.
+- **Doors** are wall blocks whose passage-facing face shows the door sprite, with a dark wooden top. A door
+  between walls on x±1 shows it on the +y face; one between walls on y±1 shows it on the +x face. Opened doors
+  become plain floor and are no longer drawn (`drawDoor`).
+- **Searched bones** are drawn with their own sprite (`bonesused`): the same bones scattered flatter and wider.
+- **Depth sorting.** Walls, doors, props, monsters, the hero and projectiles are sorted by `x + y`. A wall or prop on
   tile `(tx, ty)` uses `tx + ty + 1`; entities use their foot position. Stairs, bones, gold and floor items
   are drawn flat right after the floor.
 - **Fog / exploration.** Tiles within ~6.8 tiles of the hero become "seen". Unseen tiles more than ~13 tiles
@@ -282,6 +285,12 @@ Each depth `d` gets a freshly generated level.
   with green flames, a hint of what lies next door.
 - Blocking props are only placed on a room's edge, against solid wall, and never next to a doorway or
   corridor mouth, so they can't cut off a path.
+- **Props stay in view.** The full-height south and east walls hide about the last two rows and columns of a
+  room, so every prop (chests, urns, braziers, banners, bones, gold, furnishings) goes where the camera sees it:
+  edge props only on the north edge (`y = r.y`, not in its last 2 tiles) or the west edge (`x = r.x`, not in its
+  last 2 tiles); inner props on `x ≤ r.x + r.w − 3`, `y ≤ r.y + r.h − 3` (`freeInner(r, edgeOnly, true)`).
+  Green banners also use only the north and west edges. Monsters may stand anywhere. Loot dropped near a south
+  or east wall can land out of sight; its name label still shows when the hero is close.
 - **Monsters per room** (normal rooms: not the start, boss, big or lone-demon room): an even draw from 1 to
   `cap = min(7, 3 + ⌊(d − 1)/2⌋)` (3 at depths 1–2, 4 at 3–4, 5 at 5–6, …), plus 1 with 50 % chance in a room
   of 64+ tiles. So a single monster stays possible at every depth. The type is drawn by weight from the types
@@ -689,7 +698,7 @@ pickups, gold, potions, level-ups, death and stairs. Audio starts on the first c
 The art was generated through the `ai-media-generation` skill in Martin's notes repo: monsters, items, props
 and textures with OpenAI `gpt-image-2` (medium quality, about $0.70), and the hero walk cycle with Google
 `gemini-3.1-flash-image` (see [Walk cycles](#walk-cycles-hero-skeleton-ghoul)). Total spend so far is about
-$2.83 ($0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
+$3.09 ($0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
 walk cycles, plus small tests).
 
 - **Background.** `gpt-image-2` can't make transparent backgrounds (and a Gemini test returned an opaque JPEG
@@ -727,6 +736,17 @@ walk cycles, plus small tests).
   - `tools/raw/items3.png`: OpenAI `gpt-image-2` (medium, 1536 × 1024), a 3 × 2 sheet on magenta for the rest:
     war bow, composite bow, full plate, iron greaves, heavy sabatons (and a belt pouch, unused).
   - The **quiver** icon (`quiver`) isn't used yet; it is meant for limited ammo (todo #15).
+- **Dirt and searched bones** (built by `tools/add_props.py`, ~$0.14 for the two used images, ~$0.26 with the
+  rejected dirt and a door sheet not used yet):
+  - `tools/raw/dirt_b.png`: Google `gemini-3.1-flash-image` `edit` (1K, 1:1) with `wall.jpg` and `floor.jpg` as
+    style references: "a NEW seamless tileable square texture of dark cave earth: rough packed brown soil with
+    embedded stones and pebbles, a few thin roots, crumbly clumps … even flat lighting". It wasn't quite
+    seamless, so the script blends it with a half-offset copy of itself. (The other candidate, finer soil from
+    OpenAI `gpt-image-2`, was rejected.)
+  - `tools/raw/bones_searched.png`: Google `gemini-3.1-flash-image` `edit` (1K, 4:3) of the original bone pile on
+    magenta: "the same bones after someone has searched through them … scattered and spread out flat over a
+    wider area, a lower and sparser pile". Keyed with `add_items.py`'s `key_cell`, keeping every loose bone,
+    scaled to 200 px wide.
 - **Props** (1536 × 1024): a 4 × 2 grid (closed chest, open chest with glowing gold, arched gothic door in a
   stone frame, descending stairway seen from above, lit brazier, skull-and-bone pile, cracked funeral urn,
   gold coin pile), on magenta.
