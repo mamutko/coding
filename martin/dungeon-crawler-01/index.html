@@ -265,7 +265,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 10;
+const VERSION = 11;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1106,16 +1106,19 @@ function damageMonster(m, raw, crit) {
   if (m.hp <= 0) killMonster(m);
 }
 // A monster that notices the hero wakes idle monsters within 6 tiles; one that is hit (roomWide) also wakes
-// every monster in the same room. Which types it can wake depends on its own type (WAKES); ghouls are never
-// woken by others, and notice the hero only by chance (NOTICE_ODDS per second).
-const WAKES = { skeleton: ['skeleton'], ghoul: ['skeleton', 'spider', 'wraith', 'demon'], wraith: [], spider: ['skeleton', 'spider', 'demon'], demon: [] };
-const NOTICE_ODDS = { ghoul: 0.5 };   // chance per second of noticing a hero in range and sight (others: at once)
+// every monster in the same room. Which types it can wake depends on its own type and on how it woke (WAKES:
+// [on sighting, on being hit]); ghouls are never woken by others. Some types notice the hero only by chance
+// (NOTICE_ODDS per second).
+const ALL_BUT_GHOULS = ['skeleton', 'spider', 'wraith', 'demon'];
+const WAKES = { skeleton: [['skeleton'], ['skeleton']], ghoul: [[], []], wraith: [[], []],
+  spider: [['skeleton', 'spider', 'demon'], ['skeleton', 'spider', 'demon']], demon: [[], ALL_BUT_GHOULS] };
+const NOTICE_ODDS = { ghoul: 0.35, wraith: 0.5, demon: 0.5 };   // chance per second of noticing a hero in range and sight (others: at once)
 const roomAt = (x, y) => G.map.rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
 // A monster that lost interest (calm) is never woken by others.
 function alert(m, roomWide = false) {
   chase(m);
   const room = roomWide ? roomAt(m.x, m.y) : null;
-  const can = WAKES[m.type] || [];
+  const can = (WAKES[m.type] || [[], []])[roomWide ? 1 : 0];
   for (const o of G.monsters) if (!o.dead && o.state === 'idle' && !o.calm && can.includes(o.type) && (dist(o, m) < 6 || (room && roomAt(o.x, o.y) === room))) chase(o);
 }
 function chase(m) { if (m.state !== 'chase' && !m.dead) { monsterVoice(m, 'alert'); m.voiceT = 2 + rnd() * 4; } m.state = 'chase'; m.lastSeen = G.time; m.stuckT = 0; m.anchor = null; m.calm = null; m.detourT = 0; }
@@ -1833,7 +1836,7 @@ function updateFx(dt) {
   for (const t of G.texts) t.t += dt;
   G.texts = G.texts.filter(t => t.t < t.dur);
 }
-const DEATH_DELAY = 3;   // seconds between the hero's death and the death screen
+const DEATH_DELAY = 4;   // seconds between the hero's death and the death screen
 function updateMonster(m, dt) {
   m.hitT = Math.max(0, m.hitT - dt); m.lunge = Math.max(0, m.lunge - dt * 4);
   if (m.dead) { m.deathT += dt; return; }
