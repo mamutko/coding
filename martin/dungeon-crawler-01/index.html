@@ -308,7 +308,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 24;
+const VERSION = 25;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2482,7 +2482,7 @@ $('startBtn').addEventListener('click', startGame);
 let last = performance.now();
 // Frame timing: an average of the frame time (s), and a window for the resolution check (adaptRes).
 const PERF = { avg: 1 / 60, t: 0, n: 0, sum: 0, fps: 60, scaleT: 0 };
-const SLOW_FRAME = 1 / 45;   // a 2 s average slower than this (under 45 fps) lowers the render scale
+const SLOW_FRAME = 1 / 25;   // a 2 s average slower than this (under 25 fps) lowers the render scale
 function adaptRes(real) {
   if (real > 0.25 || document.hidden) return;   // a stall or a hidden tab says nothing about rendering speed
   PERF.sum += real; PERF.n++; PERF.t += real;

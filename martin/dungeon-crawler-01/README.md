@@ -270,7 +270,7 @@ work.
   under 20 fps the whole game ran in slow motion.)
 - **Automatic render scale** (`adaptRes`): the frame time is averaged over 2 s windows (stalls over 0.25 s
   and hidden tabs are skipped). While a level is being played, the debug switch **Auto resolution** is on (the default), and the average is
-  under 45 fps (`SLOW_FRAME`), the render scale (canvas pixels per CSS pixel, normally `min(2, devicePixelRatio)`) drops
+  under 25 fps (`SLOW_FRAME`; 20 fps is still playable, so the picture stays sharp as long as it can), the render scale (canvas pixels per CSS pixel, normally `min(2, devicePixelRatio)`) drops
   by 0.25 (`DPR_CAP`), down to 1, and the canvas is resized. It never goes back up during the session. On a
   phone with a 3× screen, 1.5 is still sharp, and each step cuts the pixels drawn a lot (2 → 1.75 is 23 %
   fewer). This matters most for the home-screen app, which has the whole screen to draw.
