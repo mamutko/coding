@@ -342,7 +342,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 38;
+const VERSION = 39;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -439,8 +439,8 @@ function audio() {
 // ---- Music (assets/music): two looping moods, exploration and combat, each in an instrumental and a choir
 // version (gothic, D minor, a Latin choir; Google lyria-3.5). updateMusic runs every frame and picks the mood:
 //  - none on the title screen and after the hero dies (fades out over 1.5 s);
-//  - combat while 4 or more monsters pursue the hero (COMBAT_MIN; state 'chase'), held for COMBAT_HOLD s after
-//    the count drops below 4 so a fight doesn't flicker between the moods;
+//  - combat from the moment 4 or more monsters pursue the hero (COMBAT_MIN; state 'chase') for as long as at
+//    least one still does, plus COMBAT_HOLD s after the last one stops, so a fight doesn't flicker between moods;
 //  - 'boss' (the choir combat track) while the hero is inside the boss room of a level whose boss is a Pit Demon
 //    and that boss lives;
 //  - exploration otherwise.
@@ -471,7 +471,7 @@ function musicMood(dt) {
   if (!G || !G.running || G.dead || !G.map) return null;
   const h = G.hero, boss = G.map.boss, br = G.map.bossRoom;
   let n = 0; for (const m of G.monsters) if (!m.dead && m.state === 'chase') n++;
-  MUSIC.combatT = n >= COMBAT_MIN ? COMBAT_HOLD : Math.max(0, MUSIC.combatT - dt);
+  MUSIC.combatT = n >= COMBAT_MIN || (n > 0 && MUSIC.combatT > 0) ? COMBAT_HOLD : Math.max(0, MUSIC.combatT - dt);
   if (demonLevel() && !boss.dead && br && roomAt(Math.floor(h.x), Math.floor(h.y)) === br) return 'boss';
   return MUSIC.combatT > 0 ? 'combat' : 'explore';
 }

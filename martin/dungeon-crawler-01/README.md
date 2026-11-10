@@ -862,8 +862,9 @@ when crossfaded):
 - **none** on the title screen and once the hero has died: the music fades out over 1.5 s;
 - **boss** while the hero stands in the boss room (`roomAt` of the hero's tile is `G.map.bossRoom`) of a level
   whose boss is a **Pit Demon** and that boss is alive: the choir combat track (`combat.mp3`);
-- **combat** while 4 or more living monsters are pursuing the hero (`state === 'chase'`, `COMBAT_MIN`), and for
-  5 s after the count falls below 4 (`COMBAT_HOLD`), so a fight doesn't flick between the moods;
+- **combat** from the moment 4 or more living monsters are pursuing the hero (`state === 'chase'`,
+  `COMBAT_MIN`) for as long as at least one still pursues, and for 5 s after the last one stops (`COMBAT_HOLD`),
+  so a fight doesn't flick between the moods; fewer than 4 pursuers never start it;
 - **exploration** otherwise.
 
 **Plays and the choir.** Every start of a track is a *play*, counted per mood and per level (`MUSIC.plays`;
