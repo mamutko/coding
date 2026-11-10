@@ -321,7 +321,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 29;
+const VERSION = 30;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1250,16 +1250,15 @@ function resolveSwing(h) {
   const main = hits.find(x => x.m === s.target) || hits.reduce((a, b) => (b.da < a.da - 0.05 || (Math.abs(b.da - a.da) <= 0.05 && b.d < a.d)) ? b : a);
   for (const x of hits) { const [dmg, crit] = s.roll(); damageMonster(x.m, x === main ? dmg : dmg * CLEAVE, crit); }
 }
-// The hero's life bar over its head: shown for HERO_BAR.show s after each hit (then fading out over
-// HERO_BAR.fade s), and all the time at or below HERO_BAR.glowFrom of max life. Unlike the monsters' flat red
+// The hero's life bar over its head: shown for HERO_BAR.show s after each hit, then fading out over
+// HERO_BAR.fade s (at any life). Unlike the monsters' flat red
 // bars it is rounded, with a thin muted-gold frame and a glossy crimson fill. From HERO_BAR.glowFrom (30 %)
 // down to 0 a red glow grows around it (and pulses faster the lower life is).
-const HERO_BAR = { show: 3, fade: 0.8, glowFrom: 0.3, w: 50, h: 6 };
+const HERO_BAR = { show: 2, fade: 0.8, glowFrom: 0.3, w: 50, h: 6 };
 function drawHeroBar(h) {
   const frac = clamp(h.hp / h.st.maxHp, 0, 1), since = G.time - (h.hurtAt ?? -99);
   const low = frac <= HERO_BAR.glowFrom;
   let a = since < HERO_BAR.show ? 1 : since < HERO_BAR.show + HERO_BAR.fade ? 1 - (since - HERO_BAR.show) / HERO_BAR.fade : 0;
-  if (low) a = 1;
   if (a <= 0) return;
   const [sx, sy] = iso(h.x, h.y), { w, h: bh } = HERO_BAR, x = sx - w / 2, y = sy - 126;
   const k = low ? clamp((HERO_BAR.glowFrom - frac) / HERO_BAR.glowFrom, 0, 1) : 0;   // 0 at 30 % life, 1 at 0

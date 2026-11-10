@@ -739,8 +739,8 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 
 ## HUD
 
-- **Hero life bar** (`drawHeroBar`, `HERO_BAR`): a bar over the hero's head, shown for 3 s after each hit
-  (`hurtAt`, set in `damageHero`) and then fading out over 0.8 s; at or below 30 % of max life it stays shown.
+- **Hero life bar** (`drawHeroBar`, `HERO_BAR`): a bar over the hero's head, shown for 2 s after each hit
+  (`hurtAt`, set in `damageHero`) and then fading out over 0.8 s, whatever the hero's life (low life included).
   It is styled apart from the monsters' flat 50 × 4 px bars: 50 × 6 px, rounded, with a thin gold frame
   and a glossy crimson gradient fill (one piece, no segments). From 30 % life down to 0 a soft red glow grows
   around it (a canvas shadow, so it works in Safari too): the halo gets wider (blur 8 → 38 px), stronger (up to
