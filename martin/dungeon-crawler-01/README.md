@@ -681,7 +681,8 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
 ## Debug overlay
 
 `Ctrl` + `D` opens and closes a small **Debug** panel at the top right, under the minimap (it works with the
-game paused or running; the browser's bookmark shortcut is suppressed). Its switches are remembered in
+game paused or running; the browser's bookmark shortcut is suppressed). Its heading shows the game version
+(`v<N>`, as on the title screen). Its switches are remembered in
 `localStorage` (`dc01-debug`, wrapped in `try`):
 
 - **Pursuit indicator** — a red dot (5 px, black outline) above every monster that is pursuing the hero

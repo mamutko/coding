@@ -84,6 +84,7 @@
   #debug { position: absolute; right: 14px; top: 160px; z-index: 30; pointer-events: auto; padding: 8px 12px;
     background: rgba(10, 7, 9, 0.92); border: 1px solid var(--gold-dim); font-size: 13px; color: var(--ink); }
   #debug h4 { margin: 0 0 6px; font-family: Cinzel, serif; color: var(--gold); font-size: 13px; letter-spacing: 1px; }
+  #debug #dbgVer { font-family: Georgia, serif; color: var(--ink-dim); font-size: 12px; margin-left: 6px; letter-spacing: 0; }
   #debug label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
   #minimap { position: absolute; right: 14px; top: 14px; width: 220px; height: 130px; background: rgba(6,4,6,0.55);
     border: 1px solid var(--panel-edge); }
@@ -225,7 +226,7 @@
   <div id="topleft"><div id="depthName"></div><div id="depthSub"></div><div id="goldText"></div></div>
   <div id="target" class="hidden"><div id="targetName"></div><div id="targetBar"><div id="targetFill"></div></div></div>
   <canvas id="minimap" width="220" height="130"></canvas>
-  <div id="debug" class="hidden"><h4>Debug (Ctrl+D)</h4>
+  <div id="debug" class="hidden"><h4>Debug (Ctrl+D) <span id="dbgVer"></span></h4>
     <label><input type="checkbox" id="dbgPursuit"> Pursuit indicator</label></div>
   <div id="log"></div>
   <div id="orb" title="Click to drink a health potion"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
@@ -294,7 +295,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 18;
+const VERSION = 19;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2458,7 +2459,7 @@ function frame(now) {
     }
   }
 }
-$('version').textContent = 'v' + VERSION;
+$('version').textContent = $('dbgVer').textContent = 'v' + VERSION;
 loadAll().then(() => {
   floorPat = ctx.createPattern(IMG.floor, 'repeat');
   floorPat.setTransform(new DOMMatrix().scale(3 / 512));
