@@ -203,8 +203,8 @@ and the picker shows no saved heroes.
 - **Prop shadows** are soft-edged ellipses (a radial gradient from 50 % black to transparent) under each prop's
   base, by shape. The sprite's bottom is the prop's front-most ground point, so: **boxes** (chest, sarcophagus,
   altar, throne) centre the shadow `w/4` above it (the middle of a `w`-wide base diamond), radii 0.62w × 0.32w;
-  **mounds** (skull pile, bones) 0.2w above, 0.58w × 0.28w; **posts** (brazier, candelabrum, banner, pillar,
-  urn) 0.08w above, 0.46w × 0.21w. Stairs and gold have none. A prop with `flip` (a throne on the right back
+  **mounds** (skull pile, bones) 0.2w above, 0.58w × 0.28w; **tripods** (brazier) 0.2w above (between the feet),
+  0.44w × 0.2w and darker (75 %); **posts** (candelabrum, banner, pillar, urn) 0.08w above, 0.46w × 0.21w. Stairs and gold have none. A prop with `flip` (a throne on the right back
   wall) is drawn mirrored.
 - **Green brazier** (see Dungeon generation): drawn with `hue-rotate(80deg) saturate(1.4)`, with green embers.
 - **Rune circle** in the boss room: drawn on the floor, centred on the room, radius 0.24 × the room's shorter
@@ -243,11 +243,20 @@ Each depth `d` gets a freshly generated level.
 
 - Map size `min(44 + 2d, 80)` square. Up to `min(9 + ⌊d/2⌋, 18)` rectangular rooms of 5–10 × 5–10 tiles,
   kept at least 3 tiles apart.
-- Each room is joined to the nearest earlier room by an L-shaped, 1-wide corridor, so the whole level is
-  connected. `2 + ⌊d/4⌋` extra random corridors add loops.
+- Each room is joined to the nearest earlier room by an L-shaped corridor, so the whole level is connected.
+  `2 + ⌊d/4⌋` extra random corridors add loops. A corridor is 1 tile wide, or 2 wide with 40 % chance
+  (`WIDE_ODDS`); a wide corridor's mouths are 2 tiles wide, so they never get a door. Within 2 tiles of a boss or
+  big room the second lane is left out, so a wide corridor narrows to 1 tile at that room's mouth.
+- **Boss and big rooms are entered only through doors.** After carving, every floor tile on such a room's
+  surrounding ring that isn't a 1-wide mouth straight out of the room (a corridor running along the room, a
+  corner, a 2-wide mouth) is filled in, as long as every room stays reachable (BFS from the start room). Where
+  the tile is needed, that bit of corridor is moved one tile further out (around a corner: the 5 outer tiles
+  around it) and the tile is filled if the level stays connected. Up to 3 passes; in tests of 400 levels
+  (depths 1–10) every boss and big room ended up with doors on all its openings.
 - Every void tile next to floor (8-neighbourhood) becomes a wall.
 - **Doors.** A corridor tile in a room's surrounding ring, with void on both sides along the ring, is a door
-  candidate. Each candidate becomes a closed door with 55 % probability.
+  candidate. On a boss or big room's ring it always becomes a closed door; elsewhere with 55 % probability
+  (`DOOR_ODDS`), so rooms with champions may or may not have doors.
 - **Stairs down** are placed in the centre of the room farthest from the start room (by BFS walking distance),
   never the boss room or the big room.
   The hero starts in the centre of the first room, which never has monsters or chests.
@@ -447,7 +456,7 @@ and item uses:
     **calm**: it ignores the hero and isn't woken by other monsters for at least 6 s (`CALM_MIN`) and until it is
     unstuck (it has walked 1 tile, `UNSTUCK`, of its own random walk; pushes don't count). **A hit always starts
     pursuit**, also of a calm monster (its calm ends at once);
-  - it has **not seen** the hero for 15 s (`LOST_SIGHT`). It isn't calm afterwards, so it wakes again normally.
+  - it has **not seen** the hero for 8 s (`LOST_SIGHT`). It isn't calm afterwards, so it wakes again normally.
 - Idle monsters wander slowly.
 - A monster not damaged for 4 s regenerates 1.5 % of its max life per second.
 - **Melee monsters** wind up for 0.32 s (a visible shake). The blow lands only if the hero is still in reach.

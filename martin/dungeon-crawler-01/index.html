@@ -265,7 +265,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 7;
+const VERSION = 8;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -583,6 +583,7 @@ const CHAMP_PRE = ['Dread', 'Blighted', 'Bloodsoaked', 'Ancient', 'Accursed', 'R
 // Boss-room furnishings: [type, count], and the depth from which each first appears.
 const BOSS_DECOR = [['throne', 1], ['altar', 1], ['sarcophagus', 1], ['banner', 2], ['pillar', 2], ['candelabrum', 2], ['skullpile', 3]];
 const DECOR_FROM = { skullpile: 3, banner: 3, candelabrum: 4, pillar: 5, sarcophagus: 6, altar: 7, throne: 8 };
+const WIDE_ODDS = 0.4, DOOR_ODDS = 0.55;   // corridors 2 tiles wide; doors on 1-wide room mouths
 const BOSS_ROOM_FROM = 3, BOSS_FROM = 6;   // depth 3's boss room stands empty: a premonition of what is to come;
                                            // depths 4 and 5 have none, from depth 6 every level has a boss
 const bossRoomAt = d => d === BOSS_ROOM_FROM || d >= BOSS_FROM;
@@ -754,12 +755,17 @@ function buildLevel(d) {
   }
   for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) t[y * w + x] = T_FLOOR;
   const links = [];   // rooms joined by a carved corridor: [a, b, path], path = the carved tiles from a's centre to b's
+  // A corridor is 1 tile wide, or (WIDE_ODDS) 2 tiles wide. A wide corridor's mouths are 2 tiles wide, so they
+  // never get a door. Near a boss or big room (within 2 tiles of its edge) the second lane is left out, so the
+  // corridor narrows to 1 tile at the room's mouth, where it always gets a door.
+  const nearBig = (x, y) => rooms.some(r => r.big && x >= r.x - 3 && x <= r.x + r.w + 2 && y >= r.y - 3 && y <= r.y + r.h + 2);
   const carve = (a, b) => {
     const path = [[a.cx, a.cy]]; links.push([a, b, path]);
-    let x = a.cx, y = a.cy; const hf = rnd() < 0.5;
-    const stepX = () => { while (x !== b.cx) { x += Math.sign(b.cx - x); t[y * w + x] = T_FLOOR; path.push([x, y]); } };
-    const stepY = () => { while (y !== b.cy) { y += Math.sign(b.cy - y); t[y * w + x] = T_FLOOR; path.push([x, y]); } };
-    if (hf) { stepX(); stepY(); } else { stepY(); stepX(); }
+    let x = a.cx, y = a.cy; const hf = rnd() < 0.5, wide = rnd() < WIDE_ODDS;
+    const lane = (lx, ly) => { if (wide && !nearBig(lx, ly) && lx > 0 && ly > 0 && lx < w - 1 && ly < h - 1) t[ly * w + lx] = T_FLOOR; };
+    const stepX = () => { while (x !== b.cx) { x += Math.sign(b.cx - x); t[y * w + x] = T_FLOOR; lane(x, y + 1); path.push([x, y]); } };
+    const stepY = () => { while (y !== b.cy) { y += Math.sign(b.cy - y); t[y * w + x] = T_FLOOR; lane(x + 1, y); path.push([x, y]); } };
+    if (hf) { stepX(); lane(x + 1, y + 1); stepY(); } else { stepY(); lane(x + 1, y + 1); stepX(); }
   };
   for (let i = 1; i < rooms.length; i++) {
     let best = 0, bd = 1e9;
@@ -767,6 +773,25 @@ function buildLevel(d) {
     carve(rooms[i], rooms[best]);
   }
   for (let k = 0; k < 2 + (d >> 2); k++) { const a = pick(rooms), b = pick(rooms); if (a !== b) carve(a, b); }
+  // Boss and big rooms are entered only through doors: every other floor tile on their surrounding ring (a
+  // corridor running along the room, a corner, a wide mouth) is filled in, unless that would cut a room off.
+  const ringOpen = (r, x, y) => {   // a 1-wide mouth straight out of the room (corners never are)
+    if ((y === r.y - 1 || y === r.y + r.h) && x >= r.x && x < r.x + r.w) return at(x - 1, y) === T_VOID && at(x + 1, y) === T_VOID;
+    if ((x === r.x - 1 || x === r.x + r.w) && y >= r.y && y < r.y + r.h) return at(x, y - 1) === T_VOID && at(x, y + 1) === T_VOID;
+    return false; };
+  const allLinked = () => { const seen = new Uint8Array(w * h), q = [rooms[0].cy * w + rooms[0].cx]; seen[q[0]] = 1;
+    while (q.length) { const i = q.pop(), x = i % w, y = (i - x) / w;
+      for (const j of [i - 1, i + 1, i - w, i + w]) if (!seen[j] && t[j] === T_FLOOR) { seen[j] = 1; q.push(j); } }
+    return rooms.every(r => seen[r.cy * w + r.cx]); };
+  for (let pass = 0; pass < 3; pass++) for (const r of rooms) if (r.big) for (let y = r.y - 1; y <= r.y + r.h; y++) for (let x = r.x - 1; x <= r.x + r.w; x++) {
+    if ((x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) || t[y * w + x] !== T_FLOOR || ringOpen(r, x, y)) continue;
+    t[y * w + x] = T_VOID; if (allLinked()) continue;
+    // needed (a corridor running along the room): move that bit of corridor one tile further out instead
+    const ox = x < r.x ? -1 : x >= r.x + r.w ? 1 : 0, oy = y < r.y ? -1 : y >= r.y + r.h ? 1 : 0, added = [];
+    const cells = ox && oy ? [[x + ox, y + oy], [x + ox, y], [x, y + oy], [x + ox, y - oy], [x - ox, y + oy]] : [[x + ox, y + oy]];   // a corner: go round it
+    for (const [ax, ay] of cells) if ((ax !== x || ay !== y) && ax > 0 && ay > 0 && ax < w - 1 && ay < h - 1 && t[ay * w + ax] === T_VOID) { t[ay * w + ax] = T_FLOOR; added.push(ay * w + ax); }
+    if (!allLinked()) { t[y * w + x] = T_FLOOR; for (const i of added) t[i] = T_VOID; }
+  }
   // door candidates on each room's surrounding ring
   const doorSpots = [];
   for (const r of rooms) {
@@ -785,7 +810,8 @@ function buildLevel(d) {
   const objects = [], monsters = [], items = [];
   const occ = new Uint8Array(w * h);
   for (const [x, y, axis, front] of doorSpots) {   // front: the room is on the +y / +x side
-    if (rnd() < 0.55 && occ[y * w + x] === 0) { t[y * w + x] = T_DOOR; occ[y * w + x] = 1; objects.push({ type: 'door', x, y, axis, front, look: rnd() < 0.75 ? 'doorA' : 'doorB', open: false, block: true }); }
+    const big = rooms.some(r => r.big && x >= r.x - 1 && x <= r.x + r.w && y >= r.y - 1 && y <= r.y + r.h);   // boss and big rooms: always
+    if ((big || rnd() < DOOR_ODDS) && occ[y * w + x] === 0) { t[y * w + x] = T_DOOR; occ[y * w + x] = 1; objects.push({ type: 'door', x, y, axis, front, look: rnd() < 0.75 ? 'doorA' : 'doorB', open: false, block: true }); }
   }
   const map = { w, h, t, at, seen: new Uint8Array(w * h), block: new Uint8Array(w * h), rooms };
   G.map = map; G.objects = objects; G.monsters = monsters; G.items = items; G.proj = []; G.fx = []; G.texts = [];
@@ -1092,7 +1118,7 @@ function chase(m) { if (m.state !== 'chase' && !m.dead) { monsterVoice(m, 'alert
 // Losing interest: back to a random walk. After being stuck (calm) it ignores the hero for at least CALM_MIN s
 // and until it is unstuck (has walked UNSTUCK tiles of its random walk; pushes don't count); a hit ends that at
 // once (pursuit). A chasing monster stalled for DETOUR_AFTER s follows an A* path for DETOUR_T s.
-const STUCK_GIVEUP = 3, STUCK_MOVE = 0.5, UNSTUCK = 1, CALM_MIN = 6, LOST_SIGHT = 15, DETOUR_AFTER = 0.6, DETOUR_T = 2;
+const STUCK_GIVEUP = 3, STUCK_MOVE = 0.5, UNSTUCK = 1, CALM_MIN = 6, LOST_SIGHT = 8, DETOUR_AFTER = 0.6, DETOUR_T = 2;
 function loseInterest(m, stuck) {
   m.state = 'idle'; m.path = []; m.wander = 0; m.stuckT = 0; m.anchor = null;
   m.calm = stuck ? { walked: 0, t: G.time } : null;
@@ -2083,7 +2109,7 @@ const PROP_STYLE = { chest: [0.6, 8], chestopen: [0.6, 8], stairs: [0.66, 0], br
 // above their ground point, so their shadows move up to sit under the body and the feet.
 const CHAR_SHADOW = { hero: [32, 15, 0.55, 0.55, 2], spider: [66, 30, 0.6, 0.3, -28], demon: [42, 19, 0.6, 0.4, -14] };
 const PROP_SHADOW = { chest: 'box', chestopen: 'box', sarcophagus: 'box', altar: 'box', throne: 'box', skullpile: 'mound', bones: 'mound',
-  urn: 'post', brazier: 'post', candelabrum: 'post', banner: 'post', pillar: 'post' };   // stairs and gold cast none
+  urn: 'post', brazier: 'tripod', candelabrum: 'post', banner: 'post', pillar: 'post' };   // stairs and gold cast none
 // A soft-edged elliptical shadow: dark in the middle, fading to nothing at the rim.
 function softShadow(x, y, rx, ry, a, mid = 0.55) {   // mid: where the shade is still at 70 % (smaller = softer)
   ctx.save(); ctx.translate(x, y); ctx.scale(1, ry / rx);
@@ -2162,8 +2188,9 @@ function drawProp(o) {
   // a diamond about w wide and w/2 deep) has its base centre w/4 above that; posts stand on a small base
   const shape = PROP_SHADOW[key];
   if (shape) {
-    const bottom = top + hh, [k, rxF, ryF] = shape === 'box' ? [0.25, 0.62, 0.32] : shape === 'mound' ? [0.2, 0.58, 0.28] : [0.08, 0.46, 0.21];
-    softShadow(sx, bottom - w * k, w * rxF, w * ryF, 0.5);
+    const bottom = top + hh, [k, rxF, ryF, sa, sm] = shape === 'box' ? [0.25, 0.62, 0.32, 0.5] : shape === 'mound' ? [0.2, 0.58, 0.28, 0.5]
+      : shape === 'tripod' ? [0.2, 0.44, 0.2, 0.75, 0.7] : [0.08, 0.46, 0.21, 0.5];   // tripod: centred between the feet, darker
+    softShadow(sx, bottom - w * k, w * rxF, w * ryF, sa, sm);
   }
   const glow = o.boss && !o.used ? 'drop-shadow(0 0 6px rgba(70,235,110,0.9))' : '';
   const fire = o.green ? GREEN_FIRE : o.grey ? GREY_BANNER : '';
