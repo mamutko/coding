@@ -37,6 +37,13 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 
 ## Home screen app
 
+**Full screen in the browser:** `F5`, or the **Full screen** button at the top right of the title screen,
+toggles the browser's full-screen mode (Fullscreen API, with the `webkit` prefixed calls for older Safari;
+`FS` in the code). The button is shown only where the browser supports it (desktop browsers, Android, iPad) and
+not when the game already runs as a full-screen app; it reads **Exit full screen** while full screen is on
+(Esc also leaves it). The iPhone has no full-screen mode for web pages: there the home-screen app below is the
+way to hide the browser bars.
+
 The game can be installed as a home-screen app, which then opens **without browser bars**:
 
 - **iPhone / iPad:** in Safari, Share → **Add to Home Screen**. The `apple-mobile-web-app-*` meta tags make the
@@ -86,6 +93,7 @@ template, never in `catalog.html`.
 | `Q`, or a click / tap on the life orb | Drink a health potion (queued like a quick key). |
 | `M` | Toggle the minimap. |
 | `N` | Toggle sound. |
+| `F5` (or the title screen's **Full screen** button) | Toggle full screen, where the browser supports it (see [Home screen app](#home-screen-app)). F5 no longer reloads the page. |
 | `Ctrl` + `D` (touch: hold the minimap and the life orb together) | Toggle the debug overlay (see [Debug overlay](#debug-overlay)). |
 | Mouse wheel, or pinch with two fingers (touch) | Zoom (0.6×–1.5×). |
 

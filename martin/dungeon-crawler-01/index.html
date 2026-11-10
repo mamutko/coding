@@ -188,6 +188,9 @@
   #startBtn:disabled, #cfgBtn:disabled { opacity: 0.45; cursor: default; border-color: var(--gold-dim); color: var(--ink); }
   #screen #cfgBtn { padding: 0 11px; display: flex; align-items: center; }
   #cfgBtn svg { width: 22px; height: 22px; fill: currentColor; }
+  #screen #fsBtn { position: absolute; right: 12px; top: 12px; display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 12px; }
+  #fsBtn svg { width: 16px; height: 16px; fill: currentColor; }
+  #fsBtn.hidden { display: none; }
   #heroCfg { position: fixed; inset: 0; z-index: 45; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); }
   #heroCfg .box { width: min(380px, calc(100% - 32px)); background: linear-gradient(#1d1411, #0e0908); border: 1px solid var(--gold);
     padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 0 24px rgba(0,0,0,0.8); }
@@ -291,11 +294,12 @@
   <div class="controls" id="screenControls">
     <b>Left click</b> — walk / open / pick up &nbsp;·&nbsp; <b>Right click</b> (or <b>Shift + click</b>, or tap while holding the attack button) — attack<br>
     <b>I</b> or <b>Tab</b> — equipment &nbsp;·&nbsp; <b>1–9, 0</b> — quick keys &nbsp;·&nbsp; <b>Q</b> — drink potion<br>
-    <b>M</b> — minimap &nbsp;·&nbsp; <b>N</b> — sound &nbsp;·&nbsp; <b>Mouse wheel</b> (or pinch) — zoom
+    <b>M</b> — minimap &nbsp;·&nbsp; <b>N</b> — sound &nbsp;·&nbsp; <b>Mouse wheel</b> (or pinch) — zoom &nbsp;·&nbsp; <b>F5</b> — full screen
   </div>
   <div id="heroPick"></div>
   <div id="startRow"><button id="startBtn" disabled>Loading…</button><button id="cfgBtn" title="Rename or erase this hero" aria-label="Hero settings" disabled><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.2h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.7h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button></div>
   <div id="heroCfg" class="hidden"><div class="box"></div></div>
+  <button id="fsBtn" class="hidden" title="Full screen (F5)"><svg viewBox="0 0 24 24"><path d="M3 9V3h6v2H5v4zm12-6h6v6h-2V5h-4zM3 15h2v4h4v2H3zm16 0h2v6h-6v-2h4z"/></svg><span>Full screen</span></button>
   <div id="version"></div>
 </div>
 
@@ -317,7 +321,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 28;
+const VERSION = 29;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1852,8 +1856,28 @@ for (const [k, el] of [['map', $('minimap')], ['orb', $('orb')]]) {
   el.addEventListener('touchstart', e => { if (k === 'map') e.preventDefault(); for (const t of e.changedTouches) dbgHeld[k].add(t.identifier); dbgHoldCheck(); }, { passive: false });
   for (const ev of ['touchend', 'touchcancel']) el.addEventListener(ev, e => { for (const t of e.changedTouches) dbgHeld[k].delete(t.identifier); dbgHoldCheck(); });
 }
+// Full screen (F5, or the title screen's button) through the Fullscreen API, where the browser has it (desktop
+// browsers, Android, iPad; not iPhone, where the home-screen app is the way: see README "Home screen app").
+// F5 no longer reloads the page.
+const FS = {
+  el: () => document.fullscreenElement || document.webkitFullscreenElement,
+  can: () => !!(document.fullscreenEnabled || document.webkitFullscreenEnabled) && !matchMedia('(display-mode: fullscreen)').matches,
+  toggle() {
+    if (!FS.can() && !FS.el()) return;
+    const d = document, r = d.documentElement;
+    try {
+      const p = FS.el() ? (d.exitFullscreen || d.webkitExitFullscreen).call(d) : (r.requestFullscreen || r.webkitRequestFullscreen).call(r, { navigationUI: 'hide' });
+      if (p && p.catch) p.catch(() => {});
+    } catch (e) {}
+  },
+  sync() { const b = $('fsBtn'); b.classList.toggle('hidden', !FS.can() && !FS.el()); b.querySelector('span').textContent = FS.el() ? 'Exit full screen' : 'Full screen'; },
+};
+$('fsBtn').addEventListener('click', () => FS.toggle());
+for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { FS.sync(); resize(); fitUI(); });
+FS.sync();
 addEventListener('keydown', e => {
   if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); $('debug').classList.toggle('hidden'); return; }
+  if (e.key === 'F5') { e.preventDefault(); FS.toggle(); return; }
   if (!G || !G.running) return;
   const k = e.key;
   if (k === 'i' || k === 'I' || k === 'Tab' || k === 'c' || k === 'C') { e.preventDefault(); toggleEquip(); return; }
