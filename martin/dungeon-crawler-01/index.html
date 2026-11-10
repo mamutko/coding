@@ -317,7 +317,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 27;
+const VERSION = 28;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1265,13 +1265,13 @@ function drawHeroBar(h) {
     const pulse = 0.75 + 0.25 * Math.sin(G.time * (4 + 6 * k));
     ctx.shadowColor = `rgba(255,${Math.round(60 - 40 * k)},30,${(0.45 + 0.55 * k) * pulse})`;
     ctx.shadowBlur = (8 + 30 * k) * G.zoom * DPR;
-    const sp = 1 + 5 * k;   // the halo shape grows too
-    shape(x - 1 - sp, y - 1 - sp, w + 2 + 2 * sp, bh + 2 + 2 * sp, 4 + sp); ctx.fillStyle = `rgba(255,50,30,${0.3 + 0.6 * k})`;
-    for (let i = 0; i < 1 + Math.round(2 * k); i++) ctx.fill();   // up to three passes: a stronger halo
+    // the halo's shape is the bar's own outline, which the bar's background then covers: only the blur shows
+    shape(x - 1, y - 1, w + 2, bh + 2, 4); ctx.fillStyle = '#ff3220';
+    for (let i = 0; i < 1 + Math.round(4 * k); i++) ctx.fill();   // up to five passes: a stronger halo
     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
   }
-  shape(x - 1, y - 1, w + 2, bh + 2, 4); ctx.fillStyle = 'rgba(12,6,6,0.85)'; ctx.fill();
-  ctx.lineWidth = 0.8; ctx.strokeStyle = k > 0 ? `rgba(${Math.round(160 + 95 * k)},${Math.round(130 - 70 * k)},${Math.round(80 - 40 * k)},0.85)` : 'rgba(160,130,80,0.7)'; ctx.stroke();
+  shape(x - 1, y - 1, w + 2, bh + 2, 4); ctx.fillStyle = '#0c0606'; ctx.fill();
+  ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(201,164,92,0.9)'; ctx.stroke();
   if (frac > 0) {
     const g = ctx.createLinearGradient(0, y, 0, y + bh);
     g.addColorStop(0, '#ff8a7a'); g.addColorStop(0.35, '#d8261c'); g.addColorStop(1, '#6e0a08');
