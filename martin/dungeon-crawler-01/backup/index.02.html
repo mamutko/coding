@@ -1,0 +1,2484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<base href="../">   <!-- backup copy (v20): load assets/ etc. from the game folder -->
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dungeon Crawler</title>
+<!-- web app: opened from a home-screen icon, the game runs without browser bars (see README "Home screen app") -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" href="assets/icons/icon-192.png">
+<meta name="theme-color" content="#050204">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Crypt">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #c9a45c;
+    --gold-dim: #7a6236;
+    --blood: #9e1b1b;
+    --ink: #e8dcc4;
+    --ink-dim: #a99c86;
+    --panel: rgba(16, 11, 14, 0.78);
+    --panel-edge: #5e4a2c;
+    --magic: #6f8cff;
+    --rare: #e6c84a;
+    --common: #d8d2c4;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #050306; color: var(--ink);
+    font-family: "IM Fell English", Georgia, serif; user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none; }   /* no iOS long-press "save image" / link menu anywhere in the game */
+  canvas#game { display: block; position: fixed; inset: 0; cursor: default; touch-action: none; }
+  .hidden { display: none !important; }
+
+  /* ---------- HUD ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; }
+  #orb { position: absolute; left: 22px; bottom: 22px; width: 120px; height: 120px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 40%, #1a0d10, #070305 70%);
+    border: 3px solid var(--gold-dim); box-shadow: 0 0 0 2px #1b130b, 0 0 24px rgba(0,0,0,0.9), inset 0 0 18px #000;
+    overflow: hidden; pointer-events: auto; cursor: pointer; touch-action: manipulation; }
+  #orbFill { position: absolute; left: 0; right: 0; bottom: 0; height: 100%;
+    background: radial-gradient(circle at 40% 30%, #ff5a4a, #b3161a 45%, #4a0508 100%); transition: height 0.15s linear; }
+  #orbGlass { position: absolute; inset: 0; border-radius: 50%;
+    background: radial-gradient(circle at 35% 25%, rgba(255,255,255,0.35), rgba(255,255,255,0) 35%); }
+  #orbText { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: Cinzel, serif; font-weight: 700; font-size: 17px; text-shadow: 0 0 4px #000, 0 0 2px #000; }
+  #orbLabel, #atkLabel { position: absolute; left: 22px; width: 120px; bottom: 4px; text-align: center; font-family: Cinzel, serif;
+    font-size: 11px; letter-spacing: 2px; color: var(--ink-dim); text-shadow: 0 0 3px #000; }
+  /* attack button (touch only, body.touch): round like the orb, in the orb's place; the orb slides right */
+  #atk { display: none; position: absolute; left: 22px; bottom: 22px; width: 120px; height: 120px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 38%, #3a3236, #141012 72%);
+    border: 3px solid var(--gold-dim); box-shadow: 0 0 0 2px #1b130b, 0 0 24px rgba(0,0,0,0.9), inset 0 0 18px #000;
+    pointer-events: auto; touch-action: none; }
+  #atk.held { border-color: var(--gold); box-shadow: 0 0 0 2px #1b130b, 0 0 22px rgba(230,180,80,0.75), inset 0 0 18px #000; }
+  #atkIco { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background-repeat: no-repeat; }
+  #atkLabel { display: none; }
+  body.touch #atk, body.touch #atkLabel { display: block; }
+  body.touch #orb, body.touch #orbLabel { left: 156px; }
+
+  #bottom { position: absolute; left: 50%; transform: translateX(-50%); bottom: 14px; display: flex; flex-direction: column;
+    align-items: center; gap: 6px; pointer-events: auto; }
+  #hotbar { display: flex; gap: 4px; padding: 5px; background: rgba(10, 7, 9, 0.8); border: 1px solid var(--panel-edge);
+    box-shadow: 0 0 14px #000; }
+  .hk { position: relative; width: 48px; height: 48px; background: #120c0e; border: 1px solid #3a2d1c; }
+  .hk.none .ico { opacity: 0.35; }
+  .hk.active { border-color: var(--gold); box-shadow: inset 0 0 10px rgba(201,164,92,0.45); }
+  .hk .num { position: absolute; left: 3px; top: 1px; font-family: Cinzel, serif; font-size: 11px; color: var(--gold); text-shadow: 0 0 3px #000; z-index: 2; }
+  .hk .cnt { position: absolute; right: 3px; bottom: 1px; font-family: Cinzel, serif; font-size: 11px; text-shadow: 0 0 3px #000; z-index: 2; }
+  .ico { position: absolute; inset: 2px; background-repeat: no-repeat; }
+  #xpbar { width: 100%; height: 9px; background: #0c0809; border: 1px solid var(--panel-edge); position: relative; }
+  #xpFill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(#e7c66d, #8a6a22); }
+  #xpText { position: absolute; inset: -3px 0 0 0; text-align: center; font-size: 10px; font-family: Cinzel, serif; color: #fff; text-shadow: 0 0 3px #000; }
+
+  #topleft { position: absolute; left: 18px; top: 14px; font-family: Cinzel, serif; text-shadow: 0 0 4px #000; }
+  #depthName { font-size: 20px; color: var(--gold); letter-spacing: 1px; }
+  #depthSub { font-size: 12px; color: var(--ink-dim); margin-top: 2px; }
+  #goldText { font-size: 13px; color: #e3c060; margin-top: 4px; }
+
+  #target { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); width: 320px; text-align: center;
+    font-family: Cinzel, serif; text-shadow: 0 0 4px #000; }
+  #targetName { font-size: 15px; margin-bottom: 3px; }
+  #targetBar { height: 10px; background: #1b0b0c; border: 1px solid #5a2a22; position: relative; }
+  #targetFill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(#c4291f, #5c0d0a); }
+
+  #log { position: absolute; left: 22px; bottom: 166px; width: 360px; font-size: 14px; display: flex; flex-direction: column-reverse;
+    gap: 2px; text-shadow: 0 0 3px #000, 0 0 2px #000; }
+  #log div { transition: opacity 1s; }
+
+  #debug { position: absolute; right: 14px; top: 160px; z-index: 30; pointer-events: auto; padding: 8px 12px;
+    background: rgba(10, 7, 9, 0.92); border: 1px solid var(--gold-dim); font-size: 13px; color: var(--ink); }
+  #debug h4 { margin: 0 0 6px; font-family: Cinzel, serif; color: var(--gold); font-size: 13px; letter-spacing: 1px; }
+  #debug #dbgVer { font-family: Georgia, serif; color: var(--ink-dim); font-size: 12px; margin-left: 6px; letter-spacing: 0; }
+  #debug label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  #minimap { position: absolute; right: 14px; top: 14px; width: 220px; height: 130px; background: rgba(6,4,6,0.55);
+    border: 1px solid var(--panel-edge); }
+  #menuBtn { position: absolute; right: 14px; bottom: 16px; pointer-events: auto; }
+  button { font-family: Cinzel, serif; color: var(--ink); background: linear-gradient(#2a1d17, #140d0b); border: 1px solid var(--gold-dim);
+    padding: 7px 14px; cursor: pointer; font-size: 13px; letter-spacing: 1px; }
+  button:hover { border-color: var(--gold); color: #fff; }
+  #flash { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(120,0,0,0) 40%, rgba(150,0,0,0.55)); opacity: 0; }
+
+  /* ---------- Equip overlay ---------- */
+  #equip { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -54%); width: min(940px, 96vw);
+    background: var(--panel); border: 1px solid var(--panel-edge); box-shadow: 0 0 0 1px #000, 0 0 40px rgba(0,0,0,0.8);
+    padding: 14px 18px 12px; }
+  #equip h2, #equip h3 { font-family: Cinzel, serif; margin: 0; color: var(--gold); font-weight: 700; letter-spacing: 2px; }
+  #equip h2 { font-size: 20px; }
+  #equip h3 { font-size: 13px; margin-bottom: 6px; }
+  .eqHead { display: flex; justify-content: space-between; align-items: baseline; border-bottom: 1px solid #3b2e1d; padding-bottom: 6px; margin-bottom: 10px; }
+  .hint { font-size: 13px; color: var(--ink-dim); font-style: italic; }
+  .eqBody { display: grid; grid-template-columns: 250px 1fr 200px; gap: 16px; }
+  #doll { position: relative; width: 250px; height: 326px; }
+  #portrait { position: absolute; left: 61px; top: 66px; width: 128px; height: 128px; }
+  .slot { position: absolute; width: 56px; height: 56px; background: rgba(10,6,8,0.75); border: 1px solid #4a3a24; }
+  .slot:hover, .cell:hover { border-color: var(--gold); }
+  .slot .lbl { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 10px;
+    color: #5f5140; font-family: Cinzel, serif; text-align: center; }
+  .cellGrid { display: grid; grid-template-columns: repeat(6, 56px); gap: 4px; }
+  .cell { position: relative; width: 56px; height: 56px; background: rgba(10,6,8,0.7); border: 1px solid #3a2d1c; }
+  .r-magic { box-shadow: inset 0 0 10px rgba(111,140,255,0.55); }
+  .r-rare { box-shadow: inset 0 0 10px rgba(230,200,74,0.55); }
+  .bindTag { position: absolute; right: 2px; top: 0; font-size: 11px; font-family: Cinzel, serif; color: var(--gold); text-shadow: 0 0 3px #000; z-index: 2; }
+  .cell .cnt { position: absolute; right: 3px; bottom: 1px; font-family: Cinzel, serif; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; z-index: 2; }
+  #stats { font-size: 14px; line-height: 1.45; }
+  #stats .row { display: flex; justify-content: space-between; border-bottom: 1px dotted #2e2418; }
+  #stats .row span:last-child { color: #fff; }
+  .hkWrap { margin-top: 10px; border-top: 1px solid #3b2e1d; padding-top: 8px; }
+  #hkCfg { display: flex; gap: 4px; }
+
+  #tooltip { position: fixed; pointer-events: none; z-index: 50; max-width: 290px; background: rgba(8,5,7,0.94); border: 1px solid var(--panel-edge);
+    padding: 8px 10px; font-size: 14px; line-height: 1.35; box-shadow: 0 0 12px #000; }
+  #tooltip .nm { font-family: Cinzel, serif; font-weight: 700; font-size: 15px; }
+  #tooltip .ty { color: var(--ink-dim); font-style: italic; margin-bottom: 4px; }
+  #tooltip .st { color: #9fb2ff; }
+  #tooltip .cmp { margin-top: 6px; padding-top: 5px; border-top: 1px solid #33281a; color: var(--ink-dim); font-size: 13px; }
+  #tooltip .up { color: #7fd17f; } #tooltip .dn { color: #e06a5a; }
+  /* action box (a click or tap on an item in the equipment overlay): the tooltip takes clicks and shows
+     action buttons; the mouse hints are hidden */
+  #tooltip.pinned { pointer-events: auto; }
+  #tooltip.pinned .mh { display: none; }
+  #tooltip .tActs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  #tooltip .tActs button { padding: 7px 12px; font-size: 13px; }
+  #tooltip .tKeys { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 7px; font-size: 13px; color: var(--ink-dim); }
+  #tooltip .tKeys button { width: 28px; padding: 5px 0; font-size: 13px; }
+
+  /* ---------- Title / death screens ---------- */
+  #screen { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column;
+    background: radial-gradient(ellipse at center, rgba(10,4,8,0.55), rgba(3,1,3,0.95)); text-align: center; padding: 16px; z-index: 40; }
+  #screen h1 { font-family: UnifrakturMaguntia, Cinzel, serif; font-weight: 400; font-size: clamp(44px, 9vw, 96px); margin: 0;
+    color: #b52a22; text-shadow: 0 0 18px rgba(180,20,20,0.6), 0 3px 0 #000; }
+  #screen p { max-width: 620px; color: var(--ink-dim); font-size: 17px; }
+  #screen .controls { font-size: 15px; color: var(--ink); line-height: 1.6; margin: 6px 0 20px; }
+  #screen button { font-size: 17px; padding: 10px 26px; }
+  #screenText.fallen { color: #e0a090; }
+  #version { position: absolute; right: 12px; bottom: 8px; font-family: Cinzel, serif; font-size: 11px; letter-spacing: 1px;
+    color: var(--ink-dim); opacity: 0.45; }
+  #heroPick { display: flex; flex-direction: column; gap: 6px; width: min(420px, 100%); margin: 0 0 16px; }
+  #heroPick .heroBtn { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 15px;
+    padding: 8px 14px 8px 30px; text-align: left; position: relative; min-height: 40px; opacity: 0.78; }
+  #heroPick .heroBtn .sub { font-family: Georgia, serif; font-size: 13px; color: var(--ink-dim); }
+  #heroPick .heroBtn::before { content: ''; position: absolute; left: 11px; top: 50%; width: 9px; height: 9px; margin-top: -5px;
+    border: 1px solid var(--gold-dim); transform: rotate(45deg); }
+  #heroPick .heroBtn.sel { opacity: 1; border-color: var(--gold); color: #fff; background: linear-gradient(#4a3320, #24170f);
+    box-shadow: 0 0 14px rgba(201,164,92,0.55), inset 0 0 0 1px rgba(201,164,92,0.5); }
+  #heroPick .heroBtn.sel::before { background: var(--gold); border-color: #fff3c8; box-shadow: 0 0 6px var(--gold); }
+  #heroPick .heroBtn.sel .sub { color: #e8d9b8; }
+  #heroPick .heroBtn.newHero { justify-content: center; padding-left: 14px; opacity: 0.9; }
+  #heroPick .heroBtn.newHero::before { display: none; }
+  #heroPick .heroBtn.naming { padding: 4px; cursor: default; opacity: 1; border-color: var(--gold); }
+  #heroPick input, #heroCfg input { font: 16px Cinzel, serif; padding: 6px 10px; background: #120c0b; color: var(--ink);
+    border: 1px solid var(--gold-dim); outline: none; text-align: center; flex: 1; min-width: 0; }
+  #heroPick input:focus, #heroCfg input:focus { border-color: var(--gold); }
+  #heroPick input.bad, #heroCfg input.bad { border-color: #c4291f; }
+  #heroPick .naming button, #heroCfg .row button { font-size: 14px; padding: 6px 12px; }
+  /* a long hero list scrolls the title screen; the Enter / cogwheel row sticks to the bottom edge, so it is always in reach */
+  #screen { overflow-y: auto; justify-content: safe center; }
+  #screen > h1 { margin-top: auto; } #screen > #startRow { margin-bottom: auto; }
+  #startRow { display: flex; gap: 8px; align-items: stretch; position: sticky; bottom: 0; z-index: 1; padding: 10px 12px;
+    background: radial-gradient(ellipse at center, rgba(3,1,3,0.92) 40%, rgba(3,1,3,0)); }
+  @media (max-width: 480px) { #heroPick .heroBtn:not(.newHero) { flex-direction: column; align-items: flex-start; gap: 2px; } }
+  @media (max-height: 560px) { #screen h1 { font-size: 40px; } #screen p { margin: 6px 0; font-size: 15px; }
+    #screen .controls { font-size: 13px; line-height: 1.4; margin: 4px 0 10px; } }
+  #startBtn:disabled, #cfgBtn:disabled { opacity: 0.45; cursor: default; border-color: var(--gold-dim); color: var(--ink); }
+  #screen #cfgBtn { padding: 0 11px; display: flex; align-items: center; }
+  #cfgBtn svg { width: 22px; height: 22px; fill: currentColor; }
+  #heroCfg { position: fixed; inset: 0; z-index: 45; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); }
+  #heroCfg .box { width: min(380px, calc(100% - 32px)); background: linear-gradient(#1d1411, #0e0908); border: 1px solid var(--gold);
+    padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 0 24px rgba(0,0,0,0.8); }
+  #heroCfg h3 { margin: 0; font-family: Cinzel, serif; font-weight: 400; color: var(--gold); font-size: 18px; }
+  #heroCfg .row { display: flex; gap: 8px; }
+  #heroCfg .warn { color: #e0a090; font-size: 15px; margin: 0; }
+  #heroCfg button.danger { border-color: #8a2a20; color: #f0b0a0; background: linear-gradient(#3a1410, #1a0806); }
+  #heroCfg button.danger:hover { border-color: #e04a3a; color: #fff; }
+  #fade { position: fixed; inset: 0; background: #000; pointer-events: none; opacity: 0; z-index: 30; }
+  #eqClose { padding: 3px 10px; font-size: 15px; }
+  .eqHead .right { display: flex; align-items: baseline; gap: 12px; }
+
+  /* ---------- Narrow portrait screens (phones): body.narrow, set by fitUI() ---------- */
+  body.narrow #orb { left: 10px; top: 10px; bottom: auto; width: 76px; height: 76px; }
+  body.narrow #orbText { font-size: 13px; }
+  body.narrow #orbLabel { display: none; }
+  body.narrow #topleft { left: 96px; top: 10px; }
+  body.narrow #depthName { font-size: 15px; }
+  body.narrow #depthSub { font-size: 11px; }
+  body.narrow #goldText { font-size: 12px; }
+  body.narrow #minimap { right: 8px; top: 8px; width: 120px; height: 71px; }
+  body.narrow #menuBtn { right: 8px; top: 86px; bottom: auto; padding: 5px 9px; font-size: 12px; }
+  body.narrow #target { top: 120px; width: min(300px, 80vw); }
+  body.narrow #atk { left: 10px; top: 10px; bottom: auto; width: 76px; height: 76px; }
+  body.narrow #atkLabel { display: none; }
+  body.narrow.touch #orb { left: 96px; }
+  body.narrow.touch #topleft { left: 10px; top: 94px; }
+  body.narrow.touch #target { top: 160px; }
+  body.narrow #log { left: 10px; bottom: 112px; width: calc(100vw - 20px); font-size: 12px; }
+  body.narrow #bottom { bottom: 8px; transform-origin: 50% 100%; }
+  body.narrow #equip { width: 504px; transform-origin: 50% 50%; }
+  body.narrow .eqHead .hint { display: none; }
+  body.narrow .eqBody { grid-template-columns: 250px 200px; }
+  body.narrow .eqBody > div:nth-child(2) { grid-column: 1 / -1; order: 3; }
+  body.narrow .eqBody > div:nth-child(3) { order: 2; }
+  body.narrow #hkCfg { display: grid; grid-template-columns: repeat(5, 48px); }
+  body.narrow #hotbar .hk:nth-child(n+6) { display: none; }
+  body.narrow #hotbar .hk { width: 64px; height: 64px; }
+  body.narrow #hotbar .hk .num, body.narrow #hotbar .hk .cnt { font-size: 13px; }
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div id="topleft"><div id="depthName"></div><div id="depthSub"></div><div id="goldText"></div></div>
+  <div id="target" class="hidden"><div id="targetName"></div><div id="targetBar"><div id="targetFill"></div></div></div>
+  <canvas id="minimap" width="220" height="130"></canvas>
+  <div id="debug" class="hidden"><h4>Debug (Ctrl+D) <span id="dbgVer"></span></h4>
+    <label><input type="checkbox" id="dbgPursuit"> Pursuit indicator</label></div>
+  <div id="log"></div>
+  <div id="orb" title="Click to drink a health potion"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
+  <div id="orbLabel">LIFE</div>
+  <div id="atk" title="Hold, then tap to attack"><div id="atkIco"></div></div>
+  <div id="atkLabel">ATTACK</div>
+  <div id="bottom">
+    <div id="hotbar"></div>
+    <div id="xpbar"><div id="xpFill"></div><div id="xpText"></div></div>
+  </div>
+  <button id="menuBtn">Equipment (I)</button>
+</div>
+<div id="flash"></div>
+
+<div id="equip" class="hidden">
+  <div class="eqHead"><h2 id="eqTitle">Equipment</h2><div class="right"><span class="hint">I / Tab / Esc to close — the world does not wait for you.</span><button id="eqClose" title="Close">✕</button></div></div>
+  <div class="eqBody">
+    <div>
+      <div id="doll"><canvas id="portrait" width="128" height="128"></canvas></div>
+    </div>
+    <div>
+      <h3>Inventory</h3>
+      <div id="inv" class="cellGrid"></div>
+    </div>
+    <div><h3>Attributes</h3><div id="stats"></div></div>
+  </div>
+  <div class="hkWrap">
+    <h3>Quick keys</h3>
+    <div id="hkCfg"></div>
+    <div class="hint" style="margin-top:6px">Click an item (or a key) for its actions; double-click to equip, unequip or use it at once.
+      Hover a weapon or potion and press 1–9 or 0 to bind it to that key. Right-click (or Shift + click) a pack item to drop it, or a key to clear it.</div>
+  </div>
+</div>
+<div id="tooltip" class="hidden"></div>
+<div id="fade"></div>
+
+<div id="screen">
+  <h1>Crypt of Endless Night</h1>
+  <p id="screenText">Descend the endless crypt alone. Every stair leads deeper, and every depth breeds fouler things.</p>
+  <div class="controls" id="screenControls">
+    <b>Left click</b> — walk / open / pick up &nbsp;·&nbsp; <b>Right click</b> (or <b>Shift + click</b>, or tap while holding the attack button) — attack<br>
+    <b>I</b> or <b>Tab</b> — equipment &nbsp;·&nbsp; <b>1–9, 0</b> — quick keys &nbsp;·&nbsp; <b>Q</b> — drink potion<br>
+    <b>M</b> — minimap &nbsp;·&nbsp; <b>N</b> — sound &nbsp;·&nbsp; <b>Mouse wheel</b> (or pinch) — zoom
+  </div>
+  <div id="heroPick"></div>
+  <div id="startRow"><button id="startBtn" disabled>Loading…</button><button id="cfgBtn" title="Rename or erase this hero" aria-label="Hero settings" disabled><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.2h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.7h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button></div>
+  <div id="heroCfg" class="hidden"><div class="box"></div></div>
+  <div id="version"></div>
+</div>
+
+<script>
+'use strict';
+// =====================================================================================
+//  Asset metadata (generated by tools/process_art.py; inlined so file:// works)
+// =====================================================================================
+const META = {"characters":{"hero":{"fw":144,"fh":152,"frames":8,"idle":3,"footY":128,"fpt":5},"skeleton":{"fw":176,"fh":152,"frames":8,"idle":3,"footY":128,"fpt":5},"ghoul":{"fw":160,"fh":162,"frames":8,"idle":3,"footY":138,"fpt":5.5},"spider":{"fw":188,"fh":152,"frames":4,"footY":128,"fpt":2},"wraith":{"fw":102,"fh":152,"frames":4,"footY":128,"fpt":2},"demon":{"fw":150,"fh":152,"frames":4,"footY":128,"fpt":2}},"items":{"shortsword":[0,0],"longsword":[96,0],"greatsword":[192,0],"handaxe":[288,0],"battleaxe":[384,0],"execaxe":[480,0],"shortbow":[0,96],"longbow":[96,96],"bonebow":[192,96],"leathercap":[288,96],"greathelm":[384,96],"leathertunic":[480,96],"platemail":[0,192],"leathergloves":[96,192],"gauntlets":[192,192],"leatherboots":[288,192],"ironboots":[384,192],"silverring":[480,192],"rubyring":[0,288],"skullring":[96,288],"sapphireamulet":[192,288],"bloodamulet":[288,288],"bonetalisman":[384,288],"potion":[480,288],"broadsword":[0,384],"bastardsword":[96,384],"knightsword":[192,384],"beardedaxe":[288,384],"greataxe":[384,384],"huntingbow":[480,384],"ironhelm":[0,480],"visoredhelm":[96,480],"studded":[192,480],"platedgloves":[288,480],"heavygloves":[384,480],"chainmail":[480,480],"quiver":[0,576],"warbow":[96,576],"compositebow":[192,576],"fullplate":[288,576],"greaves":[384,576],"heavygreaves":[480,576]},"props":{"chest":[0,0,132,141],"chestopen":[134,0,144,171],"door":[280,0,131,207],"stairs":[413,0,156,127],"brazier":[571,0,104,167],"bones":[677,0,148,117],"urn":[827,0,95,151],"gold":[924,0,127,90],"throne":[1053,0,129,206],"altar":[1184,0,153,166],"candelabrum":[1339,0,84,196],"skullpile":[1425,0,166,136],"banner":[1593,0,84,206],"pillar":[1679,0,98,191],"sarcophagus":[1779,0,154,144],"bonesused":[0,209,200,103],"doorA":[202,209,192,256],"doorB":[396,209,192,256]},"iconSize":96};
+const ATLAS_W = 576, ATLAS_H = 672;   // assets/items.webp: 6 x 7 icons of 96 px (rows 5-7 from tools/add_items.py)
+
+// =====================================================================================
+//  Constants & helpers
+// =====================================================================================
+const TW = 96, TH = 48, HW = TW / 2, HH = TH / 2, WALLH = 72;   // wall height
+const T_VOID = 0, T_FLOOR = 1, T_WALL = 2, T_DOOR = 3, T_OPEN = 4;
+// walk frames advance with distance walked: META.characters.<name>.fpt frames per tile (hero: 8-frame stride / 1.6 tiles)
+const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,W,SW) -> sheet row
+const $ = id => document.getElementById(id);
+// Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
+// can tell whether the page is up to date (and regenerate catalog.html, see README).
+const VERSION = 20;
+const rnd = Math.random;
+const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
+const pick = a => a[Math.floor(rnd() * a.length)];
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const iso = (x, y) => [(x - y) * HW, (x + y) * HH];
+const ROMAN = n => { const r = [[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']]; let s=''; for (const [v,c] of r) while (n >= v) { s += c; n -= v; } return s; };
+
+const cv = $('game'), ctx = cv.getContext('2d');
+const lc = document.createElement('canvas'), lctx = lc.getContext('2d');
+let W = 0, H = 0, DPR = 1;
+function resize() {
+  DPR = Math.min(2, window.devicePixelRatio || 1);
+  W = innerWidth; H = innerHeight;
+  cv.width = lc.width = Math.round(W * DPR); cv.height = lc.height = Math.round(H * DPR);
+  cv.style.width = W + 'px'; cv.style.height = H + 'px';
+}
+// Narrow portrait screens (phones) get the compact HUD (body.narrow); the hotbar and the equipment overlay are
+// scaled down, never up, so they fit the screen width (and the overlay the height too).
+function fitUI() {
+  const narrow = innerWidth < 700 && innerHeight > innerWidth;
+  document.body.classList.toggle('narrow', narrow);
+  const bottom = document.getElementById('bottom'), eq = document.getElementById('equip');
+  const bs = Math.min(1, (innerWidth - 16) / bottom.offsetWidth);
+  bottom.style.transform = `translateX(-50%) scale(${bs})`;
+  if (!eq.classList.contains('hidden')) {
+    const es = Math.min(1, (innerWidth - 12) / eq.offsetWidth, (innerHeight - 12) / eq.offsetHeight);
+    eq.style.transform = narrow || es < 1 ? `translate(-50%, -50%) scale(${es})` : '';
+  }
+  if (G) refreshUI();   // icon sizes depend on the layout
+}
+addEventListener('resize', () => { resize(); fitUI(); }); resize();
+
+// =====================================================================================
+//  Images
+// =====================================================================================
+const IMG = {};
+const SRC = { hero: 'assets/hero.webp', skeleton: 'assets/skeleton.webp', ghoul: 'assets/ghoul.webp', spider: 'assets/spider.webp',
+  wraith: 'assets/wraith.webp', demon: 'assets/demon.webp', items: 'assets/items.webp', props: 'assets/props.webp',
+  floor: 'assets/floor.jpg', wall: 'assets/wall.jpg', dirt: 'assets/dirt.jpg' };
+function loadAll() {
+  return Promise.all(Object.entries(SRC).map(([k, s]) => new Promise((res, rej) => {
+    const i = new Image(); i.onload = () => { IMG[k] = i; res(); }; i.onerror = () => rej(s); i.src = s;
+  })));
+}
+let floorPat = null, dirtPat = null;
+
+// =====================================================================================
+//  Sound: WebAudio synthesis (foley-style) plus a few AI-voiced ghoul clips (assets/sfx)
+// =====================================================================================
+// Everything goes through a master gain with a short dungeon reverb send. sfx(type, o) takes options: o.x / o.y
+// (a world position: quieter with distance from the hero, silent beyond SFX_RANGE tiles), o.kind (weapon kind
+// for swings), o.mat (what a hit strikes: 'bone', 'flesh', 'spirit', 'hide').
+let AC = null, soundOn = true, noiseBuf = null, MASTER = null, VERB = null;
+const CLIPS = { moan: [1, 2, 3, 4, 5], grunt: [1, 2] }, CLIP_BUF = {}, SFX_RANGE = 14, SFX_LAST = {};
+function audio() {
+  if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)();
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 1, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const comp = AC.createDynamicsCompressor(); comp.threshold.value = -10; comp.ratio.value = 6; comp.connect(AC.destination);   // keeps stacked sounds from clipping
+    MASTER = AC.createGain(); MASTER.gain.value = 0.9; MASTER.connect(comp);
+    // reverb: 1.3 s of decaying, darkening stereo noise
+    const n = AC.sampleRate * 1.3, ir = AC.createBuffer(2, n, AC.sampleRate);
+    for (let c = 0; c < 2; c++) { const ch = ir.getChannelData(c); let lp = 0;
+      for (let i = 0; i < n; i++) { lp += (Math.random() * 2 - 1 - lp) * (0.5 - 0.4 * i / n); ch[i] = lp * Math.pow(1 - i / n, 3); } }
+    const conv = AC.createConvolver(); conv.buffer = ir; VERB = AC.createGain(); VERB.gain.value = 0.22; VERB.connect(conv); conv.connect(MASTER);
+    for (const k in CLIPS) CLIPS[k].forEach(i => fetch(`assets/sfx/${k}${i}.mp3`).then(r => r.arrayBuffer())
+      .then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { (CLIP_BUF[k] = CLIP_BUF[k] || []).push(buf); }).catch(() => {}));
+  } catch (e) { AC = null; } }
+  return AC;
+}
+function sfx(type, o = {}) {
+  if (!soundOn || !audio()) return;
+  let vol = 1;
+  if (o.x !== undefined && G && G.hero) { const d = Math.hypot(o.x - G.hero.x, o.y - G.hero.y); if (d > SFX_RANGE) return; vol = Math.min(1, 1.15 - d / SFX_RANGE); }
+  const gap = { bones: 0.09, moan: 1.2, grunt: 0.25, pick: 0.05 }[type];   // per-type throttle (s)
+  if (gap) { if (AC.currentTime - (SFX_LAST[type] || -9) < gap) return; SFX_LAST[type] = AC.currentTime; }
+  const T = AC.currentTime + 0.005, sr = AC.sampleRate;
+  const out = AC.createGain(); out.gain.value = vol; out.connect(MASTER); out.connect(VERB);
+  const env = (node, t0, a, peak, dur) => { const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(peak, t0 + a);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); node.connect(g); g.connect(out); return g; };
+  // band-passed noise; f is a frequency or [from, to] (a sweep: whooshes)
+  const noise = (t0, dur, f, q, peak, a = 0.005, ftype = 'bandpass') => {
+    const s = AC.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.9 + Math.random() * 0.2;
+    const fl = AC.createBiquadFilter(); fl.type = ftype; fl.Q.value = q;
+    if (Array.isArray(f)) { fl.frequency.setValueAtTime(f[0], t0); fl.frequency.exponentialRampToValueAtTime(f[1], t0 + dur); if (f[2]) fl.frequency.exponentialRampToValueAtTime(f[2], t0 + dur * 1.0); }
+    else fl.frequency.value = f;
+    s.connect(fl); env(fl, t0, a, peak, dur); s.start(t0, Math.random() * 0.4); s.stop(t0 + dur + 0.05);
+  };
+  const tone = (t0, f0, f1, dur, peak, wave = 'sine', a = 0.004) => { const os = AC.createOscillator(); os.type = wave;
+    os.frequency.setValueAtTime(f0, t0); os.frequency.exponentialRampToValueAtTime(f1, t0 + dur); env(os, t0, a, peak, dur); os.start(t0); os.stop(t0 + dur + 0.05); };
+  const play = (buf, t0, rate, peak) => { const s = AC.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate;
+    const g = AC.createGain(); g.gain.value = peak; s.connect(g); g.connect(out); s.start(t0); };
+  // a wooden or metal hinge creak: a jittered train of tiny impulses through two resonances, the rate rising
+  const creak = (t0, dur, r0, r1, f1, f2, peak) => { const n = Math.floor(sr * dur), buf = AC.createBuffer(1, n, sr), d = buf.getChannelData(0);
+    for (let t = 0.002; t < dur; ) { const k = t / dur, i = Math.floor(t * sr); d[i] = (0.5 + Math.random() * 0.5) * Math.sin(Math.PI * k) ** 0.5;
+      t += 1 / (r0 + (r1 - r0) * k) * (0.75 + Math.random() * 0.5); }
+    const s = AC.createBufferSource(); s.buffer = buf;
+    for (const [f, q, gn] of [[f1, 14, 1], [f2, 18, 0.6]]) { const fl = AC.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = q;
+      const g = AC.createGain(); g.gain.value = peak * gn * 9; s.connect(fl); fl.connect(g); g.connect(out); }
+    s.start(t0); };
+  const knock = (t0, f, peak) => noise(t0, 0.035 + Math.random() * 0.03, f, 9, peak * 3, 0.001);   // a dry bone / wood knock
+  const thud = (t0, f, dur, peak) => { tone(t0, f, f * 0.45, dur, peak, 'sine', 0.002); noise(t0, dur * 0.6, 260, 0.7, peak * 0.6, 0.002, 'lowpass'); };
+  const clip = (k, rate, peak) => { const bs = CLIP_BUF[k]; if (bs && bs.length) play(bs[Math.floor(Math.random() * bs.length)], T, rate, peak); };
+  const r = (a, b) => a + Math.random() * (b - a);
+  switch (type) {
+    case 'swing':   // a blade cutting the air: a rising-falling band of noise, plus a thin edge hiss for swords
+      if (o.kind === 'axe') noise(T, 0.3, [220, 900, 350], 1.4, 1.6, 0.11);
+      else { noise(T, 0.22, [500, 2600, 900], 1.6, 1.3, 0.08); noise(T + 0.06, 0.09, 6500, 2, 0.25, 0.02, 'bandpass'); }
+      break;
+    case 'bow':     // the release: the string slaps to rest (a dull low thwap, a brief damped thrum), then the arrow's quick fwip
+      thud(T, r(130, 150), 0.07, 0.5); knock(T, r(700, 850), 0.18); noise(T, 0.05, 1600, 0.8, 0.35, 0.001, 'lowpass');
+      tone(T + 0.004, r(95, 105), 75, 0.09, 0.12, 'triangle', 0.002);
+      noise(T + 0.02, 0.15, [2600, 700], 1.3, 0.45, 0.015); break;
+    case 'hit':     // what the blow lands on
+      if (o.mat === 'bone') { thud(T, 160, 0.08, 0.35); for (let i = 0; i < 3; i++) knock(T + i * r(0.018, 0.04), r(900, 2000), 0.25); }
+      else if (o.mat === 'spirit') { noise(T, 0.25, [1800, 500], 3, 0.6, 0.01); tone(T, 520, 260, 0.25, 0.1, 'triangle'); }
+      else { thud(T, o.mat === 'hide' ? 120 : 95, 0.12, 0.55); noise(T, 0.1, 700, 1.1, 0.22, 0.002); }
+      break;
+    case 'urn':     // fired clay breaking: a crack and shards
+      thud(T, 180, 0.08, 0.4); noise(T, 0.12, 2400, 0.8, 0.3, 0.001, 'highpass');
+      for (let i = 0; i < 9; i++) knock(T + 0.02 + r(0, 0.35) ** 1.5, r(1800, 4200), r(0.06, 0.13)); break;
+    case 'bones':   // a skeleton's bones knocking together; o.n knocks (default 4)
+      for (let i = 0, t = T; i < (o.n || 4); i++, t += r(0.03, 0.09)) knock(t, r(700, 1900), r(0.6, 1)); break;
+    case 'collapse':   // a skeleton falling apart
+      for (let i = 0; i < 12; i++) knock(T + r(0, 0.6) ** 1.3, r(500, 1800), r(0.12, 0.25)); thud(T + 0.12, 110, 0.15, 0.3); break;
+    case 'moan': clip('moan', o.rate || r(0.82, 1), 0.55 * (o.vol || 1)); break;
+    case 'grunt': clip('grunt', r(0.85, 1), 0.5); break;
+    case 'hurt': thud(T, 110, 0.14, 0.5); noise(T, 0.12, 500, 1.5, 0.15, 0.003); break;
+    case 'die': tone(T, 180, 55, 0.5, 0.16, 'sawtooth'); noise(T, 0.4, [900, 200], 1, 0.3, 0.01); break;
+    case 'bolt': noise(T, 0.35, [600, 2400], 4, 0.6, 0.05); tone(T, 700, 260, 0.35, 0.05, 'sine'); break;
+    case 'pick':    // faint: a soft rustle and a small knock
+      noise(T, 0.07, 1500, 0.7, 0.05, 0.01); knock(T + 0.03, 900, 0.02); break;
+    case 'gold':    // faint coin clinks
+      for (let i = 0; i < 3; i++) tone(T + i * r(0.03, 0.06), r(2600, 4200), r(2500, 4100), 0.12, 0.03, 'sine', 0.001); break;
+    case 'door':    // the latch, a long hinge creak, then the door's weight settling
+      knock(T, 1400, 0.12); creak(T + 0.05, 0.75, 22, 55, 480, 1150, 0.35); thud(T + 0.78, 85, 0.25, 0.35); break;
+    case 'chest':   // the hasp, a shorter, higher creak and the lid falling back
+      tone(T, 3100, 2900, 0.06, 0.06, 'sine', 0.001); knock(T, 1600, 0.1); creak(T + 0.04, 0.42, 30, 70, 760, 1650, 0.3); thud(T + 0.47, 140, 0.16, 0.4); break;
+    case 'locked':  // a sealed chest: the lid rattles against the lock
+      for (let i = 0; i < 3; i++) { knock(T + i * 0.07, 1300, 0.12); thud(T + i * 0.07, 150, 0.05, 0.2); } break;
+    case 'potion': for (let i = 0; i < 3; i++) tone(T + i * 0.09, r(280, 360), r(500, 700), 0.07, 0.14); break;   // gulps
+    case 'level': tone(T, 392, 784, 0.6, 0.15, 'triangle'); break;
+    case 'stairs': for (let i = 0; i < 5; i++) thud(T + i * 0.16, 110, 0.1, 0.25); break;   // footsteps going down
+  }
+}
+// A monster's own sounds (skeletons rattle, ghouls moan and grunt), at its position.
+function monsterVoice(m, ev) {
+  const at = { x: m.x, y: m.y };
+  if (m.type === 'skeleton') {
+    if (ev === 'die') sfx('collapse', at); else sfx('bones', { ...at, n: ev === 'walk' ? 2 : 4 });
+  } else if (m.type === 'ghoul') {
+    if (ev === 'hurt') sfx('grunt', at); else if (ev === 'die') sfx('moan', { ...at, rate: 0.7 }); else if (ev !== 'attack') sfx('moan', at);
+  }
+}
+const HIT_MAT = { skeleton: 'bone', ghoul: 'flesh', spider: 'hide', wraith: 'spirit', demon: 'flesh' };
+
+// =====================================================================================
+//  Item data
+// =====================================================================================
+// Item types (bases). Stats are fixed: an item of a type is the same at every depth. Each slot has a ladder of
+// types, each unlocking at a depth (lvl, compared with the loot depth, see genItem); deeper types are better.
+// Every type has its own icon (META.items, same key; iconKey still honours an optional icon: override). Rings and amulets have no base stats:
+// they only drop as magic or rare items, and all their worth is in their affixes.
+const BASES = {
+  shortsword:   { name: 'Short Sword', slot: 'weapon', kind: 'sword', min: 4, max: 8, cd: 0.55, lvl: 1 },
+  longsword:    { name: 'Longsword', slot: 'weapon', kind: 'sword', min: 7, max: 14, cd: 0.65, lvl: 2 },
+  broadsword:   { name: 'Broadsword', slot: 'weapon', kind: 'sword', min: 13, max: 22, cd: 0.7, lvl: 4 },
+  greatsword:   { name: 'Blackened Greatsword', slot: 'weapon', kind: 'sword', min: 20, max: 34, cd: 0.85, lvl: 6 },
+  bastardsword: { name: 'Bastard Sword', slot: 'weapon', kind: 'sword', min: 24, max: 40, cd: 0.8, lvl: 8 },
+  knightsword:  { name: "Knight's Greatsword", slot: 'weapon', kind: 'sword', min: 32, max: 52, cd: 0.85, lvl: 11 },
+  handaxe:      { name: 'Hand Axe', slot: 'weapon', kind: 'axe', min: 5, max: 10, cd: 0.7, lvl: 1 },
+  beardedaxe:   { name: 'Bearded Axe', slot: 'weapon', kind: 'axe', min: 10, max: 18, cd: 0.8, lvl: 3 },
+  battleaxe:    { name: 'Battle Axe', slot: 'weapon', kind: 'axe', min: 17, max: 29, cd: 0.9, lvl: 5 },
+  execaxe:      { name: "Executioner's Axe", slot: 'weapon', kind: 'axe', min: 26, max: 46, cd: 1.05, lvl: 7 },
+  greataxe:     { name: 'Great Axe', slot: 'weapon', kind: 'axe', min: 34, max: 58, cd: 1.05, lvl: 10 },
+  shortbow:     { name: 'Short Bow', slot: 'weapon', kind: 'bow', min: 3, max: 7, cd: 0.6, lvl: 1 },
+  huntingbow:   { name: 'Hunting Bow', slot: 'weapon', kind: 'bow', min: 5, max: 10, cd: 0.65, lvl: 2 },
+  longbow:      { name: 'Yew Longbow', slot: 'weapon', kind: 'bow', min: 9, max: 16, cd: 0.75, lvl: 4 },
+  bonebow:      { name: 'Bone Bow', slot: 'weapon', kind: 'bow', min: 14, max: 25, cd: 0.9, lvl: 6 },
+  compositebow: { name: 'Composite Bow', slot: 'weapon', kind: 'bow', min: 18, max: 31, cd: 0.85, lvl: 8 },
+  warbow:       { name: 'War Bow', slot: 'weapon', kind: 'bow', min: 25, max: 42, cd: 0.9, lvl: 11 },
+  leathercap:   { name: 'Leather Cap', slot: 'head', armor: 3, lvl: 1 },
+  ironhelm:     { name: 'Iron Helm', slot: 'head', armor: 7, lvl: 3 },
+  greathelm:    { name: 'Horned Great Helm', slot: 'head', armor: 13, lvl: 6 },
+  visoredhelm:  { name: 'Visored Helm', slot: 'head', armor: 19, lvl: 9 },
+  leathertunic: { name: 'Leather Tunic', slot: 'chest', armor: 6, lvl: 1 },
+  studded:      { name: 'Studded Leather', slot: 'chest', armor: 11, lvl: 3 },
+  chainmail:    { name: 'Chain Mail', slot: 'chest', armor: 18, lvl: 5 },
+  platemail:    { name: 'Plate Cuirass', slot: 'chest', armor: 28, lvl: 8 },
+  fullplate:    { name: 'Full Plate', slot: 'chest', armor: 36, lvl: 11 },
+  leathergloves:{ name: 'Leather Gloves', slot: 'hands', armor: 2, lvl: 1 },
+  gauntlets:    { name: 'Iron Gauntlets', slot: 'hands', armor: 6, lvl: 3 },
+  platedgloves: { name: 'Plated Gauntlets', slot: 'hands', armor: 10, lvl: 7 },
+  heavygloves:  { name: 'Heavy Gauntlets', slot: 'hands', armor: 13, lvl: 10 },
+  leatherboots: { name: 'Leather Boots', slot: 'feet', armor: 2, implicit: { speed: 5 }, lvl: 1 },
+  ironboots:    { name: 'Plated Boots', slot: 'feet', armor: 6, lvl: 3 },
+  greaves:      { name: 'Iron Greaves', slot: 'feet', armor: 10, lvl: 7 },
+  heavygreaves: { name: 'Heavy Greaves', slot: 'feet', armor: 13, lvl: 10 },
+  silverring:   { name: 'Silver Ring', slot: 'ring', lvl: 1 },
+  rubyring:     { name: 'Ruby Ring', slot: 'ring', lvl: 1 },
+  skullring:    { name: 'Grave Ring', slot: 'ring', lvl: 1 },
+  sapphireamulet:{ name: 'Sapphire Amulet', slot: 'amulet', lvl: 1 },
+  bloodamulet:  { name: 'Blood Amulet', slot: 'amulet', lvl: 1 },
+  bonetalisman: { name: 'Bone Talisman', slot: 'amulet', lvl: 1 },
+};
+const iconKey = base => (BASES[base] && BASES[base].icon) || base;
+// Item groups a drop first chooses from (evenly): each weapon kind, each armor slot, rings, amulets.
+const ITEM_GROUP = b => b.kind || b.slot;
+const JEWELRY = { ring: 1, amulet: 1 };
+const KIND_INFO = { sword: { reach: 1.55, arc: 0.9, label: 'Sword (melee)' }, axe: { reach: 1.45, arc: 1.25, label: 'Axe (melee, wide cleave)' },
+  bow: { reach: 12, label: 'Bow (ranged)' }, fist: { reach: 1.25, arc: 0.8, label: 'Bare hands' } };
+const SLOT_LABEL = { weapon: 'Weapon', head: 'Helm', chest: 'Armor', hands: 'Gloves', feet: 'Boots', ring: 'Ring', ring1: 'Ring', ring2: 'Ring', amulet: 'Amulet' };
+const STAT_LABEL = { str: 'Strength', dex: 'Dexterity', vit: 'Vitality', hp: 'Life', regen: 'Life regen / s', armor: 'Armor',
+  crit: '% Critical chance', dmg: '% Damage', speed: '% Move speed' };
+// Affixes: the bonuses of magic and rare items (prefixes before the type's name, suffixes after it). Each kind
+// has 3 tiers with fixed value ranges and their own prefix / suffix; a tier can roll once the loot depth reaches
+// AFFIX_FROM[tier], higher unlocked tiers being likelier (weights 1 : 2 : 4). On rings and amulets every range is
+// × JEWEL_MULT, as they have no base stats.
+const AFFIX_FROM = [1, 5, 9], AFFIX_W = [1, 2, 4], JEWEL_MULT = 2;
+const AFFIX = [
+  { k: 'str', tiers: [['Mighty', 'of the Bear', 1, 4], ['Brutal', 'of the Boar', 5, 8], ['Titanic', 'of the Giant', 9, 12]] },
+  { k: 'dex', tiers: [['Nimble', 'of the Fox', 1, 4], ['Deft', 'of the Lynx', 5, 8], ['Lithe', 'of the Falcon', 9, 12]] },
+  { k: 'vit', tiers: [['Sturdy', 'of the Ox', 1, 4], ['Stalwart', 'of the Bull', 5, 8], ['Unyielding', 'of the Mountain', 9, 12]] },
+  { k: 'hp', tiers: [['Hale', 'of Life', 5, 16], ['Robust', 'of Vigor', 17, 30], ['Vigorous', 'of Endurance', 31, 45]] },
+  { k: 'armor', tiers: [['Warded', 'of Iron', 2, 8], ['Fortified', 'of Steel', 9, 15], ['Impregnable', 'of Adamant', 16, 22]], noWeapon: true },
+  { k: 'crit', tiers: [['Keen', 'of Precision', 1, 3], ['Precise', 'of Striking', 3, 5], ['Deadly', 'of Slaying', 5, 8]] },
+  { k: 'dmg', tiers: [['Cruel', 'of Slaughter', 5, 15], ['Savage', 'of Carnage', 16, 26], ['Merciless', 'of Ruin', 27, 38]] },
+  { k: 'speed', tiers: [['Swift', 'of Haste', 3, 6], ['Fleet', 'of Speed', 7, 10], ['Windborne', 'of the Wind', 11, 15]], only: 'feet' },
+];
+const RARE_A = ['Grim', 'Dread', 'Bone', 'Night', 'Blood', 'Ash', 'Grave', 'Wraith', 'Raven', 'Doom', 'Hollow', 'Sorrow'];
+const RARE_B = ['bite', 'song', 'fang', 'ward', 'veil', 'shroud', 'mark', 'brand', 'coil', 'howl', 'spire', 'grasp'];
+let nextId = 1;
+
+// Loot tuning: every random item drop happens with probability LOOT (gold amounts are scaled by it too), and
+// the rare / magic odds are scaled by RARE_ODDS / MAGIC_ODDS. Health potions are not affected.
+const LOOT = 0.8, RARE_ODDS = 0.1, MAGIC_ODDS = 0.25;
+// Rarity gates by depth: no magic items before MAGIC_FROM, no rares before RARE_FROM. A roll above the
+// allowed rarity is lowered to the best allowed one. ruleDepth is the depth these rules use: the current depth,
+// + 1 for champions' loot and chests in the big room, + 2 for the boss's loot and the guardian's chest.
+const MAGIC_FROM = 3, RARE_FROM = 6;
+// Slot gates by depth (same ruleDepth): no rings before RING_FROM, no amulets before AMULET_FROM.
+const RING_FROM = 3, AMULET_FROM = 5;
+const maxRarity = rd => rd >= RARE_FROM ? 'rare' : rd >= MAGIC_FROM ? 'magic' : 'common';
+// ld: the loot depth (usually the depth, + 1 for some sources): it decides which types and affix tiers can drop.
+// The rarity is rolled first; a common drop never picks a ring or amulet. Then a group is drawn evenly (each weapon
+// kind, each armor slot, rings, amulets), then a type of that group unlocked at ld, older types less likely
+// (weight 0.5 per 4 depths since the type unlocked).
+function genItem(ld, boost = 0, forceBase = null, forceRarity = null, ruleDepth = G ? G.depth : 1) {
+  let rarity = forceRarity;
+  if (!rarity) { const r = rnd(), rare = (0.07 + boost * 0.5) * RARE_ODDS, magic = (0.3 + boost) * MAGIC_ODDS;
+    rarity = r < rare ? 'rare' : r < rare + magic ? 'magic' : 'common';
+    const cap = maxRarity(ruleDepth);
+    if (cap === 'common') rarity = 'common'; else if (cap === 'magic' && rarity === 'rare') rarity = 'magic'; }
+  let baseKey = forceBase;
+  if (!baseKey) {
+    const ok = k => BASES[k].lvl <= ld && !(JEWELRY[BASES[k].slot] && rarity === 'common') &&
+      !(BASES[k].slot === 'ring' && ruleDepth < RING_FROM) && !(BASES[k].slot === 'amulet' && ruleDepth < AMULET_FROM);
+    const keys = Object.keys(BASES).filter(ok), groups = [...new Set(keys.map(k => ITEM_GROUP(BASES[k])))];
+    const g = pick(groups), cand = keys.filter(k => ITEM_GROUP(BASES[k]) === g);
+    const wt = cand.map(k => Math.pow(0.5, (ld - BASES[k].lvl) / 4));
+    let x = rnd() * wt.reduce((p, q) => p + q, 0), i = 0; while (i < cand.length - 1 && (x -= wt[i]) > 0) i++;
+    baseKey = cand[i];
+  }
+  const b = BASES[baseKey];
+  const it = { id: nextId++, base: baseKey, slot: b.slot, kind: b.kind || null, stats: {} };
+  if (b.slot === 'weapon') { it.min = b.min; it.max = b.max; it.cd = b.cd; }
+  if (b.armor) it.armor = b.armor;
+  if (b.implicit) for (const k in b.implicit) it.stats[k] = b.implicit[k];
+  it.rarity = rarity;
+  const n = rarity === 'rare' ? ri(3, 4) : rarity === 'magic' ? ri(1, 2) : 0;
+  const pool = AFFIX.filter(a => !(a.noWeapon && b.slot === 'weapon') && !(a.only && a.only !== b.slot));
+  const chosen = [], mult = JEWELRY[b.slot] ? JEWEL_MULT : 1;
+  while (chosen.length < n && pool.length) {
+    const a = pool.splice(Math.floor(rnd() * pool.length), 1)[0];
+    const tw = a.tiers.map((t, i) => AFFIX_FROM[i] <= ld ? AFFIX_W[i] : 0);
+    let x = rnd() * tw.reduce((p, q) => p + q, 0), ti = 0; while (ti < tw.length - 1 && (x -= tw[ti]) > 0) ti++;
+    const t = a.tiers[ti], v = Math.round((t[2] + rnd() * (t[3] - t[2])) * mult);
+    it.stats[a.k] = (it.stats[a.k] || 0) + v; chosen.push(t);
+  }
+  if (rarity === 'magic') it.name = [chosen[0] && chosen[0][0], b.name, chosen[1] && chosen[1][1]].filter(Boolean).join(' ');
+  else if (rarity === 'rare') it.name = pick(RARE_A) + pick(RARE_B) + ', ' + b.name;
+  else it.name = b.name;
+  return it;
+}
+// Potions: instant-use items (slot 'use'). They stack: one pack cell holds a stack of one type with a count.
+// filter tints the shared potion icon (CSS / canvas filter syntax).
+const POTIONS = {
+  health:   { name: 'Health Potion', plural: 'health potions', color: '#e06a5a', glow: '224,90,80', filter: '',
+              desc: 'Restores 44% of your life.' },
+  ironskin: { name: 'Iron Skin Potion', plural: 'iron skin potions', color: '#a9c1d6', glow: '150,180,210',
+              filter: 'hue-rotate(195deg) saturate(0.55) brightness(1.2)', desc: 'Armor ×3 + 60 for 20 seconds.' },
+};
+const IRON = { mult: 3, add: 60, dur: 20 };     // iron skin: armor × mult + add for dur seconds
+const HEAL = 0.44;                              // health potion: restores this share of max life
+const USE_T = 0.4, SWAP_T = 0.2;                // action time of an item use and of a weapon swap (s)
+const makePotion = (pot, count = 1) => ({ id: nextId++, base: 'potion', slot: 'use', pot, count, rarity: 'common', name: POTIONS[pot].name });
+const potionFilter = it => it && it.slot === 'use' ? POTIONS[it.pot].filter : '';
+const itemHex = it => it.slot === 'use' ? POTIONS[it.pot].color : rarityHex(it.rarity);
+
+// =====================================================================================
+//  Monster data
+// =====================================================================================
+const MON = {
+  skeleton: { name: 'Skeleton Warrior', scale: 1.0, hp: 26, dmg: [3, 6], armor: 5, speed: 2.5, reach: 1.1, cd: 1.2, xp: 16, r: 0.32, minD: 1, w: 3 },
+  ghoul:    { name: 'Ghoul', scale: 0.95, hp: 20, dmg: [2, 5], armor: 2, speed: 3.3, reach: 1.0, cd: 0.9, xp: 13, r: 0.3, minD: 1, w: 3 },
+  spider:   { name: 'Cave Spider', scale: 0.78, hp: 15, dmg: [2, 4], armor: 1, speed: 3.9, reach: 1.0, cd: 0.8, xp: 11, r: 0.34, minD: 1, w: 2 },
+  wraith:   { name: 'Wraith', scale: 1.0, hp: 22, dmg: [4, 7], armor: 3, speed: 2.3, ranged: true, range: 6.5, cd: 1.9, xp: 22, r: 0.3, minD: 3, w: 2, float: true },
+  demon:    { name: 'Pit Demon', scale: 1.3, hp: 75, dmg: [8, 13], armor: 12, speed: 2.1, reach: 1.35, cd: 1.5, xp: 60, r: 0.45, minD: 5, w: 1 },
+};
+const CHAMP_PRE = ['Dread', 'Blighted', 'Bloodsoaked', 'Ancient', 'Accursed', 'Ravenous'];
+// Boss-room furnishings: [type, count], and the depth from which each first appears.
+const BOSS_DECOR = [['throne', 1], ['altar', 1], ['sarcophagus', 1], ['banner', 2], ['pillar', 2], ['candelabrum', 2], ['skullpile', 3]];
+const DECOR_FROM = { skullpile: 3, banner: 3, candelabrum: 4, pillar: 5, sarcophagus: 6, altar: 7, throne: 8 };
+const WIDE_ODDS = 0.65, DOOR_ODDS = 0.55;   // corridors 2 tiles wide; doors on 1-wide room mouths
+const BOSS_ROOM_FROM = 3, BOSS_FROM = 6;   // depth 3's boss room stands empty: a premonition of what is to come;
+                                           // depths 4 and 5 have none, from depth 6 every level has a boss
+const bossRoomAt = d => d === BOSS_ROOM_FROM || d >= BOSS_FROM;
+// Big rooms: from depth 3, every second depth (3, 5, 7, ...) has one: boss-room sized, with 2 grey banners and
+// a larger pack of easier monsters (see buildLevel).
+const bigRoomAt = d => d >= 3 && d % 2 === 1;
+const DEMON_ROOM_AT = 4;   // depth 4 has one room holding a single Pit Demon, a foretaste before depth 5
+const BOSS_NAMES = ['Morgrath', 'Vexhollow', 'Ulthane', 'Skarn', 'Belmorah', 'Grisvald', 'Nythra', 'Corvane', 'Drokkar', 'Ashmire'];
+const LEVEL_NAMES = ['The Forsaken Crypt', 'The Ossuary', 'Halls of the Hollow', 'The Weeping Catacombs', 'Sepulchre of Ash',
+  'The Blood Vaults', 'Throne of Bones', 'The Abyssal Nave'];
+const depthName = d => LEVEL_NAMES[(d - 1) % 8] + (d > 8 ? ' ' + ROMAN(Math.ceil(d / 8)) : '');
+
+// Tiers: normal; champion (10 % from depth 2, red glow); boss (one per level, green glow, see buildLevel).
+const TIER = { normal: { size: 1, hp: 1, dmg: 1, xp: 1, armor: 0 }, champ: { size: 1.15, hp: 2.5, dmg: 1.5, xp: 3, armor: 0 },
+  boss: { size: 1.35, hp: 8, dmg: 1.8, xp: 8, armor: 4 } };
+// New monster types: from the depth L where a type first appears (its minD), a room may hold at most
+// NEW_LIMIT[d - L] of it (1 at L, 2 at L+1 to L+3, no limit after; escorts included). Skeletons and spiders are
+// exempt. A type can be a champion only from depth L + CHAMP_AFTER.
+const NEW_LIMIT = [1, 2, 2, 2], CHAMP_AFTER = 4;
+const roomLimit = (k, d) => k === 'skeleton' || k === 'spider' ? Infinity : NEW_LIMIT[d - MON[k].minD] ?? Infinity;
+const canChamp = (k, d) => d >= MON[k].minD + CHAMP_AFTER;
+// Monster life and damage: the MON values × MON_BASE at depth 1, then × MON_SCALE per depth (compounding).
+const MON_BASE = 1.2, MON_SCALE = 1.12;
+const MON_SPEED = 0.85;   // scales every monster's base speed (MON speed), so the hero (4.2 tiles/s) can outrun them all
+function makeMonster(type, x, y, d, boss = false, forceChamp = false, noChamp = false) {
+  const b = MON[type];
+  const champ = !boss && !noChamp && canChamp(type, d) && (forceChamp || rnd() < 0.1), T = TIER[boss ? 'boss' : champ ? 'champ' : 'normal'];
+  const hpS = MON_BASE * Math.pow(MON_SCALE, d - 1), dmS = hpS;   // life and damage: ×1.2 at depth 1, +12 % per depth
+  const m = { type, b, x, y, r: boss ? Math.min(b.r * 1.15, 0.48) : b.r * T.size, scale: b.scale * T.size, lvl: d, champ, boss,
+    name: boss ? pick(BOSS_NAMES) + ', ' + b.name + ' Tyrant' : champ ? pick(CHAMP_PRE) + ' ' + b.name : b.name,
+    maxHp: Math.round(b.hp * hpS * T.hp), dmg: [b.dmg[0] * dmS * T.dmg, b.dmg[1] * dmS * T.dmg],
+    armor: Math.round(b.armor + 3 * (d - 1) + T.armor * d), speed: b.speed * MON_SPEED * Math.min(1.35, 1 + 0.015 * (d - 1)),
+    xp: Math.round(b.xp * Math.pow(1.17, d - 1) * T.xp),
+    state: 'idle', cd: rnd(), windup: 0, path: [], repath: 0, dir: ri(0, 7), anim: rnd() * 4, moving: false,
+    hitT: 0, dead: false, deathT: 0, wander: 1 + rnd() * 4, lunge: 0, lastHit: -99,
+    stuckT: 0, anchor: null, calm: null, lastSeen: 0, detourT: 0 };
+  m.hp = m.maxHp;
+  return m;
+}
+
+// =====================================================================================
+//  Game state
+// =====================================================================================
+let G = null;
+const DBL_MS = 400, DBL_PX = 24;   // a double click / tap: the second press within 400 ms and 24 px of the first
+let lastItemTap = null;           // the last press on a ground item: { fi, t, x, y }
+const mouse = { x: 0, y: 0, left: false, right: false, holdWalk: false, walkT: 0, leftId: null, rightId: null, atkId: null };
+
+function newHero() {
+  const h = { x: 0, y: 0, r: 0.28, dir: 0, anim: 0, moving: false, path: [], intent: null, attackTarget: null, attackPending: false,
+    pendingAt: null, queue: [], using: null, ironT: 0,
+    lvl: 1, xp: 0, base: { str: 10, dex: 10, vit: 10 }, hp: 1, st: {},
+    equip: { weapon: null, head: null, chest: null, hands: null, feet: null, ring1: null, ring2: null, amulet: null },
+    inv: new Array(30).fill(null), gold: 0, hotkeys: new Array(10).fill(null),
+    atkCd: 0, swing: null, kills: 0, stuckT: 0, repath: 0, lunge: 0, hitT: 0 };
+  const sword = genItem(1, 0, 'shortsword', 'common'); sword.name = 'Rusty Short Sword';
+  const bow = genItem(1, 0, 'shortbow', 'common');
+  h.equip.weapon = sword; h.inv[0] = bow; h.inv[1] = makePotion('health', 3);
+  h.hotkeys[0] = { type: 'item', id: sword.id }; h.hotkeys[1] = { type: 'item', id: bow.id }; h.hotkeys[2] = { type: 'use', pot: 'health' };
+  return h;
+}
+
+// entry: a saved hero (see Saving) to resume at its saved depth on a freshly generated level, or null for a
+// fresh level-1 hero at depth 1.
+function newGame(entry) {
+  nextId = 1; logEl.innerHTML = '';
+  G = { depth: entry ? entry.depth : 1, hero: newHero(), map: null, monsters: [], objects: [], items: [], proj: [], fx: [], texts: [],
+    zoom: 1, camX: 0, camY: 0, time: 0, dead: false, deadT: 0, hover: null, uiHover: null, pick: [], fade: 1, minimap: true, miniT: 0 };
+  if (entry) {
+    Object.assign(G.hero, JSON.parse(JSON.stringify(entry.hero)));
+    G.hero.saveId = entry.id;
+    const owned = [...Object.values(G.hero.equip), ...G.hero.inv].filter(Boolean);
+    nextId = owned.reduce((m, it) => Math.max(m, it.id), 0) + 1;   // new items never reuse a saved item's id
+    migrateHero(G.hero);
+  }
+  recalc();
+  // a resumed hero keeps the life it had when saved (older saves without it start at full life)
+  const savedHp = entry && entry.hero.hp;
+  G.hero.hp = savedHp > 0 ? Math.min(savedHp, G.hero.st.maxHp) : G.hero.st.maxHp;
+  buildLevel(G.depth);
+  if (G.hero.dropAtStart) { dropItem(G.hero.dropAtStart, G.hero.x, G.hero.y); delete G.hero.dropAtStart; }
+  log('You enter ' + depthName(G.depth) + '.', '#c9a45c');
+  refreshUI();
+}
+
+// =====================================================================================
+//  Saving (browser localStorage)
+// =====================================================================================
+// One key holds every hero: { v: 1, last: <id of the last hero played>, heroes: { <id>: entry } }, where
+// entry = { id, name, depth, lvl, saved: <ms timestamp>, hero: { ...the SAVED_FIELDS of the hero } }.
+// A hero is saved when created and on arrival at each new depth; the level layout is never saved.
+const SAVE_KEY = 'crypt-of-endless-night.save';
+const SAVED_FIELDS = ['name', 'lvl', 'xp', 'base', 'equip', 'inv', 'gold', 'hotkeys', 'kills', 'hp'];
+// Older saves kept health potions as a counter (hero.potions) with a { type: 'potion' } quick key: turn them
+// into a stack in the pack (first free cell; dropped at the start if the pack is full) and a 'use' key.
+function migrateHero(h) {
+  if (typeof h.potions === 'number') {
+    if (h.potions > 0) { const st = makePotion('health', h.potions), i = h.inv.indexOf(null); if (i >= 0) h.inv[i] = st; else h.dropAtStart = st; }
+    delete h.potions;
+  }
+  h.hotkeys = h.hotkeys.map(k => k && k.type === 'potion' ? { type: 'use', pot: 'health' } : k);
+  // regeneration was removed from items: drop regen bonuses; an old Bone Talisman gets the new crit bonus instead
+  for (const it of [...Object.values(h.equip), ...h.inv]) {
+    if (!it || !it.stats || it.stats.regen == null) continue;
+    delete it.stats.regen;
+    if (it.base === 'bonetalisman' && it.stats.crit == null) it.stats.crit = Math.round(3 * (1 + 0.1 * (it.ilvl - 1)));
+  }
+}
+function readSave() {
+  try { const sv = JSON.parse(localStorage.getItem(SAVE_KEY)); if (sv && sv.v === 1 && sv.heroes) return sv; } catch (e) {}
+  return { v: 1, last: null, heroes: {} };
+}
+function saveHero() {
+  const sv = readSave(), h = G.hero, data = {};
+  for (const k of SAVED_FIELDS) data[k] = h[k];
+  sv.heroes[h.saveId] = { id: h.saveId, name: h.name, depth: G.depth, lvl: h.lvl, saved: Date.now(), hero: data };
+  sv.last = h.saveId;
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify(sv)); return true; }
+  catch (e) { log('Progress could not be saved (browser storage unavailable).', '#e06a5a'); return false; }
+}
+
+// =====================================================================================
+//  Hero stats
+// =====================================================================================
+// Life regeneration is switched off (it rewarded stalling): REGEN, the share of max life regenerated per second,
+// is 0, and no item has a regen bonus. The mechanics stay (h.st.regen, applied every frame) for later use.
+const REGEN = 0;
+const xpNeed = l => Math.round(72 * Math.pow(l, 1.7));   // 40 % less than the original 120 · L^1.7
+function recalc() {
+  const h = G.hero, s = { str: h.base.str, dex: h.base.dex, vit: h.base.vit, hp: 0, regen: 0, armor: 0, crit: 0, dmg: 0, speed: 0 };
+  for (const k in h.equip) { const it = h.equip[k]; if (!it) continue; if (it.armor) s.armor += it.armor; for (const st in it.stats) s[st] += it.stats[st]; }
+  if (h.ironT > 0) s.armor = Math.round(s.armor * IRON.mult + IRON.add);   // iron skin potion
+  const maxHp = Math.round(40 + s.vit * 4 + h.lvl * 6 + s.hp);
+  h.st = { str: s.str, dex: s.dex, vit: s.vit, maxHp, armor: s.armor, crit: 5 + s.dex * 0.2 + s.crit, dmgPct: s.dmg,
+    speed: 4.2 * (1 + s.speed / 100), regen: maxHp * REGEN + s.regen };
+  h.hp = Math.min(h.hp, maxHp);
+}
+function weaponOf(h) { return h.equip.weapon || { kind: 'fist', min: 1, max: 3, cd: 0.6, name: 'Bare hands' }; }
+function weaponDamageRange(h) {
+  const w = weaponOf(h), stat = w.kind === 'bow' ? h.st.dex : h.st.str;
+  const k = (1 + stat * 0.02) * (1 + h.st.dmgPct / 100);
+  return [w.min * k, w.max * k];
+}
+function gainXp(n) {
+  const h = G.hero; h.xp += n;
+  while (h.xp >= xpNeed(h.lvl)) {
+    h.xp -= xpNeed(h.lvl); h.lvl++; h.base.str += 2; h.base.dex += 2; h.base.vit += 2; recalc(); h.hp = Math.min(h.st.maxHp, h.hp + h.st.maxHp * 0.2);   // level-up heals 20 %, not fully
+    G.fx.push({ type: 'ring', x: h.x, y: h.y, t: 0, dur: 1.0, color: '230,200,110' });
+    floatText(h.x, h.y, 'LEVEL ' + h.lvl, '#f0d070', 1.6, 22);
+    log('You reached level ' + h.lvl + '. Strength, Dexterity and Vitality +2.', '#f0d070'); sfx('level');
+  }
+}
+
+// =====================================================================================
+//  Dungeon generation
+// =====================================================================================
+function buildLevel(d) {
+  const w = Math.min(44 + d * 2, 80), h = w;
+  const t = new Uint8Array(w * h);
+  const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? T_VOID : t[y * w + x];
+  const rooms = [];
+  const want = Math.min(9 + Math.floor(d / 2), 18);
+  for (let tries = 0; tries < 600 && rooms.length < want; tries++) {
+    // after the start room come the big rooms of this depth: the boss room (bossRoomAt), then the big room
+    // (bigRoomAt); 11-14 tiles a side, about 2.8x the area of a normal 5-10 room
+    const bigKinds = [bossRoomAt(d) && 'boss', bigRoomAt(d) && 'horde'].filter(Boolean);
+    const big = rooms.length >= 1 && rooms.length <= bigKinds.length && tries < 300 ? bigKinds[rooms.length - 1] : false;
+    const rw = big ? ri(11, 14) : ri(5, 10), rh = big ? ri(11, 14) : ri(5, 10), rx = ri(2, w - rw - 3), ry = ri(2, h - rh - 3);
+    if (rooms.some(r => rx < r.x + r.w + 3 && rx + rw + 3 > r.x && ry < r.y + r.h + 3 && ry + rh + 3 > r.y)) continue;
+    rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + (rw >> 1), cy: ry + (rh >> 1), big });
+  }
+  for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) t[y * w + x] = T_FLOOR;
+  const links = [];   // rooms joined by a carved corridor: [a, b, path], path = the carved tiles from a's centre to b's
+  // A corridor is 1 tile wide, or (WIDE_ODDS) 2 tiles wide. A wide corridor's mouths are 2 tiles wide, so they
+  // never get a door. Near a boss or big room (within 2 tiles of its edge) the second lane is left out, so the
+  // corridor narrows to 1 tile at the room's mouth, where it always gets a door.
+  const nearBig = (x, y) => rooms.some(r => r.big && x >= r.x - 3 && x <= r.x + r.w + 2 && y >= r.y - 3 && y <= r.y + r.h + 2);
+  const carve = (a, b) => {
+    const path = [[a.cx, a.cy]]; links.push([a, b, path]);
+    let x = a.cx, y = a.cy; const hf = rnd() < 0.5, wide = rnd() < WIDE_ODDS;
+    const lane = (lx, ly) => { if (wide && !nearBig(lx, ly) && lx > 0 && ly > 0 && lx < w - 1 && ly < h - 1) t[ly * w + lx] = T_FLOOR; };
+    const stepX = () => { while (x !== b.cx) { x += Math.sign(b.cx - x); t[y * w + x] = T_FLOOR; lane(x, y + 1); path.push([x, y]); } };
+    const stepY = () => { while (y !== b.cy) { y += Math.sign(b.cy - y); t[y * w + x] = T_FLOOR; lane(x + 1, y); path.push([x, y]); } };
+    if (hf) { stepX(); lane(x + 1, y + 1); stepY(); } else { stepY(); lane(x + 1, y + 1); stepX(); }
+  };
+  for (let i = 1; i < rooms.length; i++) {
+    let best = 0, bd = 1e9;
+    for (let j = 0; j < i; j++) { const dd = Math.abs(rooms[i].cx - rooms[j].cx) + Math.abs(rooms[i].cy - rooms[j].cy); if (dd < bd) { bd = dd; best = j; } }
+    carve(rooms[i], rooms[best]);
+  }
+  for (let k = 0; k < 2 + (d >> 2); k++) { const a = pick(rooms), b = pick(rooms); if (a !== b) carve(a, b); }
+  // Boss and big rooms are entered only through doors: every other floor tile on their surrounding ring (a
+  // corridor running along the room, a corner, a wide mouth) is filled in, unless that would cut a room off.
+  const ringOpen = (r, x, y) => {   // a 1-wide mouth straight out of the room (corners never are)
+    if ((y === r.y - 1 || y === r.y + r.h) && x >= r.x && x < r.x + r.w) return at(x - 1, y) === T_VOID && at(x + 1, y) === T_VOID;
+    if ((x === r.x - 1 || x === r.x + r.w) && y >= r.y && y < r.y + r.h) return at(x, y - 1) === T_VOID && at(x, y + 1) === T_VOID;
+    return false; };
+  const allLinked = () => { const seen = new Uint8Array(w * h), q = [rooms[0].cy * w + rooms[0].cx]; seen[q[0]] = 1;
+    while (q.length) { const i = q.pop(), x = i % w, y = (i - x) / w;
+      for (const j of [i - 1, i + 1, i - w, i + w]) if (!seen[j] && t[j] === T_FLOOR) { seen[j] = 1; q.push(j); } }
+    return rooms.every(r => seen[r.cy * w + r.cx]); };
+  for (let pass = 0; pass < 3; pass++) for (const r of rooms) if (r.big) for (let y = r.y - 1; y <= r.y + r.h; y++) for (let x = r.x - 1; x <= r.x + r.w; x++) {
+    if ((x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h) || t[y * w + x] !== T_FLOOR || ringOpen(r, x, y)) continue;
+    t[y * w + x] = T_VOID; if (allLinked()) continue;
+    // needed (a corridor running along the room): move that bit of corridor one tile further out instead
+    const ox = x < r.x ? -1 : x >= r.x + r.w ? 1 : 0, oy = y < r.y ? -1 : y >= r.y + r.h ? 1 : 0, added = [];
+    const cells = ox && oy ? [[x + ox, y + oy], [x + ox, y], [x, y + oy], [x + ox, y - oy], [x - ox, y + oy]] : [[x + ox, y + oy]];   // a corner: go round it
+    for (const [ax, ay] of cells) if ((ax !== x || ay !== y) && ax > 0 && ay > 0 && ax < w - 1 && ay < h - 1 && t[ay * w + ax] === T_VOID) { t[ay * w + ax] = T_FLOOR; added.push(ay * w + ax); }
+    if (!allLinked()) { t[y * w + x] = T_FLOOR; for (const i of added) t[i] = T_VOID; }
+  }
+  // door candidates on each room's surrounding ring
+  const doorSpots = [];
+  for (const r of rooms) {
+    for (let x = r.x; x < r.x + r.w; x++) for (const y of [r.y - 1, r.y + r.h])
+      if (at(x, y) === T_FLOOR && at(x - 1, y) === T_VOID && at(x + 1, y) === T_VOID) doorSpots.push([x, y, 'x', y === r.y - 1]);
+    for (let y = r.y; y < r.y + r.h; y++) for (const x of [r.x - 1, r.x + r.w])
+      if (at(x, y) === T_FLOOR && at(x, y - 1) === T_VOID && at(x, y + 1) === T_VOID) doorSpots.push([x, y, 'y', x === r.x - 1]);
+  }
+  // walls around every floor
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    if (t[y * w + x] !== T_VOID) continue;
+    let near = false;
+    for (let dy = -1; dy <= 1 && !near; dy++) for (let dx = -1; dx <= 1; dx++) if (at(x + dx, y + dy) === T_FLOOR) { near = true; break; }
+    if (near) t[y * w + x] = T_WALL;
+  }
+  const objects = [], monsters = [], items = [];
+  const occ = new Uint8Array(w * h);
+  for (const [x, y, axis, front] of doorSpots) {   // front: the room is on the +y / +x side
+    const big = rooms.some(r => r.big && x >= r.x - 1 && x <= r.x + r.w && y >= r.y - 1 && y <= r.y + r.h);   // boss and big rooms: always
+    if ((big || rnd() < DOOR_ODDS) && occ[y * w + x] === 0) { t[y * w + x] = T_DOOR; occ[y * w + x] = 1; objects.push({ type: 'door', x, y, axis, front, look: rnd() < 0.75 ? 'doorA' : 'doorB', open: false, block: true }); }
+  }
+  const map = { w, h, t, at, seen: new Uint8Array(w * h), block: new Uint8Array(w * h), rooms };
+  G.map = map; G.objects = objects; G.monsters = monsters; G.items = items; G.proj = []; G.fx = []; G.texts = [];
+
+  // BFS from start room to find the farthest room for the stairs
+  const start = rooms[0];
+  const distArr = bfs(start.cx, start.cy);
+  let far = rooms[rooms.length - 1], fd = -1;
+  for (const r of rooms.slice(1)) { const v = distArr[r.cy * w + r.cx]; if (!r.big && v > fd) { fd = v; far = r; } }
+  // object placement helpers
+  const isOpening = (x, y) => { // tile touches a doorway/corridor outside of its room
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const v = at(x + dx, y + dy); if (v === T_DOOR) return true; }
+    return false;
+  };
+  // seen: a spot the camera can see. The walls are full height, so the south and east walls hide the last 2
+  // rows and columns of a room; props go on the north or west edge, or inside away from the south and east walls
+  // (monsters may stand anywhere)
+  const freeInner = (r, edgeOnly, seen = false) => {
+    const xe = seen ? Math.max(r.x + 1, r.x + r.w - 3) : r.x + r.w - 2, ye = seen ? Math.max(r.y + 1, r.y + r.h - 3) : r.y + r.h - 2;
+    for (let tries = 0; tries < 40; tries++) {
+      let x, y;
+      if (edgeOnly && seen) { if (rnd() < 0.5) { x = ri(r.x, xe); y = r.y; } else { y = ri(r.y, ye); x = r.x; } }
+      else if (edgeOnly) { if (rnd() < 0.5) { x = ri(r.x, r.x + r.w - 1); y = rnd() < 0.5 ? r.y : r.y + r.h - 1; } else { y = ri(r.y, r.y + r.h - 1); x = rnd() < 0.5 ? r.x : r.x + r.w - 1; } }
+      else { x = ri(r.x + 1, xe); y = ri(r.y + 1, ye); }
+      if (occ[y * w + x] || isOpening(x, y)) continue;
+      if (edgeOnly) { // never block a corridor mouth: all 4-neighbours outside the room must be wall
+        let ok = true;
+        for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const nx = x + dx, ny = y + dy;
+          const inside = nx >= r.x && nx < r.x + r.w && ny >= r.y && ny < r.y + r.h; if (!inside && at(nx, ny) !== T_WALL) ok = false; }
+        if (!ok) continue;
+      }
+      return [x, y];
+    }
+    return null;
+  };
+  const place = (type, r, edgeOnly, extra = {}) => {
+    const p = freeInner(r, edgeOnly, true); if (!p) return null;
+    occ[p[1] * w + p[0]] = 1;
+    const o = Object.assign({ type, x: p[0], y: p[1], used: false, block: edgeOnly }, extra); objects.push(o); return o;
+  };
+  // a prop that faces down-right on screen (+x), like the throne: put it against a back wall so it faces into
+  // the room, on the left back wall (x = r.x) as drawn, or on the right back wall (y = r.y) mirrored to face +y
+  // a blocking prop on r's north or west edge as close as possible to tile (tx, ty), on a spot that freeInner's edge rule allows
+  // (no doorway nearby, solid wall behind it), so it never blocks a corridor mouth
+  const placeNear = (type, r, tx, ty, extra = {}) => {
+    let best = null, bd = 1e9;
+    for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+      if (x !== r.x && y !== r.y || x > r.x + r.w - 3 || y > r.y + r.h - 3) continue;   // north or west edge, in view
+      if (occ[y * w + x] || isOpening(x, y)) continue;
+      let ok = true;
+      for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const nx = x + dx, ny = y + dy;
+        const inside = nx >= r.x && nx < r.x + r.w && ny >= r.y && ny < r.y + r.h; if (!inside && at(nx, ny) !== T_WALL) ok = false; }
+      if (!ok) continue;
+      const dd = Math.hypot(x - tx, y - ty); if (dd < bd) { bd = dd; best = [x, y]; }
+    }
+    if (!best) return null;
+    occ[best[1] * w + best[0]] = 1;
+    const o = Object.assign({ type, x: best[0], y: best[1], used: false, block: true }, extra); objects.push(o); return o;
+  };
+  const placeBack = (type, r, extra = {}) => {
+    for (let tries = 0; tries < 40; tries++) {
+      const left = rnd() < 0.5, x = left ? r.x : ri(r.x + 1, r.x + r.w - 3), y = left ? ri(r.y + 1, r.y + r.h - 3) : r.y;   // in view
+      if (occ[y * w + x] || isOpening(x, y) || at(left ? x - 1 : x, left ? y : y - 1) !== T_WALL) continue;
+      occ[y * w + x] = 1;
+      const o = Object.assign({ type, x, y, used: false, block: true, flip: !left }, extra); objects.push(o); return o;
+    }
+    return null;
+  };
+  occ[start.cy * w + start.cx] = 1;
+  occ[far.cy * w + far.cx] = 1;
+  objects.push({ type: 'stairs', x: far.cx, y: far.cy, used: false, block: false });
+  const monTypes = Object.keys(MON).filter(k => MON[k].minD <= d);
+  const weighted = []; for (const k of monTypes) for (let i = 0; i < MON[k].w; i++) weighted.push(k);
+  // boss room: the largest of the rooms that are neither the start nor the stairs room, preferring rooms far
+  // from the start (area x path distance); the boss stands near its middle beside a sealed guardian's chest
+  // (fallback if the big room didn't fit: the largest other room, preferring rooms far from the start)
+  const bossRoom = !bossRoomAt(d) ? null : rooms.find(r => r.big === 'boss') || rooms.filter(r => r !== start && r !== far && !r.big)
+    .sort((a, b) => b.w * b.h * (distArr[b.cy * w + b.cx] + 10) - a.w * a.h * (distArr[a.cy * w + a.cx] + 10))[0] || far;
+  // the big room (fallback: the largest remaining room); depth 4's single Pit Demon gets a random normal room
+  const bigRoom = !bigRoomAt(d) ? null : rooms.find(r => r.big === 'horde') || rooms.filter(r => r !== start && r !== far && r !== bossRoom)
+    .sort((a, b) => b.w * b.h - a.w * a.h)[0] || null;
+  const normalRooms = rooms.filter(r => r !== start && r !== bossRoom && r !== bigRoom);
+  const demonRoom = d === DEMON_ROOM_AT && normalRooms.length ? pick(normalRooms) : null;
+  // typeFor draws a type by weight, skipping types that have reached their room limit (roomLimit) in this room
+  const typeFor = (pool, cnt) => { for (let k = 0; k < 30; k++) { const t = pick(pool); if ((cnt[t] || 0) < roomLimit(t, d)) return t; } return 'skeleton'; };
+  // 50 %: one green-flamed brazier in a room joined to the boss room by a corridor (a hint of what's near)
+  const nextToBoss = !bossRoom ? [] : links.filter(l => l.includes(bossRoom)).map(l => l[0] === bossRoom ? l[1] : l[0]).filter(r => r !== bossRoom);
+  const greenRoom = nextToBoss.length && rnd() < 0.5 ? pick(nextToBoss) : null;
+  // green banners: every room joined to the boss room by a corridor gets a (green) banner at the mouth of that
+  // corridor: the room's last tile on the corridor's way out toward the boss room (first such corridor per room)
+  const bannerAt = new Map();
+  if (bossRoom) for (const [a, b, path] of links) {
+    if (a !== bossRoom && b !== bossRoom) continue;
+    const r = a === bossRoom ? b : a; if (r === bossRoom || bannerAt.has(r)) continue;
+    const way = a === r ? path : path.slice().reverse();   // from r's centre toward the boss room
+    const inR = ([x, y]) => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h;
+    const k = way.findIndex(p => !inR(p));
+    if (k > 0) bannerAt.set(r, way[k - 1]);
+  }
+  for (const r of rooms) {
+    if (bannerAt.has(r)) placeNear('banner', r, ...bannerAt.get(r), { decor: true, bossSign: true });
+    if (r === greenRoom) place('brazier', r, true, { green: true });
+    if (r === bossRoom) {
+      map.bossRoom = r;
+      // the boss stands on a rune circle in the middle, ringed by braziers and the furnishings unlocked at this depth
+      const p = occ[r.cy * w + r.cx] ? (freeInner(r, false) || [r.cx, r.cy]) : [r.cx, r.cy]; occ[p[1] * w + p[0]] = 1;
+      for (let n = 0, k = 0; n < 4 && k < 12; k++) if (place('brazier', r, true)) n++;   // at least 4
+      const empty = d < BOSS_FROM;   // depth 3: no boss, guards or loot, only the circle, braziers and furnishings
+      if (!empty) place('chest', r, true, { boss: true });
+      for (const [t, n] of BOSS_DECOR) if (d >= DECOR_FROM[t]) for (let i = 0; i < n; i++) {
+        if (t === 'throne') placeBack(t, r, { decor: true });
+        else place(t, r, t !== 'skullpile', { decor: true });
+      }
+      if (empty) continue;
+      // boss type: drawn by weight from the types unlocked at depth + 1, so it can be one not yet seen here
+      const bossPool = []; for (const k in MON) if (MON[k].minD <= d + 1) for (let i = 0; i < MON[k].w; i++) bossPool.push(k);
+      const boss = makeMonster(pick(bossPool), p[0] + 0.5, p[1] + 0.5, d, true); monsters.push(boss); map.boss = boss;
+      const cnt = {};   // per-type count in the boss room, for the room limits
+      for (let i = ri(1, 2); i > 0; i--) { const q = freeInner(r, false);
+        if (q) { const t = typeFor(weighted, cnt); cnt[t] = (cnt[t] || 0) + 1; const g = makeMonster(t, q[0] + 0.5, q[1] + 0.5, d); g.bossRoom = true; monsters.push(g); } }
+      const champTypes = weighted.filter(k => canChamp(k, d) && (cnt[k] || 0) < roomLimit(k, d));
+      if (rnd() < 0.5 && champTypes.length) {   // 50 %: an extra champion (without escorts), of a type old enough to be one
+        const q = freeInner(r, false);
+        if (q) { const t = pick(champTypes); cnt[t] = (cnt[t] || 0) + 1; const c = makeMonster(t, q[0] + 0.5, q[1] + 0.5, d, false, true); c.bossRoom = true; monsters.push(c); }
+      }
+      continue;
+    }
+    if (r === bigRoom) for (let i = 0; i < 2; i++) place('banner', r, true, { decor: true, grey: true });
+    if (rnd() < 0.75 || r === start) place('brazier', r, true);
+    if (r !== start && rnd() < 0.38) place('chest', r, true, { big: r === bigRoom });   // big: depth + 1 rarity rules
+    for (let i = ri(0, 2); i > 0; i--) place('urn', r, true);
+    for (let i = ri(0, 2); i > 0; i--) place('bones', r, false);
+    if (rnd() < 0.2) place('gold', r, false, { amount: Math.max(1, Math.round(ri(3, 12) * d * LOOT)) });
+    if (r === start) continue;
+    const spot = () => { const p = freeInner(r, false); return p && [p[0] + 0.5 + (rnd() - 0.5) * 0.4, p[1] + 0.5 + (rnd() - 0.5) * 0.4]; };
+    if (r === demonRoom) { const p = spot(); if (p) monsters.push(makeMonster('demon', p[0], p[1], d, false, false, true)); continue; }
+    if (r === bigRoom) {
+      // big room: 5-7 monsters (+1 every 2 depths after 3), no champions, only the easier types, those available
+      // from depth - 4 or earlier (skeletons always), with skeletons weighted x3
+      const pool = []; for (const k in MON) if (k === 'skeleton' || MON[k].minD <= d - 4) for (let i = 0; i < MON[k].w * (k === 'skeleton' ? 3 : 1); i++) pool.push(k);
+      const cnt = {};
+      for (let i = ri(5, 7) + Math.floor((d - 3) / 2); i > 0; i--) { const p = spot(); if (!p) break;
+        const t = typeFor(pool, cnt); cnt[t] = (cnt[t] || 0) + 1; monsters.push(makeMonster(t, p[0], p[1], d, false, false, true)); }
+      continue;
+    }
+    // normal room: 1 to cap monsters, evenly (cap 3 at depths 1-2, +1 every 2 depths, at most 7), +1 half the
+    // time in a large room (64+ tiles); champions bring escorts on top
+    const cap = Math.min(7, 3 + Math.floor((d - 1) / 2));
+    const n = ri(1, cap) + (r.w * r.h >= 64 && rnd() < 0.5 ? 1 : 0), cnt = {};
+    for (let i = 0; i < n; i++) {
+      const p = spot(); if (!p) break;
+      const t = typeFor(weighted, cnt); cnt[t] = (cnt[t] || 0) + 1;
+      const m = makeMonster(t, p[0], p[1], d);
+      monsters.push(m);
+      if (m.champ) {   // a champion brings 2-3 escorts of its own type (within its room limit), on free tiles within 2 of it
+        for (let e = Math.min(ri(2, 3), roomLimit(t, d) - cnt[t]), k = 0; e > 0 && k < 30; k++) {
+          const ex = Math.floor(m.x) + ri(-2, 2), ey = Math.floor(m.y) + ri(-2, 2);
+          if (at(ex, ey) !== T_FLOOR || occ[ey * w + ex] || monsters.some(o => Math.floor(o.x) === ex && Math.floor(o.y) === ey)) continue;
+          const esc = makeMonster(m.type, ex + 0.5, ey + 0.5, d, false, false, true);
+          monsters.push(esc); cnt[t]++; e--;
+        }
+      }
+    }
+  }
+  for (const o of objects) if (o.block && o.type !== 'door') map.block[o.y * w + o.x] = 1;   // doors block via their tile type
+  const hero = G.hero;
+  hero.x = start.cx + 0.5; hero.y = start.cy + 0.5; hero.path = []; hero.intent = null; hero.attackTarget = null; hero.swing = null;
+  hero.queue = []; hero.pendingAt = null; hero.using = null;
+  G.fade = 1;
+  updateMinimap(true);
+}
+
+function bfs(sx, sy) {
+  const m = G.map, d = new Int32Array(m.w * m.h).fill(-1), q = [sx + sy * m.w]; d[q[0]] = 0;
+  for (let qi = 0; qi < q.length; qi++) {
+    const i = q[qi], x = i % m.w, y = (i / m.w) | 0;
+    for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const nx = x + dx, ny = y + dy, v = m.at(nx, ny);
+      if (v === T_FLOOR || v === T_DOOR || v === T_OPEN) { const j = ny * m.w + nx; if (d[j] < 0) { d[j] = d[i] + 1; q.push(j); } }
+    }
+  }
+  return d;
+}
+
+// =====================================================================================
+//  Collision, line of sight, pathfinding
+// =====================================================================================
+function blocked(tx, ty) {
+  const m = G.map; if (tx < 0 || ty < 0 || tx >= m.w || ty >= m.h) return true;
+  const v = m.t[ty * m.w + tx]; return !(v === T_FLOOR || v === T_OPEN) || m.block[ty * m.w + tx] === 1;
+}
+function canStand(x, y, r) {
+  return !blocked(Math.floor(x - r), Math.floor(y - r)) && !blocked(Math.floor(x + r), Math.floor(y - r)) &&
+         !blocked(Math.floor(x - r), Math.floor(y + r)) && !blocked(Math.floor(x + r), Math.floor(y + r));
+}
+function opaque(tx, ty) { const v = G.map.at(tx, ty); return v === T_WALL || v === T_DOOR || v === T_VOID; }
+function los(ax, ay, bx, by) {
+  const d = Math.hypot(bx - ax, by - ay), n = Math.ceil(d / 0.25);
+  for (let i = 1; i < n; i++) { const x = ax + (bx - ax) * i / n, y = ay + (by - ay) * i / n; if (opaque(Math.floor(x), Math.floor(y))) return false; }
+  return true;
+}
+function lineWalkable(ax, ay, bx, by, r) {
+  const d = Math.hypot(bx - ax, by - ay), n = Math.max(1, Math.ceil(d / 0.2));
+  for (let i = 1; i <= n; i++) { if (!canStand(ax + (bx - ax) * i / n, ay + (by - ay) * i / n, r)) return false; }
+  return true;
+}
+// binary-heap A* over 8-connected tiles; near=true stops on any free tile adjacent to the goal
+function astar(sx, sy, gx, gy, near, maxN = 7000, partial = false) {
+  const m = G.map, W_ = m.w, N = W_ * m.h;
+  if (!near && blocked(gx, gy)) return null;
+  const g = new Float32Array(N).fill(Infinity), came = new Int32Array(N).fill(-1), closed = new Uint8Array(N);
+  const heap = [], hf = (x, y) => { const dx = Math.abs(x - gx), dy = Math.abs(y - gy); return Math.max(dx, dy) + 0.414 * Math.min(dx, dy); };
+  const push = (f, i) => { heap.push([f, i]); let c = heap.length - 1; while (c > 0) { const p = (c - 1) >> 1; if (heap[p][0] <= heap[c][0]) break; [heap[p], heap[c]] = [heap[c], heap[p]]; c = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let c = 0; for (;;) { const l = 2 * c + 1, r = l + 1; let s = c;
+    if (l < heap.length && heap[l][0] < heap[s][0]) s = l; if (r < heap.length && heap[r][0] < heap[s][0]) s = r; if (s === c) break; [heap[s], heap[c]] = [heap[c], heap[s]]; c = s; } } return top; };
+  const si = sy * W_ + sx; g[si] = 0; push(hf(sx, sy), si);
+  let found = -1, n = 0, bestI = si, bestH = hf(sx, sy);
+  while (heap.length && n++ < maxN) {
+    const [, i] = pop(); if (closed[i]) continue; closed[i] = 1;
+    const x = i % W_, y = (i / W_) | 0;
+    const hv = hf(x, y); if (hv < bestH) { bestH = hv; bestI = i; }
+    if (near ? (Math.max(Math.abs(x - gx), Math.abs(y - gy)) <= 1 && !(x === gx && y === gy && blocked(x, y))) : (x === gx && y === gy)) { found = i; break; }
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!dx && !dy) continue; const nx = x + dx, ny = y + dy;
+      if (blocked(nx, ny)) continue;
+      if (dx && dy && (blocked(x + dx, y) || blocked(x, y + dy))) continue;
+      const j = ny * W_ + nx; if (closed[j]) continue;
+      const ng = g[i] + (dx && dy ? 1.414 : 1);
+      if (ng < g[j]) { g[j] = ng; came[j] = i; push(ng + hf(nx, ny), j); }
+    }
+  }
+  if (found < 0) { if (!partial || bestI === si) return null; found = bestI; }
+  const out = []; for (let i = found; i !== si && i >= 0; i = came[i]) out.push([i % W_ + 0.5, ((i / W_) | 0) + 0.5]);
+  return out.reverse();
+}
+function smoothPath(pts, sx, sy, r) {
+  const out = []; let cx = sx, cy = sy, i = 0;
+  while (i < pts.length) {
+    let j = Math.min(pts.length - 1, i + 12);
+    while (j > i && !lineWalkable(cx, cy, pts[j][0], pts[j][1], r)) j--;
+    out.push(pts[j]); cx = pts[j][0]; cy = pts[j][1]; i = j + 1;
+  }
+  return out;
+}
+function pathTo(e, wx, wy, near) {
+  const tx = Math.floor(wx), ty = Math.floor(wy);
+  let p = astar(Math.floor(e.x), Math.floor(e.y), tx, ty, near || blocked(tx, ty), 7000, true);
+  if (!p) return false;
+  if (!p.length) {   // already on (or next to) the goal tile
+    e.path = !near && canStand(wx, wy, e.r) && lineWalkable(e.x, e.y, wx, wy, e.r) ? [[wx, wy]] : [];
+    return true;
+  }
+  const last = p[p.length - 1], reached = Math.floor(last[0]) === tx && Math.floor(last[1]) === ty;
+  if (!near && reached && !blocked(tx, ty) && canStand(wx, wy, e.r)) p[p.length - 1] = [wx, wy];
+  e.path = smoothPath(p, e.x, e.y, e.r);
+  return true;
+}
+function moveEnt(e, dx, dy) {
+  let moved = false;
+  if (canStand(e.x + dx, e.y, e.r)) { e.x += dx; moved = true; }
+  if (canStand(e.x, e.y + dy, e.r)) { e.y += dy; moved = true; }
+  return moved;
+}
+function setDir(e, dx, dy) {
+  if (Math.abs(dx) + Math.abs(dy) < 1e-4) return;
+  const sx = dx - dy, sy = (dx + dy) * 0.5, a = Math.atan2(sx, sy);
+  e.dir = DIR_ROW[(((Math.round(a / (Math.PI / 4))) % 8) + 8) % 8];
+}
+function followPath(e, speed, dt) {
+  if (!e.path.length) return false;
+  const [tx, ty] = e.path[0], dx = tx - e.x, dy = ty - e.y, d = Math.hypot(dx, dy), step = speed * dt;
+  setDir(e, dx, dy);
+  if (d <= Math.max(step, 0.12)) { moveEnt(e, dx, dy); e.path.shift(); }   // close enough counts as reached
+  else moveEnt(e, dx / d * step, dy / d * step);
+  return true;
+}
+
+// =====================================================================================
+//  Combat
+// =====================================================================================
+function floatText(x, y, s, color, dur = 0.9, size = 16) { G.texts.push({ x, y, s, color, t: 0, dur, size }); }
+function armorReduce(armor, attackerLvl) { return armor / (armor + 40 + 8 * attackerLvl); }
+
+function damageMonster(m, raw, crit) {
+  if (m.dead) return;
+  const v = Math.max(1, Math.round(raw * (1 - armorReduce(m.armor, G.hero.lvl))));
+  m.hp -= v; m.hitT = 0.14; m.lastHit = G.time;
+  floatText(m.x, m.y, (crit ? v + '!' : '' + v), crit ? '#ffd36a' : '#f2e6d0', 0.8, crit ? 20 : 15);
+  for (let i = 0; i < 5; i++) G.fx.push({ type: 'spark', x: m.x, y: m.y, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 40 + rnd() * 20, vz: 60 + rnd() * 60, t: 0, dur: 0.45, color: m.type === 'wraith' ? '120,255,170' : '170,20,20' });
+  sfx('hit', { mat: HIT_MAT[m.type], x: m.x, y: m.y }); if (m.hp > 0) monsterVoice(m, 'hurt');
+  alert(m, true);   // a hit always starts pursuit, even of a calm (gave-up) monster
+  if (m.hp <= 0) killMonster(m);
+}
+// A monster that notices the hero wakes idle monsters within 6 tiles; one that is hit (roomWide) also wakes
+// every monster in the same room. Which types it can wake depends on its own type and on how it woke (WAKES:
+// [on sighting, on being hit]); ghouls are never woken by others. Some types notice the hero only by chance
+// (NOTICE_ODDS per second).
+const ALL_BUT_GHOULS = ['skeleton', 'spider', 'wraith', 'demon'];
+const WAKES = { skeleton: [['skeleton'], ['skeleton']], ghoul: [[], []], wraith: [[], []],
+  spider: [['skeleton', 'spider', 'demon'], ['skeleton', 'spider', 'demon']], demon: [[], ALL_BUT_GHOULS] };
+const NOTICE_ODDS = { ghoul: 0.2, wraith: 0.5, demon: 0.5 };   // chance per second of noticing a hero in range and sight (others: at once)
+const roomAt = (x, y) => G.map.rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
+// A monster that lost interest (calm) is never woken by others.
+function alert(m, roomWide = false) {
+  chase(m);
+  const room = roomWide ? roomAt(m.x, m.y) : null;
+  const can = (WAKES[m.type] || [[], []])[roomWide ? 1 : 0];
+  for (const o of G.monsters) if (!o.dead && o.state === 'idle' && !o.calm && can.includes(o.type) && (dist(o, m) < 6 || (room && roomAt(o.x, o.y) === room))) chase(o);
+}
+function chase(m) { if (m.state !== 'chase' && !m.dead) { monsterVoice(m, 'alert'); m.voiceT = 2 + rnd() * 4; } m.state = 'chase'; m.lastSeen = G.time; m.stuckT = 0; m.anchor = null; m.calm = null; m.detourT = 0; }
+// Losing interest: back to a random walk. After being stuck (calm) it ignores the hero for at least CALM_MIN s
+// and until it is unstuck (has walked UNSTUCK tiles of its random walk; pushes don't count); a hit ends that at
+// once (pursuit). A chasing monster stalled for DETOUR_AFTER s follows an A* path for DETOUR_T s.
+const STUCK_GIVEUP = 3, STUCK_MOVE = 0.5, UNSTUCK = 1, CALM_MIN = 6, LOST_SIGHT = 8, DETOUR_AFTER = 0.6, DETOUR_T = 2;
+function loseInterest(m, stuck) {
+  m.state = 'idle'; m.path = []; m.wander = 0; m.stuckT = 0; m.anchor = null;
+  m.calm = stuck ? { walked: 0, t: G.time } : null;
+}
+function killMonster(m) {
+  m.dead = true; m.deathT = 0; m.hp = 0; G.hero.kills++;
+  if (m.type === 'skeleton' || m.type === 'ghoul') monsterVoice(m, 'die'); else sfx('die', { x: m.x, y: m.y });
+  gainXp(m.xp); floatText(m.x, m.y - 0.3, '+' + m.xp + ' xp', '#c9b37a', 1.1, 13);
+  const d = G.depth;
+  const rd = m.boss ? d + 2 : m.champ ? d + 1 : d;   // rarity rules: boss loot depth + 2, champion loot depth + 1
+  if (m.boss) { lootItem(genItem(d + 1, 0.35, null, null, rd), m.x, m.y); dropGold(ri(20, 40) * d, m.x, m.y); log(m.name + ' is destroyed. The guardian\'s chest unseals.', '#7fe08a'); }
+  else if (m.champ) { lootItem(genItem(d + 1, 0.35, null, null, rd), m.x, m.y); if (rnd() < 0.5) lootItem(genItem(d + 1, 0.2, null, null, rd), m.x, m.y); }
+  else if (rnd() < 0.13) lootItem(genItem(d, 0, null, null, rd), m.x, m.y);
+  if (rnd() < 0.0675 * POTION_ODDS) dropPotion(m.x, m.y);
+  if (rnd() < 0.3) dropGold(ri(2, 8) * d, m.x, m.y);
+}
+function heroAttack(px, py, target) {
+  const h = G.hero; if (h.atkCd > 0 || G.dead || h.queue.length) return false;   // queued item uses go first
+  const w = weaponOf(h), info = KIND_INFO[w.kind];
+  h.atkCd = w.cd;
+  const ax = (target ? target.x : px) - h.x, ay = (target ? target.y : py) - h.y;
+  setDir(h, ax, ay);
+  const ang = Math.atan2(ay, ax);
+  const [mn, mx] = weaponDamageRange(h);
+  const roll = () => { const crit = rnd() * 100 < h.st.crit; return [(mn + rnd() * (mx - mn)) * (crit ? 1.75 : 1), crit]; };
+  h.path = [];
+  if (w.kind === 'bow') {
+    const sp = 15; sfx('bow');
+    const [dmg, crit] = roll();
+    G.proj.push({ type: 'arrow', x: h.x + Math.cos(ang) * 0.4, y: h.y + Math.sin(ang) * 0.4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: info.reach / sp, dmg, crit, friendly: true });
+  } else {
+    sfx('swing', { kind: w.kind });
+    h.swing = { t: 0, dur: 0.24, ang, hit: false, arc: info.arc, reach: info.reach, roll, target: target || null };
+    h.lunge = 1;
+  }
+  return true;
+}
+// A swing hits every monster in its arc, but only the main target takes full damage; the others take
+// CLEAVE (25 %). The main target is the clicked monster, or, for a swing at the ground (or if the clicked
+// monster isn't hit), the hit monster closest to the aim direction.
+const CLEAVE = 0.25;
+function resolveSwing(h) {
+  const s = h.swing, hits = [];
+  for (const m of G.monsters) {
+    if (m.dead) continue;
+    const dx = m.x - h.x, dy = m.y - h.y, d = Math.hypot(dx, dy);
+    if (d - m.r > s.reach) continue;
+    let da = Math.abs(Math.atan2(dy, dx) - s.ang); if (da > Math.PI) da = 2 * Math.PI - da;
+    if (da <= s.arc || d < 0.55) hits.push({ m, da, d });
+  }
+  if (!hits.length) return;
+  const main = hits.find(x => x.m === s.target) || hits.reduce((a, b) => (b.da < a.da - 0.05 || (Math.abs(b.da - a.da) <= 0.05 && b.d < a.d)) ? b : a);
+  for (const x of hits) { const [dmg, crit] = s.roll(); damageMonster(x.m, x === main ? dmg : dmg * CLEAVE, crit); }
+}
+function damageHero(raw, m) {
+  const h = G.hero; if (G.dead) return;
+  const v = Math.max(1, Math.round(raw * (1 - armorReduce(h.st.armor, m.lvl))));
+  h.hp -= v; h.hitT = 0.15;
+  floatText(h.x, h.y, '-' + v, '#ff5a4a', 0.9, 16);
+  $('flash').style.opacity = Math.min(0.9, 0.25 + v / h.st.maxHp * 3);
+  sfx('hurt');
+  if (h.hp <= 0) { h.hp = 0; G.dead = true; G.deadT = 0; log('You have fallen at depth ' + G.depth + '.', '#ff5a4a'); }
+}
+
+// =====================================================================================
+//  Loot & interactions
+// =====================================================================================
+function dropSpot(x, y) {
+  const cx = Math.floor(x), cy = Math.floor(y);
+  for (let rad = 0; rad < 4; rad++) {
+    const cands = [];
+    for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue;
+      const tx = cx + dx, ty = cy + dy; if (blocked(tx, ty)) continue;
+      if (G.objects.some(o => o.x === tx && o.y === ty && o.type === 'stairs')) continue;
+      const crowd = G.items.filter(it => Math.floor(it.x) === tx && Math.floor(it.y) === ty).length;
+      if (crowd < 1 || rad === 3) cands.push([tx, ty]);
+    }
+    if (cands.length) { const [tx, ty] = pick(cands); return [tx + 0.3 + rnd() * 0.4, ty + 0.3 + rnd() * 0.4]; }
+  }
+  return [x, y];
+}
+function dropItem(item, x, y) { const [px, py] = dropSpot(x, y); G.items.push({ item, x: px, y: py, t: rnd() * 6 }); }
+function lootItem(item, x, y) { if (rnd() < LOOT) dropItem(item, x, y); }   // a random drop, thinned by LOOT
+const POTION_ODDS = 1.2;   // scales every potion drop chance (monsters, chests, urns)
+function dropPotion(x, y) { dropItem(makePotion(rnd() < 0.15 ? 'ironskin' : 'health'), x, y); }   // 15 % iron skin
+function dropGold(n, x, y) { n = Math.max(1, Math.round(n * LOOT)); const [px, py] = dropSpot(x, y); G.objects.push({ type: 'gold', x: Math.floor(px), y: Math.floor(py), fx: px, fy: py, amount: n, used: false, block: false }); }
+
+function objCenter(o) { return o.fx !== undefined ? [o.fx, o.fy] : [o.x + 0.5, o.y + 0.5]; }
+function interactable(o) {
+  if (o.type === 'door') return !o.open;
+  if (o.type === 'brazier' || o.decor) return false;
+  if (o.type === 'stairs') return true;
+  return !o.used;
+}
+function act(ref) {
+  const h = G.hero, d = G.depth;
+  if (ref.kind === 'item') {
+    const fi = ref.r;
+    if (!G.items.includes(fi)) return;
+    const it = fi.item, stack = it.slot === 'use' ? stackOf(it.pot) : null;
+    if (stack) {   // potions join the stack of their type
+      stack.count += it.count; G.items.splice(G.items.indexOf(fi), 1);
+      log('Picked up ' + (it.count > 1 ? it.count + ' ' + POTIONS[it.pot].plural : 'a ' + it.name) + '.', itemHex(it)); sfx('pick'); gainXp(1 + d); refreshUI(); return;
+    }
+    const slot = h.inv.indexOf(null);
+    if (slot < 0 && ref.equip && it.slot !== 'use') {   // double click with a full pack: fine if nothing has to come off
+      const es = it.slot === 'ring' ? (!h.equip.ring1 ? 'ring1' : !h.equip.ring2 ? 'ring2' : null) : h.equip[it.slot] ? null : it.slot;
+      if (es) { h.equip[es] = it; G.items.splice(G.items.indexOf(fi), 1); if (es === 'weapon') h.atkCd = Math.max(h.atkCd, SWAP_T);
+        recalc(); log('Equipped ' + it.name + '.', rarityColor(it.rarity)); sfx('pick'); gainXp(2 * d); refreshUI(); return; }
+    }
+    if (slot < 0) { log('Your pack is full.', '#e06a5a'); return; }
+    if (it.slot === 'use') { h.inv[slot] = it; G.items.splice(G.items.indexOf(fi), 1); log('Picked up ' + it.name + (it.count > 1 ? ' ×' + it.count : '') + '.', itemHex(it)); sfx('pick'); gainXp(1 + d); refreshUI(); return; }
+    h.inv[slot] = fi.item; G.items.splice(G.items.indexOf(fi), 1);
+    log('Picked up ' + fi.item.name + '.', rarityColor(fi.item.rarity)); sfx('pick'); gainXp(2 * d); refreshUI();
+    if (ref.equip) h.queue.push({ kind: 'equip', id: it.id });   // double click: put it on (what comes off takes its pack slot)
+    return;
+  }
+  const o = ref.r;
+  switch (o.type) {
+    case 'door':
+      if (o.open) return; o.open = true; G.map.t[o.y * G.map.w + o.x] = T_OPEN; sfx('door'); gainXp(d); break;
+    case 'chest': {
+      if (o.used) return;
+      if (o.boss && G.map.boss && !G.map.boss.dead) { log('The chest is sealed while its guardian lives.', '#7fe08a'); sfx('locked'); return; }
+      o.used = true; sfx('chest'); gainXp((o.boss ? 15 : 6) * d);
+      if (o.boss) {   // guardian's chest: always one rare (30 %) or magic item, plus a normal chest's loot
+        // depth + 2 rules: always at least magic (depth 1 counts as 3); rare only where depth + 2 allows it
+        dropItem(genItem(d + 1, 0, null, rnd() < 0.3 && maxRarity(d + 2) === 'rare' ? 'rare' : 'magic', d + 2), o.x + 0.5, o.y + 0.5);
+        dropGold(ri(30, 60) * d, o.x + 0.5, o.y + 0.5);
+      }
+      const n = ri(1, 2) + (rnd() < 0.4 ? 1 : 0);
+      for (let i = 0; i < n; i++) lootItem(genItem(d + (rnd() < 0.3 ? 1 : 0), 0.15, null, null, o.boss ? d + 2 : o.big ? d + 1 : d), o.x + 0.5, o.y + 0.5);
+      dropGold(ri(10, 30) * d, o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.225 * POTION_ODDS) dropPotion(o.x + 0.5, o.y + 0.5);
+      log('The chest creaks open.', '#c9a45c');
+      break;
+    }
+    case 'urn':
+      if (o.used) return; o.used = true; G.map.block[o.y * G.map.w + o.x] = 0; sfx('urn'); gainXp(2 * d);
+      for (let i = 0; i < 8; i++) G.fx.push({ type: 'spark', x: o.x + 0.5, y: o.y + 0.5, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 20, vz: 80, t: 0, dur: 0.5, color: '140,120,90' });
+      if (rnd() < 0.35) dropGold(ri(3, 10) * d, o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.09 * POTION_ODDS) dropPotion(o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.08) lootItem(genItem(d), o.x + 0.5, o.y + 0.5);
+      break;
+    case 'bones':
+      if (o.used) return; o.used = true; gainXp(d); log('You search the bones.', '#a99c86');
+      if (rnd() < 0.2) dropGold(ri(2, 8) * d, o.x + 0.5, o.y + 0.5);
+      if (rnd() < 0.1) lootItem(genItem(d), o.x + 0.5, o.y + 0.5);
+      break;
+    case 'gold':
+      if (o.used) return; o.used = true; h.gold += o.amount; G.objects.splice(G.objects.indexOf(o), 1); sfx('gold');
+      floatText(h.x, h.y, '+' + o.amount + ' gold', '#e3c060', 0.9, 14); break;
+    case 'stairs': descend(); break;
+  }
+}
+function descend() {
+  sfx('stairs');
+  const d = G.depth + 1; G.depth = d;
+  gainXp(10 * d);
+  buildLevel(d);
+  log('You descend to depth ' + d + ': ' + depthName(d) + '.', '#c9a45c');
+  if (saveHero()) log('Progress saved.', '#a99c86');
+}
+// ---- Actions: one timeline (h.atkCd = time until the hero is free) shared by attacks, weapon swaps from quick
+// keys and item uses. Swaps and uses wait in h.queue and run in order whenever the hero is free, before any
+// attack; walking goes on meanwhile. A use that would be pointless when its turn comes is skipped at no cost.
+const stackOf = pot => G.hero.inv.find(it => it && it.slot === 'use' && it.pot === pot) || null;
+function queueUse(pot) {
+  const h = G.hero; if (G.dead) return;
+  if (!stackOf(pot)) { log('No ' + POTIONS[pot].plural + ' left.', '#e06a5a'); return; }
+  h.queue.push({ kind: 'use', pot });
+}
+function useWhy(pot) {   // why using this potion now would be pointless, or ''
+  const h = G.hero;
+  if (pot === 'health' && h.hp >= h.st.maxHp) return 'You are already at full health.';
+  if (pot === 'ironskin' && h.ironT > 0) return 'Iron skin is already active.';
+  return '';
+}
+// Runs one queued action; true if it took time (then the next action waits until the hero is free again).
+function runAction(a) {
+  const h = G.hero;
+  if (a.kind === 'equip') {   // weapons take SWAP_T, other gear no time
+    const f = findOwned(a.id); if (!f || f.where !== 'inv') return false;
+    equipFromInv(f.i); log('Equipped ' + f.item.name + '.', rarityColor(f.item.rarity)); return f.item.slot === 'weapon';
+  }
+  if (a.kind === 'unequip') {   // likewise
+    const f = findOwned(a.id); if (!f || f.where !== 'eq') return false;
+    if (!unequip(f.slot)) return false;
+    if (f.slot === 'weapon') { h.atkCd = Math.max(h.atkCd, SWAP_T); return true; }
+    return false;
+  }
+  const st = stackOf(a.pot);
+  if (!st) { log('No ' + POTIONS[a.pot].plural + ' left.', '#e06a5a'); return false; }
+  const why = useWhy(a.pot); if (why) { log(why, '#a99c86'); return false; }
+  if (--st.count <= 0) h.inv[h.inv.indexOf(st)] = null;
+  if (a.pot === 'health') { const v = Math.round(h.st.maxHp * HEAL); h.hp = Math.min(h.st.maxHp, h.hp + v); floatText(h.x, h.y, '+' + v, '#7fd17f', 0.9, 16); }
+  else { h.ironT = IRON.dur; recalc(); floatText(h.x, h.y, 'Iron skin', POTIONS.ironskin.color, 1.1, 15); log('Your skin hardens like iron.', POTIONS.ironskin.color); }
+  h.atkCd = USE_T; h.using = { pot: a.pot, t: 0, dur: USE_T };
+  sfx('potion'); refreshUI(); return true;
+}
+// Called every frame: start queued actions while the hero is free (not attacking, swapping or using).
+function runQueue() {
+  const h = G.hero;
+  while (h.atkCd <= 0 && !h.swing && h.queue.length) if (runAction(h.queue.shift())) break;
+}
+
+// =====================================================================================
+//  Equipment & hotkeys
+// =====================================================================================
+const rarityColor = r => r === 'rare' ? 'var(--rare)' : r === 'magic' ? 'var(--magic)' : 'var(--common)';
+const rarityHex = r => r === 'rare' ? '#e6c84a' : r === 'magic' ? '#6f8cff' : '#d8d2c4';
+function equipFromInv(i) {
+  const h = G.hero, it = h.inv[i]; if (!it) return;
+  if (it.slot === 'use') { queueUse(it.pot); return; }   // potions are used, not equipped
+  let slot = it.slot;
+  if (slot === 'ring') slot = !h.equip.ring1 ? 'ring1' : !h.equip.ring2 ? 'ring2' : 'ring1';
+  const old = h.equip[slot]; h.equip[slot] = it; h.inv[i] = old || null;
+  if (slot === 'weapon') h.atkCd = Math.max(h.atkCd, SWAP_T);
+  recalc(); sfx('pick'); refreshUI();
+}
+function unequip(slot) {   // true if the item went back to the pack
+  const h = G.hero, it = h.equip[slot]; if (!it) return false;
+  const i = h.inv.indexOf(null); if (i < 0) { log('Your pack is full.', '#e06a5a'); return false; }
+  h.inv[i] = it; h.equip[slot] = null; recalc(); refreshUI(); return true;
+}
+// The equipment screen queues its equips, unequips and uses like the quick keys do (see Actions).
+function queueItem(ref) {
+  const h = G.hero, it = refItem(ref); if (!it || G.dead) return;
+  if (it.slot === 'use') queueUse(it.pot);
+  else h.queue.push({ kind: ref.startsWith('inv:') ? 'equip' : 'unequip', id: it.id });
+}
+function dropFromInv(i) {
+  const h = G.hero, it = h.inv[i]; if (!it) return;
+  h.inv[i] = null; dropItem(it, h.x, h.y);
+  h.hotkeys = h.hotkeys.map(k => k && ((k.type === 'item' && k.id === it.id) || (k.type === 'use' && it.slot === 'use' && k.pot === it.pot)) ? null : k);
+  refreshUI();
+}
+function findOwned(id) {
+  const h = G.hero;
+  for (const sl in h.equip) if (h.equip[sl] && h.equip[sl].id === id) return { where: 'eq', slot: sl, item: h.equip[sl] };
+  const i = h.inv.findIndex(x => x && x.id === id); return i >= 0 ? { where: 'inv', i, item: h.inv[i] } : null;
+}
+function useHotkey(idx) {
+  const h = G.hero, k = h.hotkeys[idx]; if (!k || G.dead) return;
+  if (k.type === 'use') { queueUse(k.pot); return; }
+  const f = findOwned(k.id);
+  if (!f) { h.hotkeys[idx] = null; refreshUI(); return; }
+  if (f.where === 'inv') h.queue.push({ kind: 'equip', id: k.id });   // the swap waits its turn on the timeline
+}
+function refItem(ref) {
+  const h = G.hero; if (!ref) return null;
+  if (ref.startsWith('inv:')) return h.inv[+ref.slice(4)];
+  if (ref.startsWith('eq:')) return h.equip[ref.slice(3)];
+  return null;
+}
+function bindHotkey(idx, ref) {
+  const h = G.hero;
+  const it = refItem(ref);
+  if (it && it.slot === 'use') { h.hotkeys = h.hotkeys.map(k => k && k.type === 'use' && k.pot === it.pot ? null : k); h.hotkeys[idx] = { type: 'use', pot: it.pot }; }
+  else { if (!it || it.slot !== 'weapon') { log('Only weapons and potions can be bound to quick keys.', '#a99c86'); return; }
+    h.hotkeys = h.hotkeys.map(k => k && k.type === 'item' && k.id === it.id ? null : k); h.hotkeys[idx] = { type: 'item', id: it.id }; }
+  log('Bound to key ' + (idx === 9 ? 0 : idx + 1) + '.', '#c9a45c'); refreshUI();
+}
+
+// =====================================================================================
+//  UI (DOM)
+// =====================================================================================
+function iconCss(name, size) {
+  const [x, y] = META.items[iconKey(name)], k = size / 96;
+  return `background-image:url(assets/items.webp);background-size:${ATLAS_W * k}px ${ATLAS_H * k}px;background-position:-${x * k}px -${y * k}px;`;
+}
+const itemIconCss = (it, size) => iconCss(it.base, size) + (potionFilter(it) ? `filter:${potionFilter(it)};` : '');
+const DOLL = { head: [97, 0], amulet: [180, 30], weapon: [14, 90], ring1: [180, 96], hands: [14, 160], ring2: [180, 162], chest: [97, 204], feet: [97, 268] };
+function buildUI() {
+  const doll = $('doll');
+  for (const s in DOLL) {
+    const el = document.createElement('div'); el.className = 'slot'; el.dataset.ref = 'eq:' + s;
+    el.style.left = DOLL[s][0] + 'px'; el.style.top = DOLL[s][1] + 'px';
+    el.innerHTML = `<div class="lbl">${SLOT_LABEL[s]}</div><div class="ico"></div><span class="bindTag"></span>`;
+    el.addEventListener('click', () => queueItem('eq:' + s));
+    doll.appendChild(el);
+  }
+  const inv = $('inv');
+  for (let i = 0; i < 30; i++) {
+    const el = document.createElement('div'); el.className = 'cell'; el.dataset.ref = 'inv:' + i;
+    el.innerHTML = '<div class="ico"></div><span class="bindTag"></span><span class="cnt"></span>';
+    el.addEventListener('click', e => { if (modifier(e)) { dropFromInv(i); hideTip(); } else queueItem('inv:' + i); });
+    el.addEventListener('contextmenu', e => { e.preventDefault(); dropFromInv(i); hideTip(); });
+    inv.appendChild(el);
+  }
+  // HUD controls (life orb, hotbar keys) act on a touch at once, on its touchstart (one per new finger on the
+  // element, the most reliable touch signal on iOS): iOS often fires no click for a second finger while another
+  // one rests on the attack button. Cancelling the touchstart also cancels the click that would follow, and a
+  // finger on the attack button is no modifier here (it would clear the key instead of using it).
+  const hudTap = (el, fn) => {
+    el.addEventListener('touchstart', e => {
+      e.preventDefault();
+      for (const t of e.changedTouches) if (el.contains(t.target)) fn();
+    }, { passive: false });
+    el.addEventListener('click', e => { if (lastPointer !== 'touch') fn(e); });
+  };
+  hudTap($('orb'), () => queueUse('health'));   // a click or tap on the life orb drinks a health potion
+  for (const host of [$('hotbar'), $('hkCfg')]) {
+    for (let i = 0; i < 10; i++) {
+      const el = document.createElement('div'); el.className = 'hk'; el.dataset.hk = i;
+      el.innerHTML = `<span class="num">${i === 9 ? 0 : i + 1}</span><div class="ico"></div><span class="cnt"></span>`;
+      if (host.id === 'hotbar') hudTap(el, e => { if (e && e.shiftKey) { G.hero.hotkeys[i] = null; refreshUI(); } else useHotkey(i); });
+      else el.addEventListener('click', e => { if (modifier(e)) { G.hero.hotkeys[i] = null; refreshUI(); } else useHotkey(i); });
+      el.addEventListener('contextmenu', e => { e.preventDefault(); G.hero.hotkeys[i] = null; refreshUI(); });
+      el.addEventListener('mouseenter', () => { if (lastPointer !== 'touch' && !tipPinned()) showHkTip(i, el); });
+      el.addEventListener('mouseleave', () => { if (lastPointer !== 'touch' && !tipPinned()) hideTip(); });
+      host.appendChild(el);
+    }
+  }
+  document.querySelectorAll('#equip [data-ref]').forEach(el => {
+    el.addEventListener('mouseenter', () => { if (lastPointer === 'touch' || tipPinned()) return; G.uiHover = el.dataset.ref; showRefTip(el.dataset.ref); });
+    el.addEventListener('mouseleave', () => { if (lastPointer === 'touch' || tipPinned()) return; G.uiHover = null; hideTip(); });
+  });
+  // In the equipment overlay a click or tap on an item or a quick key opens its action box (inspect) instead of
+  // acting at once; a mouse double-click does the item's main action right away (equip, use, unequip, or use
+  // the key). Captured before the element's own click handler, which still handles Shift + click (drop / clear).
+  $('equip').addEventListener('click', e => {
+    const el = e.target.closest('[data-ref], #hkCfg .hk'); if (!el) return;
+    if (lastPointer !== 'touch' && modifier(e)) return;
+    e.stopPropagation(); e.preventDefault();
+    if (lastPointer === 'touch' || e.detail === 1) inspect(el); else if (e.detail === 2) { hideTip(); mainAction(el); }
+  }, true);
+  // a click or tap anywhere outside the open action box closes it
+  addEventListener('pointerdown', e => { const t = $('tooltip'); if (tipPinned() && !t.contains(e.target)) hideTip(); }, true);
+  $('menuBtn').addEventListener('click', toggleEquip);
+  $('eqClose').addEventListener('click', toggleEquip);
+  document.addEventListener('mousemove', e => { const t = $('tooltip'); if (!t.classList.contains('hidden') && !tipPinned()) placeTip(e.clientX, e.clientY); });
+}
+function placeTip(x, y) {
+  const t = $('tooltip'), r = t.getBoundingClientRect();
+  let lx = x + 18, ly = y + 14; if (lx + r.width > W - 6) lx = x - r.width - 14; if (ly + r.height > H - 6) ly = H - r.height - 6;
+  t.style.left = lx + 'px'; t.style.top = Math.max(6, ly) + 'px';
+}
+function hideTip() { $('tooltip').classList.add('hidden'); $('tooltip').classList.remove('pinned'); }
+const tipPinned = () => $('tooltip').classList.contains('pinned');
+// The kind of pointer that last pressed (mouse, pen or touch); touch switches the overlay to tap-to-inspect.
+let lastPointer = 'mouse';
+// The last touch or mouse press also switches the HUD: touch shows the attack button (body.touch), mouse hides it.
+addEventListener('pointerdown', e => {
+  lastPointer = e.pointerType || 'mouse';
+  if (lastPointer === 'touch' || lastPointer === 'mouse') {
+    const was = document.body.classList.contains('touch');
+    document.body.classList.toggle('touch', lastPointer === 'touch');
+    if (was !== (lastPointer === 'touch') && G) refreshUI();
+  }
+}, true);
+// The double-click action: equip / use a pack item, unequip an equipped one, use a quick key.
+function mainAction(el) {
+  const ref = el.dataset.ref;
+  if (el.dataset.hk != null) useHotkey(+el.dataset.hk);
+  else queueItem(ref);   // equip / unequip / use, queued
+}
+// Action box (any pointer): the element's tooltip plus buttons for what a click, a right-click and a number key do.
+function inspect(el) {
+  const t = $('tooltip'), h = G.hero, ref = el.dataset.ref, acts = [];
+  G.uiHover = null;
+  if (el.dataset.hk != null) {
+    const i = +el.dataset.hk; showHkTip(i, el);
+    if (h.hotkeys[i]) acts.push([h.hotkeys[i].type === 'use' ? 'Use' : 'Equip', () => useHotkey(i)], ['Clear key', () => { h.hotkeys[i] = null; refreshUI(); }]);
+  } else {
+    const it = refItem(ref); if (!it) { hideTip(); return; }
+    showRefTip(ref);
+    if (ref.startsWith('inv:')) { const i = +ref.slice(4); acts.push([it.slot === 'use' ? 'Use' : 'Equip', () => queueItem(ref)], ['Drop', () => { dropFromInv(i); }]); }
+    else acts.push(['Unequip', () => queueItem(ref)]);
+  }
+  const it = ref && refItem(ref), bindable = it && (it.slot === 'weapon' || it.slot === 'use');
+  let html = '<div class="tActs">' + acts.map((a, k) => `<button data-a="${k}">${a[0]}</button>`).join('') + '<button data-a="x">Close</button></div>';
+  if (bindable) html += '<div class="tKeys">Quick key:' + Array.from({ length: 10 }, (_, k) => `<button data-k="${k}">${k === 9 ? 0 : k + 1}</button>`).join('') + '</div>';
+  t.insertAdjacentHTML('beforeend', html); t.classList.add('pinned'); t.classList.remove('hidden');
+  t.querySelectorAll('button').forEach(b => b.addEventListener('click', e => {
+    e.stopPropagation();
+    if (b.dataset.k != null) bindHotkey(+b.dataset.k, ref); else if (b.dataset.a !== 'x') acts[+b.dataset.a][1]();
+    hideTip();
+  }));
+  // centred on the element, below it if it fits, otherwise above it
+  const r = el.getBoundingClientRect(), tr = t.getBoundingClientRect();
+  const lx = clamp(r.left + r.width / 2 - tr.width / 2, 6, Math.max(6, W - tr.width - 6));
+  const ly = r.bottom + 8 + tr.height <= H - 6 ? r.bottom + 8 : Math.max(6, r.top - tr.height - 8);
+  t.style.left = lx + 'px'; t.style.top = ly + 'px';
+}
+function itemLines(it) {
+  if (it.slot === 'use') { const P = POTIONS[it.pot];
+    return `<div class="nm" style="color:${P.color}">${P.name}</div><div class="ty">Potion · instant use</div><div>${P.desc}</div><div class="ty">You carry ${it.count}.</div>`; }
+  const b = BASES[it.base]; let s = `<div class="nm" style="color:${rarityHex(it.rarity)}">${it.name}</div>`;
+  s += `<div class="ty">${it.rarity !== 'common' ? (it.rarity === 'rare' ? 'Rare ' : 'Magic ') : ''}${it.slot === 'weapon' ? KIND_INFO[it.kind].label : SLOT_LABEL[it.slot]}</div>`;
+  if (it.slot === 'weapon') s += `<div>Damage: <b>${it.min}–${it.max}</b></div><div>Attacks per second: <b>${(1 / it.cd).toFixed(2)}</b></div>`;
+  if (it.armor) s += `<div>Armor: <b>${it.armor}</b></div>`;
+  for (const k in it.stats) s += `<div class="st">+${it.stats[k]} ${STAT_LABEL[k]}</div>`;
+  void b; return s;
+}
+function weaponDps(it) { return it ? (it.min + it.max) / 2 / it.cd : 0; }
+function showRefTip(ref) {
+  const t = $('tooltip');
+  const it = refItem(ref); if (!it) { hideTip(); return; }
+  let s = itemLines(it);
+  if (it.slot === 'use') s += `<div class="ty mh" style="margin-top:4px">Click for actions · double-click to use · right-click or Shift+click to drop · 1–0 to bind</div>`;
+  else if (ref.startsWith('inv:')) {
+    const h = G.hero; const slot = it.slot === 'ring' ? 'ring1' : it.slot; const cur = h.equip[slot];
+    if (cur) {
+      s += `<div class="cmp">Equipped: <span style="color:${rarityHex(cur.rarity)}">${cur.name}</span>`;
+      if (it.slot === 'weapon') { const d = weaponDps(it) - weaponDps(cur); s += `<br>Base DPS <span class="${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}</span>`; }
+      if (it.armor || cur.armor) { const d = (it.armor || 0) - (cur.armor || 0); s += `<br>Armor <span class="${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '+' : ''}${d}</span>`; }
+      s += '</div>';
+    }
+    s += `<div class="ty mh" style="margin-top:4px">Click for actions · double-click to equip · right-click or Shift+click to drop${it.slot === 'weapon' ? ' · 1–0 to bind' : ''}</div>`;
+  } else s += `<div class="ty mh" style="margin-top:4px">Click for actions · double-click to unequip${it.slot === 'weapon' ? ' · 1–0 to bind' : ''}</div>`;
+  t.innerHTML = s; t.classList.remove('hidden');
+}
+function showHkTip(i, el) {
+  const k = G.hero.hotkeys[i], t = $('tooltip');
+  if (!k) { t.innerHTML = '<div class="ty">Empty quick key. Bind weapons and potions in the Equipment screen.</div>'; }
+  else if (k.type === 'use') { const st = stackOf(k.pot), P = POTIONS[k.pot];
+    t.innerHTML = `<div class="nm" style="color:${P.color}">Use ${P.name}</div><div>${P.desc}</div><div class="ty">You carry ${st ? st.count : 0}.</div><div class="ty mh">Press to use · right-click or Shift+click to clear</div>`; }
+  else { const f = findOwned(k.id); t.innerHTML = f ? itemLines(f.item) + '<div class="ty mh">Press to equip · right-click or Shift+click to clear</div>' : '<div class="ty">Item no longer owned.</div>'; }
+  t.classList.remove('hidden'); const r = el.getBoundingClientRect(); placeTip(r.left, r.top - 120);
+}
+function setIco(el, it, size) {
+  const ico = el.querySelector('.ico');
+  ico.style.cssText = it ? itemIconCss(it, size) : '';
+  const cnt = el.querySelector('.cnt'); if (cnt) cnt.textContent = it && it.slot === 'use' ? it.count : '';
+  el.classList.toggle('r-magic', !!it && it.rarity === 'magic'); el.classList.toggle('r-rare', !!it && it.rarity === 'rare');
+}
+function keyOf(item) { const h = G.hero; const i = !item ? -1 : h.hotkeys.findIndex(k => k && (item.slot === 'use' ? k.type === 'use' && k.pot === item.pot : k.type === 'item' && k.id === item.id)); return i < 0 ? '' : (i === 9 ? '0' : '' + (i + 1)); }
+function refreshUI() {
+  if (!G) return; const h = G.hero;
+  document.querySelectorAll('#doll .slot').forEach(el => {
+    const s = el.dataset.ref.slice(3), it = h.equip[s]; setIco(el, it, 52);
+    el.querySelector('.lbl').style.display = it ? 'none' : ''; el.querySelector('.bindTag').textContent = keyOf(it);
+  });
+  document.querySelectorAll('#inv .cell').forEach((el, i) => { setIco(el, h.inv[i], 52); el.querySelector('.bindTag').textContent = keyOf(h.inv[i]); });
+  const big = document.body.classList.contains('narrow') ? 58 : 44;   // phones: 5 bigger hotbar keys
+  for (const host of [$('hotbar'), $('hkCfg')]) host.querySelectorAll('.hk').forEach((el, i) => {
+    const k = h.hotkeys[i], ico = el.querySelector('.ico'), cnt = el.querySelector('.cnt'), is = host.id === 'hotbar' ? big : 44;
+    let it = null, active = false, none = false;
+    // while a potion is being used it shows as the equipped item: its key lights up instead of the weapon's
+    if (k && k.type === 'use') { const st = stackOf(k.pot); ico.style.cssText = itemIconCss({ base: 'potion', slot: 'use', pot: k.pot }, is);
+      cnt.textContent = st ? st.count : 0; none = !st; active = !!h.using && h.using.pot === k.pot; }
+    else { cnt.textContent = ''; if (k) { const f = findOwned(k.id); if (f) { it = f.item; active = f.where === 'eq' && !h.using; } }
+      ico.style.cssText = it ? itemIconCss(it, is) : ''; }
+    el.classList.toggle('active', active); el.classList.toggle('none', none);
+  });
+  const st = h.st, [dn, dx] = weaponDamageRange(h), w = weaponOf(h);
+  const rows = [['Level', h.lvl], ['Experience', h.xp + ' / ' + xpNeed(h.lvl)], ['Strength', st.str], ['Dexterity', st.dex], ['Vitality', st.vit],
+    ['Life', Math.ceil(h.hp) + ' / ' + st.maxHp], ['Armor', st.armor],
+    ['Damage', Math.round(dn) + '–' + Math.round(dx)], ['Attack speed', (1 / w.cd).toFixed(2) + ' / s'], ['Critical', st.crit.toFixed(1) + '%'],
+    ['Move speed', Math.round(st.speed / 4.2 * 100) + '%'], ['Kills', h.kills], ['Gold', h.gold]];
+  $('eqTitle').textContent = G.hero.name || 'Equipment';
+  const ai = $('atkIco'), as = document.body.classList.contains('narrow') ? 52 : 80;   // attack button: equipped weapon
+  const shown = h.using ? { base: 'potion', slot: 'use', pot: h.using.pot } : h.equip.weapon;   // a potion in use shows instead
+  ai.style.cssText = shown ? itemIconCss(shown, as) + `width:${as}px;height:${as}px;` : '';
+  $('stats').innerHTML = rows.map(r => `<div class="row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
+  if (G.uiHover && !tipPinned()) showRefTip(G.uiHover);
+}
+function toggleEquip() { const e = $('equip'); e.classList.toggle('hidden'); if (e.classList.contains('hidden')) { G.uiHover = null; hideTip(); } else { refreshUI(); fitUI(); } }
+function equipOpen() { return !$('equip').classList.contains('hidden'); }
+const logEl = $('log');
+function log(msg, color = '#e8dcc4') {
+  const d = document.createElement('div'); d.textContent = msg; d.style.color = color; logEl.prepend(d);
+  while (logEl.children.length > 6) logEl.lastChild.remove();
+  setTimeout(() => { d.style.opacity = 0; }, 6000); setTimeout(() => d.remove(), 7200);
+}
+let hudCache = {};
+function updateHud() {
+  const h = G.hero, set = (k, v, f) => { if (hudCache[k] !== v) { hudCache[k] = v; f(v); } };
+  set('hp', Math.ceil(h.hp) + '/' + h.st.maxHp, v => { $('orbText').textContent = v.replace('/', ' / '); $('orbFill').style.height = (h.hp / h.st.maxHp * 100) + '%'; });
+  set('xp', h.lvl + ':' + h.xp, () => { $('xpFill').style.width = (h.xp / xpNeed(h.lvl) * 100) + '%'; $('xpText').textContent = 'Level ' + h.lvl + ' — ' + h.xp + ' / ' + xpNeed(h.lvl) + ' xp'; });
+  set('depth', G.depth, d => { $('depthName').textContent = depthName(d); $('depthSub').textContent = 'Depth ' + d; });
+  set('gold', h.gold, g => { $('goldText').textContent = g + ' gold'; });
+  const fl = $('flash'); const o = +fl.style.opacity || 0; if (o > 0) fl.style.opacity = Math.max(0, o - 0.03);
+  const m = G.hover && G.hover.kind === 'mon' ? G.hover.r : (h.attackTarget && !h.attackTarget.dead ? h.attackTarget : null);
+  if (m && !m.dead) {
+    $('target').classList.remove('hidden');
+    set('tname', m.name + Math.ceil(m.hp), () => { $('targetName').textContent = m.name + '  (level ' + m.lvl + ')'; $('targetName').style.color = m.boss ? '#7fe08a' : m.champ ? '#e6c84a' : '#e8dcc4';
+      $('targetFill').style.width = (m.hp / m.maxHp * 100) + '%'; });
+  } else if (hudCache.tname !== null) { hudCache.tname = null; $('target').classList.add('hidden'); }
+  if (equipOpen() && (G.time * 4 | 0) !== hudCache.statT) { hudCache.statT = G.time * 4 | 0; const st = $('stats').children[5]; if (st) st.lastChild.textContent = Math.ceil(h.hp) + ' / ' + h.st.maxHp; }
+}
+
+// =====================================================================================
+//  Input
+// =====================================================================================
+function screenToIso(mx, my) { return [(mx - W / 2) / G.zoom + G.camX, (my - H / 2) / G.zoom + G.camY]; }
+function isoToWorld(X, Y) { return [(X / HW + Y / HH) / 2, (Y / HH - X / HW) / 2]; }
+function pickAt(mx, my) {
+  const [X, Y] = screenToIso(mx, my);
+  for (let pass = 0; pass < 2; pass++)
+    for (let i = G.pick.length - 1; i >= 0; i--) { const p = G.pick[i]; if ((p.kind === 'mon') !== (pass === 0)) continue;
+      if (X >= p.x && X <= p.x + p.w && Y >= p.y && Y <= p.y + p.h) return p; }
+  return null;
+}
+document.addEventListener('contextmenu', e => e.preventDefault());
+// Pointer events cover mouse, touchpad, touch screen and pen alike. For devices without a right button, a
+// left click or tap counts as a right click while a modifier is held: the Shift key, or a finger resting on
+// the attack button (touch screens). Each press remembers its pointerId, so lifting one finger never ends
+// another finger's press.
+const modifier = e => e.shiftKey || mouse.atkId != null;
+const rightClick = e => e.button === 2 || (e.button === 0 && modifier(e));
+const atkEl = $('atk');
+// iOS (Safari, and Edge / Chrome on iOS, which are WebKit too) opens a "save image" menu on a long press of the
+// button's icon; cancelling the touch's default action stops it (pointer events still arrive).
+atkEl.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+atkEl.addEventListener('pointerdown', e => { if (e.button !== 0) return; e.preventDefault(); mouse.atkId = e.pointerId; atkEl.classList.add('held'); });
+const releaseAtk = () => { mouse.atkId = null; atkEl.classList.remove('held'); };
+// A second mouse button pressed or released while another is held ("chorded") arrives as a pointermove
+// with e.button set, not as pointerdown / pointerup.
+const BTN_BIT = { 0: 1, 1: 4, 2: 2 };
+cv.addEventListener('pointermove', e => {
+  mouse.x = e.clientX; mouse.y = e.clientY;
+  if (e.button > -1 && BTN_BIT[e.button]) (e.buttons & BTN_BIT[e.button] ? pointerDown : pointerUp)(e);
+});
+addEventListener('pointermove', e => { if (e.target !== cv && e.button > -1 && BTN_BIT[e.button] && !(e.buttons & BTN_BIT[e.button])) pointerUp(e); });
+// Pinch zoom (touch): a second finger on the game view starts a pinch, which cancels the first finger's walk
+// or attack; the zoom follows the change in distance between the two fingers (same 0.6-1.5 range as the wheel).
+// Until every finger that took part is lifted, no finger on the game view walks or attacks.
+const touches = new Map();   // pointerId -> [x, y] of touch pointers down on the game view
+const pinch = { on: false, a: null, b: null, d0: 1, z0: 1 };
+const pinchDist = () => Math.hypot(touches.get(pinch.a)[0] - touches.get(pinch.b)[0], touches.get(pinch.a)[1] - touches.get(pinch.b)[1]) || 1;
+cv.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'touch') {
+    touches.set(e.pointerId, [e.clientX, e.clientY]);
+    if (touches.size >= 2 && G) {
+      const ids = [...touches.keys()]; pinch.on = true; pinch.a = ids[0]; pinch.b = ids[1]; pinch.d0 = pinchDist(); pinch.z0 = G.zoom;
+      const h = G.hero; mouse.left = mouse.holdWalk = mouse.right = false; mouse.leftId = mouse.rightId = null;
+      h.path = []; h.intent = null; h.attackTarget = null; h.attackPending = false; h.pendingAt = null;
+      return;
+    }
+    if (pinch.on) return;
+  }
+  pointerDown(e);
+});
+cv.addEventListener('pointermove', e => {
+  if (!touches.has(e.pointerId)) return;
+  touches.set(e.pointerId, [e.clientX, e.clientY]);
+  if (pinch.on && G && touches.has(pinch.a) && touches.has(pinch.b)) G.zoom = clamp(pinch.z0 * pinchDist() / pinch.d0, 0.6, 1.5);
+});
+const touchUp = e => { touches.delete(e.pointerId); if (!touches.size) pinch.on = false; };
+addEventListener('pointerup', touchUp); addEventListener('pointercancel', touchUp);
+function pointerDown(e) {
+  if (!G || !G.running || G.dead) return;
+  audio(); mouse.x = e.clientX; mouse.y = e.clientY;
+  const h = G.hero, ref = pickAt(mouse.x, mouse.y);
+  if (e.button === 0 && !modifier(e)) {
+    mouse.left = true; mouse.leftId = e.pointerId; h.attackTarget = null; h.attackPending = false; h.pendingAt = null;
+    // a double click / tap on a ground item equips it: the first click already walks to it (or picks it up)
+    const now = performance.now(), lt = lastItemTap; lastItemTap = null;
+    if (lt && now - lt.t < DBL_MS && Math.hypot(mouse.x - lt.x, mouse.y - lt.y) < DBL_PX && lt.fi.item.slot !== 'use') {
+      mouse.holdWalk = false;
+      if (G.items.includes(lt.fi)) {   // still on the ground: go there and equip it on arrival
+        const ir = { kind: 'item', r: lt.fi, equip: true }; h.intent = ir;
+        if (dist(h, lt.fi) <= 0.75) { act(ir); h.intent = null; h.path = []; } else pathTo(h, lt.fi.x, lt.fi.y, false);
+      } else if (findOwned(lt.fi.item.id) && findOwned(lt.fi.item.id).where === 'inv') h.queue.push({ kind: 'equip', id: lt.fi.item.id });
+      return;
+    }
+    if (ref && ref.kind === 'item') lastItemTap = { fi: ref.r, t: now, x: mouse.x, y: mouse.y };
+    if (ref && ref.kind !== 'mon') {
+      h.intent = ref; const [cx, cy] = ref.kind === 'item' ? [ref.r.x, ref.r.y] : objCenter(ref.r);
+      const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door');
+      if (dist(h, { x: cx, y: cy }) <= (blk ? 1.5 : 0.75)) { act(ref); h.intent = null; h.path = []; }
+      else pathTo(h, cx, cy, blk);
+      mouse.holdWalk = false;
+    } else {
+      h.intent = null; const [wx, wy] = isoToWorld(...screenToIso(mouse.x, mouse.y)); pathTo(h, wx, wy, false);
+      mouse.holdWalk = true; mouse.walkT = 0.15;
+    }
+  } else if (rightClick(e)) {
+    mouse.right = true; mouse.rightId = e.pointerId; h.intent = null;
+    rightAction(ref, true);
+  }
+}
+// A mouse shares one pointerId between its buttons, so match the button too.
+addEventListener('pointerup', e => pointerUp(e));
+function pointerUp(e) {
+  if (e.pointerId === mouse.atkId && e.button === 0) releaseAtk();
+  if (e.pointerId === mouse.rightId && (e.button === 2 || !mouse.left || e.pointerId !== mouse.leftId)) { mouse.right = false; mouse.rightId = null; }
+  else if (e.pointerId === mouse.leftId && e.button === 0) { mouse.left = false; mouse.holdWalk = false; mouse.leftId = null; }
+}
+addEventListener('pointercancel', e => {
+  if (e.pointerId === mouse.atkId) releaseAtk();
+  if (e.pointerId === mouse.rightId) { mouse.right = false; mouse.rightId = null; }
+  if (e.pointerId === mouse.leftId) { mouse.left = mouse.holdWalk = false; mouse.leftId = null; }
+});
+addEventListener('blur', () => { mouse.left = mouse.right = mouse.holdWalk = false; mouse.leftId = mouse.rightId = null; releaseAtk(); });
+cv.addEventListener('wheel', e => { if (G) G.zoom = clamp(G.zoom * (e.deltaY > 0 ? 0.9 : 1.1), 0.6, 1.5); e.preventDefault(); }, { passive: false });
+function rightAction(ref, fresh) {
+  const h = G.hero, w = weaponOf(h);
+  const m = ref && ref.kind === 'mon' ? ref.r : null;
+  if (m) {
+    h.attackTarget = m; h.attackPending = true; h.pendingAt = null;
+    if (w.kind === 'bow') { if (heroAttack(0, 0, m)) h.attackPending = false; }
+  } else {
+    if (fresh) { h.attackTarget = null; h.attackPending = false; }
+    // while the hero is busy, the click waits as the one pending attack (a newer click replaces it)
+    if (!h.attackTarget) { const [wx, wy] = isoToWorld(...screenToIso(mouse.x, mouse.y)); h.pendingAt = heroAttack(wx, wy, null) ? null : { x: wx, y: wy }; }
+  }
+}
+// Debug overlay (Ctrl+D): developer switches, remembered in localStorage (dc01-debug).
+const DEBUG = (() => { try { return Object.assign({ pursuit: false }, JSON.parse(localStorage.getItem('dc01-debug')) || {}); } catch (e) { return { pursuit: false }; } })();
+const saveDebug = () => { try { localStorage.setItem('dc01-debug', JSON.stringify(DEBUG)); } catch (e) {} };
+$('dbgPursuit').checked = DEBUG.pursuit;
+$('dbgPursuit').addEventListener('change', e => { DEBUG.pursuit = e.target.checked; saveDebug(); });
+addEventListener('keydown', e => {
+  if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); $('debug').classList.toggle('hidden'); return; }
+  if (!G || !G.running) return;
+  const k = e.key;
+  if (k === 'i' || k === 'I' || k === 'Tab' || k === 'c' || k === 'C') { e.preventDefault(); toggleEquip(); return; }
+  if (k === 'Escape') { if (equipOpen()) toggleEquip(); return; }
+  if (/^[0-9]$/.test(k)) { const idx = k === '0' ? 9 : +k - 1;
+    if (equipOpen() && G.uiHover && refItem(G.uiHover)) bindHotkey(idx, G.uiHover); else useHotkey(idx); return; }
+  if (k === 'q' || k === 'Q') queueUse('health');
+  if (k === 'm' || k === 'M') { G.minimap = !G.minimap; $('minimap').classList.toggle('hidden', !G.minimap); }
+  if (k === 'n' || k === 'N') { soundOn = !soundOn; log('Sound ' + (soundOn ? 'on' : 'off') + '.', '#a99c86'); }
+});
+
+// =====================================================================================
+//  Update
+// =====================================================================================
+function update(dt) {
+  G.time += dt;
+  const h = G.hero;
+  if (G.fade > 0) G.fade = Math.max(0, G.fade - dt * 1.6);
+  if (G.dead) {   // the scene goes on for DEATH_DELAY s: the hero fades, the monsters drift back to wandering
+    G.deadT += dt;
+    if (G.deadT > DEATH_DELAY && !G.deathShown) { G.deathShown = true; showDeath(); }
+    for (const mo of G.monsters) { const px = mo.x, py = mo.y; updateMonster(mo, dt);
+      if (mo.moving) mo.anim += Math.hypot(mo.x - px, mo.y - py) * (META.characters[mo.type].fpt || 2) / mo.scale; }
+    G.monsters = G.monsters.filter(mo => !(mo.dead && mo.deathT > 1.2));
+    G.proj = []; updateFx(dt); return;
+  }
+  // continuous input
+  if (mouse.holdWalk && mouse.left) {
+    mouse.walkT -= dt;
+    if (mouse.walkT <= 0) { mouse.walkT = 0.15; const [wx, wy] = isoToWorld(...screenToIso(mouse.x, mouse.y));
+      if (dist(h, { x: wx, y: wy }) > 0.4) pathTo(h, wx, wy, false); }
+  }
+  if (mouse.right && h.atkCd <= 0) rightAction(G.hover, false);
+  // auto attack: while the attack button is held with a melee weapon (and no finger is walking or attacking
+  // on the game view), the hero attacks the nearest monster in reach, then the next one, without a tap
+  const autoAtk = mouse.atkId != null && !mouse.left && !mouse.right && weaponOf(h).kind !== 'bow';
+  if (autoAtk && (!h.attackTarget || h.attackTarget.dead)) {
+    const reach = KIND_INFO[weaponOf(h).kind].reach * 0.85;
+    let best = null, bd = 1e9;
+    for (const mo of G.monsters) { if (mo.dead) continue; const dd = dist(h, mo) - mo.r; if (dd <= reach && dd < bd) { bd = dd; best = mo; } }
+    if (best) { h.attackTarget = best; h.attackPending = false; h.intent = null; }
+  }
+
+  // hero
+  h.atkCd = Math.max(0, h.atkCd - dt); h.hitT = Math.max(0, h.hitT - dt);
+  if (h.using && (h.using.t += dt) >= h.using.dur) { h.using = null; refreshUI(); }   // the weapon comes back
+  if (h.ironT > 0 && (h.ironT -= dt) <= 0) { h.ironT = 0; recalc(); refreshUI(); log('Your iron skin fades.', '#a99c86'); }
+  h.lunge = Math.max(0, h.lunge - dt * 5);
+  h.hp = Math.min(h.st.maxHp, h.hp + h.st.regen * dt);
+  if (h.swing) { h.swing.t += dt; if (!h.swing.hit && h.swing.t >= 0.08) { h.swing.hit = true; resolveSwing(h); } if (h.swing.t >= h.swing.dur) h.swing = null; }
+  runQueue();
+  // a click attack at the ground that came while the hero was busy waits (one at most) for the hero to be free
+  if (h.pendingAt && h.atkCd <= 0 && !h.swing && heroAttack(h.pendingAt.x, h.pendingAt.y, null)) h.pendingAt = null;
+  const at = h.attackTarget;
+  if (at) {
+    if (at.dead) { h.attackTarget = null; h.attackPending = false; }
+    else {
+      const w = weaponOf(h), info = KIND_INFO[w.kind];
+      if (w.kind === 'bow') { if ((mouse.right || h.attackPending) && h.atkCd <= 0) { heroAttack(0, 0, at); h.attackPending = false; } else if (!mouse.right && !h.attackPending) h.attackTarget = null; }
+      else {
+        const inReach = dist(h, at) - at.r <= info.reach * 0.85;
+        if (inReach) { h.path = []; if (h.atkCd <= 0 && !h.swing && (h.attackPending || mouse.right || autoAtk)) { heroAttack(0, 0, at); h.attackPending = false; } }
+        else if (h.attackPending || mouse.right) { h.repath -= dt; if (h.repath <= 0 || !h.path.length) { h.repath = 0.25; pathTo(h, at.x, at.y, true); } }
+        else h.attackTarget = null;
+      }
+    }
+  }
+  const ox = h.x, oy = h.y;
+  h.moving = !h.swing && followPath(h, h.st.speed, dt);
+  const stepD = Math.hypot(h.x - ox, h.y - oy);
+  if (h.moving) { h.anim += stepD * META.characters.hero.fpt; if (stepD < 1e-4) { h.stuckT += dt; if (h.stuckT > 0.3) { h.path = []; h.stuckT = 0; } } else h.stuckT = 0; }
+  if (h.intent) {
+    const ref = h.intent, [cx, cy] = ref.kind === 'item' ? [ref.r.x, ref.r.y] : objCenter(ref.r);
+    const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door');
+    const dd = dist(h, { x: cx, y: cy });
+    if (dd <= (blk ? 1.5 : 0.75)) { setDir(h, cx - h.x, cy - h.y); h.path = []; h.intent = null; act(ref); }
+    else if (!h.path.length) { if (dd <= 1.7) { h.intent = null; act(ref); } else h.intent = null; }
+  }
+  // mark explored
+  const m = G.map;
+  for (let y = Math.floor(h.y) - 7; y <= Math.floor(h.y) + 7; y++) for (let x = Math.floor(h.x) - 7; x <= Math.floor(h.x) + 7; x++)
+    if (x >= 0 && y >= 0 && x < m.w && y < m.h && (x + 0.5 - h.x) ** 2 + (y + 0.5 - h.y) ** 2 < 46) m.seen[y * m.w + x] = 1;
+
+  // monsters
+  for (const mo of G.monsters) {   // walk frames advance with distance walked: META fpt = frames per tile at scale 1
+    const px = mo.x, py = mo.y; updateMonster(mo, dt);
+    if (mo.moving) mo.anim += Math.hypot(mo.x - px, mo.y - py) * (META.characters[mo.type].fpt || 2) / mo.scale;
+  }
+  G.monsters = G.monsters.filter(mo => !(mo.dead && mo.deathT > 1.2));
+  // separation
+  const act_ = G.monsters.filter(mo => !mo.dead && Math.abs(mo.x - h.x) < 16 && Math.abs(mo.y - h.y) < 16);
+  for (let i = 0; i < act_.length; i++) {
+    const a = act_[i];
+    for (let j = i + 1; j < act_.length; j++) { const b = act_[j]; const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), md = a.r + b.r;
+      if (d < md && d > 1e-3) { const push = (md - d) / 2, nx = dx / d * push, ny = dy / d * push; moveEnt(a, -nx, -ny); moveEnt(b, nx, ny); } }
+    const dx = a.x - h.x, dy = a.y - h.y, d = Math.hypot(dx, dy), md = a.r + h.r;
+    if (d < md && d > 1e-3) moveEnt(a, dx / d * (md - d), dy / d * (md - d));
+  }
+  // projectiles
+  for (const p of G.proj) {
+    const steps = 3;
+    for (let s = 0; s < steps && p.life > 0; s++) {
+      p.x += p.vx * dt / steps; p.y += p.vy * dt / steps; p.life -= dt / steps;
+      if (opaque(Math.floor(p.x), Math.floor(p.y))) { p.life = 0; G.fx.push({ type: 'spark', x: p.x, y: p.y, vx: 0, vy: 0, z: 40, vz: 30, t: 0, dur: 0.3, color: p.friendly ? '200,180,140' : '120,255,170' }); break; }
+      if (p.friendly) { for (const mo of G.monsters) if (!mo.dead && Math.hypot(mo.x - p.x, mo.y - p.y) < mo.r + 0.18) { damageMonster(mo, p.dmg, p.crit); p.life = 0; break; } }
+      else if (Math.hypot(h.x - p.x, h.y - p.y) < h.r + 0.2) { damageHero(p.dmg, p.src); p.life = 0; }
+    }
+  }
+  G.proj = G.proj.filter(p => p.life > 0);
+  for (const fi of G.items) fi.t += dt;
+  updateFx(dt);
+  G.miniT -= dt; if (G.miniT <= 0) { G.miniT = 0.25; updateMinimap(); }
+}
+function updateFx(dt) {
+  for (const f of G.fx) { f.t += dt; if (f.type === 'spark') { f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt; f.vz -= 300 * dt; } }
+  G.fx = G.fx.filter(f => f.t < f.dur);
+  for (const t of G.texts) t.t += dt;
+  G.texts = G.texts.filter(t => t.t < t.dur);
+}
+const DEATH_DELAY = 4;   // seconds between the hero's death and the death screen
+function updateMonster(m, dt) {
+  m.hitT = Math.max(0, m.hitT - dt); m.lunge = Math.max(0, m.lunge - dt * 4);
+  if (m.dead) { m.deathT += dt; return; }
+  if (G.dead && m.state !== 'idle') { loseInterest(m, false); m.windup = 0; }   // the hero is dead: back to wandering
+  const h = G.hero, b = m.b, d = dist(m, h);
+  if (G.time - m.lastHit > 4) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.015 * dt);
+  m.cd -= dt; m.moving = false;
+  if (m.state === 'idle') {
+    if (m.calm && m.calm.walked >= UNSTUCK && G.time - m.calm.t >= CALM_MIN) m.calm = null;   // calm ends
+    if (!G.dead && !m.calm && d < 8.5 && (!NOTICE_ODDS[m.type] || rnd() < 1 - Math.pow(1 - NOTICE_ODDS[m.type], dt)) && los(m.x, m.y, h.x, h.y)) { alert(m); }
+    else if (d < 30) {
+      m.wander -= dt;
+      if (m.wander <= 0) { m.wander = 2 + rnd() * 5; const tx = m.x + (rnd() - 0.5) * 4, ty = m.y + (rnd() - 0.5) * 4;
+        if (canStand(tx, ty, m.r) && lineWalkable(m.x, m.y, tx, ty, m.r)) m.path = [[tx, ty]]; }
+      if (m.path.length) { const px = m.x, py = m.y; m.moving = followPath(m, m.speed * 0.4, dt);
+        if (m.calm) m.calm.walked += Math.hypot(m.x - px, m.y - py); }
+    }
+    return;
+  }
+  if (d > 20) { m.state = 'idle'; m.path = []; return; }
+  if (m.windup > 0) {
+    m.windup -= dt; setDir(m, h.x - m.x, h.y - m.y);
+    if (m.windup <= 0) {
+      const dmg = m.dmg[0] + rnd() * (m.dmg[1] - m.dmg[0]);
+      if (b.ranged) { const a = Math.atan2(h.y - m.y, h.x - m.x), sp = 7; sfx('bolt', { x: m.x, y: m.y });
+        G.proj.push({ type: 'bolt', x: m.x, y: m.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.6, dmg, friendly: false, src: m }); }
+      else if (d - h.r <= b.reach + 0.35) { m.lunge = 1; damageHero(dmg, m); }
+    }
+    return;
+  }
+  m.voiceT = (m.voiceT || 3) - dt; if (m.voiceT <= 0) { m.voiceT = m.type === 'ghoul' ? 5 + rnd() * 6 : 1.2 + rnd() * 1.8; monsterVoice(m, 'walk'); }   // rattles and moans while chasing
+  const seen = los(m.x, m.y, h.x, h.y);
+  if (seen) m.lastSeen = G.time; else if (G.time - m.lastSeen > LOST_SIGHT) { loseInterest(m, false); return; }
+  let goal = null;
+  if (b.ranged) {
+    if (seen && d <= b.range) { if (m.cd <= 0) { m.windup = 0.45; m.cd = b.cd; return; } if (d < 3.2) { const ax = m.x - h.x, ay = m.y - h.y; goal = [m.x + ax / d, m.y + ay / d]; } }
+    else goal = [h.x, h.y];
+  } else {
+    if (d - h.r <= b.reach) { if (m.cd <= 0) { m.windup = 0.32; m.cd = b.cd; monsterVoice(m, 'attack'); } setDir(m, h.x - m.x, h.y - m.y); m.stuckT = 0; return; }
+    goal = [h.x, h.y];
+  }
+  if (!goal) { m.stuckT = 0; return; }
+  // stuck: trying to move but staying within STUCK_MOVE of one spot for STUCK_GIVEUP s (e.g. a pack plugging a
+  // corridor mouth) -> it loses interest
+  if (!m.anchor || dist(m, m.anchor) > STUCK_MOVE) { m.anchor = { x: m.x, y: m.y }; m.stuckT = 0; }
+  else if ((m.stuckT += dt) >= STUCK_GIVEUP) { loseInterest(m, true); return; }
+  // stalled for DETOUR_AFTER s (e.g. sliding against a corner or a prop): follow a fresh A* path for DETOUR_T s
+  // instead of walking straight at the goal
+  if (m.stuckT >= DETOUR_AFTER && !(m.detourT > 0)) { m.detourT = DETOUR_T; m.repath = 0; }
+  if (m.detourT > 0) m.detourT -= dt;
+  const spd = m.speed;
+  if (!(m.detourT > 0) && seen && d < 9 && lineWalkable(m.x, m.y, goal[0], goal[1], m.r * 1.05)) {
+    const dx = goal[0] - m.x, dy = goal[1] - m.y, dd = Math.hypot(dx, dy) || 1; m.path = [];
+    moveEnt(m, dx / dd * spd * dt, dy / dd * spd * dt); setDir(m, dx, dy); m.moving = true;
+  } else {
+    m.repath -= dt;
+    if (m.repath <= 0 || !m.path.length) { m.repath = 0.5 + rnd() * 0.4; const p = astar(Math.floor(m.x), Math.floor(m.y), Math.floor(goal[0]), Math.floor(goal[1]), true, 2500);
+      m.path = p ? smoothPath(p, m.x, m.y, m.r) : []; }
+    m.moving = followPath(m, spd, dt);
+  }
+}
+
+// =====================================================================================
+//  Rendering
+// =====================================================================================
+const dl = [];
+function render() {
+  const h = G.hero, m = G.map, z = G.zoom;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = '#040205'; ctx.fillRect(0, 0, W, H);
+  const [hx, hy] = iso(h.x, h.y);
+  G.camX += (hx - G.camX) * (G.camSnap ? 1 : 0.25); G.camY += (hy - 46 - G.camY) * (G.camSnap ? 1 : 0.25); G.camSnap = false;
+  if (Math.abs(hx - G.camX) > 400) { G.camX = hx; G.camY = hy - 46; }
+  const baseT = [DPR * z, 0, 0, DPR * z, DPR * (W / 2 - G.camX * z), DPR * (H / 2 - G.camY * z)];
+  ctx.setTransform(...baseT);
+  // visible tile range
+  const cs = [[0, 0], [W, 0], [0, H], [W, H]].map(([sx, sy]) => isoToWorld(...screenToIso(sx, sy)));
+  const x0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c[0]))) - 1), x1 = Math.min(m.w - 1, Math.ceil(Math.max(...cs.map(c => c[0]))) + 3);
+  const y0 = Math.max(0, Math.floor(Math.min(...cs.map(c => c[1]))) - 1), y1 = Math.min(m.h - 1, Math.ceil(Math.max(...cs.map(c => c[1]))) + 3);
+  const lightR = 9.5;
+  const nearHero = (x, y) => Math.abs(x - h.x) < lightR + 4 && Math.abs(y - h.y) < lightR + 4;
+
+  // floor (affine iso transform + texture pattern)
+  ctx.save(); ctx.transform(HW, HH, -HW, HH, 0, 0);
+  ctx.beginPath();
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const v = m.t[y * m.w + x]; if ((v === T_FLOOR || v === T_OPEN || v === T_DOOR) && (m.seen[y * m.w + x] || nearHero(x, y))) ctx.rect(x, y, 1.02, 1.02); }
+  ctx.fillStyle = floorPat; ctx.fill();
+  ctx.lineWidth = 0.012; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.stroke();
+  ctx.restore();
+
+  // floor-level props (stairs, bones, gold) and items
+  G.pick.length = 0;
+  if (m.bossRoom) drawRuneCircle(m.bossRoom);
+  for (const o of G.objects) {
+    if (o.type !== 'stairs' && o.type !== 'bones' && o.type !== 'gold') continue;
+    if (o.x < x0 || o.x > x1 || o.y < y0 || o.y > y1) continue;
+    drawProp(o);
+  }
+  for (const fi of G.items) {
+    if (fi.x < x0 || fi.x > x1 + 1 || fi.y < y0 || fi.y > y1 + 1) continue;
+    const it = fi.item, [sx, sy] = iso(fi.x, fi.y), col = it.slot === 'use' ? POTIONS[it.pot].glow : (it.rarity === 'rare' ? '230,200,74' : it.rarity === 'magic' ? '111,140,255' : '216,210,196');
+    const gr = ctx.createRadialGradient(sx, sy, 0, sx, sy, 30); gr.addColorStop(0, `rgba(${col},0.45)`); gr.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(sx, sy, 30, 15, 0, 0, 7); ctx.fill();
+    const s = 44, bob = Math.sin(fi.t * 2.5) * 2, [ix, iy] = META.items[iconKey(it.base)];
+    const hov = G.hover && G.hover.r === fi, flt = [potionFilter(it), hov ? 'brightness(1.5)' : ''].filter(Boolean).join(' ');
+    drawSprite(IMG.items, ix, iy, 96, 96, sx - s / 2, sy - s + 6 + bob, s, s,
+      { filter: flt, bright: hov ? 1.5 : 1, tint: potionFilter(it) ? POTIONS[it.pot].color : null });
+    G.pick.push({ kind: 'item', r: fi, x: sx - s / 2 - 4, y: sy - s, w: s + 8, h: s + 10 });
+  }
+
+  // depth-sorted drawables
+  dl.length = 0;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const v = m.t[y * m.w + x]; if (v === T_WALL && (m.seen[y * m.w + x] || nearHero(x, y))) dl.push({ k: x + y + 1, t: 0, x, y }); }
+  for (const o of G.objects) if (o.type === 'door' && o.x >= x0 && o.x <= x1 && o.y >= y0 && o.y <= y1 && (m.seen[o.y * m.w + o.x] || nearHero(o.x, o.y))) dl.push({ k: doorKey(o), t: 5, o });
+  for (const o of G.objects) if (o.type !== 'stairs' && o.type !== 'bones' && o.type !== 'gold' && o.type !== 'door' && o.x >= x0 && o.x <= x1 && o.y >= y0 && o.y <= y1) dl.push({ k: o.x + o.y + 1, t: 1, o });
+  for (const mo of G.monsters) if (mo.x >= x0 && mo.x <= x1 + 1 && mo.y >= y0 && mo.y <= y1 + 1) dl.push({ k: mo.x + mo.y, t: 2, e: mo });
+  dl.push({ k: h.x + h.y, t: 3, e: h });
+  for (const p of G.proj) dl.push({ k: p.x + p.y, t: 4, p });
+  dl.sort((a, b) => a.k - b.k);
+  for (const d of dl) {
+    if (d.t === 0) drawWall(d.x, d.y);
+    else if (d.t === 1) drawProp(d.o);
+    else if (d.t === 2) drawChar(d.e, false);
+    else if (d.t === 3) drawChar(d.e, true);
+    else if (d.t === 5) drawDoor(d.o);
+    else drawProj(d.p);
+  }
+  drawFx();
+
+  // lighting
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-over';
+  lctx.clearRect(0, 0, lc.width, lc.height); lctx.fillStyle = 'rgba(3,1,5,0.93)'; lctx.fillRect(0, 0, lc.width, lc.height);
+  lctx.globalCompositeOperation = 'destination-out';
+  const toDev = (wx, wy, lift = 0) => { const [X, Y] = iso(wx, wy); return [((X - G.camX) * z + W / 2) * DPR, ((Y - lift - G.camY) * z + H / 2) * DPR]; };
+  const hole = (wx, wy, rad, str, lift = 0) => {
+    const [X, Y] = toDev(wx, wy, lift), r = rad * HW * 1.42 * z * DPR;
+    if (X < -r || Y < -r || X > lc.width + r || Y > lc.height + r) return;
+    lctx.save(); lctx.translate(X, Y); lctx.scale(1, 0.62);
+    const gr = lctx.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(0,0,0,${str})`); gr.addColorStop(0.5, `rgba(0,0,0,${str * 0.8})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    lctx.fillStyle = gr; lctx.beginPath(); lctx.arc(0, 0, r, 0, 7); lctx.fill(); lctx.restore();
+  };
+  hole(h.x, h.y, 7.2, 1, 30);
+  const braziers = G.objects.filter(o => o.type === 'brazier' && Math.abs(o.x - h.x) < 18 && Math.abs(o.y - h.y) < 18);
+  for (const b of braziers) hole(b.x + 0.5, b.y + 0.5, 4.2 + Math.sin(G.time * 9 + b.x) * 0.15 + Math.sin(G.time * 13.7 + b.y) * 0.1, 0.95, 40);
+  for (const p of G.proj) if (p.type === 'bolt') hole(p.x, p.y, 1.6, 0.8, 40);
+  for (const o of G.objects) if (o.type === 'candelabrum' && Math.abs(o.x - h.x) < 18 && Math.abs(o.y - h.y) < 18) hole(o.x + 0.5, o.y + 0.5, 2.6, 0.8, 60);
+  const br = G.map.bossRoom; if (br && Math.abs(br.cx - h.x) < 20 && Math.abs(br.cy - h.y) < 20) hole(br.cx + 0.5, br.cy + 0.5, 3, 0.4, 0);
+  ctx.drawImage(lc, 0, 0);
+  ctx.globalCompositeOperation = 'lighter';
+  for (const b of braziers) { const [X, Y] = toDev(b.x + 0.5, b.y + 0.5, 50); const r = 170 * z * DPR;
+    const c = b.green ? '70,255,120' : '255,120,40';
+    const gr = ctx.createRadialGradient(X, Y, 0, X, Y, r); gr.addColorStop(0, `rgba(${c},0.16)`); gr.addColorStop(1, `rgba(${c},0)`);
+    ctx.fillStyle = gr; ctx.fillRect(X - r, Y - r, 2 * r, 2 * r); }
+  ctx.globalCompositeOperation = 'source-over';
+
+  // post-light overlays: labels, hp bars, floating text
+  ctx.setTransform(...baseT);
+  ctx.textAlign = 'center'; ctx.font = '13px "IM Fell English", serif';
+  for (const fi of G.items) {
+    if (dist(fi, h) > 7.5) continue;
+    const [sx, sy] = iso(fi.x, fi.y), label = fi.item.name + (fi.item.slot === 'use' && fi.item.count > 1 ? ' ×' + fi.item.count : '');
+    const tw = ctx.measureText(label).width + 10;
+    ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(sx - tw / 2, sy - 62, tw, 17);
+    ctx.fillStyle = itemHex(fi.item); ctx.fillText(label, sx, sy - 49);
+  }
+  if (G.hover && G.hover.kind === 'obj') {
+    const o = G.hover.r, [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy);
+    const label = { chest: o.boss ? "Guardian's Chest" : 'Chest', door: 'Door', urn: 'Funeral Urn', bones: 'Bones', gold: o.amount + ' Gold', stairs: 'Stairs Down — Depth ' + (G.depth + 1) }[o.type];
+    ctx.font = '14px Cinzel, serif'; const tw = ctx.measureText(label).width + 12;
+    ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(sx - tw / 2, G.hover.y - 22, tw, 19); ctx.fillStyle = '#e8dcc4'; ctx.fillText(label, sx, G.hover.y - 8);
+  }
+  for (const mo of G.monsters) {
+    if (mo.dead || mo.hp >= mo.maxHp || dist(mo, h) > 9) continue;
+    const [sx, sy] = iso(mo.x, mo.y), top = sy - 128 * mo.scale + 4 - (mo.b.float ? 10 : 0);
+    ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(sx - 25, top - 8, 50, 6);
+    ctx.fillStyle = mo.boss ? '#5fd06a' : mo.champ ? '#e6c84a' : '#c4291f'; ctx.fillRect(sx - 24, top - 7, 48 * mo.hp / mo.maxHp, 4);
+  }
+  for (const t of G.texts) {
+    const [sx, sy] = iso(t.x, t.y), k = t.t / t.dur;
+    ctx.globalAlpha = 1 - k * k; ctx.font = `bold ${t.size}px Cinzel, serif`;
+    ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(0,0,0,0.85)'; ctx.strokeText(t.s, sx, sy - 100 - k * 40); ctx.fillStyle = t.color; ctx.fillText(t.s, sx, sy - 100 - k * 40);
+  }
+  ctx.globalAlpha = 1;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  // hover / cursor
+  G.hover = G.running && !G.dead ? pickAt(mouse.x, mouse.y) : null;
+  cv.style.cursor = G.hover ? (G.hover.kind === 'mon' ? 'crosshair' : 'pointer') : 'default';
+  $('fade').style.opacity = G.fade;
+}
+
+// Walls are full height (WALLH) blocks. A face that looks into a room or corridor (walkable or a doorway in front
+// of it) shows the stone texture; the tops and every face toward solid ground show dirt (assets/dirt.jpg).
+const walkable = (a, b) => { const t = G.map.at(a, b); return t === T_FLOOR || t === T_OPEN; };
+const roomSide = (a, b) => { const t = G.map.at(a, b); return t === T_FLOOR || t === T_OPEN || t === T_DOOR; };
+// A wall face from A to B, WALLH tall, from a 128 x 75 cell of a wall texture.
+function face(img, sx, sy, sw, sh, A, B, shade) {
+  const ux = B[0] - A[0], uy = B[1] - A[1];
+  ctx.save(); ctx.transform(ux / sw, uy / sw, 0, WALLH / sh, A[0], A[1] - WALLH);
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw * 1.02, sh * 1.01);
+  if (shade) { ctx.fillStyle = `rgba(0,0,0,${shade})`; ctx.fillRect(0, 0, sw * 1.02, sh * 1.01); }
+  ctx.restore();
+}
+const SHADE_Y = 0.42, SHADE_X = 0.18;   // faces toward +y (down-left on screen) and +x (down-right)
+function wallTop(pts, h) {   // a horizontal dirt top at height h over the world-space polygon pts
+  ctx.save(); ctx.translate(0, -h); ctx.transform(HW, HH, -HW, HH, 0, 0);
+  ctx.beginPath(); for (const [px, py] of pts) ctx.lineTo(px, py); ctx.closePath();
+  ctx.fillStyle = dirtPat; ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
+  ctx.lineWidth = 0.012; ctx.strokeStyle = 'rgba(255,240,220,0.05)'; ctx.stroke(); ctx.restore();
+}
+function drawWall(x, y) {
+  const L = iso(x, y + 1), B = iso(x + 1, y + 1), R = iso(x + 1, y), T = iso(x, y);
+  const tsx = ((x * 131 + y * 71) % 4) * 128, tsy = ((x * 37 + y * 113) % 4) * 100, dirt = IMG.dirt;
+  if (G.map.at(x, y + 1) !== T_WALL) {
+    face(roomSide(x, y + 1) ? IMG.wall : dirt, tsx, tsy, 128, 75, L, B, SHADE_Y);
+  }
+  if (G.map.at(x + 1, y) !== T_WALL) {
+    face(roomSide(x + 1, y) ? IMG.wall : dirt, (tsx + 256) % 512, tsy, 128, 75, B, R, SHADE_X);
+  }
+  wallTop([[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]], WALLH);
+}
+// A door is a wooden leaf (doorA 75 %, doorB 25 %; no frame, threshold or lintel) DOOR_T thick, filling the
+// doorway tile's room-side edge: a full tile wide and as tall as the walls. Open, it has swung 90° into the
+// corridor about its hinge on the side the camera sees (x for a door in a wall along x, y for one in a wall
+// along y) and lies along that side of the doorway, so the whole tile is open. Its top edge (and the free end,
+// when that faces the camera) show a wood-grain strip (doorEdge).
+const DOOR_T = 0.09;
+function doorKey(o) { return o.x + o.y + (o.open ? 0.5 : o.front ? 1.4 : 0.6); }
+let DOOR_EDGE = null;
+function doorEdge() {   // a hand-drawn end-grain / edge strip in the leaves' browns: grain lines, plank joints, wear
+  if (DOOR_EDGE) return DOOR_EDGE;
+  const c = document.createElement('canvas'); c.width = 256; c.height = 24; const g = c.getContext('2d');
+  let sd = 11; const R = () => (sd = sd * 16807 % 2147483647) / 2147483647;
+  g.fillStyle = '#4b331f'; g.fillRect(0, 0, 256, 24);
+  for (let i = 0; i < 70; i++) { g.strokeStyle = R() < 0.5 ? `rgba(120,82,48,${0.25 + R() * 0.3})` : `rgba(30,18,10,${0.25 + R() * 0.35})`;
+    g.lineWidth = 0.6 + R() * 1.2; const y = R() * 24, x = R() * 256, l = 20 + R() * 90; g.beginPath(); g.moveTo(x, y);
+    g.bezierCurveTo(x + l / 3, y + (R() - 0.5) * 3, x + 2 * l / 3, y + (R() - 0.5) * 3, x + l, y + (R() - 0.5) * 2); g.stroke(); }
+  for (let k = 1; k < 6; k++) { const x = k * 256 / 6 + (R() - 0.5) * 6; g.fillStyle = 'rgba(18,10,6,0.75)'; g.fillRect(x, 0, 2, 24);
+    g.fillStyle = 'rgba(140,100,60,0.25)'; g.fillRect(x + 2, 0, 1, 24); }
+  for (let i = 0; i < 25; i++) { g.fillStyle = `rgba(${R() < 0.5 ? '20,12,6' : '150,110,70'},${0.2 + R() * 0.3})`; g.beginPath(); g.ellipse(R() * 256, R() * 24, 1 + R() * 3, 0.5 + R(), 0, 0, 7); g.fill(); }
+  const sh = g.createLinearGradient(0, 0, 0, 24); sh.addColorStop(0, 'rgba(160,120,80,0.25)'); sh.addColorStop(1, 'rgba(0,0,0,0.3)');
+  g.fillStyle = sh; g.fillRect(0, 0, 256, 24);
+  return (DOOR_EDGE = c);
+}
+// an image spread over the parallelogram with corners P0 (image top-left), P1 (top-right) and P3 (bottom-left)
+function quadImg(img, P0, P1, P3, shade = 0) {
+  ctx.save(); ctx.transform((P1[0] - P0[0]) / img.width, (P1[1] - P0[1]) / img.width, (P3[0] - P0[0]) / img.height, (P3[1] - P0[1]) / img.height, P0[0], P0[1]);
+  ctx.drawImage(img, 0, 0); if (shade) { ctx.fillStyle = `rgba(0,0,0,${shade})`; ctx.fillRect(0, 0, img.width, img.height); } ctx.restore();
+}
+function drawDoor(o) {
+  const { x, y } = o, [sx, sy, sw, sh] = META.props[o.look || 'doorA'], t = DOOR_T, up = (P) => [P[0], P[1] - WALLH];
+  const W = (a, b) => iso(a, b), leaf = (A, B, shade) => face(IMG.props, sx, sy, sw, sh, A, B, shade);
+  // top: the strip between the leaf's two long sides, at wall height; end: the vertical edge at the free end
+  const top = (A, B, A2) => quadImg(doorEdge(), up(A), up(B), up(A2), 0.1);
+  const end = (E, E2) => quadImg(doorEdge(), up(E), E, up(E2), 0.35);
+  if (!o.open) {
+    if (o.axis === 'x') { const p = o.front ? y + 1 : y + t; leaf(W(x, p), W(x + 1, p), SHADE_Y); top(W(x, p - t), W(x + 1, p - t), W(x, p)); }
+    else { const p = o.front ? x + 1 : x + t; leaf(W(p, y + 1), W(p, y), SHADE_X); top(W(p - t, y + 1), W(p - t, y), W(p, y + 1)); }
+    const P = o.axis === 'x' ? [W(x, y + 1), W(x + 1, y)] : [W(x, y + 1), W(x + 1, y)];
+    G.pick.push({ kind: 'obj', r: o, x: Math.min(P[0][0], P[1][0]), y: Math.min(P[0][1], P[1][1]) - WALLH, w: Math.abs(P[1][0] - P[0][0]), h: WALLH + TH });
+    return;
+  }
+  if (o.axis === 'x') {   // lies along x = x, from the hinge at the room side into the corridor
+    const h0 = o.front ? y + 1 : y, h1 = o.front ? y : y + 1;
+    leaf(W(x + t, h0), W(x + t, h1), SHADE_X); top(W(x, h0), W(x, h1), W(x + t, h0));
+    if (!o.front) end(W(x, y + 1), W(x + t, y + 1));   // the free end faces the camera (+y)
+  } else {                // lies along y = y
+    const h0 = o.front ? x + 1 : x, h1 = o.front ? x : x + 1;
+    leaf(W(h0, y + t), W(h1, y + t), SHADE_Y); top(W(h0, y), W(h1, y), W(h0, y + t));
+    if (!o.front) end(W(x + 1, y), W(x + 1, y + t));
+  }
+}
+const PROP_STYLE = { chest: [0.6, 8], chestopen: [0.6, 8], stairs: [0.66, 0], brazier: [0.62, 10], bones: [0.5, 6], bonesused: [0.62, 4], urn: [0.52, 8], gold: [0.42, 6],
+  throne: [0.7, 10], altar: [0.62, 10], candelabrum: [0.62, 6], skullpile: [0.42, 8], banner: [0.66, 6], pillar: [0.72, 8], sarcophagus: [0.64, 10] };
+// Character shadows: [half-width, half-height, opacity, softness, offset of the centre below the ground point]
+// (px, × scale). Wide-bodied monsters get a bigger, softer one; the spider's and demon's sheets stand a little
+// above their ground point, so their shadows move up to sit under the body and the feet.
+const CHAR_SHADOW = { hero: [32, 15, 0.55, 0.55, 2], spider: [66, 30, 0.6, 0.3, -28], demon: [42, 19, 0.6, 0.4, -14] };
+const PROP_SHADOW = { chest: 'box', chestopen: 'box', sarcophagus: 'box', altar: 'box', throne: 'box', skullpile: 'mound', bones: 'mound',
+  urn: 'post', brazier: 'tripod', candelabrum: 'post', banner: 'post', pillar: 'post' };   // stairs and gold cast none
+// A soft-edged elliptical shadow: dark in the middle, fading to nothing at the rim.
+function softShadow(x, y, rx, ry, a, mid = 0.55) {   // mid: where the shade is still at 70 % (smaller = softer)
+  ctx.save(); ctx.translate(x, y); ctx.scale(1, ry / rx);
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(mid, `rgba(0,0,0,${a * 0.7})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.fill(); ctx.restore();
+}
+const GREEN_FIRE = 'hue-rotate(80deg) saturate(1.4)';   // the rare green brazier next to the boss room
+const GREY_BANNER = 'grayscale(1) brightness(0.85)';      // the big room's banners
+// Sprite effects. Canvas filters (ctx.filter) are missing in WebKit (Safari, and every browser on iOS), so drawSprite
+// draws each effect either as a filter or, without filter support, by other means:
+//   fx.filter  the CSS filter string used where filters work;
+//   fx.glow    [blur px, colour]: a glow around the sprite -> a canvas shadow (shadowBlur = 2 x blur);
+//   fx.bright  brightness factor -> extra copies of the sprite drawn with 'lighter' (alpha = the excess);
+//   fx.tint    colour: a hue tint (potions, the green brazier) -> a cached copy recoloured with the 'color' blend.
+let CANVAS_FILTER = 'filter' in CanvasRenderingContext2D.prototype;
+const tintCache = new Map();
+function tinted(img, sx, sy, sw, sh, color) {
+  const key = img.src + '|' + sx + ',' + sy + ',' + sw + ',' + sh + '|' + color;
+  let c = tintCache.get(key);
+  if (!c) {
+    c = document.createElement('canvas'); c.width = sw; c.height = sh; const t = c.getContext('2d');
+    t.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    t.globalCompositeOperation = 'color'; t.fillStyle = color; t.fillRect(0, 0, sw, sh);
+    t.globalCompositeOperation = 'destination-in'; t.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+    tintCache.set(key, c);
+  }
+  return c;
+}
+function drawSprite(img, sx, sy, sw, sh, dx, dy, dw, dh, fx) {
+  if (CANVAS_FILTER || !fx) {
+    if (fx && fx.filter) ctx.filter = fx.filter;
+    ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh); ctx.filter = 'none'; return;
+  }
+  if (fx.tint) { img = tinted(img, sx, sy, sw, sh, fx.tint); sx = sy = 0; }
+  ctx.save();
+  if (fx.glow) { ctx.shadowColor = fx.glow[1]; ctx.shadowBlur = fx.glow[0] * 2; }
+  ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
+  const a = ctx.globalAlpha; ctx.globalCompositeOperation = 'lighter';
+  for (let b = (fx.bright || 1) - 1; b > 0.01; b -= 1) { ctx.globalAlpha = a * Math.min(1, b); ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh); }
+  ctx.restore();
+}
+// The boss room's rune circle: two thin concentric rings with rune ticks between them and three arcs inside, in
+// a muted green, static, heavily blurred, with a very faint green glow around it.
+function drawRuneCircle(r) {
+  const cx = r.cx + 0.5, cy = r.cy + 0.5, [sx, sy] = iso(cx, cy), R = Math.min(r.w, r.h) * 0.24;
+  const rx = R * HW * Math.SQRT2, ry = R * HH * Math.SQRT2;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(sx, sy); ctx.scale(1, ry / rx);
+  const glow = ctx.createRadialGradient(0, 0, rx * 0.4, 0, 0, rx * 1.45);
+  glow.addColorStop(0, 'rgba(60,150,90,0.055)'); glow.addColorStop(0.7, 'rgba(60,150,90,0.04)'); glow.addColorStop(1, 'rgba(60,150,90,0)');
+  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, rx * 1.45, 0, 7); ctx.fill();
+  ctx.filter = 'blur(3px)';
+  ctx.strokeStyle = 'rgba(110,170,120,0.4)'; ctx.shadowColor = 'rgba(80,170,110,0.5)'; ctx.shadowBlur = 26;
+  ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.stroke();
+  ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, rx * 0.82, 0, 7); ctx.stroke();
+  for (let i = 0; i < 24; i++) {   // rune ticks between the rings
+    const a = i / 24 * Math.PI * 2, l = i % 3 === 0 ? 0.12 : 0.06;
+    ctx.beginPath(); ctx.moveTo(Math.cos(a) * rx * 0.84, Math.sin(a) * rx * 0.84);
+    ctx.lineTo(Math.cos(a) * rx * (0.84 + l), Math.sin(a) * rx * (0.84 + l)); ctx.stroke();
+  }
+  for (let i = 0; i < 3; i++) {   // three arcs inside
+    const a = i / 3 * Math.PI * 2 - Math.PI / 2;
+    ctx.beginPath(); ctx.arc(0, 0, rx * 0.5, a, a + 1.4); ctx.stroke();
+  }
+  ctx.restore();
+}
+function drawProp(o) {
+  let key = o.type === 'chest' && o.used ? 'chestopen' : o.type === 'bones' && o.used ? 'bonesused' : o.type;
+  if (o.type === 'urn' && o.used) return;
+  const [px, py, pw, ph] = META.props[key], [s, off] = PROP_STYLE[key];
+  const [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy), w = pw * s, hh = ph * s;
+  const top = key === 'stairs' ? sy - hh / 2 : sy - hh + off;
+  const hov = G.hover && G.hover.r === o;
+  // shadow under the prop's base: the sprite's bottom is its front-most ground point, so a box (whose base is
+  // a diamond about w wide and w/2 deep) has its base centre w/4 above that; posts stand on a small base
+  const shape = PROP_SHADOW[key];
+  if (shape) {
+    const bottom = top + hh, [k, rxF, ryF, sa, sm] = shape === 'box' ? [0.25, 0.62, 0.32, 0.5] : shape === 'mound' ? [0.2, 0.58, 0.28, 0.5]
+      : shape === 'tripod' ? [0.2, 0.44, 0.2, 0.75, 0.7] : [0.08, 0.46, 0.21, 0.5];   // tripod: centred between the feet, darker
+    softShadow(sx, bottom - w * k, w * rxF, w * ryF, sa, sm);
+  }
+  const glow = o.boss && !o.used ? 'drop-shadow(0 0 6px rgba(70,235,110,0.9))' : '';
+  const fire = o.green ? GREEN_FIRE : o.grey ? GREY_BANNER : '';
+  const fx = { filter: [hov ? 'brightness(1.45)' : '', glow, fire].filter(Boolean).join(' '), bright: hov ? 1.45 : 1,
+    glow: glow ? [6, 'rgba(70,235,110,0.9)'] : null, tint: o.green ? 'rgb(90,235,110)' : o.grey ? 'rgb(128,128,128)' : null };
+  if (o.flip) { ctx.save(); ctx.translate(sx, 0); ctx.scale(-1, 1); drawSprite(IMG.props, px, py, pw, ph, -w / 2, top, w, hh, fx); ctx.restore(); }
+  else drawSprite(IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh, fx);
+  if (o.type === 'brazier') { // flickering embers
+    for (let i = 0; i < 2; i++) { const t = (G.time * 0.9 + i * 0.5 + o.x * 0.13) % 1;
+      ctx.fillStyle = o.green ? `rgba(${90 + i * 40},255,120,${1 - t})` : `rgba(255,${150 + i * 40},60,${1 - t})`;
+      ctx.fillRect(sx - 6 + Math.sin(t * 9 + i) * 8, top + 10 - t * 40, 2, 2); }
+  }
+  if (interactable(o)) G.pick.push({ kind: 'obj', r: o, x: sx - w / 2, y: top, w, h: hh });
+}
+function drawChar(e, isHero) {
+  const sheet = isHero ? 'hero' : e.type, md = META.characters[sheet], img = IMG[sheet];
+  const s = isHero ? 1 : e.scale, [sx, sy0] = iso(e.x, e.y);
+  let sy = sy0, alpha = 1;
+  if (!isHero && e.dead) { alpha = Math.max(0, 1 - e.deathT / 1.1); sy += e.deathT * 14; }
+  if (isHero && G.dead) { alpha = Math.max(0, 1 - G.deadT / 1.1); sy += Math.min(G.deadT, 1.1) * 14; }   // fades like a slain monster
+  if (!isHero && e.b.float) sy -= 8 + Math.sin(G.time * 3 + e.x) * 4;
+  const [shw, shh, sha, shm, shy] = CHAR_SHADOW[isHero ? 'hero' : e.type] || CHAR_SHADOW.hero;
+  softShadow(sx, sy0 + shy * s, shw * s, shh * s, sha * alpha, shm);
+  const frame = e.moving ? Math.floor(e.anim) % md.frames : (md.idle || 0), row = e.dir;
+  // lunge toward facing direction
+  let ox = 0, oy = 0;
+  if (e.lunge > 0) { const a = [0, 7, 6, 5, 4, 3, 2, 1].indexOf(row) * Math.PI / 4; ox = Math.sin(a) * 10 * e.lunge; oy = Math.cos(a) * 6 * e.lunge; }
+  if (!isHero && e.windup > 0) { ox += (rnd() - 0.5) * 2; }
+  const footY = md.footY != null ? md.footY : md.fh - 6;   // ground point inside the frame
+  const w = md.fw * s, hgt = md.fh * s, dx = sx - w / 2 + ox, dy = sy - footY * s + oy;
+  ctx.globalAlpha = alpha;
+  const hover = !isHero && G.hover && G.hover.r === e;
+  const filters = [], fx = { bright: e.hitT > 0 ? 2.4 : hover ? 1.35 : 1, glow: null };
+  if (e.hitT > 0) filters.push('brightness(2.4) saturate(0.3)');
+  else if (hover) filters.push('brightness(1.35)');
+  const glow = (b, c) => { filters.push(`drop-shadow(0 0 ${b}px ${c})`); fx.glow = [b, c]; };
+  if (!isHero && e.champ) glow(5, 'rgba(220,40,30,0.9)');
+  if (!isHero && e.boss) glow(7, 'rgba(70,235,110,0.95)');
+  if (isHero && e.ironT > 0) glow(6, 'rgba(160,190,225,0.9)');   // iron skin potion
+  fx.filter = filters.join(' ');
+  drawSprite(img, frame * md.fw, row * md.fh, md.fw, md.fh, dx, dy, w, hgt, fx);
+  ctx.globalAlpha = 1;
+  if (!isHero && !e.dead) G.pick.push({ kind: 'mon', r: e, x: sx - w * 0.32, y: dy + hgt * 0.15, w: w * 0.64, h: hgt * 0.85 });
+  if (DEBUG.pursuit && !isHero && !e.dead && e.state === 'chase') {   // debug: a red dot above a pursuing monster
+    ctx.fillStyle = '#ff2a2a'; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(sx, dy + hgt * 0.08, 5, 0, 7); ctx.fill(); ctx.stroke();
+  }
+  if (isHero && e.swing) drawSwing(e);
+  if (isHero && e.using) drawUsing(e);
+}
+// A potion being used: its icon rises above the hero's head and fades out.
+function drawUsing(h) {
+  const k = h.using.t / h.using.dur, [sx, sy] = iso(h.x, h.y), s = 30, [ix, iy] = META.items.potion, f = POTIONS[h.using.pot].filter;
+  ctx.globalAlpha = 1 - k * k;
+  drawSprite(IMG.items, ix, iy, 96, 96, sx - s / 2, sy - 150 - k * 18, s, s, { filter: f, tint: f ? POTIONS[h.using.pot].color : null });
+  ctx.globalAlpha = 1;
+}
+function drawSwing(h) {
+  const s = h.swing, k = s.t / s.dur, [sx, sy] = iso(h.x, h.y), cy = sy - 50;
+  const toScreenAng = a => { const dx = Math.cos(a), dy = Math.sin(a); return Math.atan2((dx + dy) * HH, (dx - dy) * HW); };
+  const a0 = toScreenAng(s.ang - s.arc), a1 = toScreenAng(s.ang + s.arc);
+  let span = a1 - a0; if (span < 0) span += Math.PI * 2;
+  const cur = a0 + span * Math.min(1, k * 1.4), tail = a0 + span * Math.max(0, k * 1.4 - 0.55);
+  ctx.save(); ctx.translate(sx, cy); ctx.scale(1, 0.6);
+  ctx.strokeStyle = `rgba(235,225,205,${0.75 * (1 - k)})`; ctx.lineWidth = 9; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.arc(0, 0, 62, tail, cur); ctx.stroke();
+  ctx.strokeStyle = `rgba(255,255,255,${0.9 * (1 - k)})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(0, 0, 66, tail, cur); ctx.stroke();
+  ctx.restore();
+}
+function drawProj(p) {
+  const [sx, sy] = iso(p.x, p.y);
+  if (p.type === 'arrow') {
+    const n = Math.hypot(p.vx, p.vy), [tx, ty] = iso(p.x - p.vx / n * 0.6, p.y - p.vy / n * 0.6);
+    ctx.strokeStyle = '#6b4a2a'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(tx, ty - 44); ctx.lineTo(sx, sy - 44); ctx.stroke();
+    ctx.fillStyle = '#d9d2c0'; ctx.beginPath(); ctx.arc(sx, sy - 44, 2.2, 0, 7); ctx.fill();
+  } else {
+    const gr = ctx.createRadialGradient(sx, sy - 44, 0, sx, sy - 44, 16); gr.addColorStop(0, 'rgba(210,255,220,1)'); gr.addColorStop(0.4, 'rgba(90,255,150,0.8)'); gr.addColorStop(1, 'rgba(40,200,100,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(sx, sy - 44, 16, 0, 7); ctx.fill();
+  }
+}
+function drawFx() {
+  for (const f of G.fx) {
+    const k = f.t / f.dur, [sx, sy] = iso(f.x, f.y);
+    if (f.type === 'spark') { ctx.fillStyle = `rgba(${f.color},${1 - k})`; ctx.fillRect(sx - 1.5, sy - f.z - 1.5, 3, 3); }
+    else if (f.type === 'ring') { ctx.strokeStyle = `rgba(${f.color},${1 - k})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(sx, sy, 20 + k * 90, (20 + k * 90) * 0.5, 0, 0, 7); ctx.stroke(); }
+  }
+}
+// minimap (iso projected, centred on hero)
+const mm = $('minimap'), mctx = mm.getContext('2d');
+function updateMinimap() {
+  if (!G || !G.minimap) return;
+  const m = G.map, h = G.hero, s = 2.2;
+  mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.clearRect(0, 0, mm.width, mm.height);
+  const ox = mm.width / 2 - (h.x - h.y) * s, oy = mm.height / 2 - (h.x + h.y) * s / 2;
+  mctx.setTransform(s, s / 2, -s, s / 2, ox, oy);
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+    const i = y * m.w + x; if (!m.seen[i]) continue; const v = m.t[i];
+    mctx.fillStyle = v === T_WALL ? '#6d6257' : v === T_DOOR ? '#8a5a2b' : '#2d2629'; mctx.fillRect(x, y, 1, 1);
+  }
+  for (const o of G.objects) if (o.type === 'stairs' && m.seen[o.y * m.w + o.x]) { mctx.fillStyle = '#e6c84a'; mctx.fillRect(o.x - 0.5, o.y - 0.5, 2, 2); }
+  mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.fillStyle = '#ff4030'; mctx.beginPath(); mctx.arc(mm.width / 2, mm.height / 2, 3, 0, 7); mctx.fill();
+}
+// equip-screen portrait: the hero slowly turning through all eight directions
+const pctx = $('portrait').getContext('2d');
+function drawPortrait() {
+  if (!equipOpen()) return;
+  const md = META.characters.hero, row = Math.floor(G.time / 1.2) % 8, frame = Math.floor(G.time * 12) % md.frames;
+  const k = 128 / md.fh, w = md.fw * k;   // keep the frame's aspect ratio
+  pctx.clearRect(0, 0, 128, 128);
+  pctx.drawImage(IMG.hero, frame * md.fw, row * md.fh, md.fw, md.fh, (128 - w) / 2, 0, w, 128);
+}
+
+// =====================================================================================
+//  Screens & main loop
+// =====================================================================================
+// The title screen doubles as the hero picker: saved heroes (most recently saved first) and a "New Hero" box,
+// which turns into a name field in place; creating a hero saves it and selects it (a fresh "New Hero" box
+// appears below). Only the Enter the Crypt button starts; the cogwheel next to it renames or erases the hero.
+let pickSel = null;    // selected save id
+let naming = false;    // the New Hero box shows its name field
+const cleanName = v => v.trim().replace(/\s+/g, ' ').slice(0, 20);
+function writeSave(sv) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(sv)); return true; } catch (e) { return false; } }
+function nameField(value, onOk, okLabel) {
+  const inp = document.createElement('input'); inp.maxLength = 20; inp.placeholder = 'Name your hero'; inp.value = value;
+  inp.autocomplete = 'off'; inp.spellcheck = false;
+  const ok = () => { const n = cleanName(inp.value); if (!n) { inp.classList.add('bad'); inp.focus(); return; } onOk(n); };
+  inp.addEventListener('input', () => inp.classList.remove('bad'));
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') { e.stopPropagation(); onOk(null); } });
+  const b = document.createElement('button'); b.textContent = okLabel; b.addEventListener('click', e => { e.stopPropagation(); ok(); });
+  setTimeout(() => { inp.focus(); inp.select(); }, 0);
+  return [inp, b];
+}
+function createHero(name) {
+  newGame(null); G.running = false; G.camSnap = true; G.hero.name = name;
+  G.hero.saveId = 'h' + Date.now().toString(36) + Math.floor(rnd() * 1e6).toString(36);
+  saveHero(); pickSel = G.hero.saveId; naming = false; refreshUI(); renderHeroPick();
+}
+function renderHeroPick() {
+  const sv = readSave(), list = Object.values(sv.heroes).sort((a, b) => b.saved - a.saved), box = $('heroPick');
+  if (!sv.heroes[pickSel]) pickSel = sv.heroes[sv.last] ? sv.last : list.length ? list[0].id : null;
+  if (!list.length) naming = true;
+  box.innerHTML = '';
+  for (const e of list) {
+    const b = document.createElement('button'); b.className = 'heroBtn' + (pickSel === e.id ? ' sel' : '');
+    const m = document.createElement('span'); m.textContent = e.name; b.appendChild(m);
+    const t = document.createElement('span'); t.className = 'sub'; t.textContent = `Level ${e.lvl} · Depth ${e.depth} — ${depthName(e.depth)}`; b.appendChild(t);
+    b.addEventListener('click', () => { pickSel = e.id; naming = false; renderHeroPick(); });
+    box.appendChild(b);
+  }
+  const nb = document.createElement(naming ? 'div' : 'button'); nb.className = 'heroBtn newHero' + (naming ? ' naming' : '');
+  if (naming) { const [inp, ok] = nameField('', n => { if (n) createHero(n); else if (list.length) { naming = false; renderHeroPick(); } }, 'Create'); inp.id = 'heroName'; nb.append(inp, ok); }
+  else { nb.textContent = 'New Hero'; nb.addEventListener('click', () => { naming = true; renderHeroPick(); }); }
+  box.appendChild(nb);
+  const st = $('startBtn'); st.textContent = 'Enter the Crypt'; st.disabled = !pickSel; $('cfgBtn').disabled = !pickSel;
+}
+// The cogwheel: rename the selected hero, or erase it (after a confirmation).
+function openHeroCfg(step = 'main') {
+  const sv = readSave(), e = sv.heroes[pickSel]; if (!e) return;
+  const wrap = $('heroCfg'), box = wrap.querySelector('.box'); box.innerHTML = ''; wrap.classList.remove('hidden');
+  const close = () => wrap.classList.add('hidden');
+  const h3 = document.createElement('h3'); box.appendChild(h3);
+  const row = (...els) => { const r = document.createElement('div'); r.className = 'row'; r.append(...els); box.appendChild(r); return r; };
+  const button = (label, fn, cls = '') => { const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; b.addEventListener('click', fn); return b; };
+  if (step === 'main') {
+    h3.textContent = e.name;
+    const [inp, ok] = nameField(e.name, n => { if (!n) return close();
+      const s2 = readSave(), x = s2.heroes[pickSel]; if (!x) return close();
+      x.name = n; x.hero.name = n; writeSave(s2); close(); renderHeroPick(); }, 'Rename');
+    row(inp, ok);
+    row(button('Erase hero', () => openHeroCfg('erase'), 'danger'), button('Close', close)).style.justifyContent = 'space-between';
+  } else {
+    h3.textContent = 'Erase ' + e.name + '?';
+    const w = document.createElement('p'); w.className = 'warn';
+    w.textContent = `${e.name} (level ${e.lvl}, depth ${e.depth}) and everything they carry will be erased for good. This cannot be undone.`;
+    box.appendChild(w);
+    row(button('Erase for good', () => { const s2 = readSave(); delete s2.heroes[pickSel]; if (s2.last === pickSel) s2.last = null;
+      writeSave(s2); pickSel = null; close(); renderHeroPick(); }, 'danger'), button('Cancel', () => openHeroCfg('main'))).style.justifyContent = 'space-between';
+  }
+}
+$('cfgBtn').addEventListener('click', () => openHeroCfg());
+$('heroCfg').addEventListener('click', e => { if (e.target.id === 'heroCfg') $('heroCfg').classList.add('hidden'); });
+function showDeath() {
+  const h = G.hero; G.running = false;
+  pickSel = h.saveId;
+  const e = readSave().heroes[h.saveId], back = e ? e.depth : G.depth;
+  $('screen').classList.remove('hidden');
+  $('screenText').textContent = `${h.name} was slain at depth ${G.depth} (${depthName(G.depth)}), at level ${h.lvl}. ` +
+    `What was gained on this level is lost; ${h.name} rises again at the start of depth ${back}.`;
+  $('screenText').classList.add('fallen');
+  renderHeroPick();
+}
+function startGame() {
+  if ($('startBtn').disabled) return;
+  audio();
+  const e = readSave().heroes[pickSel];
+  if (!e) { renderHeroPick(); return; }
+  newGame(e);
+  G.running = true; G.camSnap = true; G.deathShown = false; naming = false;
+  $('heroCfg').classList.add('hidden'); $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); hideTip();
+}
+$('startBtn').addEventListener('click', startGame);
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  requestAnimationFrame(frame);   // schedule first, so an error can never stop the loop
+  if (G) {
+    try {
+      if (G.running || G.dead) update(dt);
+      render(); updateHud(); drawPortrait();
+    } catch (err) {
+      ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
+      if (!frame.errLogged) { frame.errLogged = true; console.error('Frame error (game continues):', err); }
+    }
+  }
+}
+$('version').textContent = $('dbgVer').textContent = 'v' + VERSION;
+loadAll().then(() => {
+  floorPat = ctx.createPattern(IMG.floor, 'repeat');
+  floorPat.setTransform(new DOMMatrix().scale(3 / 512));
+  dirtPat = ctx.createPattern(IMG.dirt, 'repeat'); dirtPat.setTransform(new DOMMatrix().scale(1.5 / 512));
+  buildUI(); fitUI();
+  newGame(null); G.running = false; G.camSnap = true;   // render a first level behind the title screen
+  const b = $('startBtn'); b.disabled = false; renderHeroPick();
+  requestAnimationFrame(frame);
+}).catch(err => { $('startBtn').textContent = 'Failed to load ' + err; });
+</script>
+</body>
+</html>

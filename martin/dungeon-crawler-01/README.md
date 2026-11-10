@@ -28,7 +28,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `tools/simulation/` | Balance simulation: `simulate.js` runs simulated heroes through the real game and reports how hero and monsters compare per depth. How to use it: [`tools/simulation/README.md`](tools/simulation/README.md); dated results with conclusions: `results-YYYY-MM-DD.md`. |
 | `manifest.webmanifest`, `assets/icons/`, `tools/make_icons.py` | Web app manifest and home-screen icons (made from the hero sprite by `make_icons.py`): see [Home screen app](#home-screen-app). |
 | `todo.md` | Numbered list of ideas for future work (not yet implemented). |
-| `backup/index.NN.html` | Old snapshots of `index.html`, numbered `01`, `02`, … in the order they were made; not used by the game and not described by this README. `index.01.html` is an early version of the game. |
+| `backup/index.NN.html` | Old snapshots of `index.html`, numbered `01`, `02`, … in the order they were made; not used by the game and not described by this README. `index.01.html` is an early version of the game; `index.02.html` is v20, the last version before game time followed real time (see [Main loop](#main-loop)), kept to compare performance; it has a `<base href="../">` so it loads `assets/` from the game folder. |
 
 ## Version
 
