@@ -265,7 +265,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 13;
+const VERSION = 14;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -625,6 +625,8 @@ function makeMonster(type, x, y, d, boss = false, forceChamp = false, noChamp = 
 //  Game state
 // =====================================================================================
 let G = null;
+const DBL_MS = 400, DBL_PX = 24;   // a double click / tap: the second press within 400 ms and 24 px of the first
+let lastItemTap = null;           // the last press on a ground item: { fi, t, x, y }
 const mouse = { x: 0, y: 0, left: false, right: false, holdWalk: false, walkT: 0, leftId: null, rightId: null, atkId: null };
 
 function newHero() {
@@ -1229,10 +1231,16 @@ function act(ref) {
       log('Picked up ' + (it.count > 1 ? it.count + ' ' + POTIONS[it.pot].plural : 'a ' + it.name) + '.', itemHex(it)); sfx('pick'); gainXp(1 + d); refreshUI(); return;
     }
     const slot = h.inv.indexOf(null);
+    if (slot < 0 && ref.equip && it.slot !== 'use') {   // double click with a full pack: fine if nothing has to come off
+      const es = it.slot === 'ring' ? (!h.equip.ring1 ? 'ring1' : !h.equip.ring2 ? 'ring2' : null) : h.equip[it.slot] ? null : it.slot;
+      if (es) { h.equip[es] = it; G.items.splice(G.items.indexOf(fi), 1); if (es === 'weapon') h.atkCd = Math.max(h.atkCd, SWAP_T);
+        recalc(); log('Equipped ' + it.name + '.', rarityColor(it.rarity)); sfx('pick'); gainXp(2 * d); refreshUI(); return; }
+    }
     if (slot < 0) { log('Your pack is full.', '#e06a5a'); return; }
     if (it.slot === 'use') { h.inv[slot] = it; G.items.splice(G.items.indexOf(fi), 1); log('Picked up ' + it.name + (it.count > 1 ? ' ×' + it.count : '') + '.', itemHex(it)); sfx('pick'); gainXp(1 + d); refreshUI(); return; }
     h.inv[slot] = fi.item; G.items.splice(G.items.indexOf(fi), 1);
     log('Picked up ' + fi.item.name + '.', rarityColor(fi.item.rarity)); sfx('pick'); gainXp(2 * d); refreshUI();
+    if (ref.equip) h.queue.push({ kind: 'equip', id: it.id });   // double click: put it on (what comes off takes its pack slot)
     return;
   }
   const o = ref.r;
@@ -1666,6 +1674,17 @@ function pointerDown(e) {
   const h = G.hero, ref = pickAt(mouse.x, mouse.y);
   if (e.button === 0 && !modifier(e)) {
     mouse.left = true; mouse.leftId = e.pointerId; h.attackTarget = null; h.attackPending = false; h.pendingAt = null;
+    // a double click / tap on a ground item equips it: the first click already walks to it (or picks it up)
+    const now = performance.now(), lt = lastItemTap; lastItemTap = null;
+    if (lt && now - lt.t < DBL_MS && Math.hypot(mouse.x - lt.x, mouse.y - lt.y) < DBL_PX && lt.fi.item.slot !== 'use') {
+      mouse.holdWalk = false;
+      if (G.items.includes(lt.fi)) {   // still on the ground: go there and equip it on arrival
+        const ir = { kind: 'item', r: lt.fi, equip: true }; h.intent = ir;
+        if (dist(h, lt.fi) <= 0.75) { act(ir); h.intent = null; h.path = []; } else pathTo(h, lt.fi.x, lt.fi.y, false);
+      } else if (findOwned(lt.fi.item.id) && findOwned(lt.fi.item.id).where === 'inv') h.queue.push({ kind: 'equip', id: lt.fi.item.id });
+      return;
+    }
+    if (ref && ref.kind === 'item') lastItemTap = { fi: ref.r, t: now, x: mouse.x, y: mouse.y };
     if (ref && ref.kind !== 'mon') {
       h.intent = ref; const [cx, cy] = ref.kind === 'item' ? [ref.r.x, ref.r.y] : objCenter(ref.r);
       const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door');
