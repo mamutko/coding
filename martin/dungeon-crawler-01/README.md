@@ -169,6 +169,23 @@ and the picker shows no saved heroes.
   - **Resuming** generates a *new* layout for the saved depth and restores the saved hero with the life it had
     when saved (capped at max life; saves made before life was saved start at full life). Item
     ids continue after the highest saved one, so new drops never clash with owned items.
+- **Export / import** (`exportHero`, `importHero`):
+  - **Export hero** in the cogwheel box saves the selected hero to a text file,
+    `<name>-level<L>-depth<D>.crypt-hero.json`, as last saved (on arrival at its depth). It is a download; on
+    iPhone / iPad (where downloads from a home-screen app are unreliable) it goes through the share sheet
+    (*Save to Files*, AirDrop, mail, …) when the browser can share files.
+  - The file is JSON:
+    `{ "format": "crypt-of-endless-night-hero", "formatVersion": 1, "gameVersion": <VERSION>, "exported": <ISO date>,
+    "hero": { "name", "depth", "lvl", "saved", "data": { the saved hero fields } } }`. `formatVersion`
+    (`HERO_FILE_VERSION`) is the version of this layout: a layout change bumps it and adds a step to
+    `upgradeHeroFile`, which brings older files up to date. `gameVersion` is only for information. The hero data
+    itself goes through `migrateHero` on load like any save, so items in an old format keep working.
+  - **Import Hero…** (a dashed box under **New Hero**) opens a file picker. The file is checked: valid JSON, the
+    right `format`, a `formatVersion` this game knows (a newer one asks to update the game first), and the
+    needed fields (name, depth, level, attributes, equipment, pack). An imported hero always gets a new id, so it
+    never overwrites a hero (importing the same file twice gives two copies). It is selected, and a box says
+    "<name> (level L, depth D) has joined your heroes." Problems are reported in the same box, and nothing is
+    changed.
 - **Death:** the scene keeps running for 4 s (`DEATH_DELAY`): the hero fades and sinks like a slain monster,
   enemy projectiles vanish, and every monster drops its chase and goes back to wandering (it can't notice the
   dead hero). Then the title screen returns with the fallen hero selected and a message

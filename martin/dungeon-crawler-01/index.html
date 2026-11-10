@@ -184,6 +184,7 @@
   #heroPick .heroBtn.sel .sub { color: #e8d9b8; }
   #heroPick .heroBtn.newHero { justify-content: center; padding-left: 14px; opacity: 0.9; }
   #heroPick .heroBtn.newHero::before { display: none; }
+  #heroPick .heroBtn.importHero { font-size: 13px; min-height: 32px; padding-top: 5px; padding-bottom: 5px; opacity: 0.7; border-style: dashed; }
   #heroPick .heroBtn.naming { padding: 4px; cursor: default; opacity: 1; border-color: var(--gold); }
   #heroPick input, #heroCfg input { font: 16px Cinzel, serif; padding: 6px 10px; background: #120c0b; color: var(--ink);
     border: 1px solid var(--gold-dim); outline: none; text-align: center; flex: 1; min-width: 0; }
@@ -307,6 +308,7 @@
   <div id="heroPick"></div>
   <div id="startRow"><button id="startBtn" disabled>Loading…</button><button id="cfgBtn" title="Rename or erase this hero" aria-label="Hero settings" disabled><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.2h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.7h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button></div>
   <div id="heroCfg" class="hidden"><div class="box"></div></div>
+  <input type="file" id="importFile" accept=".json,application/json,text/plain" hidden>
   <button id="fsBtn" class="hidden" title="Full screen (F5)"><svg viewBox="0 0 24 24"><path d="M3 9V3h6v2H5v4zm12-6h6v6h-2V5h-4zM3 15h2v4h4v2H3zm16 0h2v6h-6v-2h4z"/></svg><span>Full screen</span></button>
   <div id="version"></div>
 </div>
@@ -329,7 +331,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 34;
+const VERSION = 35;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2597,6 +2599,9 @@ function renderHeroPick() {
   if (naming) { const [inp, ok] = nameField('', n => { if (n) createHero(n); else if (list.length) { naming = false; renderHeroPick(); } }, 'Create'); inp.id = 'heroName'; nb.append(inp, ok); }
   else { nb.textContent = 'New Hero'; nb.addEventListener('click', () => { naming = true; renderHeroPick(); }); }
   box.appendChild(nb);
+  const ib = document.createElement('button'); ib.className = 'heroBtn newHero importHero'; ib.textContent = 'Import Hero…';
+  ib.title = 'Load a hero from an exported file'; ib.addEventListener('click', () => $('importFile').click());
+  box.appendChild(ib);
   const st = $('startBtn'); st.textContent = 'Enter the Crypt'; st.disabled = !pickSel; $('cfgBtn').disabled = !pickSel;
 }
 // The cogwheel: rename the selected hero, or erase it (after a confirmation).
@@ -2613,6 +2618,8 @@ function openHeroCfg(step = 'main') {
       const s2 = readSave(), x = s2.heroes[pickSel]; if (!x) return close();
       x.name = n; x.hero.name = n; writeSave(s2); close(); renderHeroPick(); }, 'Rename');
     row(inp, ok);
+    const ex = button('Export hero', () => exportHero(pickSel)); ex.title = 'Save this hero to a file (as last saved: on arrival at its depth)';
+    row(ex).firstChild.style.flex = '1';
     row(button('Erase hero', () => openHeroCfg('erase'), 'danger'), button('Close', close)).style.justifyContent = 'space-between';
   } else {
     h3.textContent = 'Erase ' + e.name + '?';
@@ -2624,6 +2631,62 @@ function openHeroCfg(step = 'main') {
   }
 }
 $('cfgBtn').addEventListener('click', () => openHeroCfg());
+
+// ---------- Hero export / import ----------
+// An exported hero is a JSON text file:
+//   { "format": "crypt-of-endless-night-hero", "formatVersion": 1, "gameVersion": <VERSION>, "exported": <ISO date>,
+//     "hero": { "name", "depth", "lvl", "saved", "data": { the SAVED_FIELDS of the hero } } }
+// formatVersion is the version of this file layout (bump it, and add a step to upgradeHeroFile, when the layout
+// changes); gameVersion is only for information. The hero's own data is upgraded on load like any save
+// (migrateHero), so old item formats keep working.
+const HERO_FILE = 'crypt-of-endless-night-hero', HERO_FILE_VERSION = 1;
+function exportHero(id) {
+  const e = readSave().heroes[id]; if (!e) return;
+  const doc = { format: HERO_FILE, formatVersion: HERO_FILE_VERSION, gameVersion: VERSION, exported: new Date().toISOString(),
+    hero: { name: e.name, depth: e.depth, lvl: e.lvl, saved: e.saved, data: e.hero } };
+  const text = JSON.stringify(doc, null, 1), safe = e.name.replace(/[^A-Za-z0-9 _-]+/g, '').trim().replace(/\s+/g, '-') || 'hero';
+  const fname = `${safe}-level${e.lvl}-depth${e.depth}.crypt-hero.json`;
+  const file = new File([text], fname, { type: 'application/json' });
+  // iPhone / iPad (above all as a home-screen app) save files through the share sheet; elsewhere a download
+  if (/iPhone|iPad|iPod/.test(navigator.userAgent) && navigator.canShare && navigator.canShare({ files: [file] })) {
+    navigator.share({ files: [file], title: e.name }).catch(() => {}); return;
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(file); a.download = fname;
+  document.body.appendChild(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+}
+// Brings an older file layout up to HERO_FILE_VERSION (nothing to do yet: version 1 is the first).
+function upgradeHeroFile(doc) {
+  return doc;
+}
+function heroNote(title, text, warn) {
+  const wrap = $('heroCfg'), box = wrap.querySelector('.box'); box.innerHTML = ''; wrap.classList.remove('hidden');
+  const h3 = document.createElement('h3'); h3.textContent = title; const p = document.createElement('p'); p.className = warn ? 'warn' : ''; p.style.margin = '0'; p.textContent = text;
+  const b = document.createElement('button'); b.textContent = 'OK'; b.addEventListener('click', () => wrap.classList.add('hidden'));
+  const r = document.createElement('div'); r.className = 'row'; r.style.justifyContent = 'flex-end'; r.append(b); box.append(h3, p, r); b.focus();
+}
+function importHero(text) {
+  let doc;
+  try { doc = JSON.parse(text); } catch (e) { return heroNote('Import failed', 'This file is not a hero file (it is not valid JSON).', true); }
+  if (!doc || doc.format !== HERO_FILE) return heroNote('Import failed', 'This file is not a Crypt of Endless Night hero file.', true);
+  if (!(doc.formatVersion >= 1)) return heroNote('Import failed', 'The hero file has no valid format version.', true);
+  if (doc.formatVersion > HERO_FILE_VERSION) return heroNote('Import failed', `This hero file (format ${doc.formatVersion}) was made by a newer version of the game. Update the game (reload the page) and try again.`, true);
+  doc = upgradeHeroFile(doc);
+  const h = doc.hero, d = h && h.data;
+  const ok = h && d && typeof d === 'object' && typeof h.name === 'string' && h.name.trim() && Number.isInteger(h.depth) && h.depth >= 1 &&
+    Number.isInteger(d.lvl) && d.lvl >= 1 && d.base && typeof d.base.str === 'number' && d.equip && typeof d.equip === 'object' && Array.isArray(d.inv);
+  if (!ok) return heroNote('Import failed', 'The hero file is damaged or incomplete.', true);
+  const name = cleanName(h.name) || 'Hero', id = 'h' + Date.now().toString(36) + Math.floor(rnd() * 1e6).toString(36);
+  const sv = readSave();
+  sv.heroes[id] = { id, name, depth: h.depth, lvl: d.lvl, saved: Date.now(), hero: Object.assign({}, d, { name }) };   // a new id: never overwrites a hero
+  if (!writeSave(sv)) return heroNote('Import failed', 'The hero could not be saved (browser storage unavailable or full).', true);
+  pickSel = id; naming = false; renderHeroPick();
+  heroNote('Hero imported', `${name} (level ${d.lvl}, depth ${h.depth}) has joined your heroes.`);
+}
+$('importFile').addEventListener('change', e => {
+  const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
+  if (f.size > 2e6) return heroNote('Import failed', 'This file is too large to be a hero file.', true);
+  f.text().then(importHero, () => heroNote('Import failed', 'The file could not be read.', true));
+});
 $('heroCfg').addEventListener('click', e => { if (e.target.id === 'heroCfg') $('heroCfg').classList.add('hidden'); });
 function showDeath() {
   const h = G.hero; G.running = false;
