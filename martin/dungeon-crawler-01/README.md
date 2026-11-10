@@ -22,6 +22,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `tools/add_props.py`, `tools/raw/bones_searched.png`, `doors.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones, door leaves) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
 | `assets/sfx/` | Ghoul moans and grunts (MP3). |
+| `assets/music/explore.mp3`, `combat.mp3` | Test music tracks (Google `lyria-3.5`, gothic with a Latin choir; 1:40 and 1:04, both D minor). **Not used by the game yet**: they are waiting for a listen before being wired in. |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
 | `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
