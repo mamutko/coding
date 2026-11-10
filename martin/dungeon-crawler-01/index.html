@@ -265,7 +265,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 9;
+const VERSION = 10;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1106,13 +1106,17 @@ function damageMonster(m, raw, crit) {
   if (m.hp <= 0) killMonster(m);
 }
 // A monster that notices the hero wakes idle monsters within 6 tiles; one that is hit (roomWide) also wakes
-// every monster in the same room.
+// every monster in the same room. Which types it can wake depends on its own type (WAKES); ghouls are never
+// woken by others, and notice the hero only by chance (NOTICE_ODDS per second).
+const WAKES = { skeleton: ['skeleton'], ghoul: ['skeleton', 'spider', 'wraith', 'demon'], wraith: [], spider: ['skeleton', 'spider', 'demon'], demon: [] };
+const NOTICE_ODDS = { ghoul: 0.5 };   // chance per second of noticing a hero in range and sight (others: at once)
 const roomAt = (x, y) => G.map.rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
 // A monster that lost interest (calm) is never woken by others.
 function alert(m, roomWide = false) {
   chase(m);
   const room = roomWide ? roomAt(m.x, m.y) : null;
-  for (const o of G.monsters) if (!o.dead && o.state === 'idle' && !o.calm && (dist(o, m) < 6 || (room && roomAt(o.x, o.y) === room))) chase(o);
+  const can = WAKES[m.type] || [];
+  for (const o of G.monsters) if (!o.dead && o.state === 'idle' && !o.calm && can.includes(o.type) && (dist(o, m) < 6 || (room && roomAt(o.x, o.y) === room))) chase(o);
 }
 function chase(m) { if (m.state !== 'chase' && !m.dead) { monsterVoice(m, 'alert'); m.voiceT = 2 + rnd() * 4; } m.state = 'chase'; m.lastSeen = G.time; m.stuckT = 0; m.anchor = null; m.calm = null; m.detourT = 0; }
 // Losing interest: back to a random walk. After being stuck (calm) it ignores the hero for at least CALM_MIN s
@@ -1839,7 +1843,7 @@ function updateMonster(m, dt) {
   m.cd -= dt; m.moving = false;
   if (m.state === 'idle') {
     if (m.calm && m.calm.walked >= UNSTUCK && G.time - m.calm.t >= CALM_MIN) m.calm = null;   // calm ends
-    if (!G.dead && !m.calm && d < 8.5 && los(m.x, m.y, h.x, h.y)) { alert(m); }
+    if (!G.dead && !m.calm && d < 8.5 && (!NOTICE_ODDS[m.type] || rnd() < 1 - Math.pow(1 - NOTICE_ODDS[m.type], dt)) && los(m.x, m.y, h.x, h.y)) { alert(m); }
     else if (d < 30) {
       m.wander -= dt;
       if (m.wander <= 0) { m.wander = 2 + rnd() * 5; const tx = m.x + (rnd() - 0.5) * 4, ty = m.y + (rnd() - 0.5) * 4;

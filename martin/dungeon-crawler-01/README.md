@@ -441,9 +441,18 @@ and item uses:
 
 **Monsters:**
 
-- Monsters wake when the hero is within 8.5 tiles with line of sight, or when they are hit. A monster that
-  wakes also wakes idle monsters within 6 tiles of it; one that is **hit** also wakes every monster in the same
-  room.
+- Monsters wake when the hero is within 8.5 tiles with line of sight, or when they are hit (a hit always starts
+  pursuit). A monster that wakes also wakes idle monsters within 6 tiles of it; one that is **hit** also wakes
+  every monster in the same room. Which ones it can wake depends on its type (`WAKES`), and ghouls notice by
+  chance (`NOTICE_ODDS`):
+
+  | Type | Notices the hero | Wakes (on sighting or hit) | Woken by others |
+  |---|---|---|---|
+  | Skeleton | at once | skeletons only | yes |
+  | Ghoul | 50 % chance per second | skeletons, spiders, wraiths, demons | never |
+  | Spider | at once | skeletons, spiders, demons (not wraiths) | yes |
+  | Wraith | at once | none | yes |
+  | Pit Demon | at once | none | yes |
 - They chase directly when the way is clear for their whole body (`lineWalkable` with 1.05 × their radius) and
   otherwise follow A\* paths, re-planned every 0.5–0.9 s. A waypoint within 0.12 tiles counts as reached.
   **Detour:** a chasing monster that has stayed within 0.5 tiles of one spot for 0.6 s (`DETOUR_AFTER`, e.g.
