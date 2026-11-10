@@ -731,6 +731,13 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 
 ## HUD
 
+- **Hero life bar** (`drawHeroBar`, `HERO_BAR`): a bar over the hero's head, shown for 3 s after each hit
+  (`hurtAt`, set in `damageHero`) and then fading out over 0.8 s; at or below 20 % of max life it stays shown.
+  It is styled apart from the monsters' flat 50 × 4 px bars: 62 × 8 px, rounded, with a gold frame, a glossy
+  crimson gradient fill and dark quarter marks. From 20 % life down to 0 a red glow grows around it (a canvas
+  shadow, so it works in Safari too): the halo gets wider (blur 8 → 38 px), stronger (up to three passes) and
+  pulses faster, and the frame turns from gold to red; by 10 % it is clearly visible.
+
 - **Top left:** level name (e.g. *The Forsaken Crypt*, *The Ossuary*, … eight names that cycle with a Roman
   numeral after depth 8), the depth number, and gold.
 - **Top centre:** name, level and health bar of the hovered or targeted monster (gold name for champions,
