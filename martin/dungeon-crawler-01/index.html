@@ -294,7 +294,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 15;
+const VERSION = 16;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1239,7 +1239,7 @@ function dropSpot(x, y) {
 function dropItem(item, x, y) { const [px, py] = dropSpot(x, y); G.items.push({ item, x: px, y: py, t: rnd() * 6 }); }
 function lootItem(item, x, y) { if (rnd() < LOOT) dropItem(item, x, y); }   // a random drop, thinned by LOOT
 const POTION_ODDS = 1.2;   // scales every potion drop chance (monsters, chests, urns)
-function dropPotion(x, y) { dropItem(makePotion(rnd() < 0.25 ? 'ironskin' : 'health'), x, y); }   // 25 % iron skin
+function dropPotion(x, y) { dropItem(makePotion(rnd() < 0.15 ? 'ironskin' : 'health'), x, y); }   // 15 % iron skin
 function dropGold(n, x, y) { n = Math.max(1, Math.round(n * LOOT)); const [px, py] = dropSpot(x, y); G.objects.push({ type: 'gold', x: Math.floor(px), y: Math.floor(py), fx: px, fy: py, amount: n, used: false, block: false }); }
 
 function objCenter(o) { return o.fx !== undefined ? [o.fx, o.fy] : [o.x + 0.5, o.y + 0.5]; }

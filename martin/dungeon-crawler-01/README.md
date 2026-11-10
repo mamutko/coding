@@ -616,7 +616,7 @@ per item. On rings and amulets every range is doubled.
 `LOOT` (0.8) thins all loot by 20 %: each random item drop below happens only with probability `LOOT`
 (`lootItem()`), and every gold amount is multiplied by `LOOT` (`dropGold()`, at least 1). Potion drops are not
 affected by `LOOT`; instead every potion chance below is the base chance × 1.2 (`POTION_ODDS`): monsters 8.1 %,
-chests 27 %, urns 10.8 %. The guardian's chest's guaranteed item is not thinned.
+chests 27 %, urns 10.8 %. A dropped potion is then an iron skin potion 15 % of the time and a health potion 85 % (`dropPotion()`). The guardian's chest's guaranteed item is not thinned.
 
 | Source | Drops (item chances before `LOOT`) |
 |---|---|
