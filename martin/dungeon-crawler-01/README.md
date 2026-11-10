@@ -708,6 +708,10 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
   armor, and every bonus. For pack items it also compares with the equipped item in that slot: base DPS
   difference for weapons, armor difference otherwise. A potion's tooltip shows its name in its colour, "Potion ·
   instant use", its effect and the stack count. A hint line lists the mouse actions.
+  A hover tooltip (here and on the HUD's quick keys) follows only the real mouse (`pointermove` with
+  `pointerType` mouse, not the mouse events browsers make up from touches), closes as soon as the mouse is no
+  longer over the element that opened it (`tipHover`), and closes on any touch. So on a device with both a mouse
+  and a touch screen, a tooltip opened by the mouse can't get stuck when the game switches to touch.
 - **Attributes:** level, XP, STR / DEX / VIT, life (live), armor, damage range, attack speed, crit,
   move speed, kills, gold.
 - **Quick keys:** hover a weapon (in the pack or the weapon slot) or a potion stack, then press `1`–`9` / `0`

@@ -321,7 +321,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 30;
+const VERSION = 31;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1541,14 +1541,14 @@ function buildUI() {
       if (host.id === 'hotbar') hudTap(el, e => { if (e && e.shiftKey) { G.hero.hotkeys[i] = null; refreshUI(); } else useHotkey(i); });
       else el.addEventListener('click', e => { if (modifier(e)) { G.hero.hotkeys[i] = null; refreshUI(); } else useHotkey(i); });
       el.addEventListener('contextmenu', e => { e.preventDefault(); G.hero.hotkeys[i] = null; refreshUI(); });
-      el.addEventListener('mouseenter', () => { if (lastPointer !== 'touch' && !tipPinned()) showHkTip(i, el); });
-      el.addEventListener('mouseleave', () => { if (lastPointer !== 'touch' && !tipPinned()) hideTip(); });
+      el.addEventListener('mouseenter', () => { if (lastPointer !== 'touch' && !tipPinned()) { showHkTip(i, el); tipHover = el; } });
+      el.addEventListener('mouseleave', () => { if (!tipPinned()) hideTip(); });
       host.appendChild(el);
     }
   }
   document.querySelectorAll('#equip [data-ref]').forEach(el => {
-    el.addEventListener('mouseenter', () => { if (lastPointer === 'touch' || tipPinned()) return; G.uiHover = el.dataset.ref; showRefTip(el.dataset.ref); });
-    el.addEventListener('mouseleave', () => { if (lastPointer === 'touch' || tipPinned()) return; G.uiHover = null; hideTip(); });
+    el.addEventListener('mouseenter', () => { if (lastPointer === 'touch' || tipPinned()) return; G.uiHover = el.dataset.ref; showRefTip(el.dataset.ref); tipHover = el; });
+    el.addEventListener('mouseleave', () => { if (tipPinned()) return; G.uiHover = null; hideTip(); });
   });
   // In the equipment overlay a click or tap on an item or a quick key opens its action box (inspect) instead of
   // acting at once; a mouse double-click does the item's main action right away (equip, use, unequip, or use
@@ -1560,17 +1560,25 @@ function buildUI() {
     if (lastPointer === 'touch' || e.detail === 1) inspect(el); else if (e.detail === 2) { hideTip(); mainAction(el); }
   }, true);
   // a click or tap anywhere outside the open action box closes it
-  addEventListener('pointerdown', e => { const t = $('tooltip'); if (tipPinned() && !t.contains(e.target)) hideTip(); }, true);
+  // a touch anywhere also closes a hover tooltip (one a mouse opened, on a device with both)
+  addEventListener('pointerdown', e => { const t = $('tooltip'); if ((tipPinned() || e.pointerType === 'touch') && !t.contains(e.target)) hideTip(); }, true);
   $('menuBtn').addEventListener('click', toggleEquip);
   $('eqClose').addEventListener('click', toggleEquip);
-  document.addEventListener('mousemove', e => { const t = $('tooltip'); if (!t.classList.contains('hidden') && !tipPinned()) placeTip(e.clientX, e.clientY); });
+  // a hover tooltip follows the real mouse only (not the mouse events a browser makes up from touches), and
+  // closes as soon as the mouse is no longer over the element that opened it
+  document.addEventListener('pointermove', e => {
+    const t = $('tooltip'); if (e.pointerType !== 'mouse' || t.classList.contains('hidden') || tipPinned()) return;
+    if (tipHover && !tipHover.contains(e.target)) { hideTip(); return; }
+    placeTip(e.clientX, e.clientY);
+  });
 }
 function placeTip(x, y) {
   const t = $('tooltip'), r = t.getBoundingClientRect();
   let lx = x + 18, ly = y + 14; if (lx + r.width > W - 6) lx = x - r.width - 14; if (ly + r.height > H - 6) ly = H - r.height - 6;
   t.style.left = lx + 'px'; t.style.top = Math.max(6, ly) + 'px';
 }
-function hideTip() { $('tooltip').classList.add('hidden'); $('tooltip').classList.remove('pinned'); }
+let tipHover = null;   // the element whose hover tooltip is open (a mouse is over it)
+function hideTip() { $('tooltip').classList.add('hidden'); $('tooltip').classList.remove('pinned'); tipHover = null; }
 const tipPinned = () => $('tooltip').classList.contains('pinned');
 // The kind of pointer that last pressed (mouse, pen or touch); touch switches the overlay to tap-to-inspect.
 let lastPointer = 'mouse';
