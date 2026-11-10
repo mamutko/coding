@@ -86,7 +86,7 @@ template, never in `catalog.html`.
 | `Q`, or a click / tap on the life orb | Drink a health potion (queued like a quick key). |
 | `M` | Toggle the minimap. |
 | `N` | Toggle sound. |
-| `Ctrl` + `D` | Toggle the debug overlay (see [Debug overlay](#debug-overlay)). |
+| `Ctrl` + `D` (touch: hold the minimap and the life orb together) | Toggle the debug overlay (see [Debug overlay](#debug-overlay)). |
 | Mouse wheel, or pinch with two fingers (touch) | Zoom (0.6×–1.5×). |
 
 **Touchpads and touch screens.** A *modifier* turns any left click or tap into a right click, everywhere a
@@ -714,7 +714,10 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
 ## Debug overlay
 
 `Ctrl` + `D` opens and closes a small **Debug** panel at the top right, under the minimap (it works with the
-game paused or running; the browser's bookmark shortcut is suppressed). Its heading shows the game version
+game paused or running; the browser's bookmark shortcut is suppressed). On touch screens, holding one finger on the
+minimap and one on the life orb together for 0.8 s opens or closes it too (`DBG_HOLD_MS`, `dbgHeld`; the phone
+vibrates briefly where supported). While the minimap is held, touching the orb drinks no potion; on touch
+screens the minimap takes touches for this (so touching it doesn't walk there). Its heading shows the game version
 (`v<N>`, as on the title screen). Its switches are remembered in
 `localStorage` (`dc01-debug`, wrapped in `try`):
 

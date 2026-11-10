@@ -208,6 +208,7 @@
   body.narrow #depthName { font-size: 15px; }
   body.narrow #depthSub { font-size: 11px; }
   body.narrow #goldText { font-size: 12px; }
+  body.touch #minimap { pointer-events: auto; touch-action: none; }   /* holds for the debug overlay (dbgHeld) */
   body.narrow #minimap { right: 8px; top: 8px; width: 120px; height: 71px; }
   body.narrow #menuBtn { right: 8px; top: 86px; bottom: auto; padding: 5px 9px; font-size: 12px; }
   body.narrow #target { top: 120px; width: min(300px, 80vw); }
@@ -306,7 +307,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 21;
+const VERSION = 22;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1471,7 +1472,7 @@ function buildUI() {
     }, { passive: false });
     el.addEventListener('click', e => { if (lastPointer !== 'touch') fn(e); });
   };
-  hudTap($('orb'), () => queueUse('health'));   // a click or tap on the life orb drinks a health potion
+  hudTap($('orb'), () => { if (!dbgHeld.map.size) queueUse('health'); });   // a click or tap on the life orb drinks a health potion (not while the minimap is held: see dbgHeld)
   for (const host of [$('hotbar'), $('hkCfg')]) {
     for (let i = 0; i < 10; i++) {
       const el = document.createElement('div'); el.className = 'hk'; el.dataset.hk = i;
@@ -1775,6 +1776,19 @@ const DEBUG = (() => { try { return Object.assign({ pursuit: false }, JSON.parse
 const saveDebug = () => { try { localStorage.setItem('dc01-debug', JSON.stringify(DEBUG)); } catch (e) {} };
 $('dbgPursuit').checked = DEBUG.pursuit;
 $('dbgPursuit').addEventListener('change', e => { DEBUG.pursuit = e.target.checked; saveDebug(); });
+// Touch screens have no Ctrl+D: holding a finger on the minimap and one on the life orb together for 0.8 s
+// toggles the overlay too. A tap on the orb drinks no potion while the minimap is held.
+const DBG_HOLD_MS = 800, dbgHeld = { map: new Set(), orb: new Set() };
+let dbgHoldT = null;
+function dbgHoldCheck() {
+  clearTimeout(dbgHoldT);
+  if (dbgHeld.map.size && dbgHeld.orb.size) dbgHoldT = setTimeout(() => {
+    if (dbgHeld.map.size && dbgHeld.orb.size) { $('debug').classList.toggle('hidden'); if (navigator.vibrate) navigator.vibrate(30); } }, DBG_HOLD_MS);
+}
+for (const [k, el] of [['map', $('minimap')], ['orb', $('orb')]]) {
+  el.addEventListener('touchstart', e => { if (k === 'map') e.preventDefault(); for (const t of e.changedTouches) dbgHeld[k].add(t.identifier); dbgHoldCheck(); }, { passive: false });
+  for (const ev of ['touchend', 'touchcancel']) el.addEventListener(ev, e => { for (const t of e.changedTouches) dbgHeld[k].delete(t.identifier); dbgHoldCheck(); });
+}
 addEventListener('keydown', e => {
   if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); $('debug').classList.toggle('hidden'); return; }
   if (!G || !G.running) return;
