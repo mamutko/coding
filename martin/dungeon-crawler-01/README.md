@@ -771,7 +771,7 @@ walk cycles, plus small tests).
     war bow, composite bow, full plate, iron greaves, heavy sabatons (and a belt pouch, unused).
   - The **quiver** icon (`quiver`) isn't used yet; it is meant for limited ammo (todo #15).
 - **Dirt and searched bones** (built by `tools/add_props.py`, ~$0.14 for the two used images, ~$0.26 with the
-  rejected dirt and a door sheet not used yet):
+  rejected dirt and the replaced arch-door sheet):
   - `tools/raw/dirt_b.png`: Google `gemini-3.1-flash-image` `edit` (1K, 1:1) with `wall.jpg` and `floor.jpg` as
     style references: "a NEW seamless tileable square texture of dark cave earth: rough packed brown soil with
     embedded stones and pebbles, a few thin roots, crumbly clumps … even flat lighting". It wasn't quite
