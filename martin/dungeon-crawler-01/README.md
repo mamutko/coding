@@ -174,7 +174,7 @@ and the picker shows no saved heroes.
 - **Isometric projection.** Tiles are 96 × 48 px diamonds. A world point `(x, y)` (in tile units) maps to screen
   `((x − y)·48, (x + y)·24)`. The camera follows the hero smoothly (25 % lerp per frame) and keeps them centred,
   with the view aimed 46 px above the feet. It snaps when the hero teleports (new level). The canvas renders at
-  device-pixel ratio (max 2).
+  device-pixel ratio (max 2), lowered automatically on slow devices (see [Main loop](#main-loop)).
 - **Floor.** Every visible floor and doorway tile is added to one path in iso-transformed space
   (`transform(48, 24, −48, 24)`). It is filled with the floor texture pattern, which spans 3 tiles, and faint
   seams are stroked.
@@ -261,8 +261,21 @@ and the picker shows no saved heroes.
 
 ## Main loop
 
-A `requestAnimationFrame` loop runs update → render → HUD every frame, with `dt` capped at 50 ms. The next
-frame is scheduled *before* the work. Update and render run inside a `try/catch`: if something goes wrong, the
+A `requestAnimationFrame` loop runs update → render → HUD every frame. The next frame is scheduled *before* the
+work.
+
+- **Game time follows real time.** A frame's elapsed time (capped at 0.25 s, so a stall or a hidden tab
+  doesn't jump the game) is split into update steps of at most 50 ms. A slow device therefore shows fewer
+  frames, but the hero and the monsters keep their real speed. (Before, `dt` was simply capped at 50 ms, so
+  under 20 fps the whole game ran in slow motion.)
+- **Automatic render scale** (`adaptRes`): the frame time is averaged over 2 s windows (stalls over 0.25 s
+  and hidden tabs are skipped). While a level is being played and the average is under 45 fps
+  (`SLOW_FRAME`), the render scale (canvas pixels per CSS pixel, normally `min(2, devicePixelRatio)`) drops
+  by 0.25 (`DPR_CAP`), down to 1, and the canvas is resized. It never goes back up during the session. On a
+  phone with a 3× screen, 1.5 is still sharp, and each step cuts the pixels drawn a lot (2 → 1.75 is 23 %
+  fewer). This matters most for the home-screen app, which has the whole screen to draw.
+
+Update and render run inside a `try/catch`: if something goes wrong, the
 canvas state is reset, the first error is logged to the console, and the game keeps running instead of
 freezing.
 
@@ -705,6 +718,8 @@ game paused or running; the browser's bookmark shortcut is suppressed). Its head
 (`v<N>`, as on the title screen). Its switches are remembered in
 `localStorage` (`dc01-debug`, wrapped in `try`):
 
+- **Frame rate** (always shown under the switches) — the average frames per second over the last 2 s and the
+  current render scale, e.g. `58 fps · scale 2` (see [Main loop](#main-loop)).
 - **Pursuit indicator** — a red dot (5 px, black outline) above every monster that is pursuing the hero
   (`state === 'chase'`).
 

@@ -94,6 +94,7 @@
     background: rgba(10, 7, 9, 0.92); border: 1px solid var(--gold-dim); font-size: 13px; color: var(--ink); }
   #debug h4 { margin: 0 0 6px; font-family: Cinzel, serif; color: var(--gold); font-size: 13px; letter-spacing: 1px; }
   #debug #dbgVer { font-family: Georgia, serif; color: var(--ink-dim); font-size: 12px; margin-left: 6px; letter-spacing: 0; }
+  #debug #dbgFps { margin-top: 6px; font-size: 12px; color: var(--ink-dim); }
   #debug label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
   #minimap { position: absolute; right: 14px; top: 14px; width: 220px; height: 130px; background: rgba(6,4,6,0.55);
     border: 1px solid var(--panel-edge); }
@@ -236,7 +237,8 @@
   <div id="target" class="hidden"><div id="targetName"></div><div id="targetBar"><div id="targetFill"></div></div></div>
   <canvas id="minimap" width="220" height="130"></canvas>
   <div id="debug" class="hidden"><h4>Debug (Ctrl+D) <span id="dbgVer"></span></h4>
-    <label><input type="checkbox" id="dbgPursuit"> Pursuit indicator</label></div>
+    <label><input type="checkbox" id="dbgPursuit"> Pursuit indicator</label>
+    <div id="dbgFps">– fps</div></div>
   <div id="log"></div>
   <div id="orb" title="Click to drink a health potion"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
   <div id="orbLabel">LIFE</div>
@@ -304,7 +306,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 20;
+const VERSION = 21;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -316,8 +318,11 @@ const ROMAN = n => { const r = [[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']]; let
 const cv = $('game'), ctx = cv.getContext('2d');
 const lc = document.createElement('canvas'), lctx = lc.getContext('2d');
 let W = 0, H = 0, DPR = 1;
+// Render scale: canvas pixels per CSS pixel, at most 2 (and the screen's own ratio). When frames are slow it
+// steps down by 0.25 (to at least 1, see adaptRes), so slow phones draw fewer pixels instead of dropping frames.
+let DPR_CAP = 2;
 function resize() {
-  DPR = Math.min(2, window.devicePixelRatio || 1);
+  DPR = Math.min(DPR_CAP, window.devicePixelRatio || 1);
   W = innerWidth; H = innerHeight;
   cv.width = lc.width = Math.round(W * DPR); cv.height = lc.height = Math.round(H * DPR);
   cv.style.width = W + 'px'; cv.style.height = H + 'px';
@@ -2455,12 +2460,27 @@ function startGame() {
 }
 $('startBtn').addEventListener('click', startGame);
 let last = performance.now();
+// Frame timing: an average of the frame time (s), and a window for the resolution check (adaptRes).
+const PERF = { avg: 1 / 60, t: 0, n: 0, sum: 0, fps: 60, scaleT: 0 };
+const SLOW_FRAME = 1 / 45;   // a 2 s average slower than this (under 45 fps) lowers the render scale
+function adaptRes(real) {
+  if (real > 0.25 || document.hidden) return;   // a stall or a hidden tab says nothing about rendering speed
+  PERF.sum += real; PERF.n++; PERF.t += real;
+  if (PERF.t < 2) return;
+  const avg = PERF.sum / PERF.n; PERF.fps = Math.round(1 / avg); PERF.t = PERF.sum = PERF.n = 0;
+  if ($('dbgFps')) $('dbgFps').textContent = PERF.fps + ' fps · scale ' + DPR;
+  if (G && G.running && avg > SLOW_FRAME && DPR > 1) { DPR_CAP = Math.max(1, DPR - 0.25); resize(); }
+}
 function frame(now) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  // game time follows real time: a long frame (up to 0.25 s) is split into steps of at most 50 ms, so a slow
+  // device shows fewer frames but the hero and the monsters keep their real speed
+  const real = (now - last) / 1000; last = now;
+  const total = Math.min(0.25, real), steps = Math.ceil(total / 0.05) || 1, dt = total / steps;
   requestAnimationFrame(frame);   // schedule first, so an error can never stop the loop
+  adaptRes(real);
   if (G) {
     try {
-      if (G.running || G.dead) update(dt);
+      if (G.running || G.dead) for (let i = 0; i < steps; i++) update(dt);
       render(); updateHud(); drawPortrait();
     } catch (err) {
       ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
