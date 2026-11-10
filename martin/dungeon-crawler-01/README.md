@@ -372,7 +372,7 @@ Each depth `d` gets a freshly generated level.
   | Picking up a potion | 1 + d |
   | Descending stairs | 10 × the new depth |
 - **Potions** (see [Potions](#potions)): the health potion restores 44 % of max life (`HEAL`); the iron skin potion hardens
-  the hero's armor to armor × 3 + 40 for 20 s (`IRON`). Using one takes 0.4 s of the hero's action time (see [Actions](#actions)).
+  the hero's armor to armor × 3 + 60 for 20 s (`IRON`). Using one takes 0.4 s of the hero's action time (see [Actions](#actions)).
 - **Death** returns to the title screen with the fallen hero selected; the hero resumes from its last save
   (see [Saving](#saving)).
 
