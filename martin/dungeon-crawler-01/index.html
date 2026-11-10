@@ -239,6 +239,7 @@
   <canvas id="minimap" width="220" height="130"></canvas>
   <div id="debug" class="hidden"><h4>Debug (Ctrl+D) <span id="dbgVer"></span></h4>
     <label><input type="checkbox" id="dbgPursuit"> Pursuit indicator</label>
+    <label><input type="checkbox" id="dbgAutoRes"> Auto resolution</label>
     <div id="dbgFps">– fps</div></div>
   <div id="log"></div>
   <div id="orb" title="Click to drink a health potion"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
@@ -307,7 +308,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 22;
+const VERSION = 23;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1772,10 +1773,15 @@ function rightAction(ref, fresh) {
   }
 }
 // Debug overlay (Ctrl+D): developer switches, remembered in localStorage (dc01-debug).
-const DEBUG = (() => { try { return Object.assign({ pursuit: false }, JSON.parse(localStorage.getItem('dc01-debug')) || {}); } catch (e) { return { pursuit: false }; } })();
+const DEBUG = (() => { try { return Object.assign({ pursuit: false, autoRes: true }, JSON.parse(localStorage.getItem('dc01-debug')) || {}); } catch (e) { return { pursuit: false, autoRes: true }; } })();
 const saveDebug = () => { try { localStorage.setItem('dc01-debug', JSON.stringify(DEBUG)); } catch (e) {} };
 $('dbgPursuit').checked = DEBUG.pursuit;
 $('dbgPursuit').addEventListener('change', e => { DEBUG.pursuit = e.target.checked; saveDebug(); });
+$('dbgAutoRes').checked = DEBUG.autoRes;
+$('dbgAutoRes').addEventListener('change', e => {   // off: back to the full render scale at once, and it stays there
+  DEBUG.autoRes = e.target.checked; saveDebug();
+  if (!DEBUG.autoRes) { DPR_CAP = 2; resize(); $('dbgFps').textContent = PERF.fps + ' fps · scale ' + DPR; }
+});
 // Touch screens have no Ctrl+D: holding a finger on the minimap and one on the life orb together for 0.8 s
 // toggles the overlay too. A tap on the orb drinks no potion while the minimap is held.
 const DBG_HOLD_MS = 800, dbgHeld = { map: new Set(), orb: new Set() };
@@ -2483,7 +2489,7 @@ function adaptRes(real) {
   if (PERF.t < 2) return;
   const avg = PERF.sum / PERF.n; PERF.fps = Math.round(1 / avg); PERF.t = PERF.sum = PERF.n = 0;
   if ($('dbgFps')) $('dbgFps').textContent = PERF.fps + ' fps · scale ' + DPR;
-  if (G && G.running && avg > SLOW_FRAME && DPR > 1) { DPR_CAP = Math.max(1, DPR - 0.25); resize(); }
+  if (G && G.running && DEBUG.autoRes && avg > SLOW_FRAME && DPR > 1) { DPR_CAP = Math.max(1, DPR - 0.25); resize(); }
 }
 function frame(now) {
   // game time follows real time: a long frame (up to 0.25 s) is split into steps of at most 50 ms, so a slow

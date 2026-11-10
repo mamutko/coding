@@ -269,8 +269,8 @@ work.
   frames, but the hero and the monsters keep their real speed. (Before, `dt` was simply capped at 50 ms, so
   under 20 fps the whole game ran in slow motion.)
 - **Automatic render scale** (`adaptRes`): the frame time is averaged over 2 s windows (stalls over 0.25 s
-  and hidden tabs are skipped). While a level is being played and the average is under 45 fps
-  (`SLOW_FRAME`), the render scale (canvas pixels per CSS pixel, normally `min(2, devicePixelRatio)`) drops
+  and hidden tabs are skipped). While a level is being played, the debug switch **Auto resolution** is on (the default), and the average is
+  under 45 fps (`SLOW_FRAME`), the render scale (canvas pixels per CSS pixel, normally `min(2, devicePixelRatio)`) drops
   by 0.25 (`DPR_CAP`), down to 1, and the canvas is resized. It never goes back up during the session. On a
   phone with a 3× screen, 1.5 is still sharp, and each step cuts the pixels drawn a lot (2 → 1.75 is 23 %
   fewer). This matters most for the home-screen app, which has the whole screen to draw.
@@ -725,6 +725,9 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
   current render scale, e.g. `58 fps · scale 2` (see [Main loop](#main-loop)).
 - **Pursuit indicator** — a red dot (5 px, black outline) above every monster that is pursuing the hero
   (`state === 'chase'`).
+- **Auto resolution** (on by default) — the automatic render scale of [Main loop](#main-loop). Switching it off
+  puts the scale back to `min(2, devicePixelRatio)` at once and keeps it there (the frame-time fix, real game
+  speed at a low frame rate, stays on either way).
 
 ## HUD
 
