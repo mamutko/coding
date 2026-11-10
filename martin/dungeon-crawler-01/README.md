@@ -732,11 +732,11 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 ## HUD
 
 - **Hero life bar** (`drawHeroBar`, `HERO_BAR`): a bar over the hero's head, shown for 3 s after each hit
-  (`hurtAt`, set in `damageHero`) and then fading out over 0.8 s; at or below 20 % of max life it stays shown.
-  It is styled apart from the monsters' flat 50 × 4 px bars: 62 × 8 px, rounded, with a gold frame, a glossy
-  crimson gradient fill and dark quarter marks. From 20 % life down to 0 a red glow grows around it (a canvas
-  shadow, so it works in Safari too): the halo gets wider (blur 8 → 38 px), stronger (up to three passes) and
-  pulses faster, and the frame turns from gold to red; by 10 % it is clearly visible.
+  (`hurtAt`, set in `damageHero`) and then fading out over 0.8 s; at or below 30 % of max life it stays shown.
+  It is styled apart from the monsters' flat 50 × 4 px bars: 50 × 6 px, rounded, with a thin muted-gold frame
+  and a glossy crimson gradient fill (one piece, no segments). From 30 % life down to 0 a red glow grows around
+  it (a canvas shadow, so it works in Safari too): the halo gets wider (blur 8 → 38 px), stronger (up to three
+  passes) and pulses faster, and the frame turns from gold to red.
 
 - **Top left:** level name (e.g. *The Forsaken Crypt*, *The Ossuary*, … eight names that cycle with a Roman
   numeral after depth 8), the depth number, and gold.
@@ -770,8 +770,14 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
     used from the equipment overlay or the keyboard;
   - the equipment overlay switches to a 504 px wide layout: paper doll and attributes side by side, the
     inventory below them, quick keys in 2 rows of 5, and no key hint in the header.
-- **Fitting:** on any screen, the hotbar (with the XP bar) is scaled down to fit the width minus 16 px, and
-  the open equipment overlay to fit the width and height minus 12 px (never scaled up; centred).
+- **Fitting** (`fitUI`, on every resize and when the HUD switches between touch and mouse): the hotbar (with
+  the XP bar) stays centred when it fits between the bottom-left buttons (life orb, attack button and their
+  labels) and the Equipment button, 8 px from each. Otherwise it is centred in the gap between them and scaled
+  down (never up) to fit it. If even that would be under 70 % size, it shows only quick keys 1–5
+  (`body.fewkeys`, as in the narrow layout) so the keys stay big enough to tap. The open equipment overlay is
+  scaled to fit the width and height minus 12 px (never scaled up; centred).
+- **Short landscape screens** (height ≤ 500 px, e.g. a phone turned sideways): the life orb and attack button
+  shrink to 88 px (labels 10 px) and the Equipment button gets smaller, leaving room for the hotbar.
 
 ## Sound
 

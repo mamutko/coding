@@ -61,7 +61,7 @@
   body.touch #atk, body.touch #atkLabel { display: block; }
   body.touch #orb, body.touch #orbLabel { left: 156px; }
 
-  #bottom { position: absolute; left: 50%; transform: translateX(-50%); bottom: 14px; display: flex; flex-direction: column;
+  #bottom { position: absolute; left: 50%; transform: translateX(-50%); transform-origin: 50% 100%; bottom: 14px; display: flex; flex-direction: column;
     align-items: center; gap: 6px; pointer-events: auto; }
   #hotbar { display: flex; gap: 4px; padding: 5px; background: rgba(10, 7, 9, 0.8); border: 1px solid var(--panel-edge);
     box-shadow: 0 0 14px #000; }
@@ -200,6 +200,15 @@
   #eqClose { padding: 3px 10px; font-size: 15px; }
   .eqHead .right { display: flex; align-items: baseline; gap: 12px; }
 
+  /* ---------- Short landscape screens (phones turned sideways): a smaller orb and attack button ---------- */
+  @media (max-height: 500px) {
+    #orb, #atk { width: 88px; height: 88px; left: 14px; bottom: 20px; }
+    #orbLabel, #atkLabel { width: 88px; left: 14px; bottom: 3px; font-size: 10px; }
+    body.touch #orb, body.touch #orbLabel { left: 112px; }
+    #orbText { font-size: 14px; }
+    #menuBtn { right: 8px; bottom: 10px; padding: 5px 9px; font-size: 12px; }
+  }
+
   /* ---------- Narrow portrait screens (phones): body.narrow, set by fitUI() ---------- */
   body.narrow #orb { left: 10px; top: 10px; bottom: auto; width: 76px; height: 76px; }
   body.narrow #orbText { font-size: 13px; }
@@ -225,7 +234,7 @@
   body.narrow .eqBody > div:nth-child(2) { grid-column: 1 / -1; order: 3; }
   body.narrow .eqBody > div:nth-child(3) { order: 2; }
   body.narrow #hkCfg { display: grid; grid-template-columns: repeat(5, 48px); }
-  body.narrow #hotbar .hk:nth-child(n+6) { display: none; }
+  body.narrow #hotbar .hk:nth-child(n+6), body.fewkeys #hotbar .hk:nth-child(n+6) { display: none; }
   body.narrow #hotbar .hk { width: 64px; height: 64px; }
   body.narrow #hotbar .hk .num, body.narrow #hotbar .hk .cnt { font-size: 13px; }
 </style>
@@ -308,7 +317,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 26;
+const VERSION = 27;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -335,7 +344,19 @@ function fitUI() {
   const narrow = innerWidth < 700 && innerHeight > innerWidth;
   document.body.classList.toggle('narrow', narrow);
   const bottom = document.getElementById('bottom'), eq = document.getElementById('equip');
-  const bs = Math.min(1, (innerWidth - 16) / bottom.offsetWidth);
+  // the hotbar sits centred unless that would put it over the orb / attack button (left) or the Equipment
+  // button (right): then it is centred in the gap between them, and scaled down (never up) to fit the gap
+  let L = 8, R = innerWidth - 8;
+  if (!narrow) for (const id of ['orb', 'atk', 'orbLabel', 'atkLabel', 'menuBtn']) {
+    const el = $(id), r = el.getBoundingClientRect(); if (!r.width || getComputedStyle(el).display === 'none') continue;
+    if (r.right < innerWidth / 2) L = Math.max(L, r.right + 8); else if (r.left > innerWidth / 2) R = Math.min(R, r.left - 8);
+  }
+  // a gap too small for all ten quick keys at 70 % shows only keys 1-5 (like the narrow layout)
+  document.body.classList.remove('fewkeys');
+  if (!narrow && (R - L) / bottom.offsetWidth < 0.7) document.body.classList.add('fewkeys');
+  const bw = bottom.offsetWidth, fits = innerWidth / 2 - bw / 2 >= L && innerWidth / 2 + bw / 2 <= R;
+  const cx = fits ? innerWidth / 2 : (L + R) / 2, bs = fits ? 1 : Math.min(1, (R - L) / bw);
+  bottom.style.left = cx + 'px';
   bottom.style.transform = `translateX(-50%) scale(${bs})`;
   if (!eq.classList.contains('hidden')) {
     const es = Math.min(1, (innerWidth - 12) / eq.offsetWidth, (innerHeight - 12) / eq.offsetHeight);
@@ -1227,9 +1248,9 @@ function resolveSwing(h) {
 }
 // The hero's life bar over its head: shown for HERO_BAR.show s after each hit (then fading out over
 // HERO_BAR.fade s), and all the time at or below HERO_BAR.glowFrom of max life. Unlike the monsters' flat red
-// bars it is wider, rounded and gold-framed, with a glossy crimson fill and quarter marks. From
-// HERO_BAR.glowFrom (20 %) down to 0 a red glow grows around it (and pulses faster the lower life is).
-const HERO_BAR = { show: 3, fade: 0.8, glowFrom: 0.2, w: 62, h: 8 };
+// bars it is rounded, with a thin muted-gold frame and a glossy crimson fill. From HERO_BAR.glowFrom (30 %)
+// down to 0 a red glow grows around it (and pulses faster the lower life is).
+const HERO_BAR = { show: 3, fade: 0.8, glowFrom: 0.3, w: 50, h: 6 };
 function drawHeroBar(h) {
   const frac = clamp(h.hp / h.st.maxHp, 0, 1), since = G.time - (h.hurtAt ?? -99);
   const low = frac <= HERO_BAR.glowFrom;
@@ -1237,7 +1258,7 @@ function drawHeroBar(h) {
   if (low) a = 1;
   if (a <= 0) return;
   const [sx, sy] = iso(h.x, h.y), { w, h: bh } = HERO_BAR, x = sx - w / 2, y = sy - 126;
-  const k = low ? clamp((HERO_BAR.glowFrom - frac) / HERO_BAR.glowFrom, 0, 1) : 0;   // 0 at 20 % life, 1 at 0
+  const k = low ? clamp((HERO_BAR.glowFrom - frac) / HERO_BAR.glowFrom, 0, 1) : 0;   // 0 at 30 % life, 1 at 0
   ctx.save(); ctx.globalAlpha = a;
   const shape = (x0, y0, ww, hh, r) => { ctx.beginPath(); ctx.roundRect(x0, y0, ww, hh, r); };
   if (k > 0) {   // the glow: a blurred red halo, larger and stronger as life runs out, pulsing
@@ -1245,22 +1266,20 @@ function drawHeroBar(h) {
     ctx.shadowColor = `rgba(255,${Math.round(60 - 40 * k)},30,${(0.45 + 0.55 * k) * pulse})`;
     ctx.shadowBlur = (8 + 30 * k) * G.zoom * DPR;
     const sp = 1 + 5 * k;   // the halo shape grows too
-    shape(x - 2 - sp, y - 2 - sp, w + 4 + 2 * sp, bh + 4 + 2 * sp, 5 + sp); ctx.fillStyle = `rgba(255,50,30,${0.3 + 0.6 * k})`;
+    shape(x - 1 - sp, y - 1 - sp, w + 2 + 2 * sp, bh + 2 + 2 * sp, 4 + sp); ctx.fillStyle = `rgba(255,50,30,${0.3 + 0.6 * k})`;
     for (let i = 0; i < 1 + Math.round(2 * k); i++) ctx.fill();   // up to three passes: a stronger halo
     ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0;
   }
-  shape(x - 2, y - 2, w + 4, bh + 4, 5); ctx.fillStyle = '#0c0606'; ctx.fill();
-  ctx.lineWidth = 1.5; ctx.strokeStyle = k > 0 ? `rgb(${Math.round(201 + 54 * k)},${Math.round(164 - 90 * k)},${Math.round(92 - 50 * k)})` : '#c9a45c'; ctx.stroke();
+  shape(x - 1, y - 1, w + 2, bh + 2, 4); ctx.fillStyle = 'rgba(12,6,6,0.85)'; ctx.fill();
+  ctx.lineWidth = 0.8; ctx.strokeStyle = k > 0 ? `rgba(${Math.round(160 + 95 * k)},${Math.round(130 - 70 * k)},${Math.round(80 - 40 * k)},0.85)` : 'rgba(160,130,80,0.7)'; ctx.stroke();
   if (frac > 0) {
     const g = ctx.createLinearGradient(0, y, 0, y + bh);
     g.addColorStop(0, '#ff8a7a'); g.addColorStop(0.35, '#d8261c'); g.addColorStop(1, '#6e0a08');
-    ctx.save(); shape(x, y, w, bh, 3); ctx.clip();
+    ctx.save(); shape(x, y, w, bh, 2.5); ctx.clip();
     ctx.fillStyle = g; ctx.fillRect(x, y, w * frac, bh);
-    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x, y + 1, w * frac, 2);   // gloss
+    ctx.fillStyle = 'rgba(255,255,255,0.18)'; ctx.fillRect(x, y + 1, w * frac, 1.5);   // gloss
     ctx.restore();
   }
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  for (let i = 1; i < 4; i++) ctx.fillRect(Math.round(x + w * i / 4), y, 1, bh);   // quarter marks
   ctx.restore();
 }
 function damageHero(raw, m) {
@@ -1558,7 +1577,7 @@ addEventListener('pointerdown', e => {
   if (lastPointer === 'touch' || lastPointer === 'mouse') {
     const was = document.body.classList.contains('touch');
     document.body.classList.toggle('touch', lastPointer === 'touch');
-    if (was !== (lastPointer === 'touch') && G) refreshUI();
+    if (was !== (lastPointer === 'touch') && G) { refreshUI(); fitUI(); }   // the attack button moves the orb: re-fit the hotbar
   }
 }, true);
 // The double-click action: equip / use a pack item, unequip an equipped one, use a quick key.
