@@ -124,15 +124,23 @@ and the picker shows no saved heroes.
 - **When it saves:** when a hero is created (at depth 1), and automatically on arrival at each new depth
   (after the descend XP; the log says "Progress saved."). Nothing else is saved: not the level layout, and
   nothing gained or lost partway through a level.
-- **Hero picker** (the title screen): one button per saved hero, most recently saved first, showing name,
-  level and depth, plus **New Hero**. The selected button has a gold border; the hero played last (or the
-  newest) is selected at start. Clicking a selected hero (or the button below) starts it.
+- **Hero picker** (the title screen): one box per saved hero, most recently saved first, showing name, level
+  and depth, then a **New Hero** box. The hero played last (or the newest) is selected at start; the selected
+  box is lit (gold border and glow, brighter background, a filled gold diamond), the others are dimmed with an
+  empty diamond. Clicking a box only selects it; only the **Enter the Crypt** button starts the game.
+  - **New Hero** turns into a name field with a **Create** button in the same box (Enter also works; Escape
+    goes back when there are other heroes). Names are up to 20 characters, spaces collapsed; an empty name is
+    refused with a red border. Creating saves the new hero (level 1, depth 1, starting kit) and selects it, and
+    a fresh **New Hero** box appears below. With no saved heroes, the name field is shown straight away.
+  - **The cogwheel** next to Enter the Crypt opens a box for the selected hero: rename it (**Rename** or
+    Enter), or **Erase hero**, which asks for confirmation ("… will be erased for good. This cannot be
+    undone.") before deleting the save.
+  - **Long lists:** the title screen scrolls, and the Enter the Crypt / cogwheel row sticks to the bottom edge,
+    so it can always be reached, on wide and tall screens alike. On narrow screens a hero's details go under
+    its name; on short screens the title and the controls text get smaller.
   - **Resuming** generates a *new* layout for the saved depth and restores the saved hero with the life it had
     when saved (capped at max life; saves made before life was saved start at full life). Item
     ids continue after the highest saved one, so new drops never clash with owned items.
-  - **New Hero** shows a name field (up to 20 characters, spaces collapsed; empty names are refused with a red
-    border), and the button becomes **Begin** (Enter also works). The new hero starts at level 1 on depth 1
-    with the starting kit, and is saved at once.
 - **Death:** the scene keeps running for 4 s (`DEATH_DELAY`): the hero fades and sinks like a slain monster,
   enemy projectiles vanish, and every monster drops its chase and goes back to wandering (it can't notice the
   dead hero). Then the title screen returns with the fallen hero selected and a message

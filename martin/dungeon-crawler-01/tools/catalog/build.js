@@ -22,8 +22,8 @@ const DEPTHS = 12;   // monster stats are listed for depths 1..DEPTHS
   const b = await chromium.launch(); const p = await b.newPage();
   const errs = []; p.on('pageerror', e => errs.push(e.message));
   await p.goto(`http://127.0.0.1:${server.address().port}/`);
-  await p.waitForFunction(() => !document.getElementById('startBtn').disabled);
-  await p.fill('#heroName', 'Catalog'); await p.click('#startBtn'); await p.waitForTimeout(200);
+  await p.waitForSelector('#heroName');   // a fresh browser has no saved heroes: the New Hero name field is open
+  await p.fill('#heroName', 'Catalog'); await p.press('#heroName', 'Enter'); await p.click('#startBtn'); await p.waitForTimeout(200);
   const data = await p.evaluate(DEPTHS => {
     G.running = false;
     const mons = {};

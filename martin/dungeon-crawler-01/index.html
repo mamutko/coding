@@ -149,14 +149,42 @@
   #version { position: absolute; right: 12px; bottom: 8px; font-family: Cinzel, serif; font-size: 11px; letter-spacing: 1px;
     color: var(--ink-dim); opacity: 0.45; }
   #heroPick { display: flex; flex-direction: column; gap: 6px; width: min(420px, 100%); margin: 0 0 16px; }
-  #heroPick .heroBtn { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 15px;
-    padding: 8px 14px; text-align: left; }
+  #heroPick .heroBtn { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 15px;
+    padding: 8px 14px 8px 30px; text-align: left; position: relative; min-height: 40px; opacity: 0.78; }
   #heroPick .heroBtn .sub { font-family: Georgia, serif; font-size: 13px; color: var(--ink-dim); }
-  #heroPick .heroBtn.sel { border-color: var(--gold); color: #fff; box-shadow: 0 0 10px rgba(201,164,92,0.45); }
-  #heroPick input { font: 16px Cinzel, serif; padding: 8px 12px; background: #120c0b; color: var(--ink);
-    border: 1px solid var(--gold-dim); outline: none; text-align: center; }
-  #heroPick input:focus { border-color: var(--gold); }
-  #heroPick input.bad { border-color: #c4291f; }
+  #heroPick .heroBtn::before { content: ''; position: absolute; left: 11px; top: 50%; width: 9px; height: 9px; margin-top: -5px;
+    border: 1px solid var(--gold-dim); transform: rotate(45deg); }
+  #heroPick .heroBtn.sel { opacity: 1; border-color: var(--gold); color: #fff; background: linear-gradient(#4a3320, #24170f);
+    box-shadow: 0 0 14px rgba(201,164,92,0.55), inset 0 0 0 1px rgba(201,164,92,0.5); }
+  #heroPick .heroBtn.sel::before { background: var(--gold); border-color: #fff3c8; box-shadow: 0 0 6px var(--gold); }
+  #heroPick .heroBtn.sel .sub { color: #e8d9b8; }
+  #heroPick .heroBtn.newHero { justify-content: center; padding-left: 14px; opacity: 0.9; }
+  #heroPick .heroBtn.newHero::before { display: none; }
+  #heroPick .heroBtn.naming { padding: 4px; cursor: default; opacity: 1; border-color: var(--gold); }
+  #heroPick input, #heroCfg input { font: 16px Cinzel, serif; padding: 6px 10px; background: #120c0b; color: var(--ink);
+    border: 1px solid var(--gold-dim); outline: none; text-align: center; flex: 1; min-width: 0; }
+  #heroPick input:focus, #heroCfg input:focus { border-color: var(--gold); }
+  #heroPick input.bad, #heroCfg input.bad { border-color: #c4291f; }
+  #heroPick .naming button, #heroCfg .row button { font-size: 14px; padding: 6px 12px; }
+  /* a long hero list scrolls the title screen; the Enter / cogwheel row sticks to the bottom edge, so it is always in reach */
+  #screen { overflow-y: auto; justify-content: safe center; }
+  #screen > h1 { margin-top: auto; } #screen > #startRow { margin-bottom: auto; }
+  #startRow { display: flex; gap: 8px; align-items: stretch; position: sticky; bottom: 0; z-index: 1; padding: 10px 12px;
+    background: radial-gradient(ellipse at center, rgba(3,1,3,0.92) 40%, rgba(3,1,3,0)); }
+  @media (max-width: 480px) { #heroPick .heroBtn:not(.newHero) { flex-direction: column; align-items: flex-start; gap: 2px; } }
+  @media (max-height: 560px) { #screen h1 { font-size: 40px; } #screen p { margin: 6px 0; font-size: 15px; }
+    #screen .controls { font-size: 13px; line-height: 1.4; margin: 4px 0 10px; } }
+  #startBtn:disabled, #cfgBtn:disabled { opacity: 0.45; cursor: default; border-color: var(--gold-dim); color: var(--ink); }
+  #screen #cfgBtn { padding: 0 11px; display: flex; align-items: center; }
+  #cfgBtn svg { width: 22px; height: 22px; fill: currentColor; }
+  #heroCfg { position: fixed; inset: 0; z-index: 45; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); }
+  #heroCfg .box { width: min(380px, calc(100% - 32px)); background: linear-gradient(#1d1411, #0e0908); border: 1px solid var(--gold);
+    padding: 16px; display: flex; flex-direction: column; gap: 12px; box-shadow: 0 0 24px rgba(0,0,0,0.8); }
+  #heroCfg h3 { margin: 0; font-family: Cinzel, serif; font-weight: 400; color: var(--gold); font-size: 18px; }
+  #heroCfg .row { display: flex; gap: 8px; }
+  #heroCfg .warn { color: #e0a090; font-size: 15px; margin: 0; }
+  #heroCfg button.danger { border-color: #8a2a20; color: #f0b0a0; background: linear-gradient(#3a1410, #1a0806); }
+  #heroCfg button.danger:hover { border-color: #e04a3a; color: #fff; }
   #fade { position: fixed; inset: 0; background: #000; pointer-events: none; opacity: 0; z-index: 30; }
   #eqClose { padding: 3px 10px; font-size: 15px; }
   .eqHead .right { display: flex; align-items: baseline; gap: 12px; }
@@ -243,7 +271,8 @@
     <b>M</b> — minimap &nbsp;·&nbsp; <b>N</b> — sound &nbsp;·&nbsp; <b>Mouse wheel</b> (or pinch) — zoom
   </div>
   <div id="heroPick"></div>
-  <button id="startBtn" disabled>Loading…</button>
+  <div id="startRow"><button id="startBtn" disabled>Loading…</button><button id="cfgBtn" title="Rename or erase this hero" aria-label="Hero settings" disabled><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.2h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.7h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button></div>
+  <div id="heroCfg" class="hidden"><div class="box"></div></div>
   <div id="version"></div>
 </div>
 
@@ -265,7 +294,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 14;
+const VERSION = 15;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2329,30 +2358,72 @@ function drawPortrait() {
 // =====================================================================================
 //  Screens & main loop
 // =====================================================================================
-// The title screen doubles as the hero picker: saved heroes (most recently saved first) and "New Hero".
-let pickSel = null;   // selected save id, or 'new'
+// The title screen doubles as the hero picker: saved heroes (most recently saved first) and a "New Hero" box,
+// which turns into a name field in place; creating a hero saves it and selects it (a fresh "New Hero" box
+// appears below). Only the Enter the Crypt button starts; the cogwheel next to it renames or erases the hero.
+let pickSel = null;    // selected save id
+let naming = false;    // the New Hero box shows its name field
+const cleanName = v => v.trim().replace(/\s+/g, ' ').slice(0, 20);
+function writeSave(sv) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(sv)); return true; } catch (e) { return false; } }
+function nameField(value, onOk, okLabel) {
+  const inp = document.createElement('input'); inp.maxLength = 20; inp.placeholder = 'Name your hero'; inp.value = value;
+  inp.autocomplete = 'off'; inp.spellcheck = false;
+  const ok = () => { const n = cleanName(inp.value); if (!n) { inp.classList.add('bad'); inp.focus(); return; } onOk(n); };
+  inp.addEventListener('input', () => inp.classList.remove('bad'));
+  inp.addEventListener('keydown', e => { if (e.key === 'Enter') ok(); if (e.key === 'Escape') { e.stopPropagation(); onOk(null); } });
+  const b = document.createElement('button'); b.textContent = okLabel; b.addEventListener('click', e => { e.stopPropagation(); ok(); });
+  setTimeout(() => { inp.focus(); inp.select(); }, 0);
+  return [inp, b];
+}
+function createHero(name) {
+  newGame(null); G.running = false; G.camSnap = true; G.hero.name = name;
+  G.hero.saveId = 'h' + Date.now().toString(36) + Math.floor(rnd() * 1e6).toString(36);
+  saveHero(); pickSel = G.hero.saveId; naming = false; refreshUI(); renderHeroPick();
+}
 function renderHeroPick() {
   const sv = readSave(), list = Object.values(sv.heroes).sort((a, b) => b.saved - a.saved), box = $('heroPick');
-  if (pickSel !== 'new' && !sv.heroes[pickSel]) pickSel = sv.heroes[sv.last] ? sv.last : list.length ? list[0].id : 'new';
+  if (!sv.heroes[pickSel]) pickSel = sv.heroes[sv.last] ? sv.last : list.length ? list[0].id : null;
+  if (!list.length) naming = true;
   box.innerHTML = '';
-  const btn = (main, sub, sel, onClick) => {
-    const b = document.createElement('button'); b.className = 'heroBtn' + (sel ? ' sel' : '');
-    const m = document.createElement('span'); m.textContent = main; b.appendChild(m);
-    if (sub) { const t = document.createElement('span'); t.className = 'sub'; t.textContent = sub; b.appendChild(t); }
-    b.addEventListener('click', onClick); box.appendChild(b);
-  };
-  for (const e of list) btn(e.name, `Level ${e.lvl} · Depth ${e.depth} — ${depthName(e.depth)}`, pickSel === e.id, () => {
-    if (pickSel === e.id) startGame(); else { pickSel = e.id; renderHeroPick(); } });
-  btn('New Hero', '', pickSel === 'new', () => { pickSel = 'new'; renderHeroPick(); });
-  if (pickSel === 'new') {
-    const inp = document.createElement('input'); inp.id = 'heroName'; inp.maxLength = 20; inp.placeholder = 'Name your hero';
-    inp.autocomplete = 'off'; inp.spellcheck = false;
-    inp.addEventListener('input', () => inp.classList.remove('bad'));
-    inp.addEventListener('keydown', e => { if (e.key === 'Enter') startGame(); });
-    box.appendChild(inp); setTimeout(() => inp.focus(), 0);
+  for (const e of list) {
+    const b = document.createElement('button'); b.className = 'heroBtn' + (pickSel === e.id ? ' sel' : '');
+    const m = document.createElement('span'); m.textContent = e.name; b.appendChild(m);
+    const t = document.createElement('span'); t.className = 'sub'; t.textContent = `Level ${e.lvl} · Depth ${e.depth} — ${depthName(e.depth)}`; b.appendChild(t);
+    b.addEventListener('click', () => { pickSel = e.id; naming = false; renderHeroPick(); });
+    box.appendChild(b);
   }
-  $('startBtn').textContent = pickSel === 'new' ? 'Begin' : 'Enter the Crypt';
+  const nb = document.createElement(naming ? 'div' : 'button'); nb.className = 'heroBtn newHero' + (naming ? ' naming' : '');
+  if (naming) { const [inp, ok] = nameField('', n => { if (n) createHero(n); else if (list.length) { naming = false; renderHeroPick(); } }, 'Create'); inp.id = 'heroName'; nb.append(inp, ok); }
+  else { nb.textContent = 'New Hero'; nb.addEventListener('click', () => { naming = true; renderHeroPick(); }); }
+  box.appendChild(nb);
+  const st = $('startBtn'); st.textContent = 'Enter the Crypt'; st.disabled = !pickSel; $('cfgBtn').disabled = !pickSel;
 }
+// The cogwheel: rename the selected hero, or erase it (after a confirmation).
+function openHeroCfg(step = 'main') {
+  const sv = readSave(), e = sv.heroes[pickSel]; if (!e) return;
+  const wrap = $('heroCfg'), box = wrap.querySelector('.box'); box.innerHTML = ''; wrap.classList.remove('hidden');
+  const close = () => wrap.classList.add('hidden');
+  const h3 = document.createElement('h3'); box.appendChild(h3);
+  const row = (...els) => { const r = document.createElement('div'); r.className = 'row'; r.append(...els); box.appendChild(r); return r; };
+  const button = (label, fn, cls = '') => { const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; b.addEventListener('click', fn); return b; };
+  if (step === 'main') {
+    h3.textContent = e.name;
+    const [inp, ok] = nameField(e.name, n => { if (!n) return close();
+      const s2 = readSave(), x = s2.heroes[pickSel]; if (!x) return close();
+      x.name = n; x.hero.name = n; writeSave(s2); close(); renderHeroPick(); }, 'Rename');
+    row(inp, ok);
+    row(button('Erase hero', () => openHeroCfg('erase'), 'danger'), button('Close', close)).style.justifyContent = 'space-between';
+  } else {
+    h3.textContent = 'Erase ' + e.name + '?';
+    const w = document.createElement('p'); w.className = 'warn';
+    w.textContent = `${e.name} (level ${e.lvl}, depth ${e.depth}) and everything they carry will be erased for good. This cannot be undone.`;
+    box.appendChild(w);
+    row(button('Erase for good', () => { const s2 = readSave(); delete s2.heroes[pickSel]; if (s2.last === pickSel) s2.last = null;
+      writeSave(s2); pickSel = null; close(); renderHeroPick(); }, 'danger'), button('Cancel', () => openHeroCfg('main'))).style.justifyContent = 'space-between';
+  }
+}
+$('cfgBtn').addEventListener('click', () => openHeroCfg());
+$('heroCfg').addEventListener('click', e => { if (e.target.id === 'heroCfg') $('heroCfg').classList.add('hidden'); });
 function showDeath() {
   const h = G.hero; G.running = false;
   pickSel = h.saveId;
@@ -2366,18 +2437,11 @@ function showDeath() {
 function startGame() {
   if ($('startBtn').disabled) return;
   audio();
-  if (pickSel === 'new') {
-    const inp = $('heroName'), name = inp.value.trim().replace(/\s+/g, ' ').slice(0, 20);
-    if (!name) { inp.classList.add('bad'); inp.focus(); return; }
-    newGame(null); G.hero.name = name; G.hero.saveId = 'h' + Date.now().toString(36) + Math.floor(rnd() * 1e6).toString(36);
-    saveHero(); pickSel = G.hero.saveId; refreshUI();
-  } else {
-    const e = readSave().heroes[pickSel];
-    if (!e) { renderHeroPick(); return; }
-    newGame(e);
-  }
-  G.running = true; G.camSnap = true; G.deathShown = false;
-  $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); hideTip();
+  const e = readSave().heroes[pickSel];
+  if (!e) { renderHeroPick(); return; }
+  newGame(e);
+  G.running = true; G.camSnap = true; G.deathShown = false; naming = false;
+  $('heroCfg').classList.add('hidden'); $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); hideTip();
 }
 $('startBtn').addEventListener('click', startGame);
 let last = performance.now();

@@ -30,8 +30,8 @@ const server = http.createServer((req, res) => {
   const url = `http://127.0.0.1:${server.address().port}/`;
   const b = await chromium.launch(); const p = await b.newPage({ viewport: { width: 900, height: 600 } });
   const errs = []; p.on('pageerror', e => errs.push(e.message));
-  await p.goto(url); await p.waitForFunction(() => !document.getElementById('startBtn').disabled);
-  await p.fill('#heroName', 'Sim'); await p.click('#startBtn'); await p.waitForTimeout(300);
+  await p.goto(url); await p.waitForSelector('#heroName');   // a fresh browser has no saved heroes: the New Hero name field is open
+  await p.fill('#heroName', 'Sim'); await p.press('#heroName', 'Enter'); await p.click('#startBtn'); await p.waitForTimeout(300);
   const res = await p.evaluate(([RUNS, MAXD, P]) => {
     window.sfx = () => {}; window.log = () => {};
     const { DT, TRAVEL, POT_AT, MELEE_MAX, BOW_FREE } = P;
