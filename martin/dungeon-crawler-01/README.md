@@ -674,7 +674,9 @@ sealed: clicking it only logs "The chest is sealed while its guardian lives." Wh
 "<boss> is destroyed. The guardian's chest unseals."
 
 Dropped things land on nearby free tiles. Floor items bob, glow in their rarity colour (potions in their
-potion colour), and show a name label when within 7.5 tiles. Gold is counted at the top left.
+potion colour), and show a name label when within 7.5 tiles: in the item's colour with a black outline (no
+background box). A magic or rare item's label also shows its affix tier (see below): tier 1 plain, tier 2
+bold, tier 3 bold, 15 px instead of 13 and glowing in its colour. Gold is counted at the top left.
 
 **Affix tier highlight.** A magic or rare item's highlight grows with its *affix tier* (`itemTier`): the tier
 (1–3) of its best affix, worked out from the rolled values against the affix tier ranges (a ring's or amulet's
@@ -691,7 +693,7 @@ Blue for magic items, gold for rare ones, as before.
 
 ## Equipment overlay
 
-Opened with `I` / `C` / `Tab` or the **Equipment (I)** button, closed with the same keys, `Esc`, the button,
+Opened with `I` / `C` / `Tab` or the **Equipment** button (the grid square at the end of the quick-key bar), closed with the same keys, `Esc`, the button,
 or the **✕** in its header (for touch screens). It is a partly transparent dark panel
 (`rgba(16, 11, 14, 0.78)`); **the game keeps running underneath** and can still be played around it.
 If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
@@ -793,9 +795,13 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 - **Touch mode** (`body.touch`): every `pointerdown` records its pointer type; a **touch** press turns touch
   mode on and a **mouse** press turns it off (pen leaves it as it is), so a touch-screen laptop switches as
   you switch between finger and touchpad (it changes how hover tooltips and the action box behave).
-- **Bottom right:** the **life orb**, with the **Equipment** button above it. A click or tap on the orb drinks
+- **Bottom right:** the **life orb**. A click or tap on it drinks
   a health potion (the same as `Q`, queued; "No health potions left." when there are none).
-- **Bottom centre:** quick-key hotbar and XP bar, between the two globes (see *Fitting* below).
+- **Bottom centre:** quick-key hotbar and XP bar, between the two globes (see *Fitting* below). The last
+  square of the hotbar, set 4 px apart from the keys, is the **Equipment** button (`#menuBtn`, title
+  "Equipment (I)"): a 3 × 3 grid of rounded squares drawn in muted gold (`#8c7650`), turning gold on hover. It
+  opens and closes the equipment overlay and acts on a touch at once, like the keys (see *HUD taps*). It
+  stays when only keys 1–5 are shown.
 - Taking damage flashes a red vignette whose strength depends on how big the hit was.
 - Descending fades in from black.
 - **Phones** (narrow portrait screens: width under 700 px and taller than wide; `fitUI()` on load, on resize
@@ -803,7 +809,7 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
   - the attack globe and the life orb move to the **top left** at 76 px (no labels), the orb right of the
     globe (96 px from the left); the level name, depth and gold go below them (94 px from the top) in smaller
     type, and the target bar moves down to 160 px;
-  - the minimap shrinks to 120 × 71 px (top right), with the Equipment button below it;
+  - the minimap shrinks to 120 × 71 px (top right);
   - the message log spans the width above the hotbar
     (112 px from the bottom);
   - the hotbar shows only quick keys **1–5**, bigger (64 px, 58 px icons); keys 6–0 can still be bound and
@@ -811,14 +817,13 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
   - the equipment overlay switches to a 504 px wide layout: paper doll and attributes side by side, the
     inventory below them, quick keys in 2 rows of 5, and no key hint in the header.
 - **Fitting** (`fitUI`, on every resize and when the HUD switches between touch and mouse): the hotbar (with
-  the XP bar) stays centred when it fits between the bottom-left buttons (life orb, attack button and their
-  labels) and the Equipment button, 8 px from each. Otherwise it is centred in the gap between them and scaled
+  the XP bar) stays centred when it fits between the attack globe and the life orb (and their labels), 8 px
+  from each. Otherwise it is centred in the gap between them and scaled
   down (never up) to fit it. If even that would be under 70 % size, it shows only quick keys 1–5
   (`body.fewkeys`, as in the narrow layout) so the keys stay big enough to tap. The open equipment overlay is
   scaled to fit the width and height minus 12 px (never scaled up; centred).
 - **Short landscape screens** (height ≤ 500 px, e.g. a phone turned sideways): the attack globe and the life
-  orb shrink to 88 px (labels 10 px) and the Equipment button above the orb gets smaller (one line), leaving
-  room for the hotbar.
+  orb shrink to 88 px (labels 10 px), leaving room for the hotbar.
 
 ## Sound
 

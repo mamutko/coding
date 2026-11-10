@@ -99,7 +99,11 @@
   #debug label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
   #minimap { position: absolute; right: 14px; top: 14px; width: 220px; height: 130px; background: rgba(6,4,6,0.55);
     border: 1px solid var(--panel-edge); }
-  #menuBtn { position: absolute; right: 22px; bottom: 168px; width: 120px; padding: 7px 0; pointer-events: auto; }   /* above the life orb */
+  /* the Equipment button: the last square of the quick-key bar, a muted gold grid */
+  #menuBtn { position: relative; width: 48px; height: 48px; margin-left: 4px; background: #120c0e; border: 1px solid #3a2d1c;
+    display: flex; align-items: center; justify-content: center; cursor: pointer; color: #8c7650; }
+  #menuBtn svg { width: 30px; height: 30px; }
+  #menuBtn:hover { border-color: var(--gold); color: var(--gold); }
   button { font-family: Cinzel, serif; color: var(--ink); background: linear-gradient(#2a1d17, #140d0b); border: 1px solid var(--gold-dim);
     padding: 7px 14px; cursor: pointer; font-size: 13px; letter-spacing: 1px; }
   button:hover { border-color: var(--gold); color: #fff; }
@@ -218,7 +222,6 @@
     #atk, #atkLabel { left: 14px; } #orb, #orbLabel { left: auto; right: 14px; }
     #orbLabel, #atkLabel { width: 88px; bottom: 3px; font-size: 10px; }
     #orbText { font-size: 14px; }
-    #menuBtn { right: 14px; bottom: 120px; width: auto; min-width: 88px; padding: 5px 8px; font-size: 11px; letter-spacing: 0.5px; white-space: nowrap; }
   }
 
   /* ---------- Narrow portrait screens (phones): body.narrow, set by fitUI() ---------- */
@@ -231,7 +234,7 @@
   body.narrow #goldText { font-size: 12px; }
   body.touch #minimap { pointer-events: auto; touch-action: none; }   /* holds for the debug overlay (dbgHeld) */
   body.narrow #minimap { right: 8px; top: 8px; width: 120px; height: 71px; }
-  body.narrow #menuBtn { right: 8px; top: 86px; bottom: auto; width: auto; padding: 5px 9px; font-size: 12px; }
+  body.narrow #menuBtn { width: 64px; height: 64px; } body.narrow #menuBtn svg { width: 38px; height: 38px; }
   body.narrow #target { top: 160px; width: min(300px, 80vw); }
   body.narrow #atk { left: 10px; top: 10px; bottom: auto; width: 76px; height: 76px; }
   body.narrow #atkLabel { display: none; }
@@ -268,7 +271,6 @@
     <div id="hotbar"></div>
     <div id="xpbar"><div id="xpFill"></div><div id="xpText"></div></div>
   </div>
-  <button id="menuBtn">Equipment (I)</button>
 </div>
 <div id="flash"></div>
 
@@ -327,7 +329,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 33;
+const VERSION = 34;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -357,7 +359,7 @@ function fitUI() {
   // the hotbar sits centred unless that would put it over the orb / attack button (left) or the Equipment
   // button (right): then it is centred in the gap between them, and scaled down (never up) to fit the gap
   let L = 8, R = innerWidth - 8;
-  if (!narrow) for (const id of ['orb', 'atk', 'orbLabel', 'atkLabel', 'menuBtn']) {
+  if (!narrow) for (const id of ['orb', 'atk', 'orbLabel', 'atkLabel']) {
     const el = $(id), r = el.getBoundingClientRect(); if (!r.width || getComputedStyle(el).display === 'none') continue;
     if (r.right < innerWidth / 2) L = Math.max(L, r.right + 8); else if (r.left > innerWidth / 2) R = Math.min(R, r.left - 8);
   }
@@ -1572,6 +1574,10 @@ function buildUI() {
       host.appendChild(el);
     }
   }
+  const mb = document.createElement('div'); mb.id = 'menuBtn'; mb.title = 'Equipment (I)';
+  mb.innerHTML = '<svg viewBox="0 0 30 30" fill="none" stroke="currentColor" stroke-width="1.6">' +
+    [3, 12, 21].map(y => [3, 12, 21].map(x => `<rect x="${x}" y="${y}" width="6" height="6" rx="0.8"/>`).join('')).join('') + '</svg>';
+  $('hotbar').appendChild(mb);
   document.querySelectorAll('#equip [data-ref]').forEach(el => {
     el.addEventListener('mouseenter', () => { if (lastPointer === 'touch' || tipPinned()) return; G.uiHover = el.dataset.ref; showRefTip(el.dataset.ref); tipHover = el; });
     el.addEventListener('mouseleave', () => { if (tipPinned()) return; G.uiHover = null; hideTip(); });
@@ -1588,7 +1594,7 @@ function buildUI() {
   // a click or tap anywhere outside the open action box closes it
   // a touch anywhere also closes a hover tooltip (one a mouse opened, on a device with both)
   addEventListener('pointerdown', e => { const t = $('tooltip'); if ((tipPinned() || e.pointerType === 'touch') && !t.contains(e.target)) hideTip(); }, true);
-  $('menuBtn').addEventListener('click', toggleEquip);
+  hudTap($('menuBtn'), toggleEquip);
   $('eqClose').addEventListener('click', toggleEquip);
   // a hover tooltip follows the real mouse only (not the mouse events a browser makes up from touches), and
   // closes as soon as the mouse is no longer over the element that opened it
@@ -2229,12 +2235,18 @@ function render() {
   // post-light overlays: labels, hp bars, floating text
   ctx.setTransform(...baseT);
   ctx.textAlign = 'center'; ctx.font = '13px "IM Fell English", serif';
+  // floor item labels: outlined in black (no box), in the rarity colour; magic / rare ones by affix tier:
+  // tier 1 plain, tier 2 bold, tier 3 bold, larger and glowing in its colour
+  ctx.lineJoin = 'round';
   for (const fi of G.items) {
     if (dist(fi, h) > 7.5) continue;
     const [sx, sy] = iso(fi.x, fi.y), label = fi.item.name + (fi.item.slot === 'use' && fi.item.count > 1 ? ' ×' + fi.item.count : '');
-    const tw = ctx.measureText(label).width + 10;
-    ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(sx - tw / 2, sy - 62, tw, 17);
-    ctx.fillStyle = itemHex(fi.item); ctx.fillText(label, sx, sy - 49);
+    const tr = itemTier(fi.item), col = itemHex(fi.item);
+    ctx.font = (tr >= 2 ? 'bold ' : '') + (tr === 3 ? 15 : 13) + 'px "IM Fell English", serif';
+    ctx.lineWidth = 3.5; ctx.strokeStyle = 'rgba(0,0,0,0.9)'; ctx.strokeText(label, sx, sy - 51);
+    if (tr === 3) { ctx.shadowColor = col; ctx.shadowBlur = 10 * G.zoom * DPR; }
+    ctx.fillStyle = col; ctx.fillText(label, sx, sy - 51);
+    ctx.shadowBlur = 0; ctx.shadowColor = 'transparent';
   }
   if (G.hover && G.hover.kind === 'obj') {
     const o = G.hover.r, [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy);
