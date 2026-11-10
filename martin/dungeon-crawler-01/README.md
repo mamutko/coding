@@ -130,7 +130,9 @@ and the picker shows no saved heroes.
   - **New Hero** shows a name field (up to 20 characters, spaces collapsed; empty names are refused with a red
     border), and the button becomes **Begin** (Enter also works). The new hero starts at level 1 on depth 1
     with the starting kit, and is saved at once.
-- **Death:** after a short pause the title screen returns with the fallen hero selected and a message
+- **Death:** the scene keeps running for 2 s (`DEATH_DELAY`): the hero fades and sinks like a slain monster,
+  enemy projectiles vanish, and every monster drops its chase and goes back to wandering (it can't notice the
+  dead hero). Then the title screen returns with the fallen hero selected and a message
   ("<name> was slain at depth N … What was gained on this level is lost; <name> rises again at the start of
   depth M."). Starting again reloads the hero as saved on arrival at that depth, so the level's gold, items,
   XP, kills and potions are lost, and the layout is new.

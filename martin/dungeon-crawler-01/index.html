@@ -265,7 +265,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 3;
+const VERSION = 4;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1625,10 +1625,13 @@ function update(dt) {
   G.time += dt;
   const h = G.hero;
   if (G.fade > 0) G.fade = Math.max(0, G.fade - dt * 1.6);
-  if (G.dead) {
+  if (G.dead) {   // the scene goes on for DEATH_DELAY s: the hero fades, the monsters drift back to wandering
     G.deadT += dt;
-    if (G.deadT > 1.4 && !G.deathShown) { G.deathShown = true; showDeath(); }
-    updateFx(dt); return;
+    if (G.deadT > DEATH_DELAY && !G.deathShown) { G.deathShown = true; showDeath(); }
+    for (const mo of G.monsters) { const px = mo.x, py = mo.y; updateMonster(mo, dt);
+      if (mo.moving) mo.anim += Math.hypot(mo.x - px, mo.y - py) * (META.characters[mo.type].fpt || 2) / mo.scale; }
+    G.monsters = G.monsters.filter(mo => !(mo.dead && mo.deathT > 1.2));
+    G.proj = []; updateFx(dt); return;
   }
   // continuous input
   if (mouse.holdWalk && mouse.left) {
@@ -1723,15 +1726,17 @@ function updateFx(dt) {
   for (const t of G.texts) t.t += dt;
   G.texts = G.texts.filter(t => t.t < t.dur);
 }
+const DEATH_DELAY = 2;   // seconds between the hero's death and the death screen
 function updateMonster(m, dt) {
   m.hitT = Math.max(0, m.hitT - dt); m.lunge = Math.max(0, m.lunge - dt * 4);
   if (m.dead) { m.deathT += dt; return; }
+  if (G.dead && m.state !== 'idle') { loseInterest(m, false); m.windup = 0; }   // the hero is dead: back to wandering
   const h = G.hero, b = m.b, d = dist(m, h);
   if (G.time - m.lastHit > 4) m.hp = Math.min(m.maxHp, m.hp + m.maxHp * 0.015 * dt);
   m.cd -= dt; m.moving = false;
   if (m.state === 'idle') {
     if (m.calm && m.calm.walked >= UNSTUCK && G.time - m.calm.t >= CALM_MIN) m.calm = null;   // calm ends
-    if (!m.calm && d < 8.5 && los(m.x, m.y, h.x, h.y)) { alert(m); }
+    if (!G.dead && !m.calm && d < 8.5 && los(m.x, m.y, h.x, h.y)) { alert(m); }
     else if (d < 30) {
       m.wander -= dt;
       if (m.wander <= 0) { m.wander = 2 + rnd() * 5; const tx = m.x + (rnd() - 0.5) * 4, ty = m.y + (rnd() - 0.5) * 4;
@@ -2061,6 +2066,7 @@ function drawChar(e, isHero) {
   const s = isHero ? 1 : e.scale, [sx, sy0] = iso(e.x, e.y);
   let sy = sy0, alpha = 1;
   if (!isHero && e.dead) { alpha = Math.max(0, 1 - e.deathT / 1.1); sy += e.deathT * 14; }
+  if (isHero && G.dead) { alpha = Math.max(0, 1 - G.deadT / 1.1); sy += Math.min(G.deadT, 1.1) * 14; }   // fades like a slain monster
   if (!isHero && e.b.float) sy -= 8 + Math.sin(G.time * 3 + e.x) * 4;
   const [shw, shh, sha, shm, shy] = CHAR_SHADOW[isHero ? 'hero' : e.type] || CHAR_SHADOW.hero;
   softShadow(sx, sy0 + shy * s, shw * s, shh * s, sha * alpha, shm);
