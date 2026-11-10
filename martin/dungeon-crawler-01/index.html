@@ -48,18 +48,19 @@
     background: radial-gradient(circle at 35% 25%, rgba(255,255,255,0.35), rgba(255,255,255,0) 35%); }
   #orbText { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
     font-family: Cinzel, serif; font-weight: 700; font-size: 17px; text-shadow: 0 0 4px #000, 0 0 2px #000; }
+  /* the life orb sits at the bottom right (the attack button at the bottom left) */
+  #orb { left: auto; right: 22px; }
   #orbLabel, #atkLabel { position: absolute; left: 22px; width: 120px; bottom: 4px; text-align: center; font-family: Cinzel, serif;
     font-size: 11px; letter-spacing: 2px; color: var(--ink-dim); text-shadow: 0 0 3px #000; }
-  /* attack button (touch only, body.touch): round like the orb, in the orb's place; the orb slides right */
-  #atk { display: none; position: absolute; left: 22px; bottom: 22px; width: 120px; height: 120px; border-radius: 50%;
+  #orbLabel { left: auto; right: 22px; }
+  /* attack button (always shown): round like the orb, showing the equipped weapon (cropped to the round
+     interior); on touch screens holding it turns taps into attacks */
+  #atk { display: block; overflow: hidden; position: absolute; left: 22px; bottom: 22px; width: 120px; height: 120px; border-radius: 50%;
     background: radial-gradient(circle at 50% 38%, #3a3236, #141012 72%);
     border: 3px solid var(--gold-dim); box-shadow: 0 0 0 2px #1b130b, 0 0 24px rgba(0,0,0,0.9), inset 0 0 18px #000;
     pointer-events: auto; touch-action: none; }
   #atk.held { border-color: var(--gold); box-shadow: 0 0 0 2px #1b130b, 0 0 22px rgba(230,180,80,0.75), inset 0 0 18px #000; }
   #atkIco { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background-repeat: no-repeat; }
-  #atkLabel { display: none; }
-  body.touch #atk, body.touch #atkLabel { display: block; }
-  body.touch #orb, body.touch #orbLabel { left: 156px; }
 
   #bottom { position: absolute; left: 50%; transform: translateX(-50%); transform-origin: 50% 100%; bottom: 14px; display: flex; flex-direction: column;
     align-items: center; gap: 6px; pointer-events: auto; }
@@ -98,7 +99,7 @@
   #debug label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
   #minimap { position: absolute; right: 14px; top: 14px; width: 220px; height: 130px; background: rgba(6,4,6,0.55);
     border: 1px solid var(--panel-edge); }
-  #menuBtn { position: absolute; right: 14px; bottom: 16px; pointer-events: auto; }
+  #menuBtn { position: absolute; right: 22px; bottom: 168px; width: 120px; padding: 7px 0; pointer-events: auto; }   /* above the life orb */
   button { font-family: Cinzel, serif; color: var(--ink); background: linear-gradient(#2a1d17, #140d0b); border: 1px solid var(--gold-dim);
     padding: 7px 14px; cursor: pointer; font-size: 13px; letter-spacing: 1px; }
   button:hover { border-color: var(--gold); color: #fff; }
@@ -213,30 +214,27 @@
 
   /* ---------- Short landscape screens (phones turned sideways): a smaller orb and attack button ---------- */
   @media (max-height: 500px) {
-    #orb, #atk { width: 88px; height: 88px; left: 14px; bottom: 20px; }
-    #orbLabel, #atkLabel { width: 88px; left: 14px; bottom: 3px; font-size: 10px; }
-    body.touch #orb, body.touch #orbLabel { left: 112px; }
+    #orb, #atk { width: 88px; height: 88px; bottom: 20px; }
+    #atk, #atkLabel { left: 14px; } #orb, #orbLabel { left: auto; right: 14px; }
+    #orbLabel, #atkLabel { width: 88px; bottom: 3px; font-size: 10px; }
     #orbText { font-size: 14px; }
-    #menuBtn { right: 8px; bottom: 10px; padding: 5px 9px; font-size: 12px; }
+    #menuBtn { right: 14px; bottom: 120px; width: auto; min-width: 88px; padding: 5px 8px; font-size: 11px; letter-spacing: 0.5px; white-space: nowrap; }
   }
 
   /* ---------- Narrow portrait screens (phones): body.narrow, set by fitUI() ---------- */
-  body.narrow #orb { left: 10px; top: 10px; bottom: auto; width: 76px; height: 76px; }
+  body.narrow #orb { left: 96px; right: auto; top: 10px; bottom: auto; width: 76px; height: 76px; }
   body.narrow #orbText { font-size: 13px; }
   body.narrow #orbLabel { display: none; }
-  body.narrow #topleft { left: 96px; top: 10px; }
+  body.narrow #topleft { left: 10px; top: 94px; }
   body.narrow #depthName { font-size: 15px; }
   body.narrow #depthSub { font-size: 11px; }
   body.narrow #goldText { font-size: 12px; }
   body.touch #minimap { pointer-events: auto; touch-action: none; }   /* holds for the debug overlay (dbgHeld) */
   body.narrow #minimap { right: 8px; top: 8px; width: 120px; height: 71px; }
-  body.narrow #menuBtn { right: 8px; top: 86px; bottom: auto; padding: 5px 9px; font-size: 12px; }
-  body.narrow #target { top: 120px; width: min(300px, 80vw); }
+  body.narrow #menuBtn { right: 8px; top: 86px; bottom: auto; width: auto; padding: 5px 9px; font-size: 12px; }
+  body.narrow #target { top: 160px; width: min(300px, 80vw); }
   body.narrow #atk { left: 10px; top: 10px; bottom: auto; width: 76px; height: 76px; }
   body.narrow #atkLabel { display: none; }
-  body.narrow.touch #orb { left: 96px; }
-  body.narrow.touch #topleft { left: 10px; top: 94px; }
-  body.narrow.touch #target { top: 160px; }
   body.narrow #log { left: 10px; bottom: 112px; width: calc(100vw - 20px); font-size: 12px; }
   body.narrow #bottom { bottom: 8px; transform-origin: 50% 100%; }
   body.narrow #equip { width: 504px; transform-origin: 50% 50%; }
@@ -329,7 +327,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 32;
+const VERSION = 33;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1756,7 +1754,8 @@ function refreshUI() {
   const rows = [['Level', h.lvl], ['Experience', h.xp + ' / ' + xpNeed(h.lvl)], ...statRows(h), ['Kills', h.kills], ['Gold', h.gold]];
   rows.splice(rows.findIndex(r => r[0] === 'Damage') + 1, 0, ['Attack speed', (1 / w.cd).toFixed(2) + ' / s']);
   $('eqTitle').textContent = G.hero.name || 'Equipment';
-  const ai = $('atkIco'), as = document.body.classList.contains('narrow') ? 52 : 80;   // attack button: equipped weapon
+  // attack button: the equipped weapon, as big as the button's inside, so only the round edge crops it
+  const ai = $('atkIco'), as = $('atk').clientWidth || 80;
   const shown = h.using ? { base: 'potion', slot: 'use', pot: h.using.pot } : h.equip.weapon;   // a potion in use shows instead
   ai.style.cssText = shown ? itemIconCss(shown, as) + `width:${as}px;height:${as}px;` : '';
   $('stats').innerHTML = rows.map(r => `<div class="row${r[2] ? ' temp' : ''}"><span class="lbl">${r[0]}</span><span class="val">${r[1]}</span></div>`).join('');
@@ -1810,7 +1809,7 @@ const atkEl = $('atk');
 // iOS (Safari, and Edge / Chrome on iOS, which are WebKit too) opens a "save image" menu on a long press of the
 // button's icon; cancelling the touch's default action stops it (pointer events still arrive).
 atkEl.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
-atkEl.addEventListener('pointerdown', e => { if (e.button !== 0) return; e.preventDefault(); mouse.atkId = e.pointerId; atkEl.classList.add('held'); });
+atkEl.addEventListener('pointerdown', e => { if (e.button !== 0 || e.pointerType === 'mouse') return; e.preventDefault(); mouse.atkId = e.pointerId; atkEl.classList.add('held'); });
 const releaseAtk = () => { mouse.atkId = null; atkEl.classList.remove('held'); };
 // A second mouse button pressed or released while another is held ("chorded") arrives as a pointermove
 // with e.button set, not as pointerdown / pointerup.

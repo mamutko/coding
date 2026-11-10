@@ -785,28 +785,26 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 - **Top centre:** name, level and health bar of the hovered or targeted monster (gold name for champions,
   green for bosses).
 - **Top right:** minimap.
-- **Bottom left:** the life orb, and above it a message log (6 lines, each fading after 6 s).
+- **Bottom left:** the **attack globe** (always shown), and above it a message log (6 lines, each fading after
+  6 s). The globe is a dark steel disc with a gold rim and an "ATTACK" label, showing the equipped weapon (or
+  the potion being used). The icon is as big as the globe's inside (`#atk` `clientWidth`), so only the round
+  edge crops it, not the icon's square. On touch screens holding it is the attack modifier (see Controls); a
+  mouse press on it does nothing.
 - **Touch mode** (`body.touch`): every `pointerdown` records its pointer type; a **touch** press turns touch
   mode on and a **mouse** press turns it off (pen leaves it as it is), so a touch-screen laptop switches as
-  you switch between finger and touchpad. In touch mode an **attack button** appears in the life orb's place:
-  round and the orb's size, a dark steel disc with a gold rim showing the equipped weapon's icon (or the
-  potion being used) (80 px; 52 px
-  on phones) and an "ATTACK" label below. Holding it is the attack modifier (see Controls). The life orb slides
-  right next to it (to 156 px from the left), so the finger on the button never covers it.
-- **Life orb:** a click or tap on it drinks a health potion (the same as `Q`, queued; "No health potions
-  left." when there are none).
-- **Bottom centre:** quick-key hotbar and XP bar.
-- **Bottom right:** Equipment button.
+  you switch between finger and touchpad (it changes how hover tooltips and the action box behave).
+- **Bottom right:** the **life orb**, with the **Equipment** button above it. A click or tap on the orb drinks
+  a health potion (the same as `Q`, queued; "No health potions left." when there are none).
+- **Bottom centre:** quick-key hotbar and XP bar, between the two globes (see *Fitting* below).
 - Taking damage flashes a red vignette whose strength depends on how big the hit was.
 - Descending fades in from black.
 - **Phones** (narrow portrait screens: width under 700 px and taller than wide; `fitUI()` on load, on resize
   and when the overlay opens sets `body.narrow`):
-  - the life orb moves to the **top left** at 76 px (no "LIFE" label), with the level name, depth and gold to
-    its right in smaller type; in touch mode the attack button (76 px) takes the top-left corner, the orb sits
-    right of it (96 px from the left), the level name, depth and gold move below them (94 px from the top),
-    and the target bar moves down to 160 px;
+  - the attack globe and the life orb move to the **top left** at 76 px (no labels), the orb right of the
+    globe (96 px from the left); the level name, depth and gold go below them (94 px from the top) in smaller
+    type, and the target bar moves down to 160 px;
   - the minimap shrinks to 120 × 71 px (top right), with the Equipment button below it;
-  - the target bar moves down to 120 px from the top; the message log spans the width above the hotbar
+  - the message log spans the width above the hotbar
     (112 px from the bottom);
   - the hotbar shows only quick keys **1–5**, bigger (64 px, 58 px icons); keys 6–0 can still be bound and
     used from the equipment overlay or the keyboard;
@@ -818,8 +816,9 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
   down (never up) to fit it. If even that would be under 70 % size, it shows only quick keys 1–5
   (`body.fewkeys`, as in the narrow layout) so the keys stay big enough to tap. The open equipment overlay is
   scaled to fit the width and height minus 12 px (never scaled up; centred).
-- **Short landscape screens** (height ≤ 500 px, e.g. a phone turned sideways): the life orb and attack button
-  shrink to 88 px (labels 10 px) and the Equipment button gets smaller, leaving room for the hotbar.
+- **Short landscape screens** (height ≤ 500 px, e.g. a phone turned sideways): the attack globe and the life
+  orb shrink to 88 px (labels 10 px) and the Equipment button above the orb gets smaller (one line), leaving
+  room for the hotbar.
 
 ## Sound
 
