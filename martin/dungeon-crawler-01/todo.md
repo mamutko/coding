@@ -29,8 +29,6 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
     question: levels are currently generated fresh and never kept, so going up either regenerates the level or
     requires remembering visited levels (layout, what was looted and killed).
 
-12. **Better wall visuals** — improve how the dungeon walls look.
-
 13. **Animated doors** — doors visibly swing open (and shut, see 14) instead of switching state instantly.
 
 14. **Closing doors** — the hero can close an open door again.
