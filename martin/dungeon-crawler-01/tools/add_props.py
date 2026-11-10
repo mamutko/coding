@@ -1,4 +1,4 @@
-"""Add the newer props (searched bones) and the dirt texture to the game's assets.
+"""Add the newer props (searched bones, door leaves) and the dirt texture to the game's assets.
 
 Usage:  python tools/add_props.py            (run from the game folder; needs Pillow + NumPy)
 
@@ -7,6 +7,9 @@ rebuilds row 1 from the raw sheets below, so running it again gives the same atl
 
   bones_searched.png  Google gemini-3.1-flash-image edit of the original bone pile: the same bones searched
                       through, flatter and spread out. Saved as the prop "bonesused".
+  doors.png           Google gemini-3.1-flash-image edit of the original door's leaf: two flat-topped plank doors
+                      (A: strap hinges and a ring; B: a cross brace and a barred grate). Saved as "doorA" and
+                      "doorB", 192 x 256, fully opaque.
 
 Dirt: tools/raw/dirt_b.png (Google gemini-3.1-flash-image edit with wall.jpg and floor.jpg as style references)
 is made seamless (blended with a half-offset copy of itself) and saved as assets/dirt.jpg, 512 x 512, for the
@@ -22,6 +25,7 @@ GAME = HERE.parent
 RAW = HERE / "raw"
 DIRT = "dirt_b.png"              # the dirt texture
 BONES_W = 200                    # the searched pile's width in px (the full pile is 148)
+DOOR_SIZE = (192, 256)           # the door leaves (drawn over one wall face, 1 tile x WALLH)
 
 spec = importlib.util.spec_from_file_location("add_items", HERE / "add_items.py")
 ai = importlib.util.module_from_spec(spec); spec.loader.exec_module(ai)
@@ -45,6 +49,13 @@ def seamless(im):
 
 
 def main():
+    # door leaves: the two doors of doors.png, cropped inside their edge to fully opaque rectangles
+    rgb = np.asarray(Image.open(RAW / "doors.png").convert("RGB"))
+    W = rgb.shape[1]
+    leaves = []
+    for x0, x1 in ((0, W // 2), (W // 2, W)):
+        im = Image.fromarray(piece(rgb, x0, x1), "RGBA")
+        leaves.append(im.crop((4, 4, im.width - 4, im.height - 4)).convert("RGBA").resize(DOOR_SIZE, Image.LANCZOS))
     rgb = np.asarray(Image.open(RAW / "bones_searched.png").convert("RGB"))
     bones = Image.fromarray(piece(rgb, 0, rgb.shape[1], False), "RGBA")
     bones = bones.resize((BONES_W, round(bones.height * BONES_W / bones.width)), Image.LANCZOS)
@@ -52,7 +63,7 @@ def main():
     meta = json.loads((GAME / "assets" / "meta.json").read_text())
     base_h = max(v[3] for v in meta["props"].values() if v[1] == 0)
     props = Image.open(GAME / "assets" / "props.webp").convert("RGBA")
-    pieces = [("bonesused", bones)]
+    pieces = [("bonesused", bones), ("doorA", leaves[0]), ("doorB", leaves[1])]
     meta["props"] = {k: v for k, v in meta["props"].items() if v[1] == 0}
     row_h = max(p.height for _, p in pieces)
     atlas = Image.new("RGBA", (max(props.width, sum(p.width + 2 for _, p in pieces)), base_h + 2 + row_h))

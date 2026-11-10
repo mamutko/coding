@@ -12,14 +12,14 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `assets/hero.webp`, `skeleton.webp`, `ghoul.webp` | 8-direction × 8-frame walk cycles (transparent). |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
 | `assets/items.webp` | 6 × 7 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–7 from `add_items.py`). |
-| `assets/props.webp` | Props: row 1 has the chest, open chest, door, stairs, brazier, bones, urn and gold, and the boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus), from `process_art.py`; row 2 has the searched bones (`bonesused`), from `add_props.py`. |
+| `assets/props.webp` | Props: row 1 has the chest, open chest, door, stairs, brazier, bones, urn and gold, and the boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus), from `process_art.py`; row 2 has the searched bones (`bonesused`) and the door leaves (`doorA`, `doorB`), from `add_props.py`. |
 | `assets/floor.jpg`, `assets/wall.jpg` | 512 px seamless floor and wall textures. |
 | `assets/dirt.jpg` | 512 px seamless dirt texture for wall tops and wall faces toward solid ground (from `add_props.py`). |
 | `assets/meta.json` | Frame sizes and atlas coordinates written by the processing script (copied into `META` in `index.html`). |
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
 | `tools/walk_cycle.py` | Walk-cycle pipeline (hero, skeleton, ghoul): renders the 3D stick-figure pose guides and placeholders, and builds the 8-frame sheets. |
 | `tools/add_items.py`, `tools/raw/items2.png`, `items3.png` | Appends the icons of the newer item types (and a quiver) to `assets/items.webp` from the two raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
-| `tools/add_props.py`, `tools/raw/bones_searched.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
+| `tools/add_props.py`, `tools/raw/bones_searched.png`, `doors.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones, door leaves) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
 | `assets/sfx/` | Ghoul moans and grunts (MP3). |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
@@ -157,9 +157,15 @@ and the picker shows no saved heroes.
   affine-mapped 128 × 75 cells of the texture, picked per tile so the pattern varies. The left face is shaded
   42 %, the right 18 % (`SHADE_Y`, `SHADE_X`). The top of every wall is dirt too, drawn in iso-transformed space
   like the floor (the pattern spans 1.5 tiles), darkened 25 %, with a faint edge line.
-- **Doors** are wall blocks whose passage-facing face shows the door sprite, with a dark wooden top. A door
-  between walls on x±1 shows it on the +y face; one between walls on y±1 shows it on the +x face. Opened doors
-  become plain floor and are no longer drawn (`drawDoor`).
+- **Doors** are wooden leaves with no frame, threshold or lintel, `DOOR_T` (0.09 tiles) thick: a full tile wide
+  and as tall as the walls, so the knight fits through. Each door picks its look when the level is built: `doorA`
+  (strap hinges and a ring) 75 % of the time, `doorB` (cross brace and barred grate) otherwise. A closed door
+  stands on its doorway tile's room-side edge (`front`: the room is on the +y / +x side). An open one has swung
+  90° into the corridor about the hinge on the side the camera sees (`x` for a door in a wall along x, `y` for
+  one in a wall along y) and lies along that side of the doorway, leaving the whole tile open. Its top edge, and
+  its free end when that faces the camera, show a hand-drawn wood strip (`doorEdge`: browns with grain lines,
+  plank joints and wear, made once on a canvas). Depth keys: closed `x + y + 1.4` (front) or `+ 0.6` (back),
+  open `+ 0.5`.
 - **Searched bones** are drawn with their own sprite (`bonesused`): the same bones scattered flatter and wider.
 - **Depth sorting.** Walls, doors, props, monsters, the hero and projectiles are sorted by `x + y`. A wall or prop on
   tile `(tx, ty)` uses `tx + ty + 1`; entities use their foot position. Stairs, bones, gold and floor items
@@ -726,7 +732,7 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it.
 The art was generated through the `ai-media-generation` skill in Martin's notes repo: monsters, items, props
 and textures with OpenAI `gpt-image-2` (medium quality, about $0.70), and the hero walk cycle with Google
 `gemini-3.1-flash-image` (see [Walk cycles](#walk-cycles-hero-skeleton-ghoul)). Total spend so far is about
-$3.17 ($0.07 for a door sheet still in review, about $0.01 for the ghoul voice, $0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
+$3.24 ($0.07 for the door leaves, $0.07 for the arch-door sheet, about $0.01 for the ghoul voice, $0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
 walk cycles, plus small tests).
 
 - **Background.** `gpt-image-2` can't make transparent backgrounds (and a Gemini test returned an opaque JPEG
@@ -775,6 +781,12 @@ walk cycles, plus small tests).
     magenta: "the same bones after someone has searched through them … scattered and spread out flat over a
     wider area, a lower and sparser pile". Keyed with `add_items.py`'s `key_cell`, keeping every loose bone,
     scaled to 200 px wide.
+  - `tools/raw/doors.png` (~$0.07): Google `gemini-3.1-flash-image` `edit` (1K, 3:2) of a door leaf cut from an
+    earlier arch-and-leaf sheet (itself an edit of the original door): "TWO new door leaves … a plain RECTANGLE with
+    a flat top (no arch, no stone frame, no threshold, no wall), proportioned 3 wide by 4 tall, thick vertical oak
+    planks with iron straps and studs. LEFT: two horizontal iron strap hinges and a ring handle. RIGHT: … an
+    iron-banded cross brace and a small barred viewing grate". Each is cropped inside its edge to a fully opaque
+    192 × 256 rectangle.
 - **Props** (1536 × 1024): a 4 × 2 grid (closed chest, open chest with glowing gold, arched gothic door in a
   stone frame, descending stairway seen from above, lit brazier, skull-and-bone pile, cracked funeral urn,
   gold coin pile), on magenta.
