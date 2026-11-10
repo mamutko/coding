@@ -132,7 +132,7 @@ and the picker shows no saved heroes.
   - **New Hero** shows a name field (up to 20 characters, spaces collapsed; empty names are refused with a red
     border), and the button becomes **Begin** (Enter also works). The new hero starts at level 1 on depth 1
     with the starting kit, and is saved at once.
-- **Death:** the scene keeps running for 2 s (`DEATH_DELAY`): the hero fades and sinks like a slain monster,
+- **Death:** the scene keeps running for 3 s (`DEATH_DELAY`): the hero fades and sinks like a slain monster,
   enemy projectiles vanish, and every monster drops its chase and goes back to wandering (it can't notice the
   dead hero). Then the title screen returns with the fallen hero selected and a message
   ("<name> was slain at depth N … What was gained on this level is lost; <name> rises again at the start of
@@ -244,7 +244,7 @@ Each depth `d` gets a freshly generated level.
 - Map size `min(44 + 2d, 80)` square. Up to `min(9 + ⌊d/2⌋, 18)` rectangular rooms of 5–10 × 5–10 tiles,
   kept at least 3 tiles apart.
 - Each room is joined to the nearest earlier room by an L-shaped corridor, so the whole level is connected.
-  `2 + ⌊d/4⌋` extra random corridors add loops. A corridor is 1 tile wide, or 2 wide with 40 % chance
+  `2 + ⌊d/4⌋` extra random corridors add loops. A corridor is 1 tile wide, or 2 wide with 65 % chance
   (`WIDE_ODDS`); a wide corridor's mouths are 2 tiles wide, so they never get a door. Within 2 tiles of a boss or
   big room the second lane is left out, so a wide corridor narrows to 1 tile at that room's mouth.
 - **Boss and big rooms are entered only through doors.** After carving, every floor tile on such a room's

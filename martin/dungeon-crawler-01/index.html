@@ -265,7 +265,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 8;
+const VERSION = 9;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -583,7 +583,7 @@ const CHAMP_PRE = ['Dread', 'Blighted', 'Bloodsoaked', 'Ancient', 'Accursed', 'R
 // Boss-room furnishings: [type, count], and the depth from which each first appears.
 const BOSS_DECOR = [['throne', 1], ['altar', 1], ['sarcophagus', 1], ['banner', 2], ['pillar', 2], ['candelabrum', 2], ['skullpile', 3]];
 const DECOR_FROM = { skullpile: 3, banner: 3, candelabrum: 4, pillar: 5, sarcophagus: 6, altar: 7, throne: 8 };
-const WIDE_ODDS = 0.4, DOOR_ODDS = 0.55;   // corridors 2 tiles wide; doors on 1-wide room mouths
+const WIDE_ODDS = 0.65, DOOR_ODDS = 0.55;   // corridors 2 tiles wide; doors on 1-wide room mouths
 const BOSS_ROOM_FROM = 3, BOSS_FROM = 6;   // depth 3's boss room stands empty: a premonition of what is to come;
                                            // depths 4 and 5 have none, from depth 6 every level has a boss
 const bossRoomAt = d => d === BOSS_ROOM_FROM || d >= BOSS_FROM;
@@ -1829,7 +1829,7 @@ function updateFx(dt) {
   for (const t of G.texts) t.t += dt;
   G.texts = G.texts.filter(t => t.t < t.dur);
 }
-const DEATH_DELAY = 2;   // seconds between the hero's death and the death screen
+const DEATH_DELAY = 3;   // seconds between the hero's death and the death screen
 function updateMonster(m, dt) {
   m.hitT = Math.max(0, m.hitT - dt); m.lunge = Math.max(0, m.lunge - dt * 4);
   if (m.dead) { m.deathT += dt; return; }
