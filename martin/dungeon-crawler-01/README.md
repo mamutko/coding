@@ -449,7 +449,7 @@ and item uses:
   | Type | Notices the hero | Wakes on sighting | Wakes when hit | Woken by others |
   |---|---|---|---|---|
   | Skeleton | at once | skeletons | skeletons | yes |
-  | Ghoul | 35 % chance per second | none | none | never |
+  | Ghoul | 20 % chance per second | none | none | never |
   | Spider | at once | skeletons, spiders, demons | skeletons, spiders, demons | yes |
   | Wraith | 50 % chance per second | none | none | yes |
   | Pit Demon | 50 % chance per second | none | skeletons, spiders, wraiths, demons | yes |
@@ -725,10 +725,10 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it.
   (monsters, their hits, wraith bolts) get quieter with distance from the hero and are silent beyond 14 tiles
   (`SFX_RANGE`). Rattles, moans, grunts and pick-ups are throttled so they don't pile up.
 - **Building blocks** (`sfx`): band-passed noise with a frequency sweep (whooshes), sine drops with low noise
-  (thuds), very short high-Q noise bursts (bone and wood knocks), a Karplus-Strong plucked string, and a hinge
+  (thuds), very short high-Q noise bursts (bone and wood knocks), and a hinge
   creak (a jittered, accelerating train of tiny impulses through two narrow resonances).
 - **Weapons.** A sword swing is a rising-and-falling whoosh with a thin edge hiss; an axe swing is a lower,
-  heavier whoosh. A bow shot is the string's twang (plucked string, ~160 Hz) and the arrow's short airy whoosh.
+  heavier whoosh. A bow shot is the release, not a musical note: the string slapping to rest (a dull ~140 Hz thwap, a wooden knock and a 0.09 s damped low thrum) and then the arrow's quick falling *fwip*.
 - **Hits** depend on the target: bone (skeleton: a thud and knocks), flesh (ghoul, demon) and hide (spider):
   thuds; spirit (wraith): a hollow swish. A broken urn is a crack and scattered shards; the hero being hit is
   a dull thud.

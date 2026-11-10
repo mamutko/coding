@@ -265,7 +265,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 11;
+const VERSION = 12;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -359,11 +359,6 @@ function sfx(type, o = {}) {
     os.frequency.setValueAtTime(f0, t0); os.frequency.exponentialRampToValueAtTime(f1, t0 + dur); env(os, t0, a, peak, dur); os.start(t0); os.stop(t0 + dur + 0.05); };
   const play = (buf, t0, rate, peak) => { const s = AC.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate;
     const g = AC.createGain(); g.gain.value = peak; s.connect(g); g.connect(out); s.start(t0); };
-  // a plucked string (Karplus-Strong), rendered into a buffer
-  const pluck = (t0, f, dur, peak, bright = 0.5) => { const n = Math.floor(sr * dur), p = Math.max(2, Math.round(sr / f)), buf = AC.createBuffer(1, n, sr), d = buf.getChannelData(0);
-    for (let i = 0; i < p; i++) d[i] = Math.random() * 2 - 1;
-    for (let i = p; i < n; i++) d[i] = (d[i - p] * bright + d[i - p + 1] * (1 - bright)) * 0.994;
-    play(buf, t0, 1, peak); };
   // a wooden or metal hinge creak: a jittered train of tiny impulses through two resonances, the rate rising
   const creak = (t0, dur, r0, r1, f1, f2, peak) => { const n = Math.floor(sr * dur), buf = AC.createBuffer(1, n, sr), d = buf.getChannelData(0);
     for (let t = 0.002; t < dur; ) { const k = t / dur, i = Math.floor(t * sr); d[i] = (0.5 + Math.random() * 0.5) * Math.sin(Math.PI * k) ** 0.5;
@@ -381,8 +376,10 @@ function sfx(type, o = {}) {
       if (o.kind === 'axe') noise(T, 0.3, [220, 900, 350], 1.4, 1.6, 0.11);
       else { noise(T, 0.22, [500, 2600, 900], 1.6, 1.3, 0.08); noise(T + 0.06, 0.09, 6500, 2, 0.25, 0.02, 'bandpass'); }
       break;
-    case 'bow':     // the string's twang, then the arrow leaving: a short airy whoosh
-      pluck(T, r(150, 175), 0.32, 0.55, 0.42); thud(T, 220, 0.05, 0.12); noise(T + 0.03, 0.22, [3200, 1400], 1.2, 0.12, 0.03); break;
+    case 'bow':     // the release: the string slaps to rest (a dull low thwap, a brief damped thrum), then the arrow's quick fwip
+      thud(T, r(130, 150), 0.07, 0.5); knock(T, r(700, 850), 0.18); noise(T, 0.05, 1600, 0.8, 0.35, 0.001, 'lowpass');
+      tone(T + 0.004, r(95, 105), 75, 0.09, 0.12, 'triangle', 0.002);
+      noise(T + 0.02, 0.15, [2600, 700], 1.3, 0.45, 0.015); break;
     case 'hit':     // what the blow lands on
       if (o.mat === 'bone') { thud(T, 160, 0.08, 0.35); for (let i = 0; i < 3; i++) knock(T + i * r(0.018, 0.04), r(900, 2000), 0.25); }
       else if (o.mat === 'spirit') { noise(T, 0.25, [1800, 500], 3, 0.6, 0.01); tone(T, 520, 260, 0.25, 0.1, 'triangle'); }
@@ -1112,7 +1109,7 @@ function damageMonster(m, raw, crit) {
 const ALL_BUT_GHOULS = ['skeleton', 'spider', 'wraith', 'demon'];
 const WAKES = { skeleton: [['skeleton'], ['skeleton']], ghoul: [[], []], wraith: [[], []],
   spider: [['skeleton', 'spider', 'demon'], ['skeleton', 'spider', 'demon']], demon: [[], ALL_BUT_GHOULS] };
-const NOTICE_ODDS = { ghoul: 0.35, wraith: 0.5, demon: 0.5 };   // chance per second of noticing a hero in range and sight (others: at once)
+const NOTICE_ODDS = { ghoul: 0.2, wraith: 0.5, demon: 0.5 };   // chance per second of noticing a hero in range and sight (others: at once)
 const roomAt = (x, y) => G.map.rooms.find(r => x >= r.x && x < r.x + r.w && y >= r.y && y < r.y + r.h);
 // A monster that lost interest (calm) is never woken by others.
 function alert(m, roomWide = false) {
