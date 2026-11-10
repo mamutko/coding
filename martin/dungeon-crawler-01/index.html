@@ -265,7 +265,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 4;
+const VERSION = 5;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -314,40 +314,117 @@ function loadAll() {
 let floorPat = null, dirtPat = null;
 
 // =====================================================================================
-//  Sound (tiny WebAudio synth)
+//  Sound: WebAudio synthesis (foley-style) plus a few AI-voiced ghoul clips (assets/sfx)
 // =====================================================================================
-let AC = null, soundOn = true, noiseBuf = null;
+// Everything goes through a master gain with a short dungeon reverb send. sfx(type, o) takes options: o.x / o.y
+// (a world position: quieter with distance from the hero, silent beyond SFX_RANGE tiles), o.kind (weapon kind
+// for swings), o.mat (what a hit strikes: 'bone', 'flesh', 'spirit', 'hide').
+let AC = null, soundOn = true, noiseBuf = null, MASTER = null, VERB = null;
+const CLIPS = { moan: [1, 2, 3, 4, 5], grunt: [1, 2] }, CLIP_BUF = {}, SFX_RANGE = 14, SFX_LAST = {};
 function audio() {
   if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)();
-    noiseBuf = AC.createBuffer(1, AC.sampleRate * 0.5, AC.sampleRate);
-    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = rnd() * 2 - 1; } catch (e) { AC = null; } }
+    noiseBuf = AC.createBuffer(1, AC.sampleRate * 1, AC.sampleRate);
+    const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+    const comp = AC.createDynamicsCompressor(); comp.threshold.value = -10; comp.ratio.value = 6; comp.connect(AC.destination);   // keeps stacked sounds from clipping
+    MASTER = AC.createGain(); MASTER.gain.value = 0.9; MASTER.connect(comp);
+    // reverb: 1.3 s of decaying, darkening stereo noise
+    const n = AC.sampleRate * 1.3, ir = AC.createBuffer(2, n, AC.sampleRate);
+    for (let c = 0; c < 2; c++) { const ch = ir.getChannelData(c); let lp = 0;
+      for (let i = 0; i < n; i++) { lp += (Math.random() * 2 - 1 - lp) * (0.5 - 0.4 * i / n); ch[i] = lp * Math.pow(1 - i / n, 3); } }
+    const conv = AC.createConvolver(); conv.buffer = ir; VERB = AC.createGain(); VERB.gain.value = 0.22; VERB.connect(conv); conv.connect(MASTER);
+    for (const k in CLIPS) CLIPS[k].forEach(i => fetch(`assets/sfx/${k}${i}.mp3`).then(r => r.arrayBuffer())
+      .then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { (CLIP_BUF[k] = CLIP_BUF[k] || []).push(buf); }).catch(() => {}));
+  } catch (e) { AC = null; } }
   return AC;
 }
-function sfx(type) {
+function sfx(type, o = {}) {
   if (!soundOn || !audio()) return;
-  const t = AC.currentTime, g = AC.createGain(); g.connect(AC.destination);
-  const noise = (dur, freq, q, vol) => { const s = AC.createBufferSource(); s.buffer = noiseBuf; const f = AC.createBiquadFilter();
-    f.type = 'bandpass'; f.frequency.value = freq; f.Q.value = q; s.connect(f); f.connect(g);
-    g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.001, t + dur); s.start(t); s.stop(t + dur); };
-  const tone = (f0, f1, dur, vol, wave = 'sine') => { const o = AC.createOscillator(); o.type = wave; o.frequency.setValueAtTime(f0, t);
-    o.frequency.exponentialRampToValueAtTime(f1, t + dur); o.connect(g); g.gain.setValueAtTime(vol, t);
-    g.gain.exponentialRampToValueAtTime(0.001, t + dur); o.start(t); o.stop(t + dur); };
+  let vol = 1;
+  if (o.x !== undefined && G && G.hero) { const d = Math.hypot(o.x - G.hero.x, o.y - G.hero.y); if (d > SFX_RANGE) return; vol = Math.min(1, 1.15 - d / SFX_RANGE); }
+  const gap = { bones: 0.09, moan: 1.2, grunt: 0.25, pick: 0.05 }[type];   // per-type throttle (s)
+  if (gap) { if (AC.currentTime - (SFX_LAST[type] || -9) < gap) return; SFX_LAST[type] = AC.currentTime; }
+  const T = AC.currentTime + 0.005, sr = AC.sampleRate;
+  const out = AC.createGain(); out.gain.value = vol; out.connect(MASTER); out.connect(VERB);
+  const env = (node, t0, a, peak, dur) => { const g = AC.createGain(); g.gain.setValueAtTime(0.0001, t0); g.gain.linearRampToValueAtTime(peak, t0 + a);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur); node.connect(g); g.connect(out); return g; };
+  // band-passed noise; f is a frequency or [from, to] (a sweep: whooshes)
+  const noise = (t0, dur, f, q, peak, a = 0.005, ftype = 'bandpass') => {
+    const s = AC.createBufferSource(); s.buffer = noiseBuf; s.playbackRate.value = 0.9 + Math.random() * 0.2;
+    const fl = AC.createBiquadFilter(); fl.type = ftype; fl.Q.value = q;
+    if (Array.isArray(f)) { fl.frequency.setValueAtTime(f[0], t0); fl.frequency.exponentialRampToValueAtTime(f[1], t0 + dur); if (f[2]) fl.frequency.exponentialRampToValueAtTime(f[2], t0 + dur * 1.0); }
+    else fl.frequency.value = f;
+    s.connect(fl); env(fl, t0, a, peak, dur); s.start(t0, Math.random() * 0.4); s.stop(t0 + dur + 0.05);
+  };
+  const tone = (t0, f0, f1, dur, peak, wave = 'sine', a = 0.004) => { const os = AC.createOscillator(); os.type = wave;
+    os.frequency.setValueAtTime(f0, t0); os.frequency.exponentialRampToValueAtTime(f1, t0 + dur); env(os, t0, a, peak, dur); os.start(t0); os.stop(t0 + dur + 0.05); };
+  const play = (buf, t0, rate, peak) => { const s = AC.createBufferSource(); s.buffer = buf; s.playbackRate.value = rate;
+    const g = AC.createGain(); g.gain.value = peak; s.connect(g); g.connect(out); s.start(t0); };
+  // a plucked string (Karplus-Strong), rendered into a buffer
+  const pluck = (t0, f, dur, peak, bright = 0.5) => { const n = Math.floor(sr * dur), p = Math.max(2, Math.round(sr / f)), buf = AC.createBuffer(1, n, sr), d = buf.getChannelData(0);
+    for (let i = 0; i < p; i++) d[i] = Math.random() * 2 - 1;
+    for (let i = p; i < n; i++) d[i] = (d[i - p] * bright + d[i - p + 1] * (1 - bright)) * 0.994;
+    play(buf, t0, 1, peak); };
+  // a wooden or metal hinge creak: a jittered train of tiny impulses through two resonances, the rate rising
+  const creak = (t0, dur, r0, r1, f1, f2, peak) => { const n = Math.floor(sr * dur), buf = AC.createBuffer(1, n, sr), d = buf.getChannelData(0);
+    for (let t = 0.002; t < dur; ) { const k = t / dur, i = Math.floor(t * sr); d[i] = (0.5 + Math.random() * 0.5) * Math.sin(Math.PI * k) ** 0.5;
+      t += 1 / (r0 + (r1 - r0) * k) * (0.75 + Math.random() * 0.5); }
+    const s = AC.createBufferSource(); s.buffer = buf;
+    for (const [f, q, gn] of [[f1, 14, 1], [f2, 18, 0.6]]) { const fl = AC.createBiquadFilter(); fl.type = 'bandpass'; fl.frequency.value = f; fl.Q.value = q;
+      const g = AC.createGain(); g.gain.value = peak * gn * 9; s.connect(fl); fl.connect(g); g.connect(out); }
+    s.start(t0); };
+  const knock = (t0, f, peak) => noise(t0, 0.035 + Math.random() * 0.03, f, 9, peak * 3, 0.001);   // a dry bone / wood knock
+  const thud = (t0, f, dur, peak) => { tone(t0, f, f * 0.45, dur, peak, 'sine', 0.002); noise(t0, dur * 0.6, 260, 0.7, peak * 0.6, 0.002, 'lowpass'); };
+  const clip = (k, rate, peak) => { const bs = CLIP_BUF[k]; if (bs && bs.length) play(bs[Math.floor(Math.random() * bs.length)], T, rate, peak); };
+  const r = (a, b) => a + Math.random() * (b - a);
   switch (type) {
-    case 'swing': noise(0.18, 900, 0.8, 0.25); break;
-    case 'hit': noise(0.12, 300, 1.2, 0.5); break;
-    case 'hurt': tone(160, 70, 0.25, 0.25, 'sawtooth'); break;
-    case 'bow': tone(420, 180, 0.12, 0.18, 'triangle'); break;
-    case 'bolt': tone(700, 200, 0.3, 0.12, 'sine'); break;
-    case 'pick': tone(900, 1400, 0.12, 0.12, 'triangle'); break;
-    case 'gold': tone(1500, 2100, 0.1, 0.08, 'square'); break;
-    case 'door': noise(0.4, 160, 2, 0.4); break;
-    case 'chest': noise(0.3, 220, 1.5, 0.35); tone(500, 900, 0.3, 0.06, 'triangle'); break;
-    case 'die': tone(220, 50, 0.5, 0.2, 'sawtooth'); break;
-    case 'level': tone(392, 784, 0.6, 0.15, 'triangle'); break;
-    case 'potion': tone(300, 600, 0.25, 0.12, 'sine'); break;
-    case 'stairs': tone(200, 60, 0.9, 0.2, 'sine'); break;
+    case 'swing':   // a blade cutting the air: a rising-falling band of noise, plus a thin edge hiss for swords
+      if (o.kind === 'axe') noise(T, 0.3, [220, 900, 350], 1.4, 1.6, 0.11);
+      else { noise(T, 0.22, [500, 2600, 900], 1.6, 1.3, 0.08); noise(T + 0.06, 0.09, 6500, 2, 0.25, 0.02, 'bandpass'); }
+      break;
+    case 'bow':     // the string's twang, then the arrow leaving: a short airy whoosh
+      pluck(T, r(150, 175), 0.32, 0.55, 0.42); thud(T, 220, 0.05, 0.12); noise(T + 0.03, 0.22, [3200, 1400], 1.2, 0.12, 0.03); break;
+    case 'hit':     // what the blow lands on
+      if (o.mat === 'bone') { thud(T, 160, 0.08, 0.35); for (let i = 0; i < 3; i++) knock(T + i * r(0.018, 0.04), r(900, 2000), 0.25); }
+      else if (o.mat === 'spirit') { noise(T, 0.25, [1800, 500], 3, 0.6, 0.01); tone(T, 520, 260, 0.25, 0.1, 'triangle'); }
+      else { thud(T, o.mat === 'hide' ? 120 : 95, 0.12, 0.55); noise(T, 0.1, 700, 1.1, 0.22, 0.002); }
+      break;
+    case 'urn':     // fired clay breaking: a crack and shards
+      thud(T, 180, 0.08, 0.4); noise(T, 0.12, 2400, 0.8, 0.3, 0.001, 'highpass');
+      for (let i = 0; i < 9; i++) knock(T + 0.02 + r(0, 0.35) ** 1.5, r(1800, 4200), r(0.06, 0.13)); break;
+    case 'bones':   // a skeleton's bones knocking together; o.n knocks (default 4)
+      for (let i = 0, t = T; i < (o.n || 4); i++, t += r(0.03, 0.09)) knock(t, r(700, 1900), r(0.6, 1)); break;
+    case 'collapse':   // a skeleton falling apart
+      for (let i = 0; i < 12; i++) knock(T + r(0, 0.6) ** 1.3, r(500, 1800), r(0.12, 0.25)); thud(T + 0.12, 110, 0.15, 0.3); break;
+    case 'moan': clip('moan', o.rate || r(0.82, 1), 0.55 * (o.vol || 1)); break;
+    case 'grunt': clip('grunt', r(0.85, 1), 0.5); break;
+    case 'hurt': thud(T, 110, 0.14, 0.5); noise(T, 0.12, 500, 1.5, 0.15, 0.003); break;
+    case 'die': tone(T, 180, 55, 0.5, 0.16, 'sawtooth'); noise(T, 0.4, [900, 200], 1, 0.3, 0.01); break;
+    case 'bolt': noise(T, 0.35, [600, 2400], 4, 0.6, 0.05); tone(T, 700, 260, 0.35, 0.05, 'sine'); break;
+    case 'pick':    // faint: a soft rustle and a small knock
+      noise(T, 0.07, 1500, 0.7, 0.05, 0.01); knock(T + 0.03, 900, 0.02); break;
+    case 'gold':    // faint coin clinks
+      for (let i = 0; i < 3; i++) tone(T + i * r(0.03, 0.06), r(2600, 4200), r(2500, 4100), 0.12, 0.03, 'sine', 0.001); break;
+    case 'door':    // the latch, a long hinge creak, then the door's weight settling
+      knock(T, 1400, 0.12); creak(T + 0.05, 0.75, 22, 55, 480, 1150, 0.35); thud(T + 0.78, 85, 0.25, 0.35); break;
+    case 'chest':   // the hasp, a shorter, higher creak and the lid falling back
+      tone(T, 3100, 2900, 0.06, 0.06, 'sine', 0.001); knock(T, 1600, 0.1); creak(T + 0.04, 0.42, 30, 70, 760, 1650, 0.3); thud(T + 0.47, 140, 0.16, 0.4); break;
+    case 'locked':  // a sealed chest: the lid rattles against the lock
+      for (let i = 0; i < 3; i++) { knock(T + i * 0.07, 1300, 0.12); thud(T + i * 0.07, 150, 0.05, 0.2); } break;
+    case 'potion': for (let i = 0; i < 3; i++) tone(T + i * 0.09, r(280, 360), r(500, 700), 0.07, 0.14); break;   // gulps
+    case 'level': tone(T, 392, 784, 0.6, 0.15, 'triangle'); break;
+    case 'stairs': for (let i = 0; i < 5; i++) thud(T + i * 0.16, 110, 0.1, 0.25); break;   // footsteps going down
   }
 }
+// A monster's own sounds (skeletons rattle, ghouls moan and grunt), at its position.
+function monsterVoice(m, ev) {
+  const at = { x: m.x, y: m.y };
+  if (m.type === 'skeleton') {
+    if (ev === 'die') sfx('collapse', at); else sfx('bones', { ...at, n: ev === 'walk' ? 2 : 4 });
+  } else if (m.type === 'ghoul') {
+    if (ev === 'hurt') sfx('grunt', at); else if (ev === 'die') sfx('moan', { ...at, rate: 0.7 }); else if (ev !== 'attack') sfx('moan', at);
+  }
+}
+const HIT_MAT = { skeleton: 'bone', ghoul: 'flesh', spider: 'hide', wraith: 'spirit', demon: 'flesh' };
 
 // =====================================================================================
 //  Item data
@@ -998,7 +1075,7 @@ function damageMonster(m, raw, crit) {
   m.hp -= v; m.hitT = 0.14; m.lastHit = G.time;
   floatText(m.x, m.y, (crit ? v + '!' : '' + v), crit ? '#ffd36a' : '#f2e6d0', 0.8, crit ? 20 : 15);
   for (let i = 0; i < 5; i++) G.fx.push({ type: 'spark', x: m.x, y: m.y, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 40 + rnd() * 20, vz: 60 + rnd() * 60, t: 0, dur: 0.45, color: m.type === 'wraith' ? '120,255,170' : '170,20,20' });
-  sfx('hit');
+  sfx('hit', { mat: HIT_MAT[m.type], x: m.x, y: m.y }); if (m.hp > 0) monsterVoice(m, 'hurt');
   alert(m, true);   // a hit always starts pursuit, even of a calm (gave-up) monster
   if (m.hp <= 0) killMonster(m);
 }
@@ -1011,7 +1088,7 @@ function alert(m, roomWide = false) {
   const room = roomWide ? roomAt(m.x, m.y) : null;
   for (const o of G.monsters) if (!o.dead && o.state === 'idle' && !o.calm && (dist(o, m) < 6 || (room && roomAt(o.x, o.y) === room))) chase(o);
 }
-function chase(m) { m.state = 'chase'; m.lastSeen = G.time; m.stuckT = 0; m.anchor = null; m.calm = null; m.detourT = 0; }
+function chase(m) { if (m.state !== 'chase' && !m.dead) { monsterVoice(m, 'alert'); m.voiceT = 2 + rnd() * 4; } m.state = 'chase'; m.lastSeen = G.time; m.stuckT = 0; m.anchor = null; m.calm = null; m.detourT = 0; }
 // Losing interest: back to a random walk. After being stuck (calm) it ignores the hero for at least CALM_MIN s
 // and until it is unstuck (has walked UNSTUCK tiles of its random walk; pushes don't count); a hit ends that at
 // once (pursuit). A chasing monster stalled for DETOUR_AFTER s follows an A* path for DETOUR_T s.
@@ -1022,7 +1099,7 @@ function loseInterest(m, stuck) {
 }
 function killMonster(m) {
   m.dead = true; m.deathT = 0; m.hp = 0; G.hero.kills++;
-  sfx('die');
+  if (m.type === 'skeleton' || m.type === 'ghoul') monsterVoice(m, 'die'); else sfx('die', { x: m.x, y: m.y });
   gainXp(m.xp); floatText(m.x, m.y - 0.3, '+' + m.xp + ' xp', '#c9b37a', 1.1, 13);
   const d = G.depth;
   const rd = m.boss ? d + 2 : m.champ ? d + 1 : d;   // rarity rules: boss loot depth + 2, champion loot depth + 1
@@ -1047,7 +1124,7 @@ function heroAttack(px, py, target) {
     const [dmg, crit] = roll();
     G.proj.push({ type: 'arrow', x: h.x + Math.cos(ang) * 0.4, y: h.y + Math.sin(ang) * 0.4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: info.reach / sp, dmg, crit, friendly: true });
   } else {
-    sfx('swing');
+    sfx('swing', { kind: w.kind });
     h.swing = { t: 0, dur: 0.24, ang, hit: false, arc: info.arc, reach: info.reach, roll, target: target || null };
     h.lunge = 1;
   }
@@ -1134,7 +1211,7 @@ function act(ref) {
       if (o.open) return; o.open = true; G.map.t[o.y * G.map.w + o.x] = T_OPEN; sfx('door'); gainXp(d); break;
     case 'chest': {
       if (o.used) return;
-      if (o.boss && G.map.boss && !G.map.boss.dead) { log('The chest is sealed while its guardian lives.', '#7fe08a'); sfx('door'); return; }
+      if (o.boss && G.map.boss && !G.map.boss.dead) { log('The chest is sealed while its guardian lives.', '#7fe08a'); sfx('locked'); return; }
       o.used = true; sfx('chest'); gainXp((o.boss ? 15 : 6) * d);
       if (o.boss) {   // guardian's chest: always one rare (30 %) or magic item, plus a normal chest's loot
         // depth + 2 rules: always at least magic (depth 1 counts as 3); rare only where depth + 2 allows it
@@ -1149,7 +1226,7 @@ function act(ref) {
       break;
     }
     case 'urn':
-      if (o.used) return; o.used = true; G.map.block[o.y * G.map.w + o.x] = 0; sfx('hit'); gainXp(2 * d);
+      if (o.used) return; o.used = true; G.map.block[o.y * G.map.w + o.x] = 0; sfx('urn'); gainXp(2 * d);
       for (let i = 0; i < 8; i++) G.fx.push({ type: 'spark', x: o.x + 0.5, y: o.y + 0.5, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 20, vz: 80, t: 0, dur: 0.5, color: '140,120,90' });
       if (rnd() < 0.35) dropGold(ri(3, 10) * d, o.x + 0.5, o.y + 0.5);
       if (rnd() < 0.09 * POTION_ODDS) dropPotion(o.x + 0.5, o.y + 0.5);
@@ -1751,12 +1828,13 @@ function updateMonster(m, dt) {
     m.windup -= dt; setDir(m, h.x - m.x, h.y - m.y);
     if (m.windup <= 0) {
       const dmg = m.dmg[0] + rnd() * (m.dmg[1] - m.dmg[0]);
-      if (b.ranged) { const a = Math.atan2(h.y - m.y, h.x - m.x), sp = 7; sfx('bolt');
+      if (b.ranged) { const a = Math.atan2(h.y - m.y, h.x - m.x), sp = 7; sfx('bolt', { x: m.x, y: m.y });
         G.proj.push({ type: 'bolt', x: m.x, y: m.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.6, dmg, friendly: false, src: m }); }
       else if (d - h.r <= b.reach + 0.35) { m.lunge = 1; damageHero(dmg, m); }
     }
     return;
   }
+  m.voiceT = (m.voiceT || 3) - dt; if (m.voiceT <= 0) { m.voiceT = m.type === 'ghoul' ? 5 + rnd() * 6 : 1.2 + rnd() * 1.8; monsterVoice(m, 'walk'); }   // rattles and moans while chasing
   const seen = los(m.x, m.y, h.x, h.y);
   if (seen) m.lastSeen = G.time; else if (G.time - m.lastSeen > LOST_SIGHT) { loseInterest(m, false); return; }
   let goal = null;
@@ -1764,7 +1842,7 @@ function updateMonster(m, dt) {
     if (seen && d <= b.range) { if (m.cd <= 0) { m.windup = 0.45; m.cd = b.cd; return; } if (d < 3.2) { const ax = m.x - h.x, ay = m.y - h.y; goal = [m.x + ax / d, m.y + ay / d]; } }
     else goal = [h.x, h.y];
   } else {
-    if (d - h.r <= b.reach) { if (m.cd <= 0) { m.windup = 0.32; m.cd = b.cd; } setDir(m, h.x - m.x, h.y - m.y); m.stuckT = 0; return; }
+    if (d - h.r <= b.reach) { if (m.cd <= 0) { m.windup = 0.32; m.cd = b.cd; monsterVoice(m, 'attack'); } setDir(m, h.x - m.x, h.y - m.y); m.stuckT = 0; return; }
     goal = [h.x, h.y];
   }
   if (!goal) { m.stuckT = 0; return; }

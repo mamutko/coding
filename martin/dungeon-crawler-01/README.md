@@ -20,6 +20,8 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `tools/walk_cycle.py` | Walk-cycle pipeline (hero, skeleton, ghoul): renders the 3D stick-figure pose guides and placeholders, and builds the 8-frame sheets. |
 | `tools/add_items.py`, `tools/raw/items2.png`, `items3.png` | Appends the icons of the newer item types (and a quiver) to `assets/items.webp` from the two raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
 | `tools/add_props.py`, `tools/raw/bones_searched.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
+| `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
+| `assets/sfx/` | Ghoul moans and grunts (MP3). |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
 | `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
@@ -691,16 +693,40 @@ game paused or running; the browser's bookmark shortcut is suppressed). Its swit
 
 ## Sound
 
-A tiny WebAudio synth (no audio files): filtered-noise swings, hits and doors, plus tones for the bow, bolts,
-pickups, gold, potions, level-ups, death and stairs. Audio starts on the first click (browser autoplay rules).
-`N` toggles it.
+Sounds are synthesised with WebAudio (foley-style), except the ghoul's voice, which is a set of short AI-voiced
+clips. Audio starts on the first click (browser autoplay rules); `N` toggles it.
+
+- **Mixing.** Every sound goes to a master gain through a compressor (so stacked sounds don't clip), with a send
+  to a short dungeon reverb (a 1.3 s impulse of decaying, darkening noise, 22 % wet). Sounds with a position
+  (monsters, their hits, wraith bolts) get quieter with distance from the hero and are silent beyond 14 tiles
+  (`SFX_RANGE`). Rattles, moans, grunts and pick-ups are throttled so they don't pile up.
+- **Building blocks** (`sfx`): band-passed noise with a frequency sweep (whooshes), sine drops with low noise
+  (thuds), very short high-Q noise bursts (bone and wood knocks), a Karplus-Strong plucked string, and a hinge
+  creak (a jittered, accelerating train of tiny impulses through two narrow resonances).
+- **Weapons.** A sword swing is a rising-and-falling whoosh with a thin edge hiss; an axe swing is a lower,
+  heavier whoosh. A bow shot is the string's twang (plucked string, ~160 Hz) and the arrow's short airy whoosh.
+- **Hits** depend on the target: bone (skeleton: a thud and knocks), flesh (ghoul, demon) and hide (spider):
+  thuds; spirit (wraith): a hollow swish. A broken urn is a crack and scattered shards; the hero being hit is
+  a dull thud.
+- **Monsters** (`monsterVoice`): a skeleton rattles its bones when it starts chasing, when it attacks, every
+  1–3 s while chasing (softer), and falls apart in a clatter when killed. A ghoul moans when it starts chasing
+  and every 5–11 s while chasing, grunts when hit, and gives a long, lower moan when killed. Other monsters
+  use a generic death sound.
+- **World.** A door: the latch, a long hinge creak and the door settling. A chest: the hasp, a shorter, higher
+  creak and the lid falling back; a sealed guardian's chest rattles. Picking things up is a faint rustle; gold
+  a few faint coin clinks. Potions are gulps, stairs footsteps going down, plus tones for level-ups.
+- **Ghoul clips** (`assets/sfx/moan1–5.mp3`, `grunt1–2.mp3`): Google `gemini-3.8-flash-lite-tts` (fractions of
+  a cent) with wordless text and a style prompt, e.g. "Uuuuurrrrhhhhhh... hhhuuuurrrrgh." in the voice Algenib,
+  styled "a rotting undead ghoul: a long, low, wet guttural moan, raspy and breathy, no words, slow" (raw takes in
+  `tools/raw/sfx`). `tools/cut_sfx.py` splits each take at its quiet gaps into clips, fades and normalises them
+  and saves 64 kbit/s MP3s. The game plays a random clip at 0.82–1× speed (0.7× for the death moan).
 
 ## Assets
 
 The art was generated through the `ai-media-generation` skill in Martin's notes repo: monsters, items, props
 and textures with OpenAI `gpt-image-2` (medium quality, about $0.70), and the hero walk cycle with Google
 `gemini-3.1-flash-image` (see [Walk cycles](#walk-cycles-hero-skeleton-ghoul)). Total spend so far is about
-$3.09 ($0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
+$3.17 ($0.07 for a door sheet still in review, about $0.01 for the ghoul voice, $0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
 walk cycles, plus small tests).
 
 - **Background.** `gpt-image-2` can't make transparent backgrounds (and a Gemini test returned an opaque JPEG
