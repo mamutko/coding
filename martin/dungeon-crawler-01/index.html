@@ -95,7 +95,8 @@
     background: rgba(10, 7, 9, 0.92); border: 1px solid var(--gold-dim); font-size: 13px; color: var(--ink); }
   #debug h4 { margin: 0 0 6px; font-family: Cinzel, serif; color: var(--gold); font-size: 13px; letter-spacing: 1px; }
   #debug #dbgVer { font-family: Georgia, serif; color: var(--ink-dim); font-size: 12px; margin-left: 6px; letter-spacing: 0; }
-  #debug #dbgFps { margin-top: 6px; font-size: 12px; color: var(--ink-dim); }
+  #debug #dbgFps, #debug #dbgMusic { margin-top: 6px; font-size: 12px; color: var(--ink-dim); }
+  #debug #dbgMusic { margin-top: 2px; }
   #debug label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
   #minimap { position: absolute; right: 14px; top: 14px; width: 220px; height: 130px; background: rgba(6,4,6,0.55);
     border: 1px solid var(--panel-edge); }
@@ -137,6 +138,11 @@
   .bindTag { position: absolute; right: 2px; top: 0; font-size: 11px; font-family: Cinzel, serif; color: var(--gold); text-shadow: 0 0 3px #000; z-index: 2; }
   .cell .cnt { position: absolute; right: 3px; bottom: 1px; font-family: Cinzel, serif; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; z-index: 2; }
   #stats { font-size: 14px; line-height: 1.45; }
+  #equip h3.volHead { margin-top: 14px; }
+  .volRow { display: flex; align-items: center; gap: 10px; font-size: 14px; margin: 4px 0; }
+  .volRow > span:first-child { width: 56px; }
+  .volRow input { flex: 1; min-width: 0; accent-color: #c9a45c; height: 22px; }
+  .volVal { width: 38px; text-align: right; color: #fff; font-variant-numeric: tabular-nums; }
   #stats .row { display: flex; justify-content: space-between; border-bottom: 1px dotted #2e2418; }
   #stats .row .val { color: #fff; text-align: right; }
   #stats .parts { font-size: 12px; color: #6d655c; }
@@ -262,7 +268,7 @@
   <div id="debug" class="hidden"><h4>Debug (Ctrl+D) <span id="dbgVer"></span></h4>
     <label><input type="checkbox" id="dbgPursuit"> Pursuit indicator</label>
     <label><input type="checkbox" id="dbgAutoRes"> Auto resolution</label>
-    <div id="dbgFps">– fps</div></div>
+    <div id="dbgFps">– fps</div><div id="dbgMusic">music: –</div></div>
   <div id="log"></div>
   <div id="orb" title="Click to drink a health potion"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
   <div id="orbLabel">LIFE</div>
@@ -285,7 +291,12 @@
       <h3>Inventory</h3>
       <div id="inv" class="cellGrid"></div>
     </div>
-    <div><h3>Attributes</h3><div id="stats"></div></div>
+    <div><h3>Attributes</h3><div id="stats"></div>
+      <h3 class="volHead">Sound</h3>
+      <div id="vol">
+        <label class="volRow"><span>Music</span><input type="range" id="volMusic" min="0" max="100" step="5"><span class="volVal" id="volMusicVal"></span></label>
+        <label class="volRow"><span>Effects</span><input type="range" id="volFx" min="0" max="100" step="5"><span class="volVal" id="volFxVal"></span></label>
+      </div></div>
   </div>
   <div class="hkWrap">
     <h3>Quick keys</h3>
@@ -331,7 +342,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 37;
+const VERSION = 38;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -401,13 +412,20 @@ let floorPat = null, dirtPat = null;
 // (a world position: quieter with distance from the hero, silent beyond SFX_RANGE tiles), o.kind (weapon kind
 // for swings), o.mat (what a hit strikes: 'bone', 'flesh', 'spirit', 'hide').
 let AC = null, soundOn = true, noiseBuf = null, MASTER = null, VERB = null;
+// Volumes (0-100, from the Sound sliders in the equipment overlay), shared by all heroes: localStorage dc01-volume.
+// A slider's gain is (v / 100)^2, so the slider feels even to the ear.
+const VOL = (() => { const d = { music: 60, fx: 100 }; try { return Object.assign(d, JSON.parse(localStorage.getItem('dc01-volume')) || {}); } catch (e) { return d; } })();
+const saveVol = () => { try { localStorage.setItem('dc01-volume', JSON.stringify(VOL)); } catch (e) {} };
+const volGain = v => Math.pow(v / 100, 2), FX_BASE = 0.9;
 const CLIPS = { moan: [1, 2, 3, 4, 5], grunt: [1, 2] }, CLIP_BUF = {}, SFX_RANGE = 14, SFX_LAST = {};
 function audio() {
   if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)();
     noiseBuf = AC.createBuffer(1, AC.sampleRate * 1, AC.sampleRate);
     const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     const comp = AC.createDynamicsCompressor(); comp.threshold.value = -10; comp.ratio.value = 6; comp.connect(AC.destination);   // keeps stacked sounds from clipping
-    MASTER = AC.createGain(); MASTER.gain.value = 0.9; MASTER.connect(comp);
+    MASTER = AC.createGain(); MASTER.gain.value = FX_BASE * volGain(VOL.fx); MASTER.connect(comp);
+    MUSIC.bus = AC.createGain(); MUSIC.bus.gain.value = 0; MUSIC.bus.connect(AC.destination);   // music bypasses the compressor
+    musicLoad('explore'); musicLoad('combat');
     // reverb: 1.3 s of decaying, darkening stereo noise
     const n = AC.sampleRate * 1.3, ir = AC.createBuffer(2, n, AC.sampleRate);
     for (let c = 0; c < 2; c++) { const ch = ir.getChannelData(c); let lp = 0;
@@ -418,8 +436,83 @@ function audio() {
   } catch (e) { AC = null; } }
   return AC;
 }
+// ---- Music (assets/music): two looping moods, exploration and combat, each in an instrumental and a choir
+// version (gothic, D minor, a Latin choir; Google lyria-3.5). updateMusic runs every frame and picks the mood:
+//  - none on the title screen and after the hero dies (fades out over 1.5 s);
+//  - combat while 4 or more monsters pursue the hero (COMBAT_MIN; state 'chase'), held for COMBAT_HOLD s after
+//    the count drops below 4 so a fight doesn't flicker between the moods;
+//  - 'boss' (the choir combat track) while the hero is inside the boss room of a level whose boss is a Pit Demon
+//    and that boss lives;
+//  - exploration otherwise.
+// Each start of a track is a "play", counted per mood and per level (a loop repeat is a new play). The
+// instrumental version plays, except on a Pit Demon boss level, whose 2nd, 5th and 9th play of each mood
+// (CHOIR_PLAYS) is the choir version. A track loops by starting its next play MUSIC_XF s before the end of its
+// sound (found when the file is decoded: the last 50 ms block louder than about -50 dB, so the file's fade-out
+// tail overlaps the next play's start) while the old play fades out; a change of mood crossfades over
+// MUSIC_SWITCH s, and so does a new level (it restarts the music with play 1 of that level).
+// Decoded tracks take memory (~35 MB per 100 s), so the choir versions are only loaded on Pit Demon levels.
+const MUSIC_FILES = { explore: 'explore-instrumental', combat: 'combat-instrumental', exploreChoir: 'explore', combatChoir: 'combat' };
+const MUSIC = { bus: null, buf: {}, loading: {}, cur: null, plays: {}, level: null, combatT: 0, restart: false, busGain: -1 };
+const MUSIC_BASE = 0.5, MUSIC_XF = 3, MUSIC_SWITCH = 2, COMBAT_MIN = 4, COMBAT_HOLD = 5, CHOIR_PLAYS = [2, 5, 9];
+function musicLoad(name) {
+  if (MUSIC.buf[name] || MUSIC.loading[name] || !AC) return;
+  MUSIC.loading[name] = true;
+  fetch('assets/music/' + MUSIC_FILES[name] + '.mp3').then(r => r.arrayBuffer())
+    .then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => {
+      const ch = buf.getChannelData(0), blk = Math.floor(buf.sampleRate * 0.05); let end = ch.length;
+      for (let i = ch.length - blk; i > 0; i -= blk) { let sq = 0; for (let j = i; j < i + blk; j += 4) sq += ch[j] * ch[j];
+        if (Math.sqrt(sq / (blk / 4)) > 0.003) { end = i + blk; break; } }
+      if (MUSIC.loading[name]) MUSIC.buf[name] = { buf, end: end / buf.sampleRate };
+      MUSIC.loading[name] = false;
+    }).catch(() => { MUSIC.loading[name] = false; });
+}
+const demonLevel = () => !!(G && G.map && G.map.boss && G.map.boss.type === 'demon');
+function musicMood(dt) {
+  if (!G || !G.running || G.dead || !G.map) return null;
+  const h = G.hero, boss = G.map.boss, br = G.map.bossRoom;
+  let n = 0; for (const m of G.monsters) if (!m.dead && m.state === 'chase') n++;
+  MUSIC.combatT = n >= COMBAT_MIN ? COMBAT_HOLD : Math.max(0, MUSIC.combatT - dt);
+  if (demonLevel() && !boss.dead && br && roomAt(Math.floor(h.x), Math.floor(h.y)) === br) return 'boss';
+  return MUSIC.combatT > 0 ? 'combat' : 'explore';
+}
+function musicFade(v, dur) {
+  const now = AC.currentTime; v.g.gain.cancelScheduledValues(now); v.g.gain.setValueAtTime(v.g.gain.value, now);
+  v.g.gain.linearRampToValueAtTime(0.0001, now + dur); try { v.src.stop(now + dur + 0.05); } catch (e) {}
+}
+function musicPlay(mood, fadeIn) {   // starts a play of mood; null if its track isn't loaded yet (tried again next frame)
+  let name, n = 0;
+  if (mood === 'boss') name = 'combatChoir';
+  else { n = (MUSIC.plays[mood] || 0) + 1; name = demonLevel() && CHOIR_PLAYS.includes(n) && MUSIC.buf[mood + 'Choir'] ? mood + 'Choir' : mood; }
+  const t = MUSIC.buf[name]; if (!t) return null;
+  if (n) MUSIC.plays[mood] = n;
+  const now = AC.currentTime, src = AC.createBufferSource(), g = AC.createGain();
+  src.buffer = t.buf; src.connect(g); g.connect(MUSIC.bus);
+  g.gain.setValueAtTime(0.0001, now); g.gain.linearRampToValueAtTime(1, now + fadeIn); src.start(now);
+  return { mood, name, n, src, g, loopAt: now + Math.max(5, t.end - MUSIC_XF) };
+}
+function updateMusic(dt) {
+  if (!AC || !MUSIC.bus) return;
+  const bus = soundOn ? MUSIC_BASE * volGain(VOL.music) : 0;
+  if (bus !== MUSIC.busGain) { MUSIC.busGain = bus; MUSIC.bus.gain.setTargetAtTime(bus, AC.currentTime, 0.08); }
+  if (G && G.map && G.map !== MUSIC.level) {   // a new level: new play counts, choir tracks only where needed
+    MUSIC.level = G.map; MUSIC.plays = {}; MUSIC.combatT = 0; MUSIC.restart = true;
+    for (const k of ['exploreChoir', 'combatChoir']) if (demonLevel()) musicLoad(k); else { delete MUSIC.buf[k]; MUSIC.loading[k] = false; }
+  }
+  const mood = musicMood(dt), cur = MUSIC.cur;
+  if (!mood) { if (cur) { musicFade(cur, 1.5); MUSIC.cur = null; } }
+  else if (!cur || cur.mood !== mood || MUSIC.restart || AC.currentTime >= cur.loopAt) {
+    const loop = cur && cur.mood === mood && !MUSIC.restart;
+    const v = musicPlay(mood, !cur ? 1.5 : loop ? 0.4 : MUSIC_SWITCH);
+    if (v) { if (cur) musicFade(cur, loop ? MUSIC_XF : MUSIC_SWITCH); MUSIC.cur = v; MUSIC.restart = false; }
+  }
+  const el = $('dbgMusic');
+  if (el && !$('debug').classList.contains('hidden')) {
+    const c = MUSIC.cur, txt = 'music: ' + (c ? c.mood + ' · ' + MUSIC_FILES[c.name] + (c.n ? ' (play ' + c.n + ')' : '') : '–') + (demonLevel() ? ' · demon level' : '');
+    if (el.textContent !== txt) el.textContent = txt;
+  }
+}
 function sfx(type, o = {}) {
-  if (!soundOn || !audio()) return;
+  if (!soundOn || !VOL.fx || !audio()) return;
   let vol = 1;
   if (o.x !== undefined && G && G.hero) { const d = Math.hypot(o.x - G.hero.x, o.y - G.hero.y); if (d > SFX_RANGE) return; vol = Math.min(1, 1.15 - d / SFX_RANGE); }
   const gap = { bones: 0.09, moan: 1.2, grunt: 0.25, pick: 0.05 }[type];   // per-type throttle (s)
@@ -1598,6 +1691,14 @@ function buildUI() {
   addEventListener('pointerdown', e => { const t = $('tooltip'); if ((tipPinned() || e.pointerType === 'touch') && !t.contains(e.target)) hideTip(); }, true);
   hudTap($('menuBtn'), toggleEquip);
   $('eqClose').addEventListener('click', toggleEquip);
+  // Sound sliders: Music sets the music bus (updateMusic picks it up), Effects the master gain of sfx; a short
+  // sound on release lets the player hear the new effects level; the slider then gives the keyboard back.
+  for (const [id, key] of [['volMusic', 'music'], ['volFx', 'fx']]) {
+    const el = $(id), val = $(id + 'Val'); el.value = VOL[key]; val.textContent = VOL[key] + '%';
+    el.addEventListener('input', () => { VOL[key] = +el.value; val.textContent = VOL[key] + '%';
+      if (key === 'fx' && MASTER) MASTER.gain.setTargetAtTime(FX_BASE * volGain(VOL.fx), AC.currentTime, 0.03); saveVol(); });
+    el.addEventListener('change', () => { if (key === 'fx') sfx('gold'); el.blur(); });
+  }
   // a hover tooltip follows the real mouse only (not the mouse events a browser makes up from touches), and
   // closes as soon as the mouse is no longer over the element that opened it
   document.addEventListener('pointermove', e => {
@@ -2727,6 +2828,7 @@ function frame(now) {
   const total = Math.min(0.25, real), steps = Math.ceil(total / 0.05) || 1, dt = total / steps;
   requestAnimationFrame(frame);   // schedule first, so an error can never stop the loop
   adaptRes(real);
+  try { updateMusic(Math.min(real, 0.25)); } catch (e) {}
   if (G) {
     try {
       if (G.running || G.dead) for (let i = 0; i < steps; i++) update(dt);

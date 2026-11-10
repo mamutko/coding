@@ -22,7 +22,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `tools/add_props.py`, `tools/raw/bones_searched.png`, `doors.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones, door leaves) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
 | `assets/sfx/` | Ghoul moans and grunts (MP3). |
-| `assets/music/explore.mp3`, `combat.mp3`, `explore-instrumental.mp3`, `combat-instrumental.mp3` | Test music tracks (Google `lyria-3.5`, gothic, all D minor): exploration (slow, organ drone, 1:40 with a Latin choir, 1:24 instrumental) and combat (130 bpm, war drums, 1:04 with a Latin choir, 1:06 instrumental). **Not used by the game yet**: they are waiting for a listen before being wired in. |
+| `assets/music/explore-instrumental.mp3`, `combat-instrumental.mp3`, `explore.mp3`, `combat.mp3` | The music: exploration and combat loops, each instrumental and with a Latin choir. See [Music](#music). |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
 | `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
@@ -93,7 +93,7 @@ template, never in `catalog.html`.
 | `1`–`9`, `0` | Quick keys: equip the bound weapon or use the bound potion (both are queued; see [Actions](#actions)). |
 | `Q`, or a click / tap on the life orb | Drink a health potion (queued like a quick key). |
 | `M` | Toggle the minimap. |
-| `N` | Toggle sound. |
+| `N` | Toggle sound (effects and music). |
 | `F5` (or the title screen's **Full screen** button) | Toggle full screen, where the browser supports it (see [Home screen app](#home-screen-app)). F5 no longer reloads the page. |
 | `Ctrl` + `D` (touch: hold the minimap and the life orb together) | Toggle the debug overlay (see [Debug overlay](#debug-overlay)). |
 | Mouse wheel, or pinch with two fingers (touch) | Zoom (0.6×–1.5×). |
@@ -745,6 +745,8 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
   `pointerType` mouse, not the mouse events browsers make up from touches), closes as soon as the mouse is no
   longer over the element that opened it (`tipHover`), and closes on any touch. So on a device with both a mouse
   and a touch screen, a tooltip opened by the mouse can't get stuck when the game switches to touch.
+- **Sound:** under the attributes, a **Music** and an **Effects** slider (0–100 % in steps of 5, default 60 % and
+  100 %), with the value beside each. See [Music](#music) and [Sound](#sound).
 - **Attributes:** level, XP, STR / DEX / VIT, life (live), armor, damage range, attack speed, crit,
   move speed, kills, gold. Most show where they come from (`statRows`, `breakdown`): `total (parts)`, e.g.
   `Armor 80 (50+10+20)`. The total is white; the parts are **character** (grey), **regular items** (darker
@@ -782,6 +784,8 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 (`v<N>`, as on the title screen). Its switches are remembered in
 `localStorage` (`dc01-debug`, wrapped in `try`):
 
+- **Music** (always shown, under the frame rate) — the current mood, file and play number, e.g.
+  `music: explore · explore (play 2) · demon level` (see [Music](#music)).
 - **Frame rate** (always shown under the switches) — the average frames per second over the last 2 s and the
   current render scale, e.g. `58 fps · scale 2` (see [Main loop](#main-loop)).
 - **Pursuit indicator** — a red dot (5 px, black outline) above every monster that is pursuing the hero
@@ -843,10 +847,53 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 - **Short landscape screens** (height ≤ 500 px, e.g. a phone turned sideways): the attack globe and the life
   orb shrink to 88 px (labels 10 px), leaving room for the hotbar.
 
+## Music
+
+Four AI-made tracks in `assets/music/` (Google `lyria-3.5`, $0.08 each; gothic, all in D minor so they blend
+when crossfaded):
+
+| Mood | Instrumental (normal) | Choir version (Pit Demon levels) |
+|---|---|---|
+| Exploration | `explore-instrumental.mp3` (1:24): slow; organ drone, distant low strings, chime bells, a lonely cello, no drums | `explore.mp3` (1:40): the same bed with a hushed Gregorian-style choir: *Descendimus in tenebras, / nox aeterna, lux perdita, / requiem in silentio, / custodes mortuorum vigilant.* |
+| Combat | `combat-instrumental.mp3` (1:06): 130 bpm; taiko and war drums, staccato low strings, brass stabs, organ, low horns | `combat.mp3` (1:04): the same with a full choir: *Dies irae, sanguis et ferrum, / mors venit, pugna, pugna! / Gladius in tenebris, / non timebimus mortem.* |
+
+`updateMusic(dt)` runs every frame (from `frame`, outside the game steps) and picks a **mood** (`musicMood`):
+
+- **none** on the title screen and once the hero has died: the music fades out over 1.5 s;
+- **boss** while the hero stands in the boss room (`roomAt` of the hero's tile is `G.map.bossRoom`) of a level
+  whose boss is a **Pit Demon** and that boss is alive: the choir combat track (`combat.mp3`);
+- **combat** while 4 or more living monsters are pursuing the hero (`state === 'chase'`, `COMBAT_MIN`), and for
+  5 s after the count falls below 4 (`COMBAT_HOLD`), so a fight doesn't flick between the moods;
+- **exploration** otherwise.
+
+**Plays and the choir.** Every start of a track is a *play*, counted per mood and per level (`MUSIC.plays`;
+loop repeats count, the boss mood doesn't). The instrumental version plays, except on a **Pit Demon boss level**
+(`demonLevel`: `G.map.boss.type === 'demon'`, dead or alive), where the 2nd, 5th and 9th play of each mood
+(`CHOIR_PLAYS`) is the choir version. Levels without a Pit Demon boss never use the choir tracks.
+
+**Looping and switching.** When a track is decoded (`musicLoad`), the end of its sound is found: the last 50 ms
+block whose level is above ~ -50 dB (RMS 0.003), since the files end in a few seconds' fade-out and silence.
+3 s before that point (`MUSIC_XF`) the next play of the same mood starts (0.4 s fade-in) while the old one fades
+out over 3 s, so the file's own fade-out overlaps the next start. A change of mood crossfades over 2 s
+(`MUSIC_SWITCH`), and so does a **new level** (`G.map` changed): it resets the play counts and restarts the
+music with play 1 of the level. The first track of a game fades in over 1.5 s. A track that isn't decoded yet
+is tried again the next frame (a choir play falls back to the instrumental one, and still counts).
+
+**Mixing and memory.** Each play is a buffer source with its own gain into a music bus (`MUSIC.bus`), which goes
+straight to the output (not through the effects' compressor or reverb). The bus gain is
+`0.5 × (v / 100)²` of the **Music** slider, or 0 while sound is off (`N`). A decoded track takes ~35 MB per
+100 s, so only the two instrumental tracks are loaded when audio starts, and the choir tracks are loaded on
+entering a Pit Demon level and dropped again on a level without one.
+
 ## Sound
 
 Sounds are synthesised with WebAudio (foley-style), except the ghoul's voice, which is a set of short AI-voiced
-clips. Audio starts on the first click (browser autoplay rules); `N` toggles it.
+clips. Audio starts on the first click (browser autoplay rules); `N` toggles it (music too).
+
+- **Volume.** The **Effects** slider in the equipment overlay sets the master gain: `0.9 × (v / 100)²` (squared so
+  the slider feels even to the ear); at 0 no effect is made at all. Releasing the slider plays a coin clink at
+  the new level. Both volumes are shared by all heroes, in `localStorage` `dc01-volume` (`VOL`, default
+  `{ music: 60, fx: 100 }`, wrapped in `try`).
 
 - **Mixing.** Every sound goes to a master gain through a compressor (so stacked sounds don't clip), with a send
   to a short dungeon reverb (a 1.3 s impulse of decaying, darkening noise, 22 % wet). Sounds with a position
