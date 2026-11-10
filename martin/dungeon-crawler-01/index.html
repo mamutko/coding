@@ -294,7 +294,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 16;
+const VERSION = 17;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -586,9 +586,9 @@ const POTIONS = {
   health:   { name: 'Health Potion', plural: 'health potions', color: '#e06a5a', glow: '224,90,80', filter: '',
               desc: 'Restores 44% of your life.' },
   ironskin: { name: 'Iron Skin Potion', plural: 'iron skin potions', color: '#a9c1d6', glow: '150,180,210',
-              filter: 'hue-rotate(195deg) saturate(0.55) brightness(1.2)', desc: 'Armor ×2 + 20 for 30 seconds.' },
+              filter: 'hue-rotate(195deg) saturate(0.55) brightness(1.2)', desc: 'Armor ×3 + 40 for 20 seconds.' },
 };
-const IRON = { mult: 2, add: 20, dur: 30 };     // iron skin: armor × mult + add for dur seconds
+const IRON = { mult: 3, add: 40, dur: 20 };     // iron skin: armor × mult + add for dur seconds
 const HEAL = 0.44;                              // health potion: restores this share of max life
 const USE_T = 0.4, SWAP_T = 0.2;                // action time of an item use and of a weapon swap (s)
 const makePotion = (pot, count = 1) => ({ id: nextId++, base: 'potion', slot: 'use', pot, count, rarity: 'common', name: POTIONS[pot].name });
