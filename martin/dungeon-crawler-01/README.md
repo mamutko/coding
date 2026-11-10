@@ -676,6 +676,19 @@ sealed: clicking it only logs "The chest is sealed while its guardian lives." Wh
 Dropped things land on nearby free tiles. Floor items bob, glow in their rarity colour (potions in their
 potion colour), and show a name label when within 7.5 tiles. Gold is counted at the top left.
 
+**Affix tier highlight.** A magic or rare item's highlight grows with its *affix tier* (`itemTier`): the tier
+(1–3) of its best affix, worked out from the rolled values against the affix tier ranges (a ring's or amulet's
+values are halved first, as they roll doubled; a value on the border of two ranges counts as the lower tier;
+built-in bonuses don't count). It works for saved items too, as nothing new is stored.
+
+| Tier | Floor glow (radius, strength) | Pack, paper doll and quick-key highlight |
+|---|---|---|
+| 1 | 26 px, 0.40 | faint inner glow (7 px, 40 %) |
+| 2 | 33 px, 0.55 | inner glow (11 px, 65 %) |
+| 3 | 40 px, 0.70, pulsing | strong inner glow (16 px, 95 %), an outer glow and a border in the rarity colour |
+
+Blue for magic items, gold for rare ones, as before.
+
 ## Equipment overlay
 
 Opened with `I` / `C` / `Tab` or the **Equipment (I)** button, closed with the same keys, `Esc`, the button,
@@ -713,7 +726,23 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
   longer over the element that opened it (`tipHover`), and closes on any touch. So on a device with both a mouse
   and a touch screen, a tooltip opened by the mouse can't get stuck when the game switches to touch.
 - **Attributes:** level, XP, STR / DEX / VIT, life (live), armor, damage range, attack speed, crit,
-  move speed, kills, gold.
+  move speed, kills, gold. Most show where they come from (`statRows`, `breakdown`): `total (parts)`, e.g.
+  `Armor 80 (50+10+20)`. The total is white; the parts are **character** (grey), **regular items** (darker
+  grey: base armor, a weapon's own damage, built-in bonuses such as the Leather Boots' +5 % speed), **magic**
+  (blue: affixes) and **temporary** (gold: iron skin). Only non-zero parts are listed, and the brackets only
+  when there are two or more. A row with a temporary part has a gold glow on its label and total. The sources
+  (`h.src`, filled in by `recalc`) are split as follows:
+  - **Strength / Dexterity / Vitality:** the hero's own (start + 2 per level) + affixes.
+  - **Life:** character 40 + 6 per level + 4 per own Vitality; magic: Life affixes and 4 per Vitality from
+    affixes.
+  - **Armor:** item base armor + Armor affixes + what iron skin adds.
+  - **Damage** (a range; the formula multiplies, so it is split in order): the weapon's own damage (regular; with
+    bare hands, the character's), what the hero's own STR (DEX for bows) adds at 2 % per point (character),
+    and the rest, from affix STR / DEX and Damage % (magic).
+  - **Critical:** character 5 % + 0.2 % per own Dexterity; magic: Critical affixes and 0.2 % per Dexterity
+    from affixes.
+  - **Move speed:** 100 % + built-in boot speed (regular) + Speed affixes (magic).
+  - Level, experience, attack speed (the weapon's alone), kills and gold have no breakdown.
 - **Quick keys:** hover a weapon (in the pack or the weapon slot) or a potion stack, then press `1`–`9` / `0`
   to bind it to that key (or use the action box's key row). A weapon, or a potion type, can only be on one key,
   and key tags show on bound items. A weapon key is `{ type: 'item', id }`; a potion key is

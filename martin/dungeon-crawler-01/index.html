@@ -122,13 +122,21 @@
     color: #5f5140; font-family: Cinzel, serif; text-align: center; }
   .cellGrid { display: grid; grid-template-columns: repeat(6, 56px); gap: 4px; }
   .cell { position: relative; width: 56px; height: 56px; background: rgba(10,6,8,0.7); border: 1px solid #3a2d1c; }
-  .r-magic { box-shadow: inset 0 0 10px rgba(111,140,255,0.55); }
-  .r-rare { box-shadow: inset 0 0 10px rgba(230,200,74,0.55); }
+  /* magic / rare items: the highlight grows with the item's affix tier (itemTier: the best affix's tier, 1-3) */
+  .r-magic.t1 { box-shadow: inset 0 0 7px rgba(111,140,255,0.4); }
+  .r-magic.t2 { box-shadow: inset 0 0 11px rgba(111,140,255,0.65); }
+  .r-magic.t3 { box-shadow: inset 0 0 16px rgba(130,160,255,0.95), 0 0 6px rgba(111,140,255,0.6); border-color: #6f8cff; }
+  .r-rare.t1 { box-shadow: inset 0 0 7px rgba(230,200,74,0.4); }
+  .r-rare.t2 { box-shadow: inset 0 0 11px rgba(230,200,74,0.65); }
+  .r-rare.t3 { box-shadow: inset 0 0 16px rgba(245,215,90,0.95), 0 0 6px rgba(230,200,74,0.6); border-color: #e6c84a; }
   .bindTag { position: absolute; right: 2px; top: 0; font-size: 11px; font-family: Cinzel, serif; color: var(--gold); text-shadow: 0 0 3px #000; z-index: 2; }
   .cell .cnt { position: absolute; right: 3px; bottom: 1px; font-family: Cinzel, serif; font-size: 12px; color: #fff; text-shadow: 0 0 3px #000; z-index: 2; }
   #stats { font-size: 14px; line-height: 1.45; }
   #stats .row { display: flex; justify-content: space-between; border-bottom: 1px dotted #2e2418; }
-  #stats .row span:last-child { color: #fff; }
+  #stats .row .val { color: #fff; text-align: right; }
+  #stats .parts { font-size: 12px; color: #6d655c; }
+  #stats .pC { color: #b3aba0; } #stats .pR { color: #847b70; } #stats .pM { color: var(--magic); } #stats .pT { color: #e6c84a; }
+  #stats .row.temp .lbl, #stats .row.temp .tot { color: #f3dc8a; text-shadow: 0 0 6px rgba(230,200,74,0.9), 0 0 2px rgba(230,200,74,0.8); }
   .hkWrap { margin-top: 10px; border-top: 1px solid #3b2e1d; padding-top: 8px; }
   #hkCfg { display: flex; gap: 4px; }
 
@@ -321,7 +329,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 31;
+const VERSION = 32;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -570,6 +578,19 @@ const AFFIX = [
 const RARE_A = ['Grim', 'Dread', 'Bone', 'Night', 'Blood', 'Ash', 'Grave', 'Wraith', 'Raven', 'Doom', 'Hollow', 'Sorrow'];
 const RARE_B = ['bite', 'song', 'fang', 'ward', 'veil', 'shroud', 'mark', 'brand', 'coil', 'howl', 'spire', 'grasp'];
 let nextId = 1;
+// An item's affix tier, 1-3: the tier of its best affix, worked out from the rolled values (so it works for saved
+// items too). A value on the border of two tiers' ranges counts as the lower tier. 0 for items without affixes.
+function itemTier(it) {
+  if (!it || !it.stats || (it.rarity !== 'magic' && it.rarity !== 'rare')) return 0;
+  const imp = (BASES[it.base] && BASES[it.base].implicit) || {}, mult = JEWELRY[it.slot] ? JEWEL_MULT : 1;
+  let best = 0;
+  for (const k in it.stats) {
+    const a = AFFIX.find(x => x.k === k), v = it.stats[k] - (imp[k] || 0); if (!a || v <= 0) continue;
+    let t = 1; for (let i = 1; i < a.tiers.length; i++) if (v > Math.round(a.tiers[i - 1][3] * mult)) t = i + 1;
+    best = Math.max(best, t);
+  }
+  return best || 1;
+}
 
 // Loot tuning: every random item drop happens with probability LOOT (gold amounts are scaled by it too), and
 // the rare / magic odds are scaled by RARE_ODDS / MAGIC_ODDS. Health potions are not affected.
@@ -782,7 +803,14 @@ const REGEN = 0;
 const xpNeed = l => Math.round(72 * Math.pow(l, 1.7));   // 40 % less than the original 120 · L^1.7
 function recalc() {
   const h = G.hero, s = { str: h.base.str, dex: h.base.dex, vit: h.base.vit, hp: 0, regen: 0, armor: 0, crit: 0, dmg: 0, speed: 0 };
-  for (const k in h.equip) { const it = h.equip[k]; if (!it) continue; if (it.armor) s.armor += it.armor; for (const st in it.stats) s[st] += it.stats[st]; }
+  // where the bonuses come from (for the attribute breakdown): reg = regular item properties (base armor, a
+  // type's built-in bonus such as the Leather Boots' speed), mag = magic affixes
+  const reg = {}, mag = {}, add = (o, k, v) => { o[k] = (o[k] || 0) + v; };
+  for (const k in h.equip) { const it = h.equip[k]; if (!it) continue;
+    if (it.armor) { s.armor += it.armor; add(reg, 'armor', it.armor); }
+    const imp = (BASES[it.base] && BASES[it.base].implicit) || {};
+    for (const st in it.stats) { s[st] += it.stats[st]; const iv = Math.min(imp[st] || 0, it.stats[st]); add(reg, st, iv); add(mag, st, it.stats[st] - iv); } }
+  h.src = { reg, mag };
   if (h.ironT > 0) s.armor = Math.round(s.armor * IRON.mult + IRON.add);   // iron skin potion
   const maxHp = Math.round(40 + s.vit * 4 + h.lvl * 6 + s.hp);
   h.st = { str: s.str, dex: s.dex, vit: s.vit, maxHp, armor: s.armor, crit: 5 + s.dex * 0.2 + s.crit, dmgPct: s.dmg,
@@ -1666,8 +1694,46 @@ function setIco(el, it, size) {
   ico.style.cssText = it ? itemIconCss(it, size) : '';
   const cnt = el.querySelector('.cnt'); if (cnt) cnt.textContent = it && it.slot === 'use' ? it.count : '';
   el.classList.toggle('r-magic', !!it && it.rarity === 'magic'); el.classList.toggle('r-rare', !!it && it.rarity === 'rare');
+  const tr = itemTier(it); for (const t of [1, 2, 3]) el.classList.toggle('t' + t, tr === t);
 }
 function keyOf(item) { const h = G.hero; const i = !item ? -1 : h.hotkeys.findIndex(k => k && (item.slot === 'use' ? k.type === 'use' && k.pot === item.pot : k.type === 'item' && k.id === item.id)); return i < 0 ? '' : (i === 9 ? '0' : '' + (i + 1)); }
+// The attributes with a breakdown: "total (character + regular items + magic + temporary)". Only the parts
+// that aren't zero are listed, and the brackets only when there are two or more. Colours: total white,
+// character grey, regular items (base armor, built-in bonuses) dark grey, magic affixes blue, temporary
+// (iron skin) gold; a row with a temporary part has a gold glow on its label and total.
+function breakdown(total, parts, fmt = v => v, unit = '') {
+  const ps = parts.filter(p => Math.abs(p[0]) >= 0.05 && fmt(p[0]) !== fmt(0));
+  const tot = `<span class="tot">${total}${unit}</span>`;
+  if (ps.length < 2) return tot;
+  return tot + ' <span class="parts">(' + ps.map((p, i) => `<span class="${p[1]}">${i && p[0] >= 0 ? '+' : ''}${fmt(p[0])}${unit}</span>`).join('') + ')</span>';
+}
+function statRows(h) {
+  const st = h.st, b = h.base, R = h.src.reg, M = h.src.mag, g = (o, k) => o[k] || 0;
+  const row = (label, total, parts, fmt, unit) => [label, breakdown(total, parts, fmt, unit), parts.some(p => p[1] === 'pT' && p[0])];
+  const rows = [];
+  for (const [k, n] of [['str', 'Strength'], ['dex', 'Dexterity'], ['vit', 'Vitality']]) rows.push(row(n, st[k], [[b[k], 'pC'], [g(R, k), 'pR'], [g(M, k), 'pM']]));
+  // life: 40 + 6 per level + 4 per point of Vitality + Life bonuses
+  const lifeC = 40 + 6 * h.lvl + 4 * b.vit, lifeR = 4 * g(R, 'vit') + g(R, 'hp');
+  const life = breakdown(st.maxHp, [[lifeC, 'pC'], [lifeR, 'pR'], [st.maxHp - lifeC - lifeR, 'pM']]);
+  rows.push(['Life', `<span class="curHp">${Math.ceil(h.hp)}</span> / ` + life, false]);
+  // armor: item base armor, affixes, and what iron skin adds on top
+  const arR = g(R, 'armor'), arM = g(M, 'armor');
+  rows.push(row('Armor', st.armor, [[arR, 'pR'], [arM, 'pM'], [st.armor - arR - arM, 'pT']]));
+  // damage: weapon (or bare hands: the character's own) × (1 + 2 % per STR / DEX) × (1 + damage %), split
+  // in that order: the weapon, what the character's own STR / DEX adds, the rest (magic STR / DEX and damage %)
+  const w = weaponOf(h), key = w.kind === 'bow' ? 'dex' : 'str', [dn, dx] = weaponDamageRange(h);
+  const own = (b[key] + g(R, key)) * 0.02, wpn = [w.min, w.max], ch = wpn.map(v => v * own), tot = [dn, dx];
+  const mg = tot.map((v, i) => v - wpn[i] - ch[i]), rng = a => Math.round(a[0]) + '–' + Math.round(a[1]);
+  const dParts = [[wpn, h.equip.weapon ? 'pR' : 'pC'], [ch, 'pC'], [mg, 'pM']].filter(p => Math.round(p[0][1]) > 0);
+  rows.push(['Damage', `<span class="tot">${rng(tot)}</span>` + (dParts.length > 1 ? ' <span class="parts">(' +
+    dParts.map((p, i) => `<span class="${p[1]}">${i ? '+' : ''}${rng(p[0])}</span>`).join('') + ')</span>' : ''), false]);
+  // critical: 5 % + 0.2 % per Dexterity + critical bonuses
+  const crC = 5 + b.dex * 0.2, crR = g(R, 'dex') * 0.2 + g(R, 'crit'), f1 = v => v.toFixed(1);
+  rows.push(row('Critical', f1(st.crit), [[crC, 'pC'], [crR, 'pR'], [st.crit - crC - crR, 'pM']], f1, '%'));
+  // move speed: 100 % + speed bonuses (built-in on Leather Boots, affixes on boots)
+  rows.push(row('Move speed', Math.round(st.speed / 4.2 * 100), [[100, 'pC'], [g(R, 'speed'), 'pR'], [g(M, 'speed'), 'pM']], v => Math.round(v), '%'));
+  return rows;
+}
 function refreshUI() {
   if (!G) return; const h = G.hero;
   document.querySelectorAll('#doll .slot').forEach(el => {
@@ -1686,16 +1752,14 @@ function refreshUI() {
       ico.style.cssText = it ? itemIconCss(it, is) : ''; }
     el.classList.toggle('active', active); el.classList.toggle('none', none);
   });
-  const st = h.st, [dn, dx] = weaponDamageRange(h), w = weaponOf(h);
-  const rows = [['Level', h.lvl], ['Experience', h.xp + ' / ' + xpNeed(h.lvl)], ['Strength', st.str], ['Dexterity', st.dex], ['Vitality', st.vit],
-    ['Life', Math.ceil(h.hp) + ' / ' + st.maxHp], ['Armor', st.armor],
-    ['Damage', Math.round(dn) + '–' + Math.round(dx)], ['Attack speed', (1 / w.cd).toFixed(2) + ' / s'], ['Critical', st.crit.toFixed(1) + '%'],
-    ['Move speed', Math.round(st.speed / 4.2 * 100) + '%'], ['Kills', h.kills], ['Gold', h.gold]];
+  const st = h.st, w = weaponOf(h);
+  const rows = [['Level', h.lvl], ['Experience', h.xp + ' / ' + xpNeed(h.lvl)], ...statRows(h), ['Kills', h.kills], ['Gold', h.gold]];
+  rows.splice(rows.findIndex(r => r[0] === 'Damage') + 1, 0, ['Attack speed', (1 / w.cd).toFixed(2) + ' / s']);
   $('eqTitle').textContent = G.hero.name || 'Equipment';
   const ai = $('atkIco'), as = document.body.classList.contains('narrow') ? 52 : 80;   // attack button: equipped weapon
   const shown = h.using ? { base: 'potion', slot: 'use', pot: h.using.pot } : h.equip.weapon;   // a potion in use shows instead
   ai.style.cssText = shown ? itemIconCss(shown, as) + `width:${as}px;height:${as}px;` : '';
-  $('stats').innerHTML = rows.map(r => `<div class="row"><span>${r[0]}</span><span>${r[1]}</span></div>`).join('');
+  $('stats').innerHTML = rows.map(r => `<div class="row${r[2] ? ' temp' : ''}"><span class="lbl">${r[0]}</span><span class="val">${r[1]}</span></div>`).join('');
   if (G.uiHover && !tipPinned()) showRefTip(G.uiHover);
 }
 function toggleEquip() { const e = $('equip'); e.classList.toggle('hidden'); if (e.classList.contains('hidden')) { G.uiHover = null; hideTip(); } else { refreshUI(); fitUI(); } }
@@ -1720,7 +1784,7 @@ function updateHud() {
     set('tname', m.name + Math.ceil(m.hp), () => { $('targetName').textContent = m.name + '  (level ' + m.lvl + ')'; $('targetName').style.color = m.boss ? '#7fe08a' : m.champ ? '#e6c84a' : '#e8dcc4';
       $('targetFill').style.width = (m.hp / m.maxHp * 100) + '%'; });
   } else if (hudCache.tname !== null) { hudCache.tname = null; $('target').classList.add('hidden'); }
-  if (equipOpen() && (G.time * 4 | 0) !== hudCache.statT) { hudCache.statT = G.time * 4 | 0; const st = $('stats').children[5]; if (st) st.lastChild.textContent = Math.ceil(h.hp) + ' / ' + h.st.maxHp; }
+  if (equipOpen() && (G.time * 4 | 0) !== hudCache.statT) { hudCache.statT = G.time * 4 | 0; const c = $('stats').querySelector('.curHp'); if (c) c.textContent = Math.ceil(h.hp); }
 }
 
 // =====================================================================================
@@ -2106,8 +2170,10 @@ function render() {
   for (const fi of G.items) {
     if (fi.x < x0 || fi.x > x1 + 1 || fi.y < y0 || fi.y > y1 + 1) continue;
     const it = fi.item, [sx, sy] = iso(fi.x, fi.y), col = it.slot === 'use' ? POTIONS[it.pot].glow : (it.rarity === 'rare' ? '230,200,74' : it.rarity === 'magic' ? '111,140,255' : '216,210,196');
-    const gr = ctx.createRadialGradient(sx, sy, 0, sx, sy, 30); gr.addColorStop(0, `rgba(${col},0.45)`); gr.addColorStop(1, `rgba(${col},0)`);
-    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(sx, sy, 30, 15, 0, 0, 7); ctx.fill();
+    // the floor glow: magic / rare items by affix tier (tier 3 also pulses)
+    const tr = itemTier(it), gR = [30, 26, 33, 40][tr], gA = [0.45, 0.4, 0.55, 0.7][tr] * (tr === 3 ? 0.8 + 0.2 * Math.sin(fi.t * 4) : 1);
+    const gr = ctx.createRadialGradient(sx, sy, 0, sx, sy, gR); gr.addColorStop(0, `rgba(${col},${gA})`); gr.addColorStop(1, `rgba(${col},0)`);
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(sx, sy, gR, gR / 2, 0, 0, 7); ctx.fill();
     const s = 44, bob = Math.sin(fi.t * 2.5) * 2, [ix, iy] = META.items[iconKey(it.base)];
     const hov = G.hover && G.hover.r === fi, flt = [potionFilter(it), hov ? 'brightness(1.5)' : ''].filter(Boolean).join(' ');
     drawSprite(IMG.items, ix, iy, 96, 96, sx - s / 2, sy - s + 6 + bob, s, s,
