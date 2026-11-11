@@ -100,3 +100,6 @@ When creating a new project:
 - when the user wants to see changes right away or side by side (a live Claude artifact of the project,
   optionally with test scenarios), see the artifact-sandbox skill; a project whose README lists a sandbox
   artifact gets it rebuilt and republished after every change
+- when the user wants to track versions in a project (a version number bumped on every push and a
+  `versions.md` of what each version added, to go back to any of them), see the version-tracking skill; a
+  project that has a `versions.md` gets it updated on every push

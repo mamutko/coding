@@ -75,7 +75,9 @@ returned URL into the project README. Keep the `<title>` (`--title`) the same fr
 
 Republish (after every change): rebuild, then publish **to the same URL**:
 
-- in the same session: the same `file_path` again (it keeps the URL);
+- in the same session: the same `file_path` again (it keeps the URL) — but only while the first publish is still
+  in the conversation: after the context was compacted or summarized, a publish without `url` makes a *new*
+  artifact, so then treat it as a later session (below). When in doubt, pass `url`;
 - in a later session: `action: "read"` on the URL from the README first (a publish to an artifact the session
   hasn't read is refused), then publish with `url` set to it. Without `url` a *new* artifact is created.
 
