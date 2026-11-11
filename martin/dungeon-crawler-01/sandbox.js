@@ -1,5 +1,5 @@
 // Sandbox: test scenarios for the game in index.html (see README, Sandbox). Loaded by index.html only when the
-// address has ?sandbox, and inlined into the Claude artifact by tools/sandbox/build.py. It runs after the game's
+// address has ?sandbox, and inlined into the Claude artifact by the artifact-sandbox skill's build.py. It runs after the game's
 // script and uses its globals; it changes nothing in the game itself. Instead of the title screen it shows a
 // scenario picker; a scenario makes a strong test hero (never saved) and drops it into a prepared situation.
 (() => {
@@ -22,7 +22,10 @@
   #sbBar .mood { font-family: Cinzel, serif; color: #c9a45c; letter-spacing: 1px; }
   #sbBar .choir { color: #f3dc8a; text-shadow: 0 0 6px rgba(230,200,74,0.8); }
   #sbBar button { background: #1c1316; border: 1px solid #5a4528; color: #e8dcc4; font: 12px Georgia, serif; padding: 3px 8px; cursor: pointer; }
-  #sbBar button:hover { border-color: #c9a45c; }
+  #sbBar button:hover, #sbOpen:hover { border-color: #c9a45c; }
+  #sbOpen { position: fixed; z-index: 55; left: calc(12px + env(safe-area-inset-left, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    background: #1c1316; border: 1px solid #5a4528; color: #c9a45c; font: 13px Cinzel, serif; letter-spacing: 1px; padding: 6px 12px; cursor: pointer; }
+  #sbOpen[hidden] { display: none !important; }
   body.narrow #sbBar { top: auto; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); font-size: 12px; }`;
   document.head.appendChild(css);
   const pick = document.createElement('div'); pick.id = 'sbPick'; pick.innerHTML = `<div class="box">
@@ -30,10 +33,13 @@
     <p>The current game (v${VERSION}) with a test hero, dropped straight into the music situations. Sound starts when you pick one. A bar at the top shows what is playing and why.</p>
     <button class="sc" id="sbPack"><b>Pack fight</b>Five skeletons rush you at depth 3. Four or more pursuers start the combat track. Kill them all and it switches back at once; run until they lose interest and it holds 6 s.</button>
     <button class="sc" id="sbDemon"><b>Pit Demon level</b>Depth 8 with a Pit Demon boss, next to its boss room. The 2nd, 5th and 9th play of each track is the choir version (use Next loop to skip ahead); stepping into the boss room plays the choir combat track.</button>
-    <button class="sc" id="sbNormal"><b>Normal game</b>The usual title screen.</button></div>`;
+    <button class="sc" id="sbNormal"><b>Normal game</b>The usual title screen; the Sandbox scenarios button at its bottom left brings this list back.</button></div>`;
   const bar = document.createElement('div'); bar.id = 'sbBar'; bar.hidden = true;
   bar.innerHTML = '<span id="sbInfo">–</span><button id="sbNext" title="Start the next play of this track now">Next loop</button><button id="sbBack">Scenarios</button>';
-  document.body.append(pick, bar);
+  // on the normal title screen (after Normal game, or a real hero's death) a button brings the picker back
+  const open = document.createElement('button'); open.id = 'sbOpen'; open.textContent = 'Sandbox scenarios'; open.hidden = true;
+  open.onclick = () => { pick.hidden = false; };
+  document.body.append(pick, bar, open);
   const mk = (base, rar, d) => { let it; for (let i = 0; i < 300; i++) { it = genItem(d, 0.3, base, rar, d + 2); if (it.rarity === rar) break; } return it; };
   function testHero(d) {
     newGame(null);
@@ -83,6 +89,7 @@
   $('sbBack').onclick = () => { G.running = false; pick.hidden = false; bar.hidden = true; };
   $('sbNext').onclick = () => { if (MUSIC.cur) MUSIC.cur.loopAt = 0; };
   setInterval(() => {
+    open.hidden = !pick.hidden || $('screen').classList.contains('hidden');
     if (bar.hidden || !G) return;
     const c = MUSIC.cur, n = G.monsters.filter(m => !m.dead && m.state === 'chase').length;
     const choir = c && /Choir/.test(c.name);

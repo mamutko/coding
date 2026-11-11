@@ -342,7 +342,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 41;
+const VERSION = 42;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2854,9 +2854,11 @@ loadAll().then(() => {
   requestAnimationFrame(frame);
 }).catch(err => { $('startBtn').textContent = 'Failed to load ' + err; });
 </script>
+<!-- sandbox:start -->
 <script>
 // ?sandbox in the address: load the test scenarios (sandbox.js, see README, Sandbox)
 if (new URLSearchParams(location.search).has('sandbox')) { const sb = document.createElement('script'); sb.src = 'sandbox.js'; document.body.appendChild(sb); }
 </script>
+<!-- sandbox:end -->
 </body>
 </html>
