@@ -342,7 +342,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 39;
+const VERSION = 40;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -440,7 +440,8 @@ function audio() {
 // version (gothic, D minor, a Latin choir; Google lyria-3.5). updateMusic runs every frame and picks the mood:
 //  - none on the title screen and after the hero dies (fades out over 1.5 s);
 //  - combat from the moment 4 or more monsters pursue the hero (COMBAT_MIN; state 'chase') for as long as at
-//    least one still does, plus COMBAT_HOLD s after the last one stops, so a fight doesn't flicker between moods;
+//    least one still does. If the last pursuers stop because they lost interest, it goes on COMBAT_HOLD s more
+//    (so a fight doesn't flicker between moods); if they stop because they died, it ends at once;
 //  - 'boss' (the choir combat track) while the hero is inside the boss room of a level whose boss is a Pit Demon
 //    and that boss lives;
 //  - exploration otherwise.
@@ -452,8 +453,8 @@ function audio() {
 // MUSIC_SWITCH s, and so does a new level (it restarts the music with play 1 of that level).
 // Decoded tracks take memory (~35 MB per 100 s), so the choir versions are only loaded on Pit Demon levels.
 const MUSIC_FILES = { explore: 'explore-instrumental', combat: 'combat-instrumental', exploreChoir: 'explore', combatChoir: 'combat' };
-const MUSIC = { bus: null, buf: {}, loading: {}, cur: null, plays: {}, level: null, combatT: 0, restart: false, busGain: -1 };
-const MUSIC_BASE = 0.5, MUSIC_XF = 3, MUSIC_SWITCH = 2, COMBAT_MIN = 4, COMBAT_HOLD = 5, CHOIR_PLAYS = [2, 5, 9];
+const MUSIC = { bus: null, buf: {}, loading: {}, cur: null, plays: {}, level: null, combatT: 0, chasers: [], restart: false, busGain: -1 };
+const MUSIC_BASE = 0.5, MUSIC_XF = 3, MUSIC_SWITCH = 2, COMBAT_MIN = 4, COMBAT_HOLD = 6, CHOIR_PLAYS = [2, 5, 9];
 function musicLoad(name) {
   if (MUSIC.buf[name] || MUSIC.loading[name] || !AC) return;
   MUSIC.loading[name] = true;
@@ -470,8 +471,11 @@ const demonLevel = () => !!(G && G.map && G.map.boss && G.map.boss.type === 'dem
 function musicMood(dt) {
   if (!G || !G.running || G.dead || !G.map) return null;
   const h = G.hero, boss = G.map.boss, br = G.map.bossRoom;
-  let n = 0; for (const m of G.monsters) if (!m.dead && m.state === 'chase') n++;
-  MUSIC.combatT = n >= COMBAT_MIN || (n > 0 && MUSIC.combatT > 0) ? COMBAT_HOLD : Math.max(0, MUSIC.combatT - dt);
+  const chasers = G.monsters.filter(m => !m.dead && m.state === 'chase'), n = chasers.length;
+  if (n >= COMBAT_MIN || (n > 0 && MUSIC.combatT > 0)) MUSIC.combatT = COMBAT_HOLD;
+  else if (!n && MUSIC.chasers.length && MUSIC.chasers.every(m => m.dead)) MUSIC.combatT = 0;   // the last pursuers were killed
+  else MUSIC.combatT = Math.max(0, MUSIC.combatT - dt);
+  MUSIC.chasers = chasers;
   if (demonLevel() && !boss.dead && br && roomAt(Math.floor(h.x), Math.floor(h.y)) === br) return 'boss';
   return MUSIC.combatT > 0 ? 'combat' : 'explore';
 }
@@ -495,7 +499,7 @@ function updateMusic(dt) {
   const bus = soundOn ? MUSIC_BASE * volGain(VOL.music) : 0;
   if (bus !== MUSIC.busGain) { MUSIC.busGain = bus; MUSIC.bus.gain.setTargetAtTime(bus, AC.currentTime, 0.08); }
   if (G && G.map && G.map !== MUSIC.level) {   // a new level: new play counts, choir tracks only where needed
-    MUSIC.level = G.map; MUSIC.plays = {}; MUSIC.combatT = 0; MUSIC.restart = true;
+    MUSIC.level = G.map; MUSIC.plays = {}; MUSIC.combatT = 0; MUSIC.chasers = []; MUSIC.restart = true;
     for (const k of ['exploreChoir', 'combatChoir']) if (demonLevel()) musicLoad(k); else { delete MUSIC.buf[k]; MUSIC.loading[k] = false; }
   }
   const mood = musicMood(dt), cur = MUSIC.cur;
