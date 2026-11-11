@@ -24,12 +24,49 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `assets/sfx/` | Ghoul moans and grunts (MP3). |
 | `assets/music/explore-instrumental.mp3`, `combat-instrumental.mp3`, `explore.mp3`, `combat.mp3` | The music: exploration and combat loops, each instrumental and with a Latin choir. See [Music](#music). |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
+| `sandbox.js`, `tools/sandbox/build.py` | Test scenarios, loaded with `?sandbox`, and the build of the Claude artifact that shows them: see [Sandbox](#sandbox). |
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
 | `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
 | `tools/simulation/` | Balance simulation: `simulate.js` runs simulated heroes through the real game and reports how hero and monsters compare per depth. How to use it: [`tools/simulation/README.md`](tools/simulation/README.md); dated results with conclusions: `results-YYYY-MM-DD.md`. |
 | `manifest.webmanifest`, `assets/icons/`, `tools/make_icons.py` | Web app manifest and home-screen icons (made from the hero sprite by `make_icons.py`): see [Home screen app](#home-screen-app). |
 | `todo.md` | Numbered list of ideas for future work (not yet implemented). |
 | `backup/index.NN.html` | Old snapshots of `index.html`, numbered `01`, `02`, … in the order they were made; not used by the game and not described by this README. `index.01.html` is an early version of the game; `index.02.html` is v20, the last version before game time followed real time (see [Main loop](#main-loop)), kept to compare performance; it has a `<base href="../">` so it loads `assets/` from the game folder. |
+
+## Sandbox
+
+Test scenarios that drop a strong test hero straight into a situation being worked on, without playing up to
+it. They live in `sandbox.js`, apart from the game; the game itself never uses them.
+
+- **On the site:** `index.html?sandbox` (GitHub Pages:
+  `https://mamutko.github.io/coding/martin/dungeon-crawler-01/?sandbox`). A small script at the end of
+  `index.html` loads `sandbox.js` only when the address has `?sandbox`; without it nothing changes.
+- **As a Claude artifact** (shows a change at once, without waiting for the Pages deploy):
+  https://claude.ai/artifact/T9nJm2WxgZYWtneTWFVqHa (private to its owner). `python tools/sandbox/build.py <out-dir>`
+  builds it from the current `index.html` and `sandbox.js`: it removes the document wrapper (the viewer adds its
+  own), the manifest and touch-icon links, inlines `sandbox.js` in place of the `?sandbox` loader (the artifact's
+  address carries no query string), sets the title *Crypt Music Sandbox*, copies the assets it uses into
+  `<out-dir>/assets/` and writes `<out-dir>/files.json` (published path → file) for the Artifact tool's `files`.
+  The artifact is then republished to the same URL. Nothing is copied by hand, so a rebuild always matches the
+  game; **after a change to the game the artifact is rebuilt and republished**, or it keeps the older version.
+
+`sandbox.js` runs after the game's script and uses its globals. Instead of the title screen it shows a
+**scenario picker**; a scenario makes a test hero (`saveId` `'sandbox'`: level 12, +35 STR, +25 DEX, +45 VIT,
+a rare long sword, rare chain mail, a magic iron helm, 12 health potions) at a chosen depth. The test hero is
+**never saved** (`saveHero` is wrapped; the saves share the browser storage with real heroes), and when it dies
+the picker comes back instead of the title screen (`showDeath` is wrapped). **Normal game** closes the picker
+and leaves the usual title screen.
+
+- **Pack fight** (depth 3): monsters within 18 tiles are removed, and five skeletons (no champions) are placed
+  3.5–6.5 tiles from the hero, already pursuing. Shows the combat music starting, ending at once when the last
+  is killed, and holding 6 s when they lose interest.
+- **Pit Demon level** (depth 8, regenerated until the boss is a Pit Demon): the hero starts on the nearest floor
+  tile 3–5 tiles outside the boss room's edge; other monsters within 10 tiles that aren't the boss room's are
+  removed. Shows the choir plays and the boss-room track.
+
+A status bar at the top (above the bottom HUD on narrow screens) shows the music: mood, instrumental or choir
+(gold), play number, how many monsters pursue, the hold countdown and whether it is a Pit Demon level. **Next
+loop** starts the next play of the current track at once (to reach plays 2, 5 and 9 quickly); **Scenarios**
+pauses the game and shows the picker again.
 
 ## Version
 
