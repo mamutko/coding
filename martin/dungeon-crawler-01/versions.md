@@ -11,6 +11,8 @@ the next version is recorded.
 
 ## v43 — the game so far (v1–v43, 2026-11-05 to 2026-11-11)
 
+Tags: Playable / Good Experience
+
 Commit: *(the next version records it; until then, the latest commit that set `VERSION = 43`)*
 
 **The crypt**
