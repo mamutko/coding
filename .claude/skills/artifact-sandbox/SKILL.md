@@ -82,7 +82,8 @@ Republish (after every change): rebuild, then publish **to the same URL**:
   hasn't read is refused), then publish with `url` set to it. Without `url` a *new* artifact is created.
 
 `files` adds or replaces the listed files and keeps the others; send `files.json` whole each time (unchanged
-files cost little). Limits: 16 MB for the page and each text file, 15 MB per binary file, 64 MB and 255 files per
+files cost little). In a session that didn't publish them (or after a compaction), replacing a published file is refused
+until the session has seen it: `action: "list"` with `scope: "files"` on the URL first, then publish. Limits: 16 MB for the page and each text file, 15 MB per binary file, 64 MB and 255 files per
 publish (more goes up in several publishes to the same URL). The artifact is **private**: only its owner can
 open it unless they share it from the page's Share menu.
 

@@ -214,6 +214,30 @@
   "heavygreaves": [
    480,
    576
+  ],
+  "firebomb1": [
+   0,
+   672
+  ],
+  "firebomb2": [
+   96,
+   672
+  ],
+  "firebomb3": [
+   192,
+   672
+  ],
+  "firebomb4": [
+   288,
+   672
+  ],
+  "firebomb5": [
+   384,
+   672
+  ],
+  "firebomb6": [
+   480,
+   672
   ]
  },
  "props": {

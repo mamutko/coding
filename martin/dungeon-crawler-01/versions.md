@@ -9,11 +9,29 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v44 — fire bombs (2026-11-13)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 44`)*
+
+- Fire bombs: clay pots of lamp oil, equipped as a weapon and thrown with a right click, up to 7 tiles; they land on
+  the aimed spot (or break against a wall on the way).
+- Where one breaks, the ground burns for 12 s in a 1.5-tile circle: 10 damage per second to anyone in it,
+  monsters and the hero alike.
+- They stack like potions; picked-up bombs join the stack; a quick key for them survives running out; after the
+  last throw the hero is bare-handed until another weapon is equipped.
+- Drops from depth 2 (chests, urns, monsters).
+- The bomb's look: design 1 of six AI-made designs (a brown clay pot with a rag stopper); the other five kept in
+  the item atlas for stronger bombs later.
+- Three looks for the fire to choose from (Blaze, Ember bed, Oil pool), with light, smoke, sparks and a fading
+  scorch mark; throw, shatter, crackle and roar sounds.
+- Sandbox: three fire bomb scenarios (pack fight, the last two, practice yard) with a fire status bar and fire
+  look buttons; the catalog lists fire bombs with the potions.
+
 ## v43 — the game so far (v1–v43, 2026-11-05 to 2026-11-11)
 
 Tags: Playable / Good Experience
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 43`)*
+Commit: 7fe788b
 
 **The crypt**
 - Isometric, gothic dungeon crawler in one `index.html` (vanilla JavaScript, canvas, no build step); all art,

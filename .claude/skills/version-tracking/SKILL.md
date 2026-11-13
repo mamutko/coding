@@ -36,6 +36,9 @@ Commit: 1a2b3c4
 ```
 
 - **Heading**: the version or range, a few words naming the change, the date (or date range).
+- **Tags** (optional, set by the user): a line such as `Tags: Playable / Good Experience` under the heading,
+  marking versions worth going back to. Keep the user's tags as they are; when an entry is widened, ask before
+  carrying a tag over to the new range (the tag was given to the old state).
 - **Commit**: the hash of the entry's last version. The commit hash isn't known before the commit is made, so
   the newest entry says it will be filled in, and **when the next version is recorded, fill in the previous
   entry's commit** (`git log -1 --format=%h`, taken before the new commit). Merged versions inside a range are

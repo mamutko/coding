@@ -11,14 +11,14 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `index.html` | The whole game: markup, CSS, and JavaScript. Asset metadata (`META`) is inlined so the page also works from `file://`. |
 | `assets/hero.webp`, `skeleton.webp`, `ghoul.webp` | 8-direction × 8-frame walk cycles (transparent). |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
-| `assets/items.webp` | 6 × 7 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–7 from `add_items.py`). |
+| `assets/items.webp` | 6 × 8 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–8 from `add_items.py`). |
 | `assets/props.webp` | Props: row 1 has the chest, open chest, door, stairs, brazier, bones, urn and gold, and the boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus), from `process_art.py`; row 2 has the searched bones (`bonesused`) and the door leaves (`doorA`, `doorB`), from `add_props.py`. |
 | `assets/floor.jpg`, `assets/wall.jpg` | 512 px seamless floor and wall textures. |
 | `assets/dirt.jpg` | 512 px seamless dirt texture for wall tops and wall faces toward solid ground (from `add_props.py`). |
 | `assets/meta.json` | Frame sizes and atlas coordinates written by the processing script (copied into `META` in `index.html`). |
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
 | `tools/walk_cycle.py` | Walk-cycle pipeline (hero, skeleton, ghoul): renders the 3D stick-figure pose guides and placeholders, and builds the 8-frame sheets. |
-| `tools/add_items.py`, `tools/raw/items2.png`, `items3.png` | Appends the icons of the newer item types (and a quiver) to `assets/items.webp` from the two raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
+| `tools/add_items.py`, `tools/raw/items2.png`, `items3.png`, `firebombs.png` | Appends the icons of the newer item types (and a quiver), and the six fire bomb designs, to `assets/items.webp` from the three raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
 | `tools/add_props.py`, `tools/raw/bones_searched.png`, `doors.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones, door leaves) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
 | `assets/sfx/` | Ghoul moans and grunts (MP3). |
@@ -61,17 +61,39 @@ the picker comes back instead of the title screen (`showDeath` is wrapped). **No
 and leaves the usual title screen, which then has a **Sandbox scenarios** button at its bottom left that brings
 the picker back (shown whenever the title screen is up and the picker isn't).
 
-- **Pack fight** (depth 3): monsters within 18 tiles are removed, and five skeletons (no champions) are placed
-  3.5–6.5 tiles from the hero, already pursuing. Shows the combat music starting, ending at once when the last
-  is killed, and holding 6 s when they lose interest.
-- **Pit Demon level** (depth 8, regenerated until the boss is a Pit Demon): the hero starts on the nearest floor
-  tile 3–5 tiles outside the boss room's edge; other monsters within 10 tiles that aren't the boss room's are
-  removed. Shows the choir plays and the boss-room track.
+The picker (*Crypt Sandbox*) groups the scenarios:
 
-A status bar at the top (above the bottom HUD on narrow screens) shows the music: mood, instrumental or choir
-(gold), play number, how many monsters pursue, the hold countdown and whether it is a Pit Demon level. **Next
-loop** starts the next play of the current track at once (to reach plays 2, 5 and 9 quickly); **Scenarios**
-pauses the game and shows the picker again.
+- **Fire bombs** (the hero's longsword goes to the pack on key 1; the bombs are equipped, on key 2):
+  - **Fire bombs: pack fight** (depth 3, 15 bombs): monsters within 18 tiles are removed, and four skeletons and
+    three ghouls (no champions) are placed 5–8 tiles away in sight, already pursuing.
+  - **Fire bombs: the last two** (depth 3, 2 bombs, three skeletons as above): shows running out and the bare
+    hands until the longsword is equipped.
+  - **Fire bombs: practice yard** (depth 2, 30 bombs): monsters within 22 tiles are removed, and three skeletons
+    sleep 4–6.5 tiles away. Their calm never ends, so they ignore the hero until a hit or a burn wakes them. Two
+    small stacks of bombs (2 and 3) lie at the hero's feet, to pick up.
+- **Music:**
+  - **Pack fight** (depth 3): monsters within 18 tiles are removed, and five skeletons (no champions) are placed
+    3.5–6.5 tiles from the hero, already pursuing. Shows the combat music starting, ending at once when the last
+    is killed, and holding 6 s when they lose interest.
+  - **Pit Demon level** (depth 8, regenerated until the boss is a Pit Demon): the hero starts on the nearest floor
+    tile 3–5 tiles outside the boss room's edge; other monsters within 10 tiles that aren't the boss room's are
+    removed. Shows the choir plays and the boss-room track.
+
+A status bar at the top (above the bottom HUD on narrow screens) shows what the scenario is about.
+
+- **In the fire bomb scenarios** it shows:
+  - the bombs carried, or what the hero holds instead (bare hands, the longsword);
+  - how many fires burn;
+  - "you are burning" while the hero stands in one;
+  - how many monsters are burning.
+
+  It also has **Fire look** buttons (*Blaze*, *Ember bed*, *Oil pool*) that switch the fire's look for the next
+  fires (see [Fire bombs](#fire-bombs)).
+- **In the music scenarios** it shows the music: mood, instrumental or choir (gold), play number, how many
+  monsters pursue, the hold countdown and whether it is a Pit Demon level. **Next loop** (music scenarios only)
+  starts the next play of the current track at once (to reach plays 2, 5 and 9 quickly).
+
+**Scenarios** (always in the bar) pauses the game and shows the picker again.
 
 ## Version
 
@@ -134,7 +156,7 @@ template, never in `catalog.html`.
 | Left click on floor | Walk there (A* pathfinding). Holding the button keeps walking toward the cursor. |
 | Left click on chest / door / urn / bones / gold / item / stairs | Walk to it and act on it: open, break, search, pick up, or descend. |
 | Double click / double tap on an item on the floor | Walk to it, pick it up and equip it at once; what it replaces goes into the pack slot it took. Needs a free pack slot, unless the item's equipment slot is empty (then it goes straight on). Potions are just picked up. |
-| Right click, or `Shift` + left click, or a tap while a finger rests on the attack button (touch) | Attack with the equipped weapon (see [Combat](#combat)). Hold to keep attacking. |
+| Right click, or `Shift` + left click, or a tap while a finger rests on the attack button (touch) | Attack with the equipped weapon (see [Combat](#combat)). Hold to keep attacking. With fire bombs equipped: throw one at the monster or the spot (see [Fire bombs](#fire-bombs)). |
 | `I`, `C` or `Tab` | Toggle the equipment overlay (`Esc` closes it). |
 | `1`–`9`, `0` | Quick keys: equip the bound weapon or use the bound potion (both are queued; see [Actions](#actions)). |
 | `Q`, or a click / tap on the life orb | Drink a health potion (queued like a quick key). |
@@ -487,7 +509,8 @@ Each depth `d` gets a freshly generated level.
 
 `weapon roll (min–max) × (1 + 0.02·STR) × (1 + damage% / 100)`
 
-Bows use DEX instead of STR. One roll is made per target hit.
+Bows use DEX instead of STR. One roll is made per target hit. Fire bombs deal no rolled damage: their fire burns
+for a fixed amount (see [Fire bombs](#fire-bombs)).
 
 **Armor mitigation** (both directions):
 
@@ -725,12 +748,12 @@ chests 27 %, urns 10.8 %. A dropped potion is then an iron skin potion 15 % of t
 
 | Source | Drops (item chances before `LOOT`) |
 |---|---|
-| Monster | 13 % item, 6.75 % × 1.2 potion, 30 % gold (2–8 × d) |
+| Monster | 13 % item, 6.75 % × 1.2 potion, 30 % gold (2–8 × d), 2 % one fire bomb (from depth 2) |
 | Champion | an item of loot depth d+1 (boost 0.35), plus a 50 % chance of a second (boost 0.2); rarity gates at d+1 |
 | Boss | an item of loot depth d+1 (boost 0.35, rarity gates at d+2), gold (20–40 × d), plus the normal potion / gold rolls of a monster |
-| Chest | 1–3 items (boost 0.15, 30 % chance of loot depth d+1; in the big room rarity gates at d+1), gold (10–30 × d), 22.5 % × 1.2 potion |
+| Chest | 1–3 items (boost 0.15, 30 % chance of loot depth d+1; in the big room rarity gates at d+1), gold (10–30 × d), 22.5 % × 1.2 potion, 15 % 1–3 fire bombs (from depth 2) |
 | Guardian's chest | **always** one item of loot depth d+1 that is rare (30 %) or else magic (rarity gates at d+2), gold (30–60 × d), plus everything a normal chest drops |
-| Urn | 35 % gold, 9 % × 1.2 potion, 8 % item |
+| Urn | 35 % gold, 9 % × 1.2 potion, 8 % item, 5 % one fire bomb (from depth 2) |
 | Bones | 20 % gold, 10 % item |
 
 **Guardian's chest.** It glows green and is labelled *Guardian's Chest* on hover. While the boss lives it is
@@ -754,6 +777,84 @@ built-in bonuses don't count). It works for saved items too, as nothing new is s
 | 3 | 40 px, 0.70, pulsing | strong inner glow (16 px, 95 %), an outer glow and a border in the rarity colour |
 
 Blue for magic items, gold for rare ones, as before.
+
+### Fire bombs
+
+A **fire bomb** is a clay pot of lamp oil, stoppered with an oil-soaked rag. It is thrown, shatters where it
+lands, and sets the ground on fire. The constants are `BOMB` and `FIRE` in the code.
+
+- **The item.** Fire bombs aren't in `BASES`, so they never drop as a random weapon. A stack of them is one item
+  (`makeBombs(n)`: base `firebomb`, slot `weapon`, kind `bomb`, with a `count`), shown with its count like a
+  potion stack. Bombs picked up join the hero's stack: the equipped one, else the first one in the pack
+  (`bombStack()`); with none, they take a pack cell like any item (a double click equips them). Tooltip: what it
+  does, the range, the fire's radius, damage and duration, throws per second, and how many the hero carries.
+- **Equipping.** The stack must be equipped in the weapon slot to throw. It equips like a weapon (0.2 s, see
+  [Actions](#actions)); the weapon it replaces goes into the pack. Bound to a quick key it becomes a **fire bomb
+  key** (`{ type: 'bomb' }`, whatever the stack). Pressing it equips the hero's bombs from the pack, does nothing
+  if they're already equipped, or logs "No fire bombs left.". The key shows the bomb icon and the number carried,
+  dimmed at 0, and lights up while bombs are equipped.
+- **Throwing.** With bombs equipped, a right click (and the other attack inputs) throws one at the clicked
+  monster's position, or at the spot under the cursor, at most `BOMB.range` (7) tiles away. A target farther off
+  is shortened to 7 tiles along the same line. Like a bow, it fires at once without walking into reach, and
+  holding the button keeps throwing. One throw every `BOMB.cd` (1 s). Each throw uses one bomb.
+  - **Running out.** When the last is thrown the weapon slot is empty: the hero fights bare-handed until another
+    weapon is equipped (nothing is equipped automatically). The log says "That was your last fire bomb. Your
+    hands are empty."
+- **Flight.** Unlike an arrow, which flies on until it hits something, a bomb lands on the aimed spot:
+  - It flies in an arc over monsters, taking 0.3 s + 0.065 s per tile.
+  - Its height on screen is `44·(1 − u) + 4·peak·u·(1 − u)` px at `u` = time / flight time, with peak = 30 + 9 px
+    per tile.
+  - It tumbles, its rag burns with a small flame and trails sparks, and a small shadow follows it on the floor.
+  - A wall or closed door in the way breaks it at the last open spot in front of it (the path is checked every
+    0.1 tile).
+- **Impact.** Terracotta shards and a burst of embers fly, and a **fire** starts centred where the bomb broke.
+- **The fire.** A circle of radius `FIRE.r` (1.5 tiles) burns for `FIRE.dur` (12 s).
+  - **Strength.** It flares up over the first 0.25 s (bigger flames), and its strength falls to 0 over the last
+    `FIRE.fade` (1.5 s).
+  - **Damage.** Anyone in it takes `FIRE.dps` (10) life per second: monsters and **the hero too**. A creature is
+    in it when its centre is within the radius plus half its own radius.
+    - Damage comes in ticks of `FIRE.tick` (0.5 s, 5 life each), the first at once on stepping in. The tick
+      timer refills while outside, so stepping in and out never burns faster than 10 per second.
+    - Armor doesn't reduce it, it is never a critical, and overlapping fires don't add up.
+    - A burned monster shows orange damage numbers and starts pursuit like any hit (a calm monster too). A
+      monster killed by fire gives its XP and loot as usual.
+    - The hero gets the usual red numbers and red flash; a death by fire logs "You burned to death at depth N."
+  - **Monsters don't avoid fire:** they walk through it after the hero.
+  - **Scorch mark.** After the fire is out, a scorch mark stays for `FIRE.scorch` (20 s), fading.
+- **Loot.** From depth 2 (`BOMB.from`): chests 15 % (1–3 bombs), urns 5 % (one), monsters 2 % (one). See
+  *Loot sources* above.
+
+**How the fire looks.** One of three looks, `LOOK.fire` (1–3, `FIRE_LOOKS`), still being chosen. The sandbox's
+**Fire look** buttons switch it (`setLook`), and the choice is kept in `localStorage` `dc01-look` (default 1). A
+new fire takes the current look.
+
+- **Common to all three:**
+  - Flames, smoke and sparks are particles in world coordinates, spawned on walkable tiles inside the circle
+    (`fireSpot`), and depth-sorted with the walls, props and characters.
+  - Flames are pre-drawn soft tongues (narrow tip, a pale hot core at the root) in four colours, from yellow
+    through orange to dark red as they age (`flameSprites`, `FLAME_COL`), drawn additively. Smoke is a soft puff
+    drawn normally, growing as it rises.
+  - The fire lights its surroundings: a light hole of radius 2.2 + 1.3 × r tiles (flickering) and an additive
+    orange glow.
+  - Under it the floor darkens (the scorch).
+
+| | 1 Blaze | 2 Ember bed | 3 Oil pool |
+|---|---|---|---|
+| Ground | scorched floor with an orange glow | the floor glows like coals: an orange-to-red disc with 70 flickering ember spots | a dark pool of oil (a wobbling 16-sided blob) with a burning orange surface and a bright rim |
+| Flames | dense and tall over the whole circle: 110 / s, 24–42 px, rising 50–90 px/s, 0.45–0.85 s | short licks, 70 % at the rim: 65 / s, 14–26 px, 0.3–0.6 s | low and wide (× 1.35) with blue roots: 75 / s, 18–30 px, rising 14–30 px/s, 0.5–0.9 s |
+| Smoke | grey, 10 / s | grey, 3 / s | thick black, 12 / s |
+| Sparks | 4 / s | 14 / s | 3 / s |
+
+**The bomb's look.** Design 1 of six AI-made designs, `firebomb1`: a round brown terracotta pot with a rag
+stopper and twine around the neck. The other five (`firebomb2`–`firebomb6`) are in the item atlas, unused, for
+stronger fire bombs later:
+2. a green glazed flask in a rope net, with a wax seal;
+3. a black clay sphere with iron bands and a wick;
+4. a two-handled jug sealed with pitch;
+5. a bone-white orb with a red flame mark;
+6. a leather-strapped jar with an oil stain.
+
+See [Assets](#assets).
 
 ## Equipment overlay
 
@@ -964,6 +1065,13 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
 - **World.** A door: the latch, a long hinge creak and the door settling. A chest: the hasp, a shorter, higher
   creak and the lid falling back; a sealed guardian's chest rattles. Picking things up is a faint rustle; gold
   a few faint coin clinks. Potions are gulps, stairs footsteps going down, plus tones for level-ups.
+- **Fire bombs.**
+  - A throw is a soft rising whoosh.
+  - The impact is clay breaking (a thud and shards, like an urn), then the oil catching: a deep rushing whoomp.
+  - A burning fire crackles: tiny dry pops every 0.06–0.22 s at its position.
+  - It also roars: a looping low-passed noise per fire (`updateFireSound`), with its gain following the fire's
+    strength and its distance from the hero. It is silent when sound is off or the game isn't running, and stops
+    when the fire goes out or the level changes.
 - **Ghoul clips** (`assets/sfx/moan1–5.mp3`, `grunt1–2.mp3`): Google `gemini-3.8-flash-lite-tts` (fractions of
   a cent) with wordless text and a style prompt, e.g. "Uuuuurrrrhhhhhh... hhhuuuurrrrgh." in the voice Algenib,
   styled "a rotting undead ghoul: a long, low, wet guttural moan, raspy and breathy, no words, slow" (raw takes in
@@ -975,7 +1083,7 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
 The art was generated through the `ai-media-generation` skill in Martin's notes repo: monsters, items, props
 and textures with OpenAI `gpt-image-2` (medium quality, about $0.70), and the hero walk cycle with Google
 `gemini-3.1-flash-image` (see [Walk cycles](#walk-cycles-hero-skeleton-ghoul)). Total spend so far is about
-$3.24 ($0.07 for the door leaves, $0.07 for the arch-door sheet, about $0.01 for the ghoul voice, $0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
+$3.32 ($0.08 for the fire bomb designs, $0.07 for the door leaves, $0.07 for the arch-door sheet, about $0.01 for the ghoul voice, $0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
 walk cycles, plus small tests).
 
 - **Background.** `gpt-image-2` can't make transparent backgrounds (and a Gemini test returned an opaque JPEG
@@ -1001,6 +1109,10 @@ walk cycles, plus small tests).
 - **Item icons** (1536 × 1024): a 6 × 4 grid listing the 24 icons in the order of the `META.items` keys
   (weapons, bows, helms, armor, gloves, boots, rings, amulets, potion), on magenta. These are the first 4 rows of
   `items.webp` (6 × 7 cells of 96 px).
+- **Fire bombs** (row 8 of `items.webp`, `firebomb1`–`firebomb6`; `tools/raw/firebombs.png`, OpenAI `gpt-image-2`
+  medium 1536 × 1024, ~$0.08): a 3 × 2 sheet on magenta of six designs of a hand-thrown fire bomb, "a small
+  ceramic container filled with lamp oil, meant to shatter on impact … All unlit: no fire, no flames, no glow".
+  Each design is described in [Fire bombs](#fire-bombs). Added by `add_items.py` like the newer icons.
 - **Newer item icons** (rows 5–7 of `items.webp`, 18 icons; built by `tools/add_items.py`, ~$0.14):
   - `tools/raw/items2.png`: Google `gemini-3.1-flash-image` `edit` (1K, 3:2) with the old atlas on magenta as a
     style reference, asking for a 6 × 3 sheet of broadsword, bastard sword, knight's greatsword, bearded axe, great

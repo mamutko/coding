@@ -133,7 +133,7 @@
   </section>
 
   <section id="potions">
-    <h2><span class="banner" data-banner></span>Potions</h2>
+    <h2><span class="banner" data-banner></span>Potions &amp; fire bombs</h2>
     <div class="panel scroll"><table id="potionTable"></table></div>
   </section>
 
@@ -261,7 +261,8 @@ for (const [g, title] of GROUPS) {
 // ---------- potions ----------
 $('potionTable').innerHTML = '<tr><th></th><th>Potion</th><th>Effect</th></tr>' + Object.values(D.potions).map(p =>
   `<tr><td class="icon"><div class="ico" style="${iconCss('potion', 48, p.filter)}"></div></td><td style="color:${p.color}">${esc(p.name)}</td><td>${esc(p.desc)}</td></tr>`).join('') +
-  '<tr><td></td><td colspan="2" class="note">Potions stack in one pack cell; drinking one takes 0.4 s. A quarter of potion drops are iron skin.</td></tr>';
+  `<tr><td class="icon"><div class="ico" style="${iconCss('firebomb1', 48)}"></div></td><td style="color:${D.bomb.color}">${esc(D.bomb.name)}</td><td>Thrown (equipped as a weapon, up to ${D.bomb.range} tiles): a fire of radius ${D.fire.r} tiles for ${D.fire.dur} s, ${D.fire.dps} damage per second to anyone in it, the hero too. From depth ${D.bomb.from}.</td></tr>` +
+  '<tr><td></td><td colspan="2" class="note">Potions and fire bombs stack in one pack cell; drinking a potion takes 0.4 s. 15 % of potion drops are iron skin.</td></tr>';
 
 // ---------- affixes ----------
 $('affixNote').innerHTML = `Affixes are the bonuses of magic and rare items: a <b>prefix</b> before the type's name, a <b>suffix</b> after it

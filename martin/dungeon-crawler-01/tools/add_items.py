@@ -11,6 +11,8 @@ Raw sheets (tools/raw):
               purple instead of magenta, so only the cells listed below are used, keyed against each
               cell's own background.
   items3.png  OpenAI gpt-image-2 (medium), 3 x 2 cells on magenta (cell 6, a belt pouch, is unused).
+  firebombs.png  OpenAI gpt-image-2 (medium), 3 x 2 cells on magenta: six fire bomb designs (firebomb1-6),
+              the look options for the fire bomb (see README, Fire bombs).
 Then it rewrites assets/meta.json and the inline `const META = ...` line in index.html.
 """
 import ast, json, pathlib, re, sys
@@ -39,6 +41,8 @@ SHEETS = [
                           (23, "quiver")]),
     ("items3.png", 3, 2, [(0, "warbow"), (1, "compositebow"), (2, "fullplate"), (3, "greaves"),
                           (4, "heavygreaves")]),
+    ("firebombs.png", 3, 2, [(0, "firebomb1"), (1, "firebomb2"), (2, "firebomb3"), (3, "firebomb4"),
+                             (4, "firebomb5"), (5, "firebomb6")]),
 ]
 
 

@@ -121,6 +121,7 @@ const server = http.createServer((req, res) => {
           for (const fi of G.items.splice(0)) {
             const it = fi.item;
             if (it.slot === 'use') { const s = stackOf(it.pot); if (s) s.count += it.count; else h.inv[h.inv.indexOf(null)] = it; st.potsFound += it.count; gainXp(1 + d); }
+            else if (isBomb(it)) gainXp(1 + d);   // fire bombs: picked up, never thrown (the simulated hero only fights with weapons)
             else { bag.push(it); st.items++; gainXp(2 * d); }
           }
           equipBest(h, d, bag);

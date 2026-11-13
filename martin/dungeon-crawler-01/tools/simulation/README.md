@@ -56,6 +56,7 @@ depth completely:
      of the depth). The death numbers are therefore "how often it would have died", not a run ending.
 3. **After each room:** the hero opens the room's chests, urns and bones, picks up all gold, potions and
    items (with the game's pick-up XP), equips the best gear, and walks `--travel` seconds to the next room.
+   Fire bombs are picked up for their XP but never thrown: the simulated hero only fights with weapons.
 4. **Best gear:** for each slot, every owned item is tried, and the one with the highest
    *DPS × effective life* is kept. DPS is against a normal skeleton of the current depth; effective life
    is max life ÷ (1 − armor reduction). Axes get ×1.25, swords ×1.12 and bows ×1.15 for cleave and free
