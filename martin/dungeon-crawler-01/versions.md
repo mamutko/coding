@@ -9,9 +9,9 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v57–v58 — Keepers of the Crypt: the market (2026-11-15)
+## v57–v59 — Keepers of the Crypt: the market (2026-11-15)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 58`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 59`)*
 
 - On every third depth a Keeper of the Crypt, one of four human merchants (Aldric, Borin, Mirela, Old Tobias), keeps
   a furnished stall in a quiet room: rug, table of wares, weapon rack, shelf, chest of trinkets, crates, barrel,
@@ -23,6 +23,8 @@ Commit: *(the next version records it; until then, the latest commit that set `V
   - healing to full for gold.
 - Items have a value (the price), from their type's depth, rarity and affix tier.
 - Sandbox: a "Keeper of the Crypt" scenario with keeper look buttons.
+- Avoid going back to v57 or v58: hovering a door froze the screen (a red flash that never cleared, life and damage
+  numbers stuck), and the keeper's rug was cut off on one side. Both are fixed in v59.
 
 ## v54–v56 — fire keeps burning (2026-11-14)
 

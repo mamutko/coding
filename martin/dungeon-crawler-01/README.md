@@ -1274,7 +1274,9 @@ walk cycles, plus small tests).
   with the props on magenta as a style reference): a 4 × 2 sheet "in exactly the same art style, camera angle …" of a
   trestle table with wares, a weapon rack, an open chest of trinkets, a shelf of potions, crates and sacks, a barrel of
   swords, a lantern on a post and a round red rug. `tools/add_market.py` keys both sheets (`add_items.py`'s
-  `key_cell`), scales each figure (keepers 220–230 px tall), and packs them into new rows of `props.webp`.
+  `key_cell`), scales each figure (keepers 220–230 px tall), and packs them into new rows of `props.webp`. The rug
+  spreads past its grid cell into the lantern's, so it is cut from its own columns (x 848–1264, in the gap
+  between the two) instead of its cell.
 - **Boss-room furnishings** (`decor.png`, Google `gemini-3.1-flash-image` `edit`, 1K, aspect 3:2, ~$0.07):
   the props sheet as a style reference, asking for a new sheet "in exactly the same art style, camera angle,
   lighting, painterly detail and scale": a 4 × 2 grid of a black stone and bone throne with a spiked back, a

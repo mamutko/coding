@@ -29,17 +29,19 @@ spec = importlib.util.spec_from_file_location("add_items", HERE / "add_items.py"
 ai = importlib.util.module_from_spec(spec); spec.loader.exec_module(ai)
 key_cell, keep_main, bbox = ai.key_cell, ai.keep_main, ai.bbox
 
-# (sheet, cols, rows, [(cell, key, ('h' | 'w', px)), ...]): scale to that height or width
+# (sheet, cols, rows, [(cell, key, ('h' | 'w', px)[, (x0, x1)]), ...]): scale to that height or width; the optional
+# (x0, x1) replaces the cell's columns (in sheet px) for a figure that reaches past its cell (the rug spreads left
+# into the lantern's cell: cut between the two, in the gap at x 838-860)
 SHEETS = [
     ("keepers.png", 4, 1, [(0, "keeper1", ("h", 230)), (1, "keeper2", ("h", 220)), (2, "keeper3", ("h", 225)), (3, "keeper4", ("h", 228))]),
     ("keeper_decor.png", 4, 2, [(0, "mtable", ("w", 230)), (1, "mrack", ("h", 230)), (2, "mchest", ("w", 170)), (3, "mshelf", ("w", 190)),
-                                (4, "mcrates", ("w", 190)), (5, "mbarrel", ("h", 190)), (6, "mlantern", ("h", 230)), (7, "mrug", ("w", 260))]),
+                                (4, "mcrates", ("w", 190)), (5, "mbarrel", ("h", 190)), (6, "mlantern", ("h", 230)), (7, "mrug", ("w", 260), (848, 1264))]),
 ]
 
 
 def main():
     meta = json.loads((GAME / "assets" / "meta.json").read_text())
-    ours = {k for _, _, _, cells in SHEETS for _, k, _ in cells}
+    ours = {c[1] for _, _, _, cells in SHEETS for c in cells}
     keep = {k: v for k, v in meta["props"].items() if k not in ours}
     base_h = max(v[1] + v[3] for v in keep.values()) + 2
     base = Image.open(GAME / "assets" / "props.webp").convert("RGBA").crop((0, 0, WIDTH, base_h))
@@ -47,9 +49,10 @@ def main():
     for name, cols, rows, cells in SHEETS:
         rgb = np.asarray(Image.open(RAW / name).convert("RGB"))
         H, W = rgb.shape[:2]
-        for idx, key, (dim, px) in cells:
+        for idx, key, (dim, px), *span in cells:
             r, c = divmod(idx, cols)
             y0, y1, x0, x1 = round(r * H / rows), round((r + 1) * H / rows), round(c * W / cols), round((c + 1) * W / cols)
+            if span: x0, x1 = span[0]
             cell = keep_main(key_cell(rgb[y0:y1, x0:x1], 6), 0.3, True)
             b = bbox(cell)
             im = Image.fromarray(cell[b[1]:b[3], b[0]:b[2]], "RGBA")
