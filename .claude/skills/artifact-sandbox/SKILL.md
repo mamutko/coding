@@ -158,5 +158,5 @@ page errors. For audio in headless Chromium, launch with `--autoplay-policy=no-u
 - `sandbox.js`: a scenario picker (Pack fight, Pit Demon level, Normal game), a level-12 test hero that is never
   saved (`saveHero` and `showDeath` wrapped), a music status bar, Next loop and Scenarios buttons.
 - Build: `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music
-  Sandbox" --skip assets/meta.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png`
+  Sandbox" --skip assets/meta.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*'`
 - The README's "Sandbox" section holds the artifact URL and describes the scenarios.

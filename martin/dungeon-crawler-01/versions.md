@@ -9,9 +9,19 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v60 — the surface, depth 0 (2026-11-15)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 60`)*
+
+- New heroes start on the surface: an endless moonlit grassland with woods and glades, bushes, flowers, rocks and
+  mushrooms, made as you walk (32-tile "super tiles", always the same for a place).
+- Trees are drawn in two parts: walk under a crown and its leaves cover you, turning see-through.
+- The crypt: a 5 × 5-tile stone mausoleum a few steps away; click its dark doorway to go down to depth 1.
+- The sandbox has a "The surface" scenario; unused AI images now live in `assets/unused/`.
+
 ## v57–v59 — Keepers of the Crypt: the market (2026-11-15)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 59`)*
+Commit: ea9c02d
 
 - On every third depth a Keeper of the Crypt, one of four human merchants (Aldric, Borin, Mirela, Old Tobias), keeps
   a furnished stall in a quiet room: rug, table of wares, weapon rack, shelf, chest of trinkets, crates, barrel,

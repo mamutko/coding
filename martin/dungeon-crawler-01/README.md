@@ -14,6 +14,10 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `assets/items.webp` | 6 × 8 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–8 from `add_items.py`). |
 | `assets/props.webp` | Props: row 1 has the chest, open chest, door, stairs, brazier, bones, urn and gold, and the boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus), from `process_art.py`; row 2 has the searched bones (`bonesused`) and the door leaves (`doorA`, `doorB`), from `add_props.py`; rows 3 on have the four Keepers of the Crypt (`keeper1`–`keeper4`) and their stall's furnishings (`mtable`, `mrack`, `mchest`, `mshelf`, `mcrates`, `mbarrel`, `mlantern`, `mrug`), from `add_market.py`. |
 | `assets/floor.jpg`, `assets/wall.jpg` | 512 px seamless floor and wall textures. |
+| `assets/grass_a.jpg`, `assets/grass_b.jpg` | 512 px seamless grass textures of the surface (lush dark green; patchy olive meadow). See [The surface](#the-surface-depth-0). |
+| `assets/surface.webp` | The surface's sprites: four trees (oak, fir, dead tree, birch; each with its crown cut), four bushes, four ground details (flowers, rocks, mushrooms, a grass tuft) and the crypt. Coordinates in `META.surface`. |
+| `tools/add_surface.py`, `tools/raw/grass_a.png`, `grass_b.png`, `trees.png`, `bushes.png`, `crypt.png` | Builds the two grass textures and `assets/surface.webp` from the raw AI images, and writes `META.surface` into `assets/meta.json` and the inline `META`. |
+| `assets/unused/` | AI images made but not used by the game, kept for later: `keepers-creepy.png` (the first, rejected Keepers of the Crypt). The five unused fire bomb designs are in `assets/items.webp` (`firebomb2`–`firebomb6`) and `tools/raw/firebombs.png`. Not loaded, and left out of the sandbox artifact. |
 | `assets/dirt.jpg` | 512 px seamless dirt texture for wall tops and wall faces toward solid ground (from `add_props.py`). |
 | `assets/meta.json` | Frame sizes and atlas coordinates written by the processing script (copied into `META` in `index.html`). |
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
@@ -47,7 +51,7 @@ it. They live in `sandbox.js`, apart from the game; the game itself never uses t
   https://claude.ai/artifact/T9nJm2WxgZYWtneTWFVqHa (private to its owner). It is built from the current
   `index.html` and `sandbox.js` by the repo's shared script (see the `artifact-sandbox` skill, which also covers
   publishing and testing):
-  `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music Sandbox" --skip assets/meta.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png`.
+  `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music Sandbox" --skip assets/meta.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*'`.
   It removes the document wrapper (the viewer adds its own) and the manifest and touch-icon links, inlines
   `sandbox.js` in place of the loader block (the artifact's address carries no query string), copies the assets
   (minus `meta.json`, inlined as `META`, and the unused icon sizes) and writes `files.json` for publishing; the
@@ -64,6 +68,9 @@ the picker back (shown whenever the title screen is up and the picker isn't).
 
 The picker (*Crypt Sandbox*) groups the scenarios:
 
+- **Surface:**
+  - **The surface** (depth 0): a new level-1 hero (never saved) a few steps from the crypt's entrance. The bar shows
+    the world tile and super tile the hero is on, then the level's name once below.
 - **Fire bombs** (the hero's longsword goes to the pack on key 1; the bombs are equipped, on key 2):
   - **Fire bombs: pack fight** (depth 3, 15 bombs): monsters within 18 tiles are removed, and four skeletons and
     three ghouls (no champions) are placed 5–8 tiles away in sight, already pursuing.
@@ -223,8 +230,8 @@ or a right-click clears a HUD key).
   `e.button` set (a "chorded" press), so the game treats those as presses and releases too. Holding left to
   walk and then holding right attacks, as before.
 
-The title screen lists the controls and is also the hero picker (see [Saving](#saving)). A level-1 level is
-rendered behind it. The start button is enabled once all images have loaded.
+The title screen lists the controls and is also the hero picker (see [Saving](#saving)). The surface (depth 0)
+is rendered behind it. The start button is enabled once all images have loaded.
 
 ## Saving
 
@@ -241,7 +248,7 @@ The iron skin effect is not saved. Every read and write
 is wrapped in `try`; if storage is unavailable the game still plays, logs that progress could not be saved,
 and the picker shows no saved heroes.
 
-- **When it saves:** when a hero is created (at depth 1), and automatically on arrival at each new depth
+- **When it saves:** when a hero is created (at depth 0, the surface), and automatically on arrival at each new depth
   (after the descend XP; the log says "Progress saved."). Nothing else is saved: not the level layout, and
   nothing gained or lost partway through a level.
 - **Hero picker** (the title screen): one box per saved hero, most recently saved first, showing name, level
@@ -396,9 +403,55 @@ Update and render run inside a `try/catch`: if something goes wrong, the
 canvas state is reset, the first error is logged to the console, and the game keeps running instead of
 freezing.
 
+## The surface (depth 0)
+
+A new hero starts on **the surface**, a few steps from the crypt's entrance, on a moonlit night. It is an endless
+grassland with woods, glades, bushes and the crypt building; clicking the crypt's dark doorway takes the hero down to
+depth 1 (`descend`). For now nothing else lives there: no monsters, loot or keepers. The level name is *The
+Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going up is todo #11.)
+
+- **Super tiles** (`SURF`): the land is made of squares of `SURF.chunk` (32) tiles, generated from their world
+  position and a fixed seed (`SURF.seed`; `srand` is a seeded mulberry32 over a hash of the keys, `vnoise` a smooth
+  value noise), so a place always looks the same, for every hero.
+- **The window:** the game's map is the 3 × 3 super tiles around the hero (96 × 96 tiles, `buildSurfaceWindow`), so
+  drawing, paths and collisions work as on any level.
+  - When the hero walks into another super tile (`shiftSurface`, checked every step), the window moves by whole
+    super tiles: everything's coordinates shift by the same amount (hero and path, items, projectiles, fires,
+    effects, floating text and the camera, so nothing jumps on screen), and the new super tiles are generated
+    (about 3 ms).
+  - World tile = window tile + `G.surf.ox`, `oy`.
+  - Items on the ground keep their world position and come back when their place is in the window again.
+- **What a super tile holds** (`chunkThings`), at most one thing per tile:
+  - **Trees** where a forest noise (cells 9 tiles across) is high, so there are dense woods and open glades: a tile's
+    chance is `0.55 × (forest − 0.45)`. One of four kinds at 0.8–1.15 × size, mirrored half the time. They block
+    their tile and keep the 8 tiles around them free.
+  - **Bushes** (2.5–4.5 %, four kinds, 0.8–1.2 ×) block their tile.
+  - **Ground details** (about 3.5 %: flowers, rocks, mushrooms, tufts of tall grass) don't block.
+  - **The crypt** in super tile (0, 0): a 5 × 5-tile building (`SURF.crypt`, `cryptN`) that blocks its footprint.
+    Its doorway tile (`cryptdoor`) is in the middle of its south-west wall, outside it, on the entrance steps.
+    Nothing grows within 4 tiles of it, nor on the lawn 11 tiles deep in front of its door.
+- **Drawing:**
+  - **Ground** (`drawSurfaceGround`): grass A everywhere, and grass B over it through a smooth mask. The mask is a
+    small canvas with one pixel per tile (alpha from a noise with cells 7 tiles across), stretched over the tiles
+    with smoothing, so the patches fade into each other. Both textures span 4 tiles, so they line up again after
+    the window moves.
+  - **Trees** are cut in two at the row where the crown ends (`META.surface` tree entries' 5th number, found by
+    `add_surface.py`: the first row from the roots up as wide as half the crown; the oak's set by hand).
+    - The **trunk** is sorted with everything on the ground.
+    - The **crown** is drawn after all of it (`drawCrowns`), so the hero walking under a tree is under its leaves.
+    - A crown turns see-through (40 %, eased) while the hero stands under it.
+  - Trees and bushes have soft ground shadows. Ground details lie flat, except the grass tuft, which is sorted like
+    a bush.
+  - **The crypt** (`drawCrypt`): its picture (98 px per tile of its width, `CRYPT_FIT`) is placed with its front
+    corner on the footprint's south corner. It is sorted by its front corner.
+- **Light:** a moonlit night: the darkness is a thin blue-black (62 % instead of 93 %), the hero's light reaches 9
+  tiles (7.2 below), and a faint light glows at the crypt's door.
+- **The minimap** shows the grass, trees and bushes as dots, and the crypt.
+- **The doorway** shows *Crypt Entrance — Depth 1* on hover.
+
 ## Dungeon generation
 
-Each depth `d` gets a freshly generated level.
+Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, above).
 
 - Map size `min(44 + 2d, 80)` square. Up to `min(9 + ⌊d/2⌋, 18)` rectangular rooms of 5–10 × 5–10 tiles,
   kept at least 3 tiles apart.
@@ -1204,7 +1257,7 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
 The art was generated through the `ai-media-generation` skill in Martin's notes repo: monsters, items, props
 and textures with OpenAI `gpt-image-2` (medium quality, about $0.70), and the hero walk cycle with Google
 `gemini-3.1-flash-image` (see [Walk cycles](#walk-cycles-hero-skeleton-ghoul)). Total spend so far is about
-$3.54 ($0.22 for the keepers and their stall, $0.08 for the fire bomb designs, $0.07 for the door leaves, $0.07 for the arch-door sheet, about $0.01 for the ghoul voice, $0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
+$3.93 ($0.39 for the surface, $0.22 for the keepers and their stall, $0.08 for the fire bomb designs, $0.07 for the door leaves, $0.07 for the arch-door sheet, about $0.01 for the ghoul voice, $0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
 walk cycles, plus small tests).
 
 - **Background.** `gpt-image-2` can't make transparent backgrounds (and a Gemini test returned an opaque JPEG
@@ -1266,6 +1319,18 @@ walk cycles, plus small tests).
 - **Props** (1536 × 1024): a 4 × 2 grid (closed chest, open chest with glowing gold, arched gothic door in a
   stone frame, descending stairway seen from above, lit brazier, skull-and-bone pile, cracked funeral urn,
   gold coin pile), on magenta.
+- **The surface** (`tools/add_surface.py`, ~$0.39 with a rejected grass):
+  - `tools/raw/grass_a.png`: Google `gemini-3.1-flash-image` `edit` (1K, 1:1) with `floor.jpg` as a style
+    reference: "lush dark green grass seen from above, short dense blades with small clumps, a few tiny clover leaves".
+    A second grass made the same way copied the floor's flagstones and was dropped.
+  - `tools/raw/grass_b.png`: OpenAI `gpt-image-2` (medium, 1024²), no reference: "patchy olive and yellow-green
+    meadow grass with short tufts and a few small bare brown earth spots". Both are made seamless as `dirt.jpg` is
+    (a half-offset copy blended in over a soft cross).
+  - `tools/raw/trees.png` (OpenAI, 1536 × 1024): a 4 × 1 sheet of an oak, a fir, a dead tree and a birch on magenta,
+    "each crown clearly above a visible bare trunk section". Cut by columns (the crowns reach past their cells).
+  - `tools/raw/bushes.png` (OpenAI, 1536 × 1024): 4 × 2, four bushes and four ground details.
+  - `tools/raw/crypt.png` (OpenAI, 1024²): "an old weathered stone CRYPT / mausoleum … on its LEFT visible wall … a
+    large arched ENTRANCE … steps leading DOWN into complete darkness".
 - **Keepers of the Crypt** (`tools/raw/keepers.png`, OpenAI `gpt-image-2` medium 1536 × 1024, ~$0.08): a 4 × 1
   sheet on magenta of four "ordinary living HUMAN merchant[s] who [have] set up shop deep in a dungeon … Friendly,
   weathered and human, not creepy, not undead, faces clearly visible", standing, facing down-left. A first sheet of

@@ -5,9 +5,9 @@
 (() => {
   const css = document.createElement('style');
   css.textContent = `
-  #sbPick { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: rgba(5,2,4,0.82);
+  #sbPick { position: fixed; inset: 0; z-index: 60; display: flex; background: rgba(5,2,4,0.82);   /* the box centres with margin: auto, so a tall list scrolls from its top */
     padding: 16px max(16px, env(safe-area-inset-left, 0px)); overflow-y: auto; }
-  #sbPick .box { max-width: 560px; width: 100%; border: 1px solid #5a4528; background: #120c0e; padding: 22px; box-shadow: 0 0 40px #000; }
+  #sbPick .box { margin: auto; max-width: 560px; width: 100%; border: 1px solid #5a4528; background: #120c0e; padding: 22px; box-shadow: 0 0 40px #000; }
   #sbPick h1 { font-family: Cinzel, serif; color: #c9a45c; font-size: 22px; letter-spacing: 2px; margin: 0 0 6px; text-wrap: balance; }
   #sbPick p { color: #b3aba0; font: 15px/1.45 'IM Fell English', Georgia, serif; margin: 0 0 14px; }
   #sbPick button.sc { display: block; width: 100%; text-align: left; margin: 0 0 10px; padding: 12px 14px; background: #1c1316; border: 1px solid #5a4528;
@@ -38,6 +38,8 @@
   const pick = document.createElement('div'); pick.id = 'sbPick'; pick.innerHTML = `<div class="box">
     <h1>Crypt Sandbox</h1>
     <p>The current game (v${VERSION}) with a strong test hero (never saved), dropped straight into a situation. Sound starts when you pick one. A bar at the top shows what the scenario is about.</p>
+    <h2>Surface</h2>
+    <button class="sc" id="sbSurface"><b>The surface</b>A new level-1 hero at depth 0, a few steps from the crypt's entrance. Walk the endless woods around it (the land is made as you go), then click the dark doorway to go down to depth 1.</button>
     <h2>Fire bombs</h2>
     <button class="sc" id="sbFirePack"><b>Fire bombs: pack fight</b>Depth 3, 15 fire bombs equipped, four skeletons and three ghouls rushing in. Right-click to throw at a monster or a spot (up to 7 tiles). Key 1 is your longsword, 2 the bombs. Mind the flames: they burn you too.</button>
     <button class="sc" id="sbFireLast"><b>Fire bombs: the last two</b>Only two bombs equipped and three skeletons coming. After the second throw your hands are empty until you equip the longsword (key 1).</button>
@@ -125,6 +127,10 @@
   };
   function lookButtons() { $('sbLooks').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.look === LOOK.fire)); }
   $('sbLooks').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; setLook('fire', +b.dataset.look); lookButtons(); b.blur(); });
+  $('sbSurface').onclick = () => {
+    newGame(null); G.hero.name = 'Tester'; G.hero.saveId = 'sandbox'; refreshUI();
+    start('surface'); log('Test: the surface. The crypt is right ahead.', '#c9a45c');
+  };
   $('sbMarket').onclick = () => {
     for (let i = 0; i < 50; i++) { testHero(6); if (G.objects.some(o => o.type === 'keeper')) break; }
     const h = G.hero, k = G.objects.find(o => o.type === 'keeper');
@@ -188,6 +194,11 @@
   setInterval(() => {
     open.hidden = !pick.hidden || $('screen').classList.contains('hidden');
     if (bar.hidden || !G) return;
+    if (mode === 'surface') {
+      const h = G.hero, sv = G.surf;
+      $('sbInfo').innerHTML = sv && G.map.surface ? `<span class="mood">The surface</span> · world tile ${Math.floor(h.x + sv.ox)}, ${Math.floor(h.y + sv.oy)} · super tile ${sv.cx}, ${sv.cy}` : `<span class="mood">${depthName(G.depth)}</span> · depth ${G.depth}`;
+      return;
+    }
     if (mode === 'market') {
       const k = G.objects.find(o => o.type === 'keeper');
       $('sbInfo').innerHTML = `<span class="mood">${k ? KEEPERS[k.look].name : 'no keeper'}</span> · ${G.hero.gold} gold · life ${Math.ceil(G.hero.hp)} / ${G.hero.st.maxHp}` + (marketOpen() ? ' · trading' : '');
@@ -214,7 +225,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbPack', 'sbDemon'];
+  const SC = ['sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   const ready = setInterval(() => { if (G && floorPat) { clearInterval(ready); for (const id of SC) $(id).disabled = false; $('sbFirePack').focus(); } }, 100);
 })();
