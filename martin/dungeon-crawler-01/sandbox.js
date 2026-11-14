@@ -41,7 +41,7 @@
     <button class="sc" id="sbFireLast"><b>Fire bombs: the last two</b>Only two bombs equipped and three skeletons coming. After the second throw your hands are empty until you equip the longsword (key 1).</button>
     <button class="sc" id="sbFireYard"><b>Fire bombs: practice yard</b>30 bombs, a quiet room: three sleeping skeletons to burn (a burn wakes them) and two small stacks of bombs on the floor to pick up (they join your stack). Switch the fire's look in the bar to compare.</button>
     <h2>Kiting</h2>
-    <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7 with a rare war bow: two cave spiders, a Pit Demon and two skeletons coming from 7–9 tiles. Each shot now has a short draw (you stand still); spiders and the demon charge for a moment when an arrow hits them from afar. Skeletons don't, for comparison.</button>
+    <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a rare war bow, in the middle of the level's big room: four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Plenty of room to run. Key 1 is your longsword.</button>
     <h2>Music</h2>
     <button class="sc" id="sbPack"><b>Pack fight</b>Five skeletons rush you at depth 3. Four or more pursuers start the combat track. Kill them all and it switches back at once; run until they lose interest and it holds 6 s.</button>
     <button class="sc" id="sbDemon"><b>Pit Demon level</b>Depth 8 with a Pit Demon boss, next to its boss room. The 2nd, 5th and 9th play of each track is the choir version (use Next loop to skip ahead); stepping into the boss room plays the choir combat track.</button>
@@ -58,7 +58,7 @@
   function testHero(d, bombs = 0) {
     newGame(null);
     const h = G.hero; h.name = 'Tester'; h.saveId = 'sandbox'; h.lvl = 12; h.base.str += 35; h.base.dex += 25; h.base.vit += 45;
-    G.depth = d; buildLevel(d);
+    G.depth = d; buildLevel(d); logEl.innerHTML = '';   // newGame logged depth 1's name
     h.equip.weapon = mk('longsword', 'rare', d); h.equip.chest = mk('chainmail', 'rare', d); h.equip.head = mk('ironhelm', 'magic', d);
     h.hotkeys[0] = { type: 'item', id: h.equip.weapon.id };
     const st = h.inv.find(it => it && it.pot === 'health'); if (st) st.count = 12;
@@ -107,10 +107,21 @@
   function lookButtons() { $('sbLooks').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.look === LOOK.fire)); }
   $('sbLooks').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; setLook('fire', +b.dataset.look); lookButtons(); b.blur(); });
   $('sbKite').onclick = () => {
-    testHero(7); const h = G.hero, bow = mk('warbow', 'rare', 7);
+    for (let i = 0; i < 100; i++) { testHero(7); if (G.map.rooms.some(r => r.big === 'horde')) break; }
+    const h = G.hero, bow = mk('warbow', 'rare', 7), room = G.map.rooms.find(r => r.big === 'horde') || G.map.rooms[1];
     h.inv[h.inv.indexOf(null)] = h.equip.weapon; h.equip.weapon = bow; h.hotkeys[1] = { type: 'item', id: bow.id }; recalc(); refreshUI();
-    clearAround(22); place(['spider', 'spider', 'demon', 'skeleton', 'skeleton'], [7, 9], false);
-    start('kite'); log('Test: kite them with the war bow. Key 1 is your longsword.', '#c9a45c');
+    // the hero in the middle of the big room, which holds only sleeping spiders and Pit Demons
+    let best = null; for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++)
+      if (floorAt(x, y)) { const dd = Math.hypot(x - room.cx, y - room.cy); if (!best || dd < best[2]) best = [x, y, dd]; }
+    h.x = best[0] + 0.5; h.y = best[1] + 0.5; h.path = []; G.camSnap = true;
+    const inRoom = m => m.x >= room.x - 1 && m.x < room.x + room.w + 1 && m.y >= room.y - 1 && m.y < room.y + room.h + 1;
+    G.monsters = G.monsters.filter(m => !inRoom(m) && Math.hypot(m.x - h.x, m.y - h.y) > 16);
+    const spots = []; for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++)
+      if (floorAt(x, y) && Math.hypot(x + 0.5 - h.x, y + 0.5 - h.y) >= 4) spots.push([x, y]);
+    for (const t of ['spider', 'spider', 'spider', 'spider', 'demon', 'demon']) { if (!spots.length) break;
+      const [x, y] = spots.splice(Math.floor(Math.random() * spots.length), 1)[0];
+      const m = makeMonster(t, x + 0.5, y + 0.5, 7, false, false, true); m.calm = { walked: -1e9, t: 1e9 }; G.monsters.push(m); }
+    start('kite'); log('Test: the big room. Shoot a sleeper from afar and watch it charge.', '#c9a45c');
   };
   $('sbPack').onclick = () => {
     testHero(3); const h = G.hero;

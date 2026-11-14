@@ -72,9 +72,13 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     sleep 4–6.5 tiles away. Their calm never ends, so they ignore the hero until a hit or a burn wakes them. Two
     small stacks of bombs (2 and 3) lie at the hero's feet, to pick up.
 - **Kiting:**
-  - **Kiting with a bow** (depth 7): the test hero holds a rare War Bow (the longsword in the pack, key 1).
-    Monsters within 22 tiles are removed, and two cave spiders, a Pit Demon and two skeletons are placed 7–9 tiles
-    away in sight, already pursuing. Shows the draw time and the charge; the skeletons don't charge.
+  - **Kiting with a bow** (depth 7, regenerated until the level has a big room): the test hero holds a rare War
+    Bow (the longsword in the pack, key 1).
+    - The hero stands on the floor tile nearest the middle of the big room, and its monsters, and all others within
+      16 tiles, are removed.
+    - Four cave spiders and two Pit Demons (no champions) are placed in the room at least 4 tiles from the hero,
+      asleep: their calm never ends, so only a hit wakes one. Until then they wander slowly.
+    - Shows the draw time and the charge, with room to run.
 - **Music:**
   - **Pack fight** (depth 3): monsters within 18 tiles are removed, and five skeletons (no champions) are placed
     3.5–6.5 tiles from the hero, already pursuing. Shows the combat music starting, ending at once when the last
@@ -612,9 +616,9 @@ and item uses:
   **Detour:** a chasing monster that has stayed within 0.5 tiles of one spot for 0.6 s (`DETOUR_AFTER`, e.g.
   sliding against a corner or a prop) follows a fresh A\* path for 2 s (`DETOUR_T`) instead of walking straight
   at the hero. They push apart from each other and from the hero, and give up beyond 20 tiles.
-- **Charge** (spiders and Pit Demons only, `CHARGE`). Hit by an arrow while more than 4 tiles from the hero, the
-  monster rushes at 1.5× its speed for 1.2 s, at most once every 5 s (`chargeOnShot`). A puff of dust rises, and
-  a spider's legs skitter. It closes some of the gap on a kiting hero without stopping kiting. Other monsters,
+- **Charge** (spiders and Pit Demons only, `CHARGE`). Hit by an arrow while more than 2.5 tiles from the hero, the
+  monster rushes at 1.5× its speed for 2 s, at most once every 5 s (`chargeOnShot`). A puff of dust rises, a
+  spider's legs skitter, and while it charges it trails dust. It closes some of the gap on a kiting hero without stopping kiting. Other monsters,
   fire bombs and melee hits never trigger it.
 - **Losing interest.** A chasing monster goes back to wandering when:
   - it is **stuck** for 3 s (`STUCK_GIVEUP`): it is trying to move toward the hero (not in reach, not winding

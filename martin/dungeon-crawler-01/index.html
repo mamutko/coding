@@ -342,7 +342,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 47;
+const VERSION = 48;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1406,9 +1406,9 @@ function releaseArrow(h) {
   G.proj.push({ type: 'arrow', x: h.x + Math.cos(ang) * 0.4, y: h.y + Math.sin(ang) * 0.4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: KIND_INFO.bow.reach / sp, dmg, crit, friendly: true });
 }
 // Charge: a spider or a Pit Demon hit by an arrow while more than CHARGE.from tiles from the hero rushes at
-// CHARGE.mult × its speed for CHARGE.dur s, at most once every CHARGE.cd s. It doesn't stop kiting, but a fast
+// CHARGE.mult × its speed for CHARGE.dur s, at most once every CHARGE.cd s, trailing dust. It doesn't stop kiting, but a fast
 // monster closes some of the gap.
-const CHARGE = { types: { spider: 1, demon: 1 }, from: 4, mult: 1.5, dur: 1.2, cd: 5 };
+const CHARGE = { types: { spider: 1, demon: 1 }, from: 2.5, mult: 1.5, dur: 2, cd: 5 };
 function chargeOnShot(m) {
   if (m.dead || !CHARGE.types[m.type] || dist(m, G.hero) <= CHARGE.from || G.time < (m.chargeReady || 0)) return;
   m.chargeT = CHARGE.dur; m.chargeReady = G.time + CHARGE.cd;
@@ -2382,7 +2382,8 @@ function updateFx(dt) {
 const DEATH_DELAY = 4;   // seconds between the hero's death and the death screen
 function updateMonster(m, dt) {
   m.hitT = Math.max(0, m.hitT - dt); m.lunge = Math.max(0, m.lunge - dt * 4);
-  if (m.chargeT > 0) m.chargeT -= dt;
+  if (m.chargeT > 0) { m.chargeT -= dt;   // charging: a trail of dust behind it
+    if (m.moving && rnd() < dt * 25) G.fx.push({ type: 'spark', x: m.x + (rnd() - 0.5) * 0.4, y: m.y + (rnd() - 0.5) * 0.4, vx: 0, vy: 0, z: 3, vz: 25 + rnd() * 20, t: 0, dur: 0.5, color: '130,110,85' }); }
   if (m.dead) { m.deathT += dt; return; }
   if (G.dead && m.state !== 'idle') { loseInterest(m, false); m.windup = 0; }   // the hero is dead: back to wandering
   const h = G.hero, b = m.b, d = dist(m, h);
