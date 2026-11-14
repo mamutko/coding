@@ -51,7 +51,7 @@ user/project-NN/
 ## Build
 
 ```bash
-python .claude/skills/artifact-sandbox/build.py <project-dir> <out-dir> [--title "Name"] [--skip GLOB ...] [--preview]
+python .claude/skills/artifact-sandbox/build.py <project-dir> <out-dir> [--title "Name"] [--skip GLOB ...] [--inline GLOB ...] [--preview]
 ```
 
 Put `<out-dir>` in the session's scratchpad (it is build output, never committed). It writes:
@@ -62,7 +62,14 @@ Put `<out-dir>` in the session's scratchpad (it is build output, never committed
   inlined, because **the artifact's address carries no query string** (only a plain `#name` hash).
   A project whose `<body>` has attributes must set them from a script instead (the build stops otherwise).
 - `assets/...` — copies of the files under `assets/` (or the `--assets` folders), minus `--skip` patterns
-  (files the page doesn't load: data already inlined, unused icon sizes).
+  (files the page doesn't load: data already inlined, unused icon sizes) and minus `--inline` ones.
+- `--inline GLOB ...` embeds matching assets in the page as base64 `data:` URIs, wherever the page names them in
+  quotes or `url(...)` (a path only in a comment is left alone; one named nowhere stays a file, with a warning).
+  **Inline the images a page needs to start**: in the claude.ai phone app the separate files can fail to load,
+  all of them and every retry, while the page itself loads. Keep each image named in one place (an asset table
+  in the script, a CSS variable such as `--items: url("assets/items.webp")` used by `var(--items)`), so it is
+  embedded once. Base64 adds a third; the page limit is 16 MB (the build warns). Sounds and music fetched later
+  can stay files: a failed fetch there should only cost the sound.
 - `files.json` — published path → source file, the Artifact tool's `files` map (`{}` with no assets).
 - `preview.html` (with `--preview`) — the page in a minimal document shell, for a local check (below). It is not
   in `files.json`, so it is never published.
@@ -137,6 +144,9 @@ The page runs in a locked-down frame (CSP); these hold for every viewer:
   per artifact, may throw: wrap in `try`), fullscreen from a click on desktop, keyboard after the user clicks
   into the page (some browser shortcuts, e.g. Ctrl+D, may be taken by the browser).
 - The page is shown inside claude.ai, at desktop and phone sizes: the project's own responsive layout applies.
+- **Phone app**: the page's separate published files may not load there at all (seen with a game's images: none
+  loaded, retries included, while desktop was fine). Inline what start-up needs (`--inline`), and have the
+  sandbox show load progress and errors in its picker, so a failure is visible instead of greyed-out buttons.
 
 ## Testing before publishing
 
@@ -158,5 +168,6 @@ page errors. For audio in headless Chromium, launch with `--autoplay-policy=no-u
 - `sandbox.js`: a scenario picker (Pack fight, Pit Demon level, Normal game), a level-12 test hero that is never
   saved (`saveHero` and `showDeath` wrapped), a music status bar, Next loop and Scenarios buttons.
 - Build: `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music
-  Sandbox" --skip assets/meta.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*'`
+  Sandbox" --skip assets/meta.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*'
+  --inline 'assets/*.webp' 'assets/*.jpg'`
 - The README's "Sandbox" section holds the artifact URL and describes the scenarios.

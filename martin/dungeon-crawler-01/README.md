@@ -53,10 +53,12 @@ it. They live in `sandbox.js`, apart from the game; the game itself never uses t
   https://claude.ai/artifact/T9nJm2WxgZYWtneTWFVqHa (private to its owner). It is built from the current
   `index.html` and `sandbox.js` by the repo's shared script (see the `artifact-sandbox` skill, which also covers
   publishing and testing):
-  `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music Sandbox" --skip assets/meta.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*'`.
+  `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music Sandbox" --skip assets/meta.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*' --inline 'assets/*.webp' 'assets/*.jpg'`.
   It removes the document wrapper (the viewer adds its own) and the manifest and touch-icon links, inlines
-  `sandbox.js` in place of the loader block (the artifact's address carries no query string), copies the assets
-  (minus `meta.json`, inlined as `META`, and the unused icon sizes) and writes `files.json` for publishing; the
+  `sandbox.js` in place of the loader block (the artifact's address carries no query string), embeds the 14
+  images (`assets/*.webp`, `*.jpg`) in the page as data URIs (about 3.6 MB; the claude.ai app on a phone failed
+  to load them as separate files, every one and every retry), copies the other assets (sounds and music, minus
+  `meta.json`, inlined as `META`, and the unused icon sizes) and writes `files.json` for publishing; the
   artifact is then republished to the same URL. Nothing is copied by hand, so a rebuild always matches the
   game; **after a change to the game the artifact is rebuilt and republished**, or it keeps the older version.
 
@@ -70,7 +72,8 @@ and leaves the usual title screen, whose **Scenarios** button at its bottom left
 The scenario buttons (all but **Normal game**) stay off until the game's own start-up is done: all images
 loaded (`LOADED` counts them) and a first level built. Until then the picker says `Loading the game: n / 14
 images…` (with how many loads were retried, if any); if an image fails to load or start-up throws, it shows that message instead (the same text the title
-screen's start button shows, which the picker covers) and the scenarios stay off. Errors thrown later
+screen's start button shows, which the picker covers) and the scenarios stay off; for a failed image it also
+fetches the file once and adds what the server answered (an HTTP status, or the fetch error). Errors thrown later
 (`error` and `unhandledrejection` events) are listed there too, the last three.
 
 The picker (*Crypt Sandbox*) groups the scenarios:

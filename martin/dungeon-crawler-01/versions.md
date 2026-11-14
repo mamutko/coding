@@ -9,15 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v62–v64 — debug overlay and scenarios from the title screen (2026-11-15)
+## v62–v65 — debug overlay and scenarios from the title screen (2026-11-15)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 64`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 65`)*
 
 - The version number on the title screen is larger; double-click it (long-press on a phone) to open the debug
   overlay, which now shows above the title screen (`Ctrl` + `D` works there too).
 - A **Scenarios** button at the title screen's bottom left opens the sandbox's scenario picker.
 - The scenario picker shows its loading progress, and why the scenarios stay off if the game fails to start.
 - An image that fails to load is tried again (up to 4 times) instead of stopping the game from starting.
+- The sandbox artifact embeds its images in the page, so it starts in the claude.ai phone app too; if an image
+  still fails, the picker shows what the server answered.
 
 ## v61 — surface music (2026-11-15)
 

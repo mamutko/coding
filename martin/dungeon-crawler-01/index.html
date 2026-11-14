@@ -18,6 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&family=UnifrakturMaguntia&display=swap" rel="stylesheet">
 <style>
   :root {
+    --items: url("assets/items.webp");   /* the item icon atlas, for the slots' CSS (iconCss); one place, so the artifact build can inline it */
     --gold: #c9a45c;
     --gold-dim: #7a6236;
     --blood: #9e1b1b;
@@ -386,7 +387,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 64;
+const VERSION = 65;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2213,7 +2214,7 @@ function bindHotkey(idx, ref) {
 // =====================================================================================
 function iconCss(name, size) {
   const [x, y] = META.items[iconKey(name)], k = size / 96;
-  return `background-image:url(assets/items.webp);background-size:${ATLAS_W * k}px ${ATLAS_H * k}px;background-position:-${x * k}px -${y * k}px;`;
+  return `background-image:var(--items);background-size:${ATLAS_W * k}px ${ATLAS_H * k}px;background-position:-${x * k}px -${y * k}px;`;
 }
 const itemIconCss = (it, size) => iconCss(it.base, size) + (potionFilter(it) ? `filter:${potionFilter(it)};` : '');
 const DOLL = { head: [97, 0], amulet: [180, 30], weapon: [14, 90], ring1: [180, 96], hands: [14, 160], ring2: [180, 162], chest: [97, 204], feet: [97, 268] };

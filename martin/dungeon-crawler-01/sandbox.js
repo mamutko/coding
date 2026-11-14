@@ -229,14 +229,19 @@
   for (const id of SC) $(id).disabled = true;
   // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
   // the same, but the picker covers it); errors thrown later are listed there too
-  const status = $('sbStatus'), errs = [];
+  const status = $('sbStatus'), errs = []; let probe = null;
   addEventListener('error', e => { errs.push(e.message || String(e.error || e)); });
   addEventListener('unhandledrejection', e => { errs.push('unhandled: ' + (e.reason && e.reason.message || e.reason)); });
   const ready = setInterval(() => {
     const sb = $('startBtn').textContent, failed = /fail/i.test(sb);
     if (G && floorPat && !failed) { clearInterval(ready); for (const id of SC) $(id).disabled = false; $('sbFirePack').focus(); }
     status.classList.toggle('err', failed || errs.length > 0);
-    status.textContent = failed ? sb + ' — the scenarios stay off.' : G && floorPat ? (errs.length ? 'Errors: ' + errs.slice(-3).join(' · ') : '')
+    if (failed && probe === null) {   // ask the server directly what it answers for that file, to show why
+      probe = ''; const url = (sb.match(/Failed to load (\S+)/) || [])[1];
+      if (url) fetch(url, { cache: 'no-store' }).then(r => { probe = ` The server answered HTTP ${r.status}${r.statusText ? ' ' + r.statusText : ''}.`; })
+        .catch(e => { probe = ` Fetching it fails too: ${e.message || e}.`; });
+    }
+    status.textContent = failed ? sb + ' — the scenarios stay off.' + (probe || '') : G && floorPat ? (errs.length ? 'Errors: ' + errs.slice(-3).join(' · ') : '')
       : `Loading the game: ${LOADED.n} / ${LOADED.of} images…` + (LOADED.retries ? ` (${LOADED.retries} retried)` : '') + (errs.length ? ' Errors: ' + errs.slice(-3).join(' · ') : '');
     status.hidden = !status.textContent;
     if (G && floorPat && !failed && !errs.length) status.hidden = true;
