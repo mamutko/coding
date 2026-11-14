@@ -342,7 +342,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 44;
+const VERSION = 45;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1243,7 +1243,9 @@ function lineWalkable(ax, ay, bx, by, r) {
   for (let i = 1; i <= n; i++) { if (!canStand(ax + (bx - ax) * i / n, ay + (by - ay) * i / n, r)) return false; }
   return true;
 }
-// binary-heap A* over 8-connected tiles; near=true stops on any free tile adjacent to the goal
+// binary-heap A* over 8-connected tiles; near=true stops on any free tile adjacent to the goal from which the goal
+// can be reached in one step: a diagonal neighbour counts only if the diagonal isn't cut by a wall corner (else a
+// walker across an outside corner from its goal would get an empty path and stand still)
 function astar(sx, sy, gx, gy, near, maxN = 7000, partial = false) {
   const m = G.map, W_ = m.w, N = W_ * m.h;
   if (!near && blocked(gx, gy)) return null;
@@ -1258,7 +1260,8 @@ function astar(sx, sy, gx, gy, near, maxN = 7000, partial = false) {
     const [, i] = pop(); if (closed[i]) continue; closed[i] = 1;
     const x = i % W_, y = (i / W_) | 0;
     const hv = hf(x, y); if (hv < bestH) { bestH = hv; bestI = i; }
-    if (near ? (Math.max(Math.abs(x - gx), Math.abs(y - gy)) <= 1 && !(x === gx && y === gy && blocked(x, y))) : (x === gx && y === gy)) { found = i; break; }
+    if (near ? (Math.max(Math.abs(x - gx), Math.abs(y - gy)) <= 1 && !(x === gx && y === gy && blocked(x, y)) &&
+        !(x !== gx && y !== gy && (blocked(gx, y) || blocked(x, gy)))) : (x === gx && y === gy)) { found = i; break; }
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dy) continue; const nx = x + dx, ny = y + dy;
       if (blocked(nx, ny)) continue;
@@ -1285,8 +1288,10 @@ function pathTo(e, wx, wy, near) {
   const tx = Math.floor(wx), ty = Math.floor(wy);
   let p = astar(Math.floor(e.x), Math.floor(e.y), tx, ty, near || blocked(tx, ty), 7000, true);
   if (!p) return false;
-  if (!p.length) {   // already on (or next to) the goal tile
-    e.path = !near && canStand(wx, wy, e.r) && lineWalkable(e.x, e.y, wx, wy, e.r) ? [[wx, wy]] : [];
+  if (!p.length) {   // already on (or next to) the goal tile: walk straight at the goal point where that is free
+    // (a near goal too: being on the next tile doesn't mean being in reach, e.g. of a wraith keeping its distance;
+    // the caller stops the walk once in reach)
+    e.path = canStand(wx, wy, e.r) && lineWalkable(e.x, e.y, wx, wy, e.r) ? [[wx, wy]] : [];
     return true;
   }
   const last = p[p.length - 1], reached = Math.floor(last[0]) === tx && Math.floor(last[1]) === ty;
@@ -2411,7 +2416,7 @@ function updateMonster(m, dt) {
   } else {
     m.repath -= dt;
     if (m.repath <= 0 || !m.path.length) { m.repath = 0.5 + rnd() * 0.4; const p = astar(Math.floor(m.x), Math.floor(m.y), Math.floor(goal[0]), Math.floor(goal[1]), true, 2500);
-      m.path = p ? smoothPath(p, m.x, m.y, m.r) : []; }
+      m.path = p ? (p.length ? smoothPath(p, m.x, m.y, m.r) : lineWalkable(m.x, m.y, goal[0], goal[1], m.r) ? [[goal[0], goal[1]]] : []) : []; }
     m.moving = followPath(m, spd, dt);
   }
 }

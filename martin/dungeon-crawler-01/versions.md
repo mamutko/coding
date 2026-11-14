@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v45 — melee and chase fixes next to the target (2026-11-14)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 45`)*
+
+- Fix: a melee attack on a monster one tile away diagonally but out of reach (typically a wraith keeping its
+  distance) did nothing; the hero now steps in and strikes.
+- Fix: a monster on the other side of an outside wall corner from the hero no longer stands stuck; it walks
+  around the corner and attacks.
+
 ## v44 — fire bombs (2026-11-13)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 44`)*
+Commit: 4c5ab9b
 
 - Fire bombs: clay pots of lamp oil, equipped as a weapon and thrown with a right click, up to 7 tiles; they land on
   the aimed spot (or break against a wall on the way).

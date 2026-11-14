@@ -466,8 +466,14 @@ Each depth `d` gets a freshly generated level.
   circle's bounding box are on walkable tiles: floor or open door, with no blocking prop. Movement resolves
   the x and y axes separately, so entities slide along walls.
 - **A\*** runs on the 8-connected tile grid with a binary heap and octile heuristic. Diagonal steps are not
-  allowed past corners. A "near" mode stops on any free tile adjacent to the goal; it is used for walking up
-  to blocking props, doors and monsters.
+  allowed past corners. A "near" mode stops on any free tile adjacent to the goal from which the goal is one
+  step away: a diagonal neighbour counts only when the diagonal isn't cut by a wall corner (otherwise a walker on
+  the other side of an outside corner would count as arrived and stand still). It is used for walking up to
+  blocking props, doors and monsters.
+- **Already next to the goal.** When the path comes back empty (on the goal tile or next to it), the walker steps
+  straight at the goal point if that line is free. Being on the next tile doesn't mean being in reach, e.g. of a
+  wraith keeping its distance, or of a monster's attack. The hero's attack walk stops as soon as the target is in
+  reach, and so does a monster's chase.
 - **Hero clicks use partial paths.** If the goal can't be reached (for example behind a closed door), the hero
   walks to the reachable tile closest to it.
 - **Smoothing.** Paths are string-pulled: waypoints are skipped while the straight line stays walkable. The
