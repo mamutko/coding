@@ -9,9 +9,19 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v47 — gentle limits on kiting (2026-11-14)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 47`)*
+
+- Bows have a short draw before each arrow: the hero stands still 0.15 s (Short Bow) to 0.24 s (War Bow); the
+  rate of fire is unchanged, and the arrow is aimed when it is loosed.
+- Spiders and Pit Demons hit by an arrow from more than 4 tiles away charge at 1.5× speed for 1.2 s (at most every
+  5 s).
+- Sandbox: a "Kiting with a bow" scenario.
+
 ## v46 — tougher, richer champions and bosses (2026-11-14)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 46`)*
+Commit: 32411bf
 
 - Champions hit twice as hard as a normal monster (was ×1.5) and give ×4 XP (was ×3).
 - Bosses hit three times as hard (was ×1.8) and give ×12 XP (was ×8).

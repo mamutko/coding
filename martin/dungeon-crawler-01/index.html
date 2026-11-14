@@ -342,7 +342,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 46;
+const VERSION = 47;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1384,16 +1384,36 @@ function heroAttack(px, py, target) {
   const roll = () => { const crit = rnd() * 100 < h.st.crit; return [(mn + rnd() * (mx - mn)) * (crit ? 1.75 : 1), crit]; };
   h.path = [];
   if (w.kind === 'bomb') { throwBomb(h, target ? target.x : px, target ? target.y : py); return true; }
-  if (w.kind === 'bow') {
-    const sp = 15; sfx('bow');
-    const [dmg, crit] = roll();
-    G.proj.push({ type: 'arrow', x: h.x + Math.cos(ang) * 0.4, y: h.y + Math.sin(ang) * 0.4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: info.reach / sp, dmg, crit, friendly: true });
+  if (w.kind === 'bow') {   // the hero stands still drawing the bow, then looses (see releaseArrow); the cooldown runs from now
+    h.draw = { t: 0, dur: drawTime(w), target: target || null, x: px, y: py, roll };
   } else {
     sfx('swing', { kind: w.kind });
     h.swing = { t: 0, dur: 0.24, ang, hit: false, arc: info.arc, reach: info.reach, roll, target: target || null };
     h.lunge = 1;
   }
   return true;
+}
+// Bows: drawing takes BOW_DRAW.base + BOW_DRAW.perCd × (cooldown − 0.6) s (0.15 s for a Short Bow, 0.24 s for a War
+// Bow), standing still; it is part of the shot's cooldown, so the rate of fire doesn't change. The arrow is aimed
+// at release: at the target monster where it is then, or at the clicked spot.
+const BOW_DRAW = { base: 0.15, perCd: 0.3 };
+const drawTime = w => BOW_DRAW.base + BOW_DRAW.perCd * Math.max(0, w.cd - 0.6);
+function releaseArrow(h) {
+  const d = h.draw; h.draw = null;
+  const tx = d.target && !d.target.dead ? d.target.x : d.x, ty = d.target && !d.target.dead ? d.target.y : d.y;
+  const ang = Math.atan2(ty - h.y, tx - h.x), sp = 15, [dmg, crit] = d.roll();
+  setDir(h, tx - h.x, ty - h.y); sfx('bow');
+  G.proj.push({ type: 'arrow', x: h.x + Math.cos(ang) * 0.4, y: h.y + Math.sin(ang) * 0.4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: KIND_INFO.bow.reach / sp, dmg, crit, friendly: true });
+}
+// Charge: a spider or a Pit Demon hit by an arrow while more than CHARGE.from tiles from the hero rushes at
+// CHARGE.mult × its speed for CHARGE.dur s, at most once every CHARGE.cd s. It doesn't stop kiting, but a fast
+// monster closes some of the gap.
+const CHARGE = { types: { spider: 1, demon: 1 }, from: 4, mult: 1.5, dur: 1.2, cd: 5 };
+function chargeOnShot(m) {
+  if (m.dead || !CHARGE.types[m.type] || dist(m, G.hero) <= CHARGE.from || G.time < (m.chargeReady || 0)) return;
+  m.chargeT = CHARGE.dur; m.chargeReady = G.time + CHARGE.cd;
+  if (m.type === 'spider') sfx('bones', { x: m.x, y: m.y, n: 6 });   // a skitter of legs (a demon charges silently)
+  for (let i = 0; i < 6; i++) G.fx.push({ type: 'spark', x: m.x, y: m.y, vx: (rnd() - 0.5) * 2, vy: (rnd() - 0.5) * 2, z: 6, vz: 30 + rnd() * 30, t: 0, dur: 0.5, color: '120,100,80' });
 }
 // A swing hits every monster in its arc, but only the main target takes full damage; the others take
 // CLEAVE (25 %). The main target is the clicked monster, or, for a swing at the ground (or if the clicked
@@ -2287,6 +2307,7 @@ function update(dt) {
   h.lunge = Math.max(0, h.lunge - dt * 5);
   h.hp = Math.min(h.st.maxHp, h.hp + h.st.regen * dt);
   if (h.swing) { h.swing.t += dt; if (!h.swing.hit && h.swing.t >= 0.08) { h.swing.hit = true; resolveSwing(h); } if (h.swing.t >= h.swing.dur) h.swing = null; }
+  if (h.draw && (h.draw.t += dt) >= h.draw.dur) releaseArrow(h);
   runQueue();
   // a click attack at the ground that came while the hero was busy waits (one at most) for the hero to be free
   if (h.pendingAt && h.atkCd <= 0 && !h.swing && heroAttack(h.pendingAt.x, h.pendingAt.y, null)) h.pendingAt = null;
@@ -2305,7 +2326,7 @@ function update(dt) {
     }
   }
   const ox = h.x, oy = h.y;
-  h.moving = !h.swing && followPath(h, h.st.speed, dt);
+  h.moving = !h.swing && !h.draw && followPath(h, h.st.speed, dt);
   const stepD = Math.hypot(h.x - ox, h.y - oy);
   if (h.moving) { h.anim += stepD * META.characters.hero.fpt; if (stepD < 1e-4) { h.stuckT += dt; if (h.stuckT > 0.3) { h.path = []; h.stuckT = 0; } } else h.stuckT = 0; }
   if (h.intent) {
@@ -2342,7 +2363,7 @@ function update(dt) {
     for (let s = 0; s < steps && p.life > 0; s++) {
       p.x += p.vx * dt / steps; p.y += p.vy * dt / steps; p.life -= dt / steps;
       if (opaque(Math.floor(p.x), Math.floor(p.y))) { p.life = 0; G.fx.push({ type: 'spark', x: p.x, y: p.y, vx: 0, vy: 0, z: 40, vz: 30, t: 0, dur: 0.3, color: p.friendly ? '200,180,140' : '120,255,170' }); break; }
-      if (p.friendly) { for (const mo of G.monsters) if (!mo.dead && Math.hypot(mo.x - p.x, mo.y - p.y) < mo.r + 0.18) { damageMonster(mo, p.dmg, p.crit); p.life = 0; break; } }
+      if (p.friendly) { for (const mo of G.monsters) if (!mo.dead && Math.hypot(mo.x - p.x, mo.y - p.y) < mo.r + 0.18) { damageMonster(mo, p.dmg, p.crit); chargeOnShot(mo); p.life = 0; break; } }
       else if (Math.hypot(h.x - p.x, h.y - p.y) < h.r + 0.2) { damageHero(p.dmg, p.src); p.life = 0; }
     }
   }
@@ -2361,6 +2382,7 @@ function updateFx(dt) {
 const DEATH_DELAY = 4;   // seconds between the hero's death and the death screen
 function updateMonster(m, dt) {
   m.hitT = Math.max(0, m.hitT - dt); m.lunge = Math.max(0, m.lunge - dt * 4);
+  if (m.chargeT > 0) m.chargeT -= dt;
   if (m.dead) { m.deathT += dt; return; }
   if (G.dead && m.state !== 'idle') { loseInterest(m, false); m.windup = 0; }   // the hero is dead: back to wandering
   const h = G.hero, b = m.b, d = dist(m, h);
@@ -2409,7 +2431,7 @@ function updateMonster(m, dt) {
   // instead of walking straight at the goal
   if (m.stuckT >= DETOUR_AFTER && !(m.detourT > 0)) { m.detourT = DETOUR_T; m.repath = 0; }
   if (m.detourT > 0) m.detourT -= dt;
-  const spd = m.speed;
+  const spd = m.speed * (m.chargeT > 0 ? CHARGE.mult : 1);
   if (!(m.detourT > 0) && seen && d < 9 && lineWalkable(m.x, m.y, goal[0], goal[1], m.r * 1.05)) {
     const dx = goal[0] - m.x, dy = goal[1] - m.y, dd = Math.hypot(dx, dy) || 1; m.path = [];
     moveEnt(m, dx / dd * spd * dt, dy / dd * spd * dt); setDir(m, dx, dy); m.moving = true;

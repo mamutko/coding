@@ -40,6 +40,8 @@
     <button class="sc" id="sbFirePack"><b>Fire bombs: pack fight</b>Depth 3, 15 fire bombs equipped, four skeletons and three ghouls rushing in. Right-click to throw at a monster or a spot (up to 7 tiles). Key 1 is your longsword, 2 the bombs. Mind the flames: they burn you too.</button>
     <button class="sc" id="sbFireLast"><b>Fire bombs: the last two</b>Only two bombs equipped and three skeletons coming. After the second throw your hands are empty until you equip the longsword (key 1).</button>
     <button class="sc" id="sbFireYard"><b>Fire bombs: practice yard</b>30 bombs, a quiet room: three sleeping skeletons to burn (a burn wakes them) and two small stacks of bombs on the floor to pick up (they join your stack). Switch the fire's look in the bar to compare.</button>
+    <h2>Kiting</h2>
+    <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7 with a rare war bow: two cave spiders, a Pit Demon and two skeletons coming from 7–9 tiles. Each shot now has a short draw (you stand still); spiders and the demon charge for a moment when an arrow hits them from afar. Skeletons don't, for comparison.</button>
     <h2>Music</h2>
     <button class="sc" id="sbPack"><b>Pack fight</b>Five skeletons rush you at depth 3. Four or more pursuers start the combat track. Kill them all and it switches back at once; run until they lose interest and it holds 6 s.</button>
     <button class="sc" id="sbDemon"><b>Pit Demon level</b>Depth 8 with a Pit Demon boss, next to its boss room. The 2nd, 5th and 9th play of each track is the choir version (use Next loop to skip ahead); stepping into the boss room plays the choir combat track.</button>
@@ -104,6 +106,12 @@
   };
   function lookButtons() { $('sbLooks').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.look === LOOK.fire)); }
   $('sbLooks').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; setLook('fire', +b.dataset.look); lookButtons(); b.blur(); });
+  $('sbKite').onclick = () => {
+    testHero(7); const h = G.hero, bow = mk('warbow', 'rare', 7);
+    h.inv[h.inv.indexOf(null)] = h.equip.weapon; h.equip.weapon = bow; h.hotkeys[1] = { type: 'item', id: bow.id }; recalc(); refreshUI();
+    clearAround(22); place(['spider', 'spider', 'demon', 'skeleton', 'skeleton'], [7, 9], false);
+    start('kite'); log('Test: kite them with the war bow. Key 1 is your longsword.', '#c9a45c');
+  };
   $('sbPack').onclick = () => {
     testHero(3); const h = G.hero;
     // clear the start room's surroundings, then five skeletons 4-6 tiles away, already pursuing
@@ -133,6 +141,15 @@
   setInterval(() => {
     open.hidden = !pick.hidden || $('screen').classList.contains('hidden');
     if (bar.hidden || !G) return;
+    if (mode === 'kite') {
+      const h = G.hero, w = weaponOf(h), near = G.monsters.filter(m => !m.dead && m.state === 'chase');
+      const ch = near.filter(m => m.chargeT > 0).map(m => MON[m.type].name);
+      const gap = near.length ? Math.min(...near.map(m => Math.hypot(m.x - h.x, m.y - h.y))).toFixed(1) : '–';
+      $('sbInfo').innerHTML = `<span class="mood">${w.name}</span>` + (w.kind === 'bow' ? ` · draw ${drawTime(w).toFixed(2)} s` : '')
+        + (h.draw ? ' · <span class="choir">drawing</span>' : '') + ` · nearest pursuer ${gap} tiles`
+        + (ch.length ? ` · <span class="burn">charging: ${ch.join(', ')}</span>` : '');
+      return;
+    }
     if (mode === 'fire') {
       const n = bombCount(), lit = G.fires.filter(f => f.t < f.dur).length, foes = G.monsters.filter(m => !m.dead && m.burning).length;
       $('sbInfo').innerHTML = `<span class="mood">Fire bombs ${n}</span>` + (isBomb(G.hero.equip.weapon) ? '' : ` · <span class="burn">${G.hero.equip.weapon ? G.hero.equip.weapon.name : 'bare hands'}</span>`)
@@ -145,7 +162,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbFirePack', 'sbFireLast', 'sbFireYard', 'sbPack', 'sbDemon'];
+  const SC = ['sbFirePack', 'sbFireLast', 'sbFireYard', 'sbKite', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   const ready = setInterval(() => { if (G && floorPat) { clearInterval(ready); for (const id of SC) $(id).disabled = false; $('sbFirePack').focus(); } }, 100);
 })();

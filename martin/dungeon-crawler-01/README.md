@@ -71,6 +71,10 @@ The picker (*Crypt Sandbox*) groups the scenarios:
   - **Fire bombs: practice yard** (depth 2, 30 bombs): monsters within 22 tiles are removed, and three skeletons
     sleep 4–6.5 tiles away. Their calm never ends, so they ignore the hero until a hit or a burn wakes them. Two
     small stacks of bombs (2 and 3) lie at the hero's feet, to pick up.
+- **Kiting:**
+  - **Kiting with a bow** (depth 7): the test hero holds a rare War Bow (the longsword in the pack, key 1).
+    Monsters within 22 tiles are removed, and two cave spiders, a Pit Demon and two skeletons are placed 7–9 tiles
+    away in sight, already pursuing. Shows the draw time and the charge; the skeletons don't charge.
 - **Music:**
   - **Pack fight** (depth 3): monsters within 18 tiles are removed, and five skeletons (no champions) are placed
     3.5–6.5 tiles from the hero, already pursuing. Shows the combat music starting, ending at once when the last
@@ -89,6 +93,8 @@ A status bar at the top (above the bottom HUD on narrow screens) shows what the 
 
   It also has **Fire look** buttons (*Blaze*, *Ember bed*, *Oil pool*) that switch the fire's look for the next
   fires (see [Fire bombs](#fire-bombs)).
+- **In the kiting scenario** it shows the weapon and its draw time, "drawing" while the hero draws, the
+  distance to the nearest pursuer, and which monsters are charging.
 - **In the music scenarios** it shows the music: mood, instrumental or choir (gold), play number, how many
   monsters pursue, the hold countdown and whether it is a Pit Demon level. **Next loop** (music scenarios only)
   starts the next play of the current track at once (to reach plays 2, 5 and 9 quickly).
@@ -538,7 +544,12 @@ gets its own damage and crit roll, then its own armor reduction.
 | Axe | 1.45 | 1.25 rad (wide cleave) |
 | Bare hands | 1.25 | 0.8 rad |
 
-**Ranged (bows).** A right click fires an arrow at the hovered monster, or toward the cursor. Arrows travel
+**Ranged (bows).** A right click fires an arrow at the hovered monster, or toward the cursor. The hero first
+**draws the bow**, standing still, for `BOW_DRAW.base + BOW_DRAW.perCd × (cooldown − 0.6)` s (0.15 s for a Short
+Bow, 0.24 s for a War Bow; `drawTime`). The draw is part of the shot's cooldown, so the rate of fire is
+unchanged. The arrow is aimed when it is loosed (`releaseArrow`): at the target monster where it is then, or at
+the clicked spot. The bow sound plays at release. A walk clicked meanwhile starts after the draw. Kiting (shoot,
+run, shoot again) stays possible; each shot just costs a little ground. Arrows travel
 15 tiles/s for up to 12 tiles, hit the first monster they touch, and stop at walls and closed doors.
 
 **Attack speed.** Each weapon has a cooldown (attacks per second = 1 / cooldown). It is the action time of an
@@ -601,6 +612,10 @@ and item uses:
   **Detour:** a chasing monster that has stayed within 0.5 tiles of one spot for 0.6 s (`DETOUR_AFTER`, e.g.
   sliding against a corner or a prop) follows a fresh A\* path for 2 s (`DETOUR_T`) instead of walking straight
   at the hero. They push apart from each other and from the hero, and give up beyond 20 tiles.
+- **Charge** (spiders and Pit Demons only, `CHARGE`). Hit by an arrow while more than 4 tiles from the hero, the
+  monster rushes at 1.5× its speed for 1.2 s, at most once every 5 s (`chargeOnShot`). A puff of dust rises, and
+  a spider's legs skitter. It closes some of the gap on a kiting hero without stopping kiting. Other monsters,
+  fire bombs and melee hits never trigger it.
 - **Losing interest.** A chasing monster goes back to wandering when:
   - it is **stuck** for 3 s (`STUCK_GIVEUP`): it is trying to move toward the hero (not in reach, not winding
     up, not standing to shoot) but stays within 0.5 tiles (`STUCK_MOVE`) of one spot, e.g. a pack plugging a
