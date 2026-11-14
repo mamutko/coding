@@ -72,11 +72,16 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     sleep 4–6.5 tiles away. Their calm never ends, so they ignore the hero until a hit or a burn wakes them. Two
     small stacks of bombs (2 and 3) lie at the hero's feet, to pick up.
 - **Kiting:**
-  - **Kiting with a bow** (depth 7, regenerated until the level has a big room): the test hero holds a rare War
-    Bow (the longsword in the pack, key 1).
-    - The hero stands on the floor tile nearest the middle of the big room, and its monsters, and all others within
-      16 tiles, are removed.
-    - Four cave spiders and two Pit Demons (no champions) are placed in the room at least 4 tiles from the hero,
+  - **Kiting with a bow** (depth 7, regenerated until the level has a big room): the test hero holds a common
+    Hunting Bow (about 3 arrows per spider and 15 per Pit Demon there; the longsword in the pack, key 1).
+    - **The room** is the level's big room, grown to 3× its area (`enlargeRoom`, sandbox only):
+      - its sides grow by √3 around its centre (about 19–24 tiles), kept inside the map;
+      - everything in the new rectangle becomes floor: walls, doors (their door objects are removed) and any
+        rooms or corridors it overlaps open up, while other props stay;
+      - the floor's new edge gets walls, as `buildLevel` makes them.
+    - The hero stands on the floor tile nearest its middle. Its monsters, and all others within 22 tiles, are
+      removed.
+    - Four cave spiders and two Pit Demons (no champions) are placed in the room at least 5 tiles from the hero,
       asleep: their calm never ends, so only a hit wakes one. Until then they wander slowly.
     - Shows the draw time and the charge, with room to run.
 - **Music:**

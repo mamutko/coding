@@ -41,7 +41,7 @@
     <button class="sc" id="sbFireLast"><b>Fire bombs: the last two</b>Only two bombs equipped and three skeletons coming. After the second throw your hands are empty until you equip the longsword (key 1).</button>
     <button class="sc" id="sbFireYard"><b>Fire bombs: practice yard</b>30 bombs, a quiet room: three sleeping skeletons to burn (a burn wakes them) and two small stacks of bombs on the floor to pick up (they join your stack). Switch the fire's look in the bar to compare.</button>
     <h2>Kiting</h2>
-    <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a rare war bow, in the middle of the level's big room: four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Plenty of room to run. Key 1 is your longsword.</button>
+    <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to three times its size: four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
     <h2>Music</h2>
     <button class="sc" id="sbPack"><b>Pack fight</b>Five skeletons rush you at depth 3. Four or more pursuers start the combat track. Kill them all and it switches back at once; run until they lose interest and it holds 6 s.</button>
     <button class="sc" id="sbDemon"><b>Pit Demon level</b>Depth 8 with a Pit Demon boss, next to its boss room. The 2nd, 5th and 9th play of each track is the choir version (use Next loop to skip ahead); stepping into the boss room plays the choir combat track.</button>
@@ -90,6 +90,21 @@
       const m = makeMonster(t, x + 0.5, y + 0.5, G.depth, false, false, true); G.monsters.push(m);
       if (asleep) m.calm = { walked: -1e9, t: 1e9 }; else chase(m); }
   }
+  // Sandbox only: grow a room to `factor` times its area (sides × √factor, centred, kept inside the map). Everything
+  // in the new rectangle becomes floor (walls, doors and other rooms it overlaps open up; door objects there are
+  // removed, other props stay), and the floor's new edge gets walls, as buildLevel makes them.
+  function enlargeRoom(room, factor) {
+    const m = G.map, k = Math.sqrt(factor), nw = Math.min(m.w - 6, Math.round(room.w * k)), nh = Math.min(m.h - 6, Math.round(room.h * k));
+    const x0 = Math.max(3, Math.min(m.w - 3 - nw, room.cx - (nw >> 1))), y0 = Math.max(3, Math.min(m.h - 3 - nh, room.cy - (nh >> 1)));
+    const inR = (x, y) => x >= x0 && x < x0 + nw && y >= y0 && y < y0 + nh;
+    G.objects = G.objects.filter(o => !(o.type === 'door' && inR(o.x, o.y)));
+    for (let y = y0; y < y0 + nh; y++) for (let x = x0; x < x0 + nw; x++) { const i = y * m.w + x; if (m.t[i] !== T_FLOOR) { m.t[i] = T_FLOOR; m.block[i] = 0; } }
+    for (let y = y0 - 1; y <= y0 + nh; y++) for (let x = x0 - 1; x <= x0 + nw; x++) {
+      const i = y * m.w + x; if (m.t[i] !== T_VOID) continue;
+      for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (m.t[(y + dy) * m.w + x + dx] === T_FLOOR) m.t[i] = T_WALL;
+    }
+    Object.assign(room, { x: x0, y: y0, w: nw, h: nh, cx: x0 + (nw >> 1), cy: y0 + (nh >> 1) });
+  }
   const clearAround = r => { const h = G.hero; G.monsters = G.monsters.filter(m => Math.hypot(m.x - h.x, m.y - h.y) > r); };
   $('sbFirePack').onclick = () => {
     testHero(3, 15); clearAround(18); place(['skeleton', 'skeleton', 'skeleton', 'skeleton', 'ghoul', 'ghoul', 'ghoul'], [5, 8], false);
@@ -108,16 +123,17 @@
   $('sbLooks').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; setLook('fire', +b.dataset.look); lookButtons(); b.blur(); });
   $('sbKite').onclick = () => {
     for (let i = 0; i < 100; i++) { testHero(7); if (G.map.rooms.some(r => r.big === 'horde')) break; }
-    const h = G.hero, bow = mk('warbow', 'rare', 7), room = G.map.rooms.find(r => r.big === 'horde') || G.map.rooms[1];
+    const h = G.hero, bow = genItem(7, 0, 'huntingbow', 'common', 7), room = G.map.rooms.find(r => r.big === 'horde') || G.map.rooms[1];
+    enlargeRoom(room, 3);
     h.inv[h.inv.indexOf(null)] = h.equip.weapon; h.equip.weapon = bow; h.hotkeys[1] = { type: 'item', id: bow.id }; recalc(); refreshUI();
     // the hero in the middle of the big room, which holds only sleeping spiders and Pit Demons
     let best = null; for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++)
       if (floorAt(x, y)) { const dd = Math.hypot(x - room.cx, y - room.cy); if (!best || dd < best[2]) best = [x, y, dd]; }
     h.x = best[0] + 0.5; h.y = best[1] + 0.5; h.path = []; G.camSnap = true;
     const inRoom = m => m.x >= room.x - 1 && m.x < room.x + room.w + 1 && m.y >= room.y - 1 && m.y < room.y + room.h + 1;
-    G.monsters = G.monsters.filter(m => !inRoom(m) && Math.hypot(m.x - h.x, m.y - h.y) > 16);
+    G.monsters = G.monsters.filter(m => !inRoom(m) && Math.hypot(m.x - h.x, m.y - h.y) > 22);
     const spots = []; for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++)
-      if (floorAt(x, y) && Math.hypot(x + 0.5 - h.x, y + 0.5 - h.y) >= 4) spots.push([x, y]);
+      if (floorAt(x, y) && Math.hypot(x + 0.5 - h.x, y + 0.5 - h.y) >= 5) spots.push([x, y]);
     for (const t of ['spider', 'spider', 'spider', 'spider', 'demon', 'demon']) { if (!spots.length) break;
       const [x, y] = spots.splice(Math.floor(Math.random() * spots.length), 1)[0];
       const m = makeMonster(t, x + 0.5, y + 0.5, 7, false, false, true); m.calm = { walked: -1e9, t: 1e9 }; G.monsters.push(m); }
