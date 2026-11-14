@@ -622,7 +622,7 @@ and item uses:
   sliding against a corner or a prop) follows a fresh A\* path for 2 s (`DETOUR_T`) instead of walking straight
   at the hero. They push apart from each other and from the hero, and give up beyond 20 tiles.
 - **Charge** (spiders and Pit Demons only, `CHARGE`). Hit by an arrow while more than 2.5 tiles from the hero, the
-  monster rushes at 1.5× its speed for 2 s, at most once every 5 s (`chargeOnShot`). A puff of dust rises, a
+  monster rushes at 1.6× its speed for 2 s, at most once every 5 s (`chargeOnShot`). A puff of dust rises, a
   spider's legs skitter, and while it charges it trails dust. It closes some of the gap on a kiting hero without stopping kiting. Other monsters,
   fire bombs and melee hits never trigger it.
 - **Losing interest.** A chasing monster goes back to wandering when:
@@ -641,14 +641,14 @@ and item uses:
 
 | Monster | Life | Damage | Armor | Speed (× 0.85) | Attack every | XP | From depth |
 |---|---|---|---|---|---|---|---|
-| Skeleton Warrior | 26 | 3–6 | 5 | 2.5 | 1.2 s | 16 | 1 |
+| Skeleton Warrior | 26 | 3–6 | 5 | 2.71 | 1.2 s | 16 | 1 |
 | Ghoul | 20 | 2–5 | 2 | 3.3 | 0.9 s | 13 | 1 |
 | Cave Spider | 15 | 2–4 | 1 | 3.9 | 0.8 s | 11 | 1 |
 | Wraith (ranged) | 22 | 4–7 | 3 | 2.3 | 1.9 s | 22 | 3 |
-| Pit Demon | 75 | 8–13 | 12 | 2.1 | 1.5 s | 60 | 5 (one lone demon at depth 4) |
+| Pit Demon | 75 | 8–13 | 12 | 2.24 | 1.5 s | 60 | 5 (one lone demon at depth 4) |
 
 Spawn weights are 3 : 3 : 2 : 2 : 1 in table order. Every monster's speed is the table value × 0.85 (`MON_SPEED`):
-2.1 / 2.8 / 3.3 / 2.0 / 1.8 tiles/s at depth 1, so the hero (4.2) can outrun them all. Life and damage in the table are base values: at depth 1 a
+2.3 / 2.8 / 3.3 / 2.0 / 1.9 tiles/s at depth 1, so the hero (4.2) can outrun them all. Life and damage in the table are base values: at depth 1 a
 monster has 1.2× them (`MON_BASE`), e.g. a depth-1 skeleton has 31 life and hits for 3.6–7.2.
 
 **Scaling with depth `d`** (the dungeon is endless):

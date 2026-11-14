@@ -342,7 +342,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 49;
+const VERSION = 50;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -786,11 +786,11 @@ const stackCount = it => it && (it.slot === 'use' || isBomb(it)) ? it.count : 0;
 //  Monster data
 // =====================================================================================
 const MON = {
-  skeleton: { name: 'Skeleton Warrior', scale: 1.0, hp: 26, dmg: [3, 6], armor: 5, speed: 2.5, reach: 1.1, cd: 1.2, xp: 16, r: 0.32, minD: 1, w: 3 },
+  skeleton: { name: 'Skeleton Warrior', scale: 1.0, hp: 26, dmg: [3, 6], armor: 5, speed: 2.71, reach: 1.1, cd: 1.2, xp: 16, r: 0.32, minD: 1, w: 3 },
   ghoul:    { name: 'Ghoul', scale: 0.95, hp: 20, dmg: [2, 5], armor: 2, speed: 3.3, reach: 1.0, cd: 0.9, xp: 13, r: 0.3, minD: 1, w: 3 },
   spider:   { name: 'Cave Spider', scale: 0.78, hp: 15, dmg: [2, 4], armor: 1, speed: 3.9, reach: 1.0, cd: 0.8, xp: 11, r: 0.34, minD: 1, w: 2 },
   wraith:   { name: 'Wraith', scale: 1.0, hp: 22, dmg: [4, 7], armor: 3, speed: 2.3, ranged: true, range: 6.5, cd: 1.9, xp: 22, r: 0.3, minD: 3, w: 2, float: true },
-  demon:    { name: 'Pit Demon', scale: 1.3, hp: 75, dmg: [8, 13], armor: 12, speed: 2.1, reach: 1.35, cd: 1.5, xp: 60, r: 0.45, minD: 5, w: 1 },
+  demon:    { name: 'Pit Demon', scale: 1.3, hp: 75, dmg: [8, 13], armor: 12, speed: 2.24, reach: 1.35, cd: 1.5, xp: 60, r: 0.45, minD: 5, w: 1 },
 };
 const CHAMP_PRE = ['Dread', 'Blighted', 'Bloodsoaked', 'Ancient', 'Accursed', 'Ravenous'];
 // Boss-room furnishings: [type, count], and the depth from which each first appears.
@@ -1408,7 +1408,7 @@ function releaseArrow(h) {
 // Charge: a spider or a Pit Demon hit by an arrow while more than CHARGE.from tiles from the hero rushes at
 // CHARGE.mult × its speed for CHARGE.dur s, at most once every CHARGE.cd s, trailing dust. It doesn't stop kiting, but a fast
 // monster closes some of the gap.
-const CHARGE = { types: { spider: 1, demon: 1 }, from: 2.5, mult: 1.5, dur: 2, cd: 5 };
+const CHARGE = { types: { spider: 1, demon: 1 }, from: 2.5, mult: 1.6, dur: 2, cd: 5 };
 function chargeOnShot(m) {
   if (m.dead || !CHARGE.types[m.type] || dist(m, G.hero) <= CHARGE.from || G.time < (m.chargeReady || 0)) return;
   m.chargeT = CHARGE.dur; m.chargeReady = G.time + CHARGE.cd;

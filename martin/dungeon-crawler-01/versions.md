@@ -9,9 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v50 — faster skeletons and Pit Demons, stronger charge (2026-11-14)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 50`)*
+
+- Skeletons run 2.3 tiles/s at depth 1 (was 2.1), Pit Demons 1.9 (was 1.8); both still grow 1.5 % per depth.
+- A charge is 1.6× speed (was 1.5×).
+
 ## v47–v49 — gentle limits on kiting (2026-11-14)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 49`)*
+Commit: 05cd592
 
 - Bows have a short draw before each arrow: the hero stands still 0.15 s (Short Bow) to 0.24 s (War Bow); the
   rate of fire is unchanged, and the arrow is aimed when it is loosed.
