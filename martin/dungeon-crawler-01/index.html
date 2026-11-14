@@ -347,7 +347,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 55;
+const VERSION = 56;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -671,7 +671,8 @@ const BASES = {
 // per second (no armor, no criticals), in ticks of FIRE.tick s. Drops from depth BOMB.from (see Loot sources).
 const BOMB = { name: 'Fire Bomb', plural: 'fire bombs', cd: 1.0, range: 7, color: '#e8893a', glow: '232,137,58', from: 2 };
 // after / afterDps: on leaving a fire a creature goes on burning for `after` s at afterDps (50 damage in all)
-const FIRE = { r: 1.5, dur: 12, dps: 10, tick: 0.5, fade: 1.5, scorch: 20, after: 10, afterDps: 5 };
+// catchMon: s a monster must stand in a fire (without a break) before it catches fire and burns on after leaving
+const FIRE = { r: 1.5, dur: 12, dps: 10, tick: 0.5, fade: 1.5, scorch: 20, after: 10, afterDps: 5, catchMon: 1.5 };
 const makeBombs = (count = 1) => ({ id: nextId++, base: 'firebomb', slot: 'weapon', kind: 'bomb', count, cd: BOMB.cd, rarity: 'common', name: BOMB.name, stats: {} });
 const isBomb = it => !!it && it.base === 'firebomb';
 // The fire's look is still being chosen (README, Fire bombs): LOOK.fire picks one of three (FIRE_LOOKS). Kept in
@@ -1528,8 +1529,8 @@ function updateFires(dt, hurt) {
   }
   G.fires = G.fires.filter(f => f.t < f.dur + FIRE.scorch);
   if (!hurt) return;
-  burnTick(G.hero, dt, v => damageHero(v, null));
-  for (const m of G.monsters) if (!m.dead) burnTick(m, dt, v => burnMonster(m, v));
+  burnTick(G.hero, dt, v => damageHero(v, null), 0);
+  for (const m of G.monsters) if (!m.dead) burnTick(m, dt, v => burnMonster(m, v), FIRE.catchMon);
 }
 const inFire = e => G.fires.some(f => f.t < f.dur && Math.hypot(e.x - f.x, e.y - f.y) < f.r + e.r * 0.5);
 // Burning: a creature in a fire burns at FIRE.dps, and goes on burning for FIRE.after s after it steps out
@@ -1537,9 +1538,11 @@ const inFire = e => G.fires.some(f => f.t < f.dur && Math.hypot(e.x - f.x, e.y -
 // fire while still burning, it is FIRE.dps. Damage comes in ticks of FIRE.tick s: the first at once on catching
 // fire, then one per tick while burning; fractions carry over to the next tick (e.burnCarry), so any rate comes
 // out exactly (the afterburn: 2.5 per tick, 50 in all). While not burning the timer refills, so it never burns faster.
-function burnTick(e, dt, hit) {
-  e.inFire = inFire(e);
-  if (e.inFire) e.burnLeft = FIRE.after; else if (e.burnLeft > 0) e.burnLeft = Math.max(0, e.burnLeft - dt);
+// catchT: how long it must stand in a fire without a break to catch fire (monsters FIRE.catchMon, the hero 0);
+// before that the fire hurts it, but it stops burning as soon as it steps out (an earlier burn runs on).
+function burnTick(e, dt, hit, catchT) {
+  e.inFire = inFire(e); e.fireT = e.inFire ? (e.fireT || 0) + dt : 0;
+  if (e.inFire && e.fireT >= catchT) e.burnLeft = FIRE.after; else if (e.burnLeft > 0) e.burnLeft = Math.max(0, e.burnLeft - dt);
   e.burning = e.inFire || e.burnLeft > 0;
   e.burnAcc = (e.burnAcc ?? FIRE.tick) + dt;
   if (!e.burning) { e.burnAcc = Math.min(e.burnAcc, FIRE.tick); return; }

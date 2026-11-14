@@ -860,6 +860,9 @@ lands, and sets the ground on fire. The constants are `BOMB` and `FIRE` in the c
     - **Burning on.** A creature that leaves the fire keeps burning for `FIRE.after` (10 s) at `FIRE.afterDps`
       (5 per second, 50 in all; `burnLeft`). Touching a fire again restarts the 10 s. Nothing stacks: in two
       fires, or in a fire while still burning, it is 10 per second.
+    - **Monsters catch fire more slowly:** a monster has to stand in a fire for `FIRE.catchMon` (1.5 s) without a
+      break (`fireT`) before it burns on after leaving. Until then the fire hurts it, but its burning stops when it
+      steps out (a burn it already had runs on). The hero catches fire at once.
     - Damage comes in ticks of `FIRE.tick` (0.5 s), the first at once on catching fire. A tick's fraction carries
       over to the next (`burnCarry`): the afterburn's 2.5 per tick comes out as 2 and 3 alternately. The tick timer
       refills while not burning, so catching fire again and again never burns faster.

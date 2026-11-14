@@ -9,12 +9,13 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v54–v55 — fire keeps burning (2026-11-14)
+## v54–v56 — fire keeps burning (2026-11-14)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 55`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 56`)*
 
 - Anyone who leaves a fire keeps burning for 10 s at 5 damage per second (50 in all); touching a fire again
   restarts it, and nothing stacks.
+- A monster catches fire (burns on after leaving) only after 1.5 s in a fire without a break; the hero at once.
 - Burning creatures show flames on their body, shrinking as the burn runs out; the hero gets a flame badge with a
   countdown on the life orb.
 
