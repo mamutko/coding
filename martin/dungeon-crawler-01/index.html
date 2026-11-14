@@ -91,7 +91,7 @@
     gap: 2px; text-shadow: 0 0 3px #000, 0 0 2px #000; }
   #log div { transition: opacity 1s; }
 
-  #debug { position: absolute; right: 14px; top: 160px; z-index: 30; pointer-events: auto; padding: 8px 12px;
+  #debug { position: fixed; right: 14px; top: 160px; z-index: 42; pointer-events: auto; padding: 8px 12px;
     background: rgba(10, 7, 9, 0.92); border: 1px solid var(--gold-dim); font-size: 13px; color: var(--ink); }
   #debug h4 { margin: 0 0 6px; font-family: Cinzel, serif; color: var(--gold); font-size: 13px; letter-spacing: 1px; }
   #debug #dbgVer { font-family: Georgia, serif; color: var(--ink-dim); font-size: 12px; margin-left: 6px; letter-spacing: 0; }
@@ -206,8 +206,11 @@
   #screen .controls { font-size: 15px; color: var(--ink); line-height: 1.6; margin: 6px 0 20px; }
   #screen button { font-size: 17px; padding: 10px 26px; }
   #screenText.fallen { color: #e0a090; }
-  #version { position: absolute; right: 12px; bottom: 8px; font-family: Cinzel, serif; font-size: 11px; letter-spacing: 1px;
-    color: var(--ink-dim); opacity: 0.45; }
+  #version { position: absolute; right: 8px; bottom: 4px; padding: 6px 8px; font-family: Cinzel, serif; font-size: 16px;
+    letter-spacing: 1px; color: var(--ink-dim); opacity: 0.7; cursor: pointer; user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none; touch-action: manipulation; }
+  #version:hover { opacity: 1; }
+  #screen #scenBtn { position: absolute; left: 12px; bottom: 10px; font-size: 13px; padding: 6px 12px; }
   #heroPick { display: flex; flex-direction: column; gap: 6px; width: min(420px, 100%); margin: 0 0 16px; }
   #heroPick .heroBtn { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 15px;
     padding: 8px 14px 8px 30px; text-align: left; position: relative; min-height: 40px; opacity: 0.78; }
@@ -295,10 +298,6 @@
   <div id="topleft"><div id="depthName"></div><div id="depthSub"></div><div id="goldText"></div></div>
   <div id="target" class="hidden"><div id="targetName"></div><div id="targetBar"><div id="targetFill"></div></div></div>
   <canvas id="minimap" width="220" height="130"></canvas>
-  <div id="debug" class="hidden"><h4>Debug (Ctrl+D) <span id="dbgVer"></span></h4>
-    <label><input type="checkbox" id="dbgPursuit"> Pursuit indicator</label>
-    <label><input type="checkbox" id="dbgAutoRes"> Auto resolution</label>
-    <div id="dbgFps">– fps</div><div id="dbgMusic">music: –</div></div>
   <div id="log"></div>
   <div id="orb" title="Click to drink a health potion"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
   <div id="orbLabel">LIFE</div>
@@ -361,8 +360,13 @@
   <div id="heroCfg" class="hidden"><div class="box"></div></div>
   <input type="file" id="importFile" accept=".json,application/json,text/plain" hidden>
   <button id="fsBtn" class="hidden" title="Full screen (F5)"><svg viewBox="0 0 24 24"><path d="M3 9V3h6v2H5v4zm12-6h6v6h-2V5h-4zM3 15h2v4h4v2H3zm16 0h2v6h-6v-2h4z"/></svg><span>Full screen</span></button>
-  <div id="version"></div>
+  <button id="scenBtn" title="Test scenarios (the sandbox)">Scenarios</button>
+  <div id="version" title="Double-click or long-press: debug overlay"></div>
 </div>
+<div id="debug" class="hidden"><h4>Debug (Ctrl+D) <span id="dbgVer"></span></h4>
+    <label><input type="checkbox" id="dbgPursuit"> Pursuit indicator</label>
+    <label><input type="checkbox" id="dbgAutoRes"> Auto resolution</label>
+    <div id="dbgFps">– fps</div><div id="dbgMusic">music: –</div></div>
 
 <script>
 'use strict';
@@ -382,7 +386,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 61;
+const VERSION = 62;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2622,8 +2626,25 @@ let dbgHoldT = null;
 function dbgHoldCheck() {
   clearTimeout(dbgHoldT);
   if (dbgHeld.map.size && dbgHeld.orb.size) dbgHoldT = setTimeout(() => {
-    if (dbgHeld.map.size && dbgHeld.orb.size) { $('debug').classList.toggle('hidden'); if (navigator.vibrate) navigator.vibrate(30); } }, DBG_HOLD_MS);
+    if (dbgHeld.map.size && dbgHeld.orb.size) { toggleDebug(); if (navigator.vibrate) navigator.vibrate(30); } }, DBG_HOLD_MS);
 }
+function toggleDebug() { $('debug').classList.toggle('hidden'); }
+// On the title screen the version number opens and closes the overlay too: a double click, or a long press
+// (DBG_HOLD_MS) on touch screens (it vibrates briefly where supported).
+{
+  const v = $('version'); let t = null;
+  const stop = () => { clearTimeout(t); t = null; };
+  v.addEventListener('dblclick', e => { e.preventDefault(); toggleDebug(); });
+  v.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') return; stop();
+    t = setTimeout(() => { t = null; toggleDebug(); if (navigator.vibrate) navigator.vibrate(30); }, DBG_HOLD_MS); });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) v.addEventListener(ev, stop);
+  v.addEventListener('contextmenu', e => e.preventDefault());
+}
+// The title screen's Scenarios button opens the sandbox's scenario picker: at once when the sandbox is loaded
+// (sandbox.js sets window.sandboxOpen), otherwise by reloading the page with ?sandbox.
+$('scenBtn').addEventListener('click', () => {
+  if (window.sandboxOpen) window.sandboxOpen(); else location.href = location.pathname + '?sandbox';
+});
 for (const [k, el] of [['map', $('minimap')], ['orb', $('orb')]]) {
   el.addEventListener('touchstart', e => { if (k === 'map') e.preventDefault(); for (const t of e.changedTouches) dbgHeld[k].add(t.identifier); dbgHoldCheck(); }, { passive: false });
   for (const ev of ['touchend', 'touchcancel']) el.addEventListener(ev, e => { for (const t of e.changedTouches) dbgHeld[k].delete(t.identifier); dbgHoldCheck(); });
@@ -2648,7 +2669,7 @@ $('fsBtn').addEventListener('click', () => FS.toggle());
 for (const ev of ['fullscreenchange', 'webkitfullscreenchange']) document.addEventListener(ev, () => { FS.sync(); resize(); fitUI(); });
 FS.sync();
 addEventListener('keydown', e => {
-  if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); $('debug').classList.toggle('hidden'); return; }
+  if (e.ctrlKey && (e.key === 'd' || e.key === 'D')) { e.preventDefault(); toggleDebug(); return; }
   if (e.key === 'F5') { e.preventDefault(); FS.toggle(); return; }
   if (!G || !G.running) return;
   const k = e.key;

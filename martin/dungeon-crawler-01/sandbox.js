@@ -29,10 +29,7 @@
   #sbBar #sbLooks button.on { border-color: #e8893a; color: #fff; background: #3a1f12; }
   #sbPick h2 { font-family: Cinzel, serif; color: #8c7650; font-size: 13px; letter-spacing: 2px; margin: 16px 0 8px; }
   #sbBar button { background: #1c1316; border: 1px solid #5a4528; color: #e8dcc4; font: 12px Georgia, serif; padding: 3px 8px; cursor: pointer; }
-  #sbBar button:hover, #sbOpen:hover { border-color: #c9a45c; }
-  #sbOpen { position: fixed; z-index: 55; left: calc(12px + env(safe-area-inset-left, 0px)); bottom: calc(12px + env(safe-area-inset-bottom, 0px));
-    background: #1c1316; border: 1px solid #5a4528; color: #c9a45c; font: 13px Cinzel, serif; letter-spacing: 1px; padding: 6px 12px; cursor: pointer; }
-  #sbOpen[hidden] { display: none !important; }
+  #sbBar button:hover { border-color: #c9a45c; }
   body.narrow #sbBar { top: auto; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); font-size: 12px; }`;
   document.head.appendChild(css);
   const pick = document.createElement('div'); pick.id = 'sbPick'; pick.innerHTML = `<div class="box">
@@ -51,15 +48,15 @@
     <h2>Music</h2>
     <button class="sc" id="sbPack"><b>Pack fight</b>Five skeletons rush you at depth 3. Four or more pursuers start the combat track. Kill them all and it switches back at once; run until they lose interest and it holds 6 s.</button>
     <button class="sc" id="sbDemon"><b>Pit Demon level</b>Depth 8 with a Pit Demon boss, next to its boss room. The 2nd, 5th and 9th play of each track is the choir version (use Next loop to skip ahead); stepping into the boss room plays the choir combat track.</button>
-    <button class="sc" id="sbNormal"><b>Normal game</b>The usual title screen; the Sandbox scenarios button at its bottom left brings this list back.</button></div>`;
+    <button class="sc" id="sbNormal"><b>Normal game</b>The usual title screen; its Scenarios button at the bottom left brings this list back.</button></div>`;
   const bar = document.createElement('div'); bar.id = 'sbBar'; bar.hidden = true;
   bar.innerHTML = '<span id="sbInfo">–</span><span id="sbKeepers" hidden>Keeper:' + [1, 2, 3, 4].map(n => `<button data-keeper="${n}">${KEEPERS[n].name.split(' ')[0]}</button>`).join('') + '</span><span id="sbLooks" hidden>Fire look:' + [[1, 'Blaze'], [2, 'Ember bed'], [3, 'Oil pool']].map(([n, l]) => `<button data-look="${n}">${l}</button>`).join('') + '</span>'
     + '<button id="sbNext" title="Start the next play of this track now">Next loop</button><button id="sbBack">Scenarios</button>';
   let mode = 'music';   // what the bar shows: 'music' or 'fire'
-  // on the normal title screen (after Normal game, or a real hero's death) a button brings the picker back
-  const open = document.createElement('button'); open.id = 'sbOpen'; open.textContent = 'Sandbox scenarios'; open.hidden = true;
-  open.onclick = () => { pick.hidden = false; };
-  document.body.append(pick, bar, open);
+  // on the normal title screen (after Normal game, or a real hero's death) its Scenarios button (index.html) brings
+  // the picker back through this
+  window.sandboxOpen = () => { pick.hidden = false; };
+  document.body.append(pick, bar);
   const mk = (base, rar, d) => { let it; for (let i = 0; i < 300; i++) { it = genItem(d, 0.3, base, rar, d + 2); if (it.rarity === rar) break; } return it; };
   function testHero(d, bombs = 0) {
     newGame(null);
@@ -192,7 +189,6 @@
   $('sbBack').onclick = () => { G.running = false; pick.hidden = false; bar.hidden = true; };
   $('sbNext').onclick = () => { if (MUSIC.cur) MUSIC.cur.loopAt = 0; };
   setInterval(() => {
-    open.hidden = !pick.hidden || $('screen').classList.contains('hidden');
     if (bar.hidden || !G) return;
     if (mode === 'surface') {
       const h = G.hero, sv = G.surf, c = MUSIC.cur, tune = c ? ` · music ${MUSIC_FILES[c.name]}${c.n ? ' (play ' + c.n + ')' : ''}` : ' · no music';

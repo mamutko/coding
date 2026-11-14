@@ -46,7 +46,9 @@ it. They live in `sandbox.js`, apart from the game; the game itself never uses t
 - **On the site:** `index.html?sandbox` (GitHub Pages:
   `https://mamutko.github.io/coding/martin/dungeon-crawler-01/?sandbox`). A small script at the end of
   `index.html`, between `<!-- sandbox:start -->` and `<!-- sandbox:end -->`, loads `sandbox.js` only when the
-  address has `?sandbox`; without it nothing changes.
+  address has `?sandbox`; without it nothing changes. The title screen's **Scenarios** button (bottom left) goes
+  there: it reloads the page with `?sandbox`, or, when the sandbox is already loaded (`window.sandboxOpen`, set
+  by `sandbox.js`), just opens the picker.
 - **As a Claude artifact** (shows a change at once, without waiting for the Pages deploy):
   https://claude.ai/artifact/T9nJm2WxgZYWtneTWFVqHa (private to its owner). It is built from the current
   `index.html` and `sandbox.js` by the repo's shared script (see the `artifact-sandbox` skill, which also covers
@@ -63,8 +65,7 @@ it. They live in `sandbox.js`, apart from the game; the game itself never uses t
 a rare long sword, rare chain mail, a magic iron helm, 12 health potions) at a chosen depth. The test hero is
 **never saved** (`saveHero` is wrapped; the saves share the browser storage with real heroes), and when it dies
 the picker comes back instead of the title screen (`showDeath` is wrapped). **Normal game** closes the picker
-and leaves the usual title screen, which then has a **Sandbox scenarios** button at its bottom left that brings
-the picker back (shown whenever the title screen is up and the picker isn't).
+and leaves the usual title screen, whose **Scenarios** button at its bottom left brings the picker back.
 
 The picker (*Crypt Sandbox*) groups the scenarios:
 
@@ -127,7 +128,9 @@ A status bar at the top (above the bottom HUD on narrow screens) shows what the 
 
 ## Version
 
-`VERSION` (an integer near the top of the script) is shown muted at the bottom right of the title screen as `v<N>`.
+`VERSION` (an integer near the top of the script) is shown at the bottom right of the title screen as `v<N>`
+(16 px, a little muted; double-click it, or long-press it on a touch screen, to open the
+[debug overlay](#debug-overlay)).
 **Increment it before every push**, so a player can tell whether the page they have open is up to date.
 
 Every version is recorded in [`versions.md`](versions.md) (the `version-tracking` skill): a bullet list of what
@@ -194,7 +197,7 @@ template, never in `catalog.html`.
 | `M` | Toggle the minimap. |
 | `N` | Toggle sound (effects and music). |
 | `F5` (or the title screen's **Full screen** button) | Toggle full screen, where the browser supports it (see [Home screen app](#home-screen-app)). F5 no longer reloads the page. |
-| `Ctrl` + `D` (touch: hold the minimap and the life orb together) | Toggle the debug overlay (see [Debug overlay](#debug-overlay)). |
+| `Ctrl` + `D` (touch: hold the minimap and the life orb together; title screen: double-click or long-press the version) | Toggle the debug overlay (see [Debug overlay](#debug-overlay)). |
 | Mouse wheel, or pinch with two fingers (touch) | Zoom (0.6×–1.5×). |
 
 **Touchpads and touch screens.** A *modifier* turns any left click or tap into a right click, everywhere a
@@ -232,7 +235,9 @@ or a right-click clears a HUD key).
   walk and then holding right attacks, as before.
 
 The title screen lists the controls and is also the hero picker (see [Saving](#saving)). The surface (depth 0)
-is rendered behind it. The start button is enabled once all images have loaded.
+is rendered behind it. The start button is enabled once all images have loaded. At its bottom left a
+**Scenarios** button opens the test scenarios (see [Sandbox](#sandbox)); at its bottom right the version number
+opens the debug overlay (see [Version](#version)).
 
 ## Saving
 
@@ -1097,9 +1102,12 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
 ## Debug overlay
 
 `Ctrl` + `D` opens and closes a small **Debug** panel at the top right, under the minimap (it works with the
-game paused or running; the browser's bookmark shortcut is suppressed). On touch screens, holding one finger on the
-minimap and one on the life orb together for 0.8 s opens or closes it too (`DBG_HOLD_MS`, `dbgHeld`; the phone
-vibrates briefly where supported). While the minimap is held, touching the orb drinks no potion; on touch
+game paused or running, and on the title screen; the browser's bookmark shortcut is suppressed). On touch screens,
+holding one finger on the minimap and one on the life orb together for 0.8 s opens or closes it too
+(`DBG_HOLD_MS`, `dbgHeld`; the phone vibrates briefly where supported). On the title screen, a double click on the
+version number (bottom right), or a long press of 0.8 s on a touch screen, does the same. All of these call
+`toggleDebug`. The panel is a fixed element of its own outside the HUD, above the title screen (z-index 42, the
+title screen is 40), so it can be used there. While the minimap is held, touching the orb drinks no potion; on touch
 screens the minimap takes touches for this (so touching it doesn't walk there). Its heading shows the game version
 (`v<N>`, as on the title screen). Its switches are remembered in
 `localStorage` (`dc01-debug`, wrapped in `try`):
