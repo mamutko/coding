@@ -687,8 +687,8 @@ equipped at a time. Potions are not equipped; they are used (see [Potions](#poti
 
 **Item types.** An item's stats are fixed by its type: a Longsword is 7–14 damage wherever it drops (there are
 no item levels). Each slot has a ladder of types; a type can drop once the **loot depth** reaches its unlock depth
-(`lvl`). The loot depth is the current depth, + 1 for champions' and the boss's loot and 30 % of chest items. Every
-type has its own icon.
+(`lvl`). The loot depth is the current depth, + 1 for 30 % of a normal chest's items, and deeper for the richer
+sources (`LOOT_PLUS`, below). Every type has its own icon.
 
 | Item | Type | Stats | Unlocks at |
 |---|---|---|---|
@@ -752,9 +752,20 @@ bosses add a rarity boost (with a 0.35 boost: 2.45 % rare, 16.25 % magic). An it
 starting kit, the guardian's chest) skips the roll.
 
 **Rarity gates by depth.** No magic items before depth 4 (`MAGIC_FROM`) and no rares before depth 8 (`RARE_FROM`);
-a roll above what the depth allows is lowered to the best allowed rarity. Some sources count as deeper for these
-gates (and for the ring and amulet gates): **champions** + 1, **chests in the big room** + 1, the **boss** and the
-**guardian's chest** + 2. So a champion's drops can be magic from depth 3 and rare from depth 7 (champions themselves appear from depth 5).
+a roll above what the depth allows is lowered to the best allowed rarity.
+
+**Richer sources drop deeper loot** (`LOOT_PLUS`): their items are those allowed at a deeper depth, for everything
+the depth decides (item types, affix tiers, the rarity gates and the ring and amulet gates):
+
+| Source | Loot of depth |
+|---|---|
+| Champions | d + 2 |
+| Chests in the big room | d + 2 |
+| The boss | d + 3 |
+| The guardian's chest (all its items) | d + 4 |
+
+So a champion's drops can be magic from depth 2 and rare from depth 6, and bosses (from depth 6) can drop rares
+from the start. Champions themselves appear from depth 5.
 
 **Affixes** are the bonuses of magic and rare items: **prefixes** go before the type's name, **suffixes** after it.
 Each kind has 3 tiers with fixed ranges and their own names. A tier can roll once the loot depth reaches 1, 7 or 12
@@ -782,10 +793,10 @@ chests 27 %, urns 10.8 %. A dropped potion is then an iron skin potion 15 % of t
 | Source | Drops (item chances before `LOOT`) |
 |---|---|
 | Monster | 13 % item, 6.75 % × 1.2 potion, 30 % gold (2–8 × d), 2 % one fire bomb (from depth 2) |
-| Champion | an item of loot depth d+1 (boost 0.35), plus a 50 % chance of a second (boost 0.2); rarity gates at d+1 |
-| Boss | an item of loot depth d+1 (boost 0.35, rarity gates at d+2), gold (20–40 × d), plus the normal potion / gold rolls of a monster |
-| Chest | 1–3 items (boost 0.15, 30 % chance of loot depth d+1; in the big room rarity gates at d+1), gold (10–30 × d), 22.5 % × 1.2 potion, 15 % 1–3 fire bombs (from depth 2) |
-| Guardian's chest | **always** one item of loot depth d+1 that is rare (30 %) or else magic (rarity gates at d+2), gold (30–60 × d), plus everything a normal chest drops |
+| Champion | an item of depth d+2 (boost 0.35), plus a 50 % chance of a second (boost 0.2) |
+| Boss | an item of depth d+3 (boost 0.35), gold (20–40 × d), plus the normal potion / gold rolls of a monster |
+| Chest | 1–3 items (boost 0.15, 30 % chance of loot depth d+1; in the big room all of depth d+2), gold (10–30 × d), 22.5 % × 1.2 potion, 15 % 1–3 fire bombs (from depth 2) |
+| Guardian's chest | **always** one item of depth d+4 that is rare (30 %) or else magic, gold (30–60 × d), plus everything a normal chest drops (its items also of depth d+4) |
 | Urn | 35 % gold, 9 % × 1.2 potion, 8 % item, 5 % one fire bomb (from depth 2) |
 | Bones | 20 % gold, 10 % item |
 

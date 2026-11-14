@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v53 — deeper loot from champions, bosses and their chests (2026-11-14)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 53`)*
+
+- Champions and chests in the big room drop items allowed at depth + 2 (were + 1), bosses at depth + 3, and
+  everything in the guardian's chest at depth + 4: item types, affix tiers, rarity, rings and amulets.
+- Eases the v52 spike: about twice as many deaths as v51 at depths 3–13 instead of three times.
+
 ## v52 — item progression spread over more depths (2026-11-14)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 52`)*
+Commit: 1ab9b3f
 
 - Better item types unlock later: the best of each slot at depth 14–15 (was 10–11), the second tier at depth 4
   (was 3).
