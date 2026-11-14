@@ -342,7 +342,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 50;
+const VERSION = 51;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -789,7 +789,7 @@ const MON = {
   skeleton: { name: 'Skeleton Warrior', scale: 1.0, hp: 26, dmg: [3, 6], armor: 5, speed: 2.71, reach: 1.1, cd: 1.2, xp: 16, r: 0.32, minD: 1, w: 3 },
   ghoul:    { name: 'Ghoul', scale: 0.95, hp: 20, dmg: [2, 5], armor: 2, speed: 3.3, reach: 1.0, cd: 0.9, xp: 13, r: 0.3, minD: 1, w: 3 },
   spider:   { name: 'Cave Spider', scale: 0.78, hp: 15, dmg: [2, 4], armor: 1, speed: 3.9, reach: 1.0, cd: 0.8, xp: 11, r: 0.34, minD: 1, w: 2 },
-  wraith:   { name: 'Wraith', scale: 1.0, hp: 22, dmg: [4, 7], armor: 3, speed: 2.3, ranged: true, range: 6.5, cd: 1.9, xp: 22, r: 0.3, minD: 3, w: 2, float: true },
+  wraith:   { name: 'Wraith', scale: 1.0, hp: 22, dmg: [4, 7], armor: 3, speed: 2.3, ranged: true, range: 6.5, cd: 1.9, xp: 22, r: 0.3, minD: 4, w: 2, float: true },
   demon:    { name: 'Pit Demon', scale: 1.3, hp: 75, dmg: [8, 13], armor: 12, speed: 2.24, reach: 1.35, cd: 1.5, xp: 60, r: 0.45, minD: 5, w: 1 },
 };
 const CHAMP_PRE = ['Dread', 'Blighted', 'Bloodsoaked', 'Ancient', 'Accursed', 'Ravenous'];
@@ -797,13 +797,15 @@ const CHAMP_PRE = ['Dread', 'Blighted', 'Bloodsoaked', 'Ancient', 'Accursed', 'R
 const BOSS_DECOR = [['throne', 1], ['altar', 1], ['sarcophagus', 1], ['banner', 2], ['pillar', 2], ['candelabrum', 2], ['skullpile', 3]];
 const DECOR_FROM = { skullpile: 3, banner: 3, candelabrum: 4, pillar: 5, sarcophagus: 6, altar: 7, throne: 8 };
 const WIDE_ODDS = 0.65, DOOR_ODDS = 0.55;   // corridors 2 tiles wide; doors on 1-wide room mouths
-const BOSS_ROOM_FROM = 3, BOSS_FROM = 6;   // depth 3's boss room stands empty: a premonition of what is to come;
-                                           // depths 4 and 5 have none, from depth 6 every level has a boss
+const BOSS_ROOM_FROM = 5, BOSS_FROM = 6;   // depth 5's boss room stands empty: a premonition of what is to come;
+                                           // depths 1-4 have none, from depth 6 every level has a boss
 const bossRoomAt = d => d === BOSS_ROOM_FROM || d >= BOSS_FROM;
 // Big rooms: from depth 3, every second depth (3, 5, 7, ...) has one: boss-room sized, with 2 grey banners and
 // a larger pack of easier monsters (see buildLevel).
 const bigRoomAt = d => d >= 3 && d % 2 === 1;
-const DEMON_ROOM_AT = 4;   // depth 4 has one room holding a single Pit Demon, a foretaste before depth 5
+// Lone monsters: a foretaste of a type one depth before it starts to appear (its minD): one random normal room
+// of that depth holds a single one of it (depth 3: a wraith, depth 4: a Pit Demon).
+const LONE_AT = { 3: 'wraith', 4: 'demon' };
 const BOSS_NAMES = ['Morgrath', 'Vexhollow', 'Ulthane', 'Skarn', 'Belmorah', 'Grisvald', 'Nythra', 'Corvane', 'Drokkar', 'Ashmire'];
 const LEVEL_NAMES = ['The Forsaken Crypt', 'The Ossuary', 'Halls of the Hollow', 'The Weeping Catacombs', 'Sepulchre of Ash',
   'The Blood Vaults', 'Throne of Bones', 'The Abyssal Nave'];
@@ -970,10 +972,11 @@ function buildLevel(d) {
   const want = Math.min(9 + Math.floor(d / 2), 18);
   for (let tries = 0; tries < 600 && rooms.length < want; tries++) {
     // after the start room come the big rooms of this depth: the boss room (bossRoomAt), then the big room
-    // (bigRoomAt); 11-14 tiles a side, about 2.8x the area of a normal 5-10 room
+    // (bigRoomAt). The boss room is 11-14 tiles a side (about 2.8x the area of a normal 5-10 room), the big room
+    // 16-20 (about twice the boss room's area)
     const bigKinds = [bossRoomAt(d) && 'boss', bigRoomAt(d) && 'horde'].filter(Boolean);
     const big = rooms.length >= 1 && rooms.length <= bigKinds.length && tries < 300 ? bigKinds[rooms.length - 1] : false;
-    const rw = big ? ri(11, 14) : ri(5, 10), rh = big ? ri(11, 14) : ri(5, 10), rx = ri(2, w - rw - 3), ry = ri(2, h - rh - 3);
+    const [lo, hi] = big === 'horde' ? [16, 20] : big ? [11, 14] : [5, 10], rw = ri(lo, hi), rh = ri(lo, hi), rx = ri(2, w - rw - 3), ry = ri(2, h - rh - 3);
     if (rooms.some(r => rx < r.x + r.w + 3 && rx + rw + 3 > r.x && ry < r.y + r.h + 3 && ry + rh + 3 > r.y)) continue;
     rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + (rw >> 1), cy: ry + (rh >> 1), big });
   }
@@ -1115,11 +1118,11 @@ function buildLevel(d) {
   // (fallback if the big room didn't fit: the largest other room, preferring rooms far from the start)
   const bossRoom = !bossRoomAt(d) ? null : rooms.find(r => r.big === 'boss') || rooms.filter(r => r !== start && r !== far && !r.big)
     .sort((a, b) => b.w * b.h * (distArr[b.cy * w + b.cx] + 10) - a.w * a.h * (distArr[a.cy * w + a.cx] + 10))[0] || far;
-  // the big room (fallback: the largest remaining room); depth 4's single Pit Demon gets a random normal room
+  // the big room (fallback: the largest remaining room); a lone monster (LONE_AT) gets a random normal room
   const bigRoom = !bigRoomAt(d) ? null : rooms.find(r => r.big === 'horde') || rooms.filter(r => r !== start && r !== far && r !== bossRoom)
     .sort((a, b) => b.w * b.h - a.w * a.h)[0] || null;
   const normalRooms = rooms.filter(r => r !== start && r !== bossRoom && r !== bigRoom);
-  const demonRoom = d === DEMON_ROOM_AT && normalRooms.length ? pick(normalRooms) : null;
+  const loneRoom = LONE_AT[d] && normalRooms.length ? pick(normalRooms) : null;
   // typeFor draws a type by weight, skipping types that have reached their room limit (roomLimit) in this room
   const typeFor = (pool, cnt) => { for (let k = 0; k < 30; k++) { const t = pick(pool); if ((cnt[t] || 0) < roomLimit(t, d)) return t; } return 'skeleton'; };
   // 50 %: one green-flamed brazier in a room joined to the boss room by a corridor (a hint of what's near)
@@ -1172,13 +1175,13 @@ function buildLevel(d) {
     if (rnd() < 0.2) place('gold', r, false, { amount: Math.max(1, Math.round(ri(3, 12) * d * LOOT)) });
     if (r === start) continue;
     const spot = () => { const p = freeInner(r, false); return p && [p[0] + 0.5 + (rnd() - 0.5) * 0.4, p[1] + 0.5 + (rnd() - 0.5) * 0.4]; };
-    if (r === demonRoom) { const p = spot(); if (p) monsters.push(makeMonster('demon', p[0], p[1], d, false, false, true)); continue; }
+    if (r === loneRoom) { const p = spot(); if (p) monsters.push(makeMonster(LONE_AT[d], p[0], p[1], d, false, false, true)); continue; }
     if (r === bigRoom) {
-      // big room: 5-7 monsters (+1 every 2 depths after 3), no champions, only the easier types, those available
-      // from depth - 4 or earlier (skeletons always), with skeletons weighted x3
+      // big room: 1.5 x (5-7 monsters, +1 every 2 depths after 3), no champions, only the easier types, those
+      // available from depth - 4 or earlier (skeletons always), with skeletons weighted x3
       const pool = []; for (const k in MON) if (k === 'skeleton' || MON[k].minD <= d - 4) for (let i = 0; i < MON[k].w * (k === 'skeleton' ? 3 : 1); i++) pool.push(k);
       const cnt = {};
-      for (let i = ri(5, 7) + Math.floor((d - 3) / 2); i > 0; i--) { const p = spot(); if (!p) break;
+      for (let i = Math.round((ri(5, 7) + Math.floor((d - 3) / 2)) * 1.5); i > 0; i--) { const p = spot(); if (!p) break;
         const t = typeFor(pool, cnt); cnt[t] = (cnt[t] || 0) + 1; monsters.push(makeMonster(t, p[0], p[1], d, false, false, true)); }
       continue;
     }

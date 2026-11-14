@@ -37,7 +37,7 @@ const DEPTHS = 12;   // monster stats are listed for depths 1..DEPTHS
       mons[k] = { ...MON[k], perDepth };
     }
     return { version: VERSION, mons, tier: TIER, monBase: MON_BASE, monScale: MON_SCALE, monSpeed: MON_SPEED,
-      newLimit: NEW_LIMIT, champAfter: CHAMP_AFTER, bossFrom: BOSS_FROM, bossRoomFrom: BOSS_ROOM_FROM, demonRoomAt: DEMON_ROOM_AT,
+      newLimit: NEW_LIMIT, champAfter: CHAMP_AFTER, bossFrom: BOSS_FROM, bossRoomFrom: BOSS_ROOM_FROM, loneAt: LONE_AT,
       bases: BASES, kinds: KIND_INFO, slotLabel: SLOT_LABEL, statLabel: STAT_LABEL, affix: AFFIX, affixFrom: AFFIX_FROM,
       affixW: AFFIX_W, jewelMult: JEWEL_MULT, potions: POTIONS, bomb: BOMB, fire: FIRE, iron: IRON, heal: HEAL, magicFrom: MAGIC_FROM,
       rareFrom: RARE_FROM, ringFrom: RING_FROM, amuletFrom: AMULET_FROM, magicOdds: MAGIC_ODDS, rareOdds: RARE_ODDS,

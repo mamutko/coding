@@ -74,8 +74,8 @@ The picker (*Crypt Sandbox*) groups the scenarios:
 - **Kiting:**
   - **Kiting with a bow** (depth 7, regenerated until the level has a big room): the test hero holds a common
     Hunting Bow (about 3 arrows per spider and 15 per Pit Demon there; the longsword in the pack, key 1).
-    - **The room** is the level's big room, grown to 3× its area (`enlargeRoom`, sandbox only):
-      - its sides grow by √3 around its centre (about 19–24 tiles), kept inside the map;
+    - **The room** is the level's big room, grown to 1.5× its area (`enlargeRoom`, sandbox only):
+      - its sides grow by √1.5 around its centre (from 16–20 to about 20–24 tiles), kept inside the map;
       - everything in the new rectangle becomes floor: walls, doors (their door objects are removed) and any
         rooms or corridors it overlaps open up, while other props stay;
       - the floor's new edge gets walls, as `buildLevel` makes them.
@@ -417,14 +417,14 @@ Each depth `d` gets a freshly generated level.
   - urns: 0–2; blocking
   - bones: 0–2
   - gold pile: 20 % chance, worth 3–12 × d × `LOOT`
-- **Big rooms.** Right after the start room, the generator places this depth's big rooms, each 11–14 tiles a
-  side (about 2.8× the area of a normal 5–10 room): first the boss room (if the depth has one), then the big
-  room (if it has one). They get the first 300 placement tries; one that doesn't fit falls back to an existing
+- **Big rooms.** Right after the start room, the generator places this depth's big rooms: first the boss room
+  (if the depth has one), 11–14 tiles a side (about 2.8× the area of a normal 5–10 room), then the big room (if
+  it has one), 16–20 tiles a side (about twice the boss room's area). They get the first 300 placement tries; one that doesn't fit falls back to an existing
   room (see below).
-- **Boss room** at depth 3 (`BOSS_ROOM_FROM`) and from depth 6 (`BOSS_FROM`) on (`bossRoomAt`); depths 1–2 and
-  4–5 have none, and no boss. If the big boss room doesn't fit, the room with the largest
+- **Boss room** at depth 5 (`BOSS_ROOM_FROM`) and from depth 6 (`BOSS_FROM`) on (`bossRoomAt`); depths 1–4 have
+  none, and no boss. If the big boss room doesn't fit, the room with the largest
   `area × (BFS distance from the start + 10)` other than the start, stairs and big rooms is used instead. The
-  stairs never go in it. **At depth 3 it stands empty**, a premonition of what is to come: only the rune circle,
+  stairs never go in it. **At depth 5 it stands empty**, a premonition of what is to come: only the rune circle,
   the braziers and the furnishings, with no boss, guards, champion or guardian's chest. From depth 6 it holds:
   - the boss on the centre tile, standing on the **rune circle** (see Rendering);
   - at least 4 ordinary braziers and a **guardian's chest**, on the edge (blocking);
@@ -441,12 +441,15 @@ Each depth `d` gets a freshly generated level.
 - **Big room** at depths 3, 5, 7, … (every second depth from 3, `bigRoomAt`). If the big one doesn't fit, the
   largest room other than the start, stairs and boss rooms is used. It has the props of a normal room plus
   **2 grey banners** (the banner sprite drawn with `grayscale(1) brightness(0.85)`; without canvas filters, tinted
-  grey) on its edge, and a larger pack of easier monsters: `5–7 + ⌊(d − 3)/2⌋`, never champions, of the types
-  unlocked at depth `d − 4` or earlier, skeletons always allowed and weighted ×3 (depth 3: skeletons only;
-  depth 5: skeletons, ghouls, spiders; depth 7: also wraiths).
-- **The lone demon** (depth 4, `DEMON_ROOM_AT`): one random normal room (not the start room) holds a single
-  Pit Demon (normal tier, never a champion) and nothing else, a foretaste before demons appear from depth 5.
-- **Green banners.** Every room joined to the boss room by a corridor (also at depth 3, where it stands empty)
+  grey) on its edge, and a larger pack of easier monsters: `1.5 × (5–7 + ⌊(d − 3)/2⌋)`, rounded (9 on average at
+  depth 3, 13 at depth 7), never champions, of the types unlocked at depth `d − 4` or earlier, skeletons always
+  allowed and weighted ×3 (depth 3: skeletons only; depths 5 and 7: skeletons, ghouls, spiders; depth 9: also
+  wraiths).
+- **Lone monsters** (`LONE_AT`): a foretaste of a type one depth before it starts to appear. One random normal
+  room (not the start room) holds a single one of it (normal tier, never a champion) and nothing else:
+  - **depth 3:** a Wraith (wraiths appear from depth 4);
+  - **depth 4:** a Pit Demon (demons appear from depth 5).
+- **Green banners.** Every room joined to the boss room by a corridor (also at depth 5, where it stands empty)
   gets a banner (the normal banner sprite: dark green with a skull) on its edge, as close as possible to the mouth
   of that corridor: the room's last tile on the carved corridor's way toward the boss room (corridors are
   recorded with their tiles; with several corridors to the boss room, the first counts). The spot follows the
@@ -644,7 +647,7 @@ and item uses:
 | Skeleton Warrior | 26 | 3–6 | 5 | 2.71 | 1.2 s | 16 | 1 |
 | Ghoul | 20 | 2–5 | 2 | 3.3 | 0.9 s | 13 | 1 |
 | Cave Spider | 15 | 2–4 | 1 | 3.9 | 0.8 s | 11 | 1 |
-| Wraith (ranged) | 22 | 4–7 | 3 | 2.3 | 1.9 s | 22 | 3 |
+| Wraith (ranged) | 22 | 4–7 | 3 | 2.3 | 1.9 s | 22 | 4 (one lone wraith at depth 3) |
 | Pit Demon | 75 | 8–13 | 12 | 2.24 | 1.5 s | 60 | 5 (one lone demon at depth 4) |
 
 Spawn weights are 3 : 3 : 2 : 2 : 1 in table order. Every monster's speed is the table value × 0.85 (`MON_SPEED`):
@@ -666,7 +669,7 @@ monster has 1.2× them (`MON_BASE`), e.g. a depth-1 skeleton has 31 life and hit
 
 | | Normal | Champion | Boss |
 |---|---|---|---|
-| Occurs | always | 10 % of monsters of a type at least 4 depths past its first depth (`canChamp`; none at depths 1–4; never in the big room, the lone demon or as escorts) | one per level from depth 6, in the boss room |
+| Occurs | always | 10 % of monsters of a type at least 4 depths past its first depth (`canChamp`; none at depths 1–4; never in the big room, as a lone monster or as escorts) | one per level from depth 6, in the boss room |
 | Name | type name | prefix + type, e.g. *Dread Ghoul* | *&lt;name&gt;, &lt;type&gt; Tyrant*, e.g. *Morgrath, Ghoul Tyrant* |
 | Life / damage / XP | ×1 | ×2.5 / ×2 / ×4 | ×8 / ×3 / ×12 |
 | Armor | — | — | + 4·d |

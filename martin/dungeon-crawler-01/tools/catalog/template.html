@@ -168,6 +168,7 @@ function iconCss(key, size, filter) {   // an item icon from assets/items.webp (
   return `background-image:url(assets/items.webp);background-position:${-x * k}px ${-y * k}px;background-size:${D.itemsW * k}px auto;` +
     (filter ? `filter:${filter} drop-shadow(0 2px 3px rgba(0,0,0,0.8));` : '');
 }
+const loneDepth = k => +(Object.keys(D.loneAt).find(d => D.loneAt[d] === k) || 0);   // the depth of a type's lone foretaste
 const iconKey = b => D.bases[b].icon || b;
 const ROW = 1;   // sheet row: facing down-left (SW), the classic 3/4 view
 function monSprite(type, h) {   // a monster's idle frame; walks while hovered
@@ -206,11 +207,11 @@ function showDepth(d) {
   $('depthOut').textContent = d;
   for (const k of TYPES) {
     const m = D.mons[k], s = m.perDepth[d - 1], card = cards[k], seen = d >= m.minD;
-    card.classList.toggle('locked', !seen && !(k === 'demon' && d === D.demonRoomAt));
+    card.classList.toggle('locked', !seen && D.loneAt[d] !== k);
     card.querySelector('.stats').innerHTML = [
       ['Life', s.hp], ['Damage', `${n1(s.dmg[0])}–${n1(s.dmg[1])}`], ['Attacks every', m.cd + ' s'],
       ['Damage per second', n1((s.dmg[0] + s.dmg[1]) / 2 / m.cd)], ['Armor', s.armor], ['Speed', s.speed + ' tiles/s'],
-      ['XP', s.xp], ['First depth', m.minD + (k === 'demon' ? ` (one lone demon at ${D.demonRoomAt})` : '')], ['Spawn weight', m.w],
+      ['XP', s.xp], ['First depth', m.minD + (loneDepth(k) ? ` (a lone one at ${loneDepth(k)})` : '')], ['Spawn weight', m.w],
     ].map(([a, b]) => `<span>${a}</span><span>${b}</span>`).join('');
     const tags = [];
     if (!seen) tags.push(`<span class="tag off">Not yet at depth ${d}</span>`);
@@ -293,7 +294,7 @@ $('rarityNote').innerHTML = `Chests, champions and bosses raise the chances. Som
       if (m.minD + D.champAfter === d) out.push(mk('ev-champ', `${esc(m.name)} champions`));
       if (k !== 'skeleton' && k !== 'spider' && m.minD + D.newLimit.length === d) out.push(mk('note', `no room limit for ${esc(m.name)}s any more`));
     }
-    if (d === D.demonRoomAt) out.push(mk('ev-mon', 'a single Pit Demon in one room'));
+    if (D.loneAt[d]) out.push(mk('ev-mon', 'a single ' + D.mons[D.loneAt[d]].name + ' in one room'));
     if (L.bossRoom && !prev.bossRoom) out.push(mk('ev-boss', L.boss ? 'boss room with a boss' : 'empty boss room'));
     if (L.boss && !prev.boss && prev.bossRoom) out.push(mk('ev-boss', 'boss room with a boss'));
     if (L.big) out.push(mk('ev-big', 'big room (grey banners)'));
@@ -304,7 +305,7 @@ $('rarityNote').innerHTML = `Chests, champions and bosses raise the chances. Som
     D.affixFrom.forEach((f, i) => { if (f === d && i > 0) out.push(mk('pre', `tier ${i + 1} affixes (${D.affix.map(a => a.tiers[i][0]).slice(0, 3).join(', ')}, …)`)); });
     const items = Object.keys(D.bases).filter(k => D.bases[k].lvl === d && !['ring', 'amulet'].includes(D.bases[k].slot));
     const itemHtml = items.map(k => `<span class="itm"><span class="ico sm" style="${iconCss(iconKey(k), 28)}"></span>${esc(D.bases[k].name)}</span>`).join('');
-    const mons = TYPES.filter(k => D.mons[k].minD === d || (k === 'demon' && d === D.demonRoomAt));
+    const mons = TYPES.filter(k => D.mons[k].minD === d || D.loneAt[d] === k);
     const monHtml = mons.map(k => { const c = M.characters[k], h = 46, kk = h / c.fh;
       return `<span class="mini" title="${esc(D.mons[k].name)}" style="width:${c.fw * kk}px;height:${h}px;background:url(assets/${k}.webp) ${-(c.idle || 0) * c.fw * kk}px ${-ROW * c.fh * kk}px / ${c.frames * c.fw * kk}px auto no-repeat"></span>`; }).join('');
     rows.push(`<tr><td class="num dnum">${d}</td><td class="mons">${monHtml}</td><td>${out.join('<br>') || '<span class="note">—</span>'}</td><td>${itemHtml || '<span class="note">—</span>'}</td></tr>`);

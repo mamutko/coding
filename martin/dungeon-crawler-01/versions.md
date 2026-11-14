@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v51 — later wraiths and boss room, bigger big rooms (2026-11-14)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 51`)*
+
+- A single wraith in one room at depth 3; wraiths appear from depth 4 (was 3), champions from depth 8.
+- The empty boss room moved from depth 3 to depth 5 (bosses still from depth 6).
+- Big rooms have twice the area (16–20 tiles a side, was 11–14) and 50 % more monsters.
+
 ## v50 — faster skeletons and Pit Demons, stronger charge (2026-11-14)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 50`)*
+Commit: f41c0e7
 
 - Skeletons run 2.3 tiles/s at depth 1 (was 2.1), Pit Demons 1.9 (was 1.8); both still grow 1.5 % per depth.
 - A charge is 1.6× speed (was 1.5×).
