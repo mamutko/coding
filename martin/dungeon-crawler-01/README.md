@@ -27,7 +27,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `tools/add_props.py`, `tools/raw/bones_searched.png`, `doors.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones, door leaves) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
 | `assets/sfx/` | Ghoul moans and grunts (MP3). |
-| `assets/music/explore-instrumental.mp3`, `combat-instrumental.mp3`, `explore.mp3`, `combat.mp3` | The music: exploration and combat loops, each instrumental and with a Latin choir. See [Music](#music). |
+| `assets/music/explore-instrumental.mp3`, `combat-instrumental.mp3`, `explore.mp3`, `combat.mp3`, `surface-1.mp3`, `surface-2.mp3` | The music: exploration and combat loops, each instrumental and with a Latin choir, and two cheerful instrumental surface tracks. See [Music](#music). |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 | `sandbox.js` | Test scenarios, loaded with `?sandbox` and inlined into the Claude artifact: see [Sandbox](#sandbox). |
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
@@ -70,7 +70,8 @@ The picker (*Crypt Sandbox*) groups the scenarios:
 
 - **Surface:**
   - **The surface** (depth 0): a new level-1 hero (never saved) a few steps from the crypt's entrance. The bar shows
-    the world tile and super tile the hero is on, then the level's name once below.
+    the world tile and super tile the hero is on, then the level's name once below, and the music track and play
+    number. **Next loop** starts the next play at once (the other surface track).
 - **Fire bombs** (the hero's longsword goes to the pack on key 1; the bombs are equipped, on key 2):
   - **Fire bombs: pack fight** (depth 3, 15 bombs): monsters within 18 tiles are removed, and four skeletons and
     three ghouls (no champions) are placed 5–8 tiles away in sight, already pursuing.
@@ -119,7 +120,7 @@ A status bar at the top (above the bottom HUD on narrow screens) shows what the 
 - **In the kiting scenario** it shows the weapon and its draw time, "drawing" while the hero draws, the
   distance to the nearest pursuer, and which monsters are charging.
 - **In the music scenarios** it shows the music: mood, instrumental or choir (gold), play number, how many
-  monsters pursue, the hold countdown and whether it is a Pit Demon level. **Next loop** (music scenarios only)
+  monsters pursue, the hold countdown and whether it is a Pit Demon level. **Next loop** (music and surface scenarios)
   starts the next play of the current track at once (to reach plays 2, 5 and 9 quickly).
 
 **Scenarios** (always in the bar) pauses the game and shows the picker again.
@@ -407,7 +408,7 @@ freezing.
 
 A new hero starts on **the surface**, a few steps from the crypt's entrance, on a moonlit night. It is an endless
 grassland with woods, glades, bushes and the crypt building; clicking the crypt's dark doorway takes the hero down to
-depth 1 (`descend`). For now nothing else lives there: no monsters, loot or keepers. The level name is *The
+depth 1 (`descend`). It has its own music (see [Music](#music)). For now nothing else lives there: no monsters, loot or keepers. The level name is *The
 Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going up is todo #11.)
 
 - **Super tiles** (`SURF`): the land is made of squares of `SURF.chunk` (32) tiles, generated from their world
@@ -1170,13 +1171,21 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 
 ## Music
 
-Four AI-made tracks in `assets/music/` (Google `lyria-3.5`, $0.08 each; gothic, all in D minor so they blend
-when crossfaded):
+Six AI-made tracks in `assets/music/` (Google `lyria-3.5`, $0.08 each). The four dungeon tracks are gothic, all
+in D minor so they blend when crossfaded:
 
 | Mood | Instrumental (normal) | Choir version (Pit Demon levels) |
 |---|---|---|
 | Exploration | `explore-instrumental.mp3` (1:24): slow; organ drone, distant low strings, chime bells, a lonely cello, no drums | `explore.mp3` (1:40): the same bed with a hushed Gregorian-style choir: *Descendimus in tenebras, / nox aeterna, lux perdita, / requiem in silentio, / custodes mortuorum vigilant.* |
 | Combat | `combat-instrumental.mp3` (1:06): 130 bpm; taiko and war drums, staccato low strings, brass stabs, organ, low horns | `combat.mp3` (1:04): the same with a full choir: *Dies irae, sanguis et ferrum, / mors venit, pugna, pugna! / Gladius in tenebris, / non timebimus mortem.* |
+
+The two **surface** tracks are in the same spirit but cheerful, in D major, with no voices (checked with a
+transcription, which came back empty; $0.01):
+
+| Track | Sound |
+|---|---|
+| `surface-1.mp3` (1:35) | gentle and hopeful: a soft church organ pad, harp and lute arpeggios, pizzicato and warm strings, a wooden flute's folk tune, chime bells, airy reverb |
+| `surface-2.mp3` (1:35) | medieval folk at ~90 bpm: lute and harp, a recorder tune, warm cello, soft organ underneath, glockenspiel, a gentle hand drum |
 
 `updateMusic(dt)` runs every frame (from `frame`, outside the game steps) and picks a **mood** (`musicMood`):
 
@@ -1189,6 +1198,9 @@ when crossfaded):
   between the moods (a pursuer in that time keeps it going); when they stop because they were **killed** (every
   monster that pursued in the previous frame is dead, `MUSIC.chasers`), it ends at once, with the usual 2 s
   crossfade;
+- **surface** on the surface (`G.map.surface`): the two surface tracks take turns, `surface-1` on odd plays and
+  `surface-2` on even ones (if `surface-2` isn't decoded yet, `surface-1` plays). There are no monsters there,
+  so no combat;
 - **exploration** otherwise.
 
 **Plays and the choir.** Every start of a track is a *play*, counted per mood and per level (`MUSIC.plays`;
@@ -1208,7 +1220,8 @@ is tried again the next frame (a choir play falls back to the instrumental one, 
 straight to the output (not through the effects' compressor or reverb). The bus gain is
 `0.5 × (v / 100)²` of the **Music** slider, or 0 while sound is off (`N`). A decoded track takes ~35 MB per
 100 s, so only the two instrumental tracks are loaded when audio starts, and the choir tracks are loaded on
-entering a Pit Demon level and dropped again on a level without one.
+entering a Pit Demon level and dropped again on a level without one. Likewise the two surface tracks are loaded
+only on the surface and dropped on going down.
 
 ## Sound
 

@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v61 — surface music (2026-11-15)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 61`)*
+
+- The surface has its own music: two cheerful folk-style instrumental tracks in the dungeon music's spirit
+  (organ, harp, lute, flute, strings), taking turns. Going down switches to the dungeon music.
+- The sandbox's surface scenario shows the track playing and has **Next loop**.
+
 ## v60 — the surface, depth 0 (2026-11-15)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 60`)*
+Commit: d8e5526
 
 - New heroes start on the surface: an endless moonlit grassland with woods and glades, bushes, flowers, rocks and
   mushrooms, made as you walk (32-tile "super tiles", always the same for a place).

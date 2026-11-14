@@ -382,7 +382,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 60;
+const VERSION = 61;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -485,6 +485,7 @@ function audio() {
 //    (so a fight doesn't flicker between moods); if they stop because they died, it ends at once;
 //  - 'boss' (the choir combat track) while the hero is inside the boss room of a level whose boss is a Pit Demon
 //    and that boss lives;
+//  - 'surface' on the surface (depth 0): two cheerful folk tracks (surface-1, surface-2) taking turns, play by play;
 //  - exploration otherwise.
 // Each start of a track is a "play", counted per mood and per level (a loop repeat is a new play). The
 // instrumental version plays, except on a Pit Demon boss level, whose 2nd, 5th and 9th play of each mood
@@ -492,8 +493,10 @@ function audio() {
 // sound (found when the file is decoded: the last 50 ms block louder than about -50 dB, so the file's fade-out
 // tail overlaps the next play's start) while the old play fades out; a change of mood crossfades over
 // MUSIC_SWITCH s, and so does a new level (it restarts the music with play 1 of that level).
-// Decoded tracks take memory (~35 MB per 100 s), so the choir versions are only loaded on Pit Demon levels.
-const MUSIC_FILES = { explore: 'explore-instrumental', combat: 'combat-instrumental', exploreChoir: 'explore', combatChoir: 'combat' };
+// Decoded tracks take memory (~35 MB per 100 s), so the choir versions are only loaded on Pit Demon levels and
+// the surface tracks only on the surface.
+const MUSIC_FILES = { explore: 'explore-instrumental', combat: 'combat-instrumental', exploreChoir: 'explore', combatChoir: 'combat',
+  surface: 'surface-1', surface2: 'surface-2' };
 const MUSIC = { bus: null, buf: {}, loading: {}, cur: null, plays: {}, level: null, combatT: 0, chasers: [], restart: false, busGain: -1 };
 const MUSIC_BASE = 0.5, MUSIC_XF = 3, MUSIC_SWITCH = 2, COMBAT_MIN = 4, COMBAT_HOLD = 6, CHOIR_PLAYS = [2, 5, 9];
 function musicLoad(name) {
@@ -511,6 +514,7 @@ function musicLoad(name) {
 const demonLevel = () => !!(G && G.map && G.map.boss && G.map.boss.type === 'demon');
 function musicMood(dt) {
   if (!G || !G.running || G.dead || !G.map) return null;
+  if (G.map.surface) return 'surface';
   const h = G.hero, boss = G.map.boss, br = G.map.bossRoom;
   const chasers = G.monsters.filter(m => !m.dead && m.state === 'chase'), n = chasers.length;
   if (n >= COMBAT_MIN || (n > 0 && MUSIC.combatT > 0)) MUSIC.combatT = COMBAT_HOLD;
@@ -527,6 +531,7 @@ function musicFade(v, dur) {
 function musicPlay(mood, fadeIn) {   // starts a play of mood; null if its track isn't loaded yet (tried again next frame)
   let name, n = 0;
   if (mood === 'boss') name = 'combatChoir';
+  else if (mood === 'surface') { n = (MUSIC.plays.surface || 0) + 1; name = n % 2 === 0 && MUSIC.buf.surface2 ? 'surface2' : 'surface'; }
   else { n = (MUSIC.plays[mood] || 0) + 1; name = demonLevel() && CHOIR_PLAYS.includes(n) && MUSIC.buf[mood + 'Choir'] ? mood + 'Choir' : mood; }
   const t = MUSIC.buf[name]; if (!t) return null;
   if (n) MUSIC.plays[mood] = n;
@@ -542,6 +547,7 @@ function updateMusic(dt) {
   if (G && G.map && G.map !== MUSIC.level) {   // a new level: new play counts, choir tracks only where needed
     MUSIC.level = G.map; MUSIC.plays = {}; MUSIC.combatT = 0; MUSIC.chasers = []; MUSIC.restart = true;
     for (const k of ['exploreChoir', 'combatChoir']) if (demonLevel()) musicLoad(k); else { delete MUSIC.buf[k]; MUSIC.loading[k] = false; }
+    for (const k of ['surface', 'surface2']) if (G.map.surface) musicLoad(k); else { delete MUSIC.buf[k]; MUSIC.loading[k] = false; }
   }
   const mood = musicMood(dt), cur = MUSIC.cur;
   if (!mood) { if (cur) { musicFade(cur, 1.5); MUSIC.cur = null; } }

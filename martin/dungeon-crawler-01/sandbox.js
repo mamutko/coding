@@ -81,7 +81,7 @@
   showDeath = () => { if (!isTest()) return realDeath(); G.running = false; pick.hidden = false; bar.hidden = true; };
   const floorAt = (x, y) => G.map.t[y * G.map.w + x] === T_FLOOR && !G.objects.some(o => o.x === x && o.y === y && !o.walk);
   function start(m = 'music') {
-    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbNext').hidden = m !== 'music'; lookButtons();
+    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
     audio(); pick.hidden = true; bar.hidden = false;
     G.running = true; G.camSnap = true; G.deathShown = false;
     $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); $('heroCfg').classList.add('hidden'); hideTip();
@@ -195,8 +195,8 @@
     open.hidden = !pick.hidden || $('screen').classList.contains('hidden');
     if (bar.hidden || !G) return;
     if (mode === 'surface') {
-      const h = G.hero, sv = G.surf;
-      $('sbInfo').innerHTML = sv && G.map.surface ? `<span class="mood">The surface</span> · world tile ${Math.floor(h.x + sv.ox)}, ${Math.floor(h.y + sv.oy)} · super tile ${sv.cx}, ${sv.cy}` : `<span class="mood">${depthName(G.depth)}</span> · depth ${G.depth}`;
+      const h = G.hero, sv = G.surf, c = MUSIC.cur, tune = c ? ` · music ${MUSIC_FILES[c.name]}${c.n ? ' (play ' + c.n + ')' : ''}` : ' · no music';
+      $('sbInfo').innerHTML = (sv && G.map.surface ? `<span class="mood">The surface</span> · world tile ${Math.floor(h.x + sv.ox)}, ${Math.floor(h.y + sv.oy)} · super tile ${sv.cx}, ${sv.cy}` : `<span class="mood">${depthName(G.depth)}</span> · depth ${G.depth}`) + tune;
       return;
     }
     if (mode === 'market') {
