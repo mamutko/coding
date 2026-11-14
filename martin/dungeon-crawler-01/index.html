@@ -386,7 +386,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 62;
+const VERSION = 63;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -443,9 +443,10 @@ const SRC = { hero: 'assets/hero.webp', skeleton: 'assets/skeleton.webp', ghoul:
   wraith: 'assets/wraith.webp', demon: 'assets/demon.webp', items: 'assets/items.webp', props: 'assets/props.webp',
   floor: 'assets/floor.jpg', wall: 'assets/wall.jpg', dirt: 'assets/dirt.jpg',
   surface: 'assets/surface.webp', grassA: 'assets/grass_a.jpg', grassB: 'assets/grass_b.jpg' };
+const LOADED = { n: 0, of: Object.keys(SRC).length };   // images loaded so far (the sandbox's picker shows it)
 function loadAll() {
   return Promise.all(Object.entries(SRC).map(([k, s]) => new Promise((res, rej) => {
-    const i = new Image(); i.onload = () => { IMG[k] = i; res(); }; i.onerror = () => rej(s); i.src = s;
+    const i = new Image(); i.onload = () => { IMG[k] = i; LOADED.n++; res(); }; i.onerror = () => rej(s); i.src = s;
   })));
 }
 let floorPat = null, dirtPat = null;
@@ -3589,7 +3590,7 @@ loadAll().then(() => {
   newGame(null); G.running = false; G.camSnap = true;   // render a first level behind the title screen
   const b = $('startBtn'); b.disabled = false; renderHeroPick();
   requestAnimationFrame(frame);
-}).catch(err => { $('startBtn').textContent = 'Failed to load ' + err; });
+}).catch(err => { console.error('Start-up failed:', err); $('startBtn').textContent = (typeof err === 'string' ? 'Failed to load ' : 'Start-up failed: ') + err; });
 </script>
 <!-- sandbox:start -->
 <script>

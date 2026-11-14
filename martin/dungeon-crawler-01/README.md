@@ -67,6 +67,12 @@ a rare long sword, rare chain mail, a magic iron helm, 12 health potions) at a c
 the picker comes back instead of the title screen (`showDeath` is wrapped). **Normal game** closes the picker
 and leaves the usual title screen, whose **Scenarios** button at its bottom left brings the picker back.
 
+The scenario buttons (all but **Normal game**) stay off until the game's own start-up is done: all images
+loaded (`LOADED` counts them) and a first level built. Until then the picker says `Loading the game: n / 14
+images…`; if an image fails to load or start-up throws, it shows that message instead (the same text the title
+screen's start button shows, which the picker covers) and the scenarios stay off. Errors thrown later
+(`error` and `unhandledrejection` events) are listed there too, the last three.
+
 The picker (*Crypt Sandbox*) groups the scenarios:
 
 - **Surface:**
@@ -235,7 +241,8 @@ or a right-click clears a HUD key).
   walk and then holding right attacks, as before.
 
 The title screen lists the controls and is also the hero picker (see [Saving](#saving)). The surface (depth 0)
-is rendered behind it. The start button is enabled once all images have loaded. At its bottom left a
+is rendered behind it. The start button is enabled once all images have loaded; if one fails, or start-up
+throws, it shows *Failed to load …* or *Start-up failed: …* instead (also logged to the console). At its bottom left a
 **Scenarios** button opens the test scenarios (see [Sandbox](#sandbox)); at its bottom right the version number
 opens the debug overlay (see [Version](#version)).
 

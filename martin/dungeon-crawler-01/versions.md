@@ -9,13 +9,14 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v62 — debug overlay and scenarios from the title screen (2026-11-15)
+## v62–v63 — debug overlay and scenarios from the title screen (2026-11-15)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 62`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 63`)*
 
 - The version number on the title screen is larger; double-click it (long-press on a phone) to open the debug
   overlay, which now shows above the title screen (`Ctrl` + `D` works there too).
 - A **Scenarios** button at the title screen's bottom left opens the sandbox's scenario picker.
+- The scenario picker shows its loading progress, and why the scenarios stay off if the game fails to start.
 
 ## v61 — surface music (2026-11-15)
 

@@ -10,6 +10,9 @@
   #sbPick .box { margin: auto; max-width: 560px; width: 100%; border: 1px solid #5a4528; background: #120c0e; padding: 22px; box-shadow: 0 0 40px #000; }
   #sbPick h1 { font-family: Cinzel, serif; color: #c9a45c; font-size: 22px; letter-spacing: 2px; margin: 0 0 6px; text-wrap: balance; }
   #sbPick p { color: #b3aba0; font: 15px/1.45 'IM Fell English', Georgia, serif; margin: 0 0 14px; }
+  #sbPick p.status { color: #c9a45c; font-size: 14px; }
+  #sbPick p.status.err { color: #e07a6a; }
+  #sbPick p.status[hidden] { display: none; }
   #sbPick button.sc { display: block; width: 100%; text-align: left; margin: 0 0 10px; padding: 12px 14px; background: #1c1316; border: 1px solid #5a4528;
     color: #e8dcc4; font: 15px/1.4 'IM Fell English', Georgia, serif; cursor: pointer; }
   #sbPick[hidden], #sbBar[hidden] { display: none !important; }
@@ -35,6 +38,7 @@
   const pick = document.createElement('div'); pick.id = 'sbPick'; pick.innerHTML = `<div class="box">
     <h1>Crypt Sandbox</h1>
     <p>The current game (v${VERSION}) with a strong test hero (never saved), dropped straight into a situation. Sound starts when you pick one. A bar at the top shows what the scenario is about.</p>
+    <p id="sbStatus" class="status">Loading the game…</p>
     <h2>Surface</h2>
     <button class="sc" id="sbSurface"><b>The surface</b>A new level-1 hero at depth 0, a few steps from the crypt's entrance. Walk the endless woods around it (the land is made as you go), then click the dark doorway to go down to depth 1.</button>
     <h2>Fire bombs</h2>
@@ -223,5 +227,19 @@
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
   const SC = ['sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
-  const ready = setInterval(() => { if (G && floorPat) { clearInterval(ready); for (const id of SC) $(id).disabled = false; $('sbFirePack').focus(); } }, 100);
+  // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
+  // the same, but the picker covers it); errors thrown later are listed there too
+  const status = $('sbStatus'), errs = [];
+  addEventListener('error', e => { errs.push(e.message || String(e.error || e)); });
+  addEventListener('unhandledrejection', e => { errs.push('unhandled: ' + (e.reason && e.reason.message || e.reason)); });
+  const ready = setInterval(() => {
+    const sb = $('startBtn').textContent, failed = /fail/i.test(sb);
+    if (G && floorPat && !failed) { clearInterval(ready); for (const id of SC) $(id).disabled = false; $('sbFirePack').focus(); }
+    status.classList.toggle('err', failed || errs.length > 0);
+    status.textContent = failed ? sb + ' — the scenarios stay off.' : G && floorPat ? (errs.length ? 'Errors: ' + errs.slice(-3).join(' · ') : '')
+      : `Loading the game: ${LOADED.n} / ${LOADED.of} images…` + (errs.length ? ' Errors: ' + errs.slice(-3).join(' · ') : '');
+    status.hidden = !status.textContent;
+    if (G && floorPat && !failed && !errs.length) status.hidden = true;
+  }, 100);
+  setInterval(() => { if (errs.length && G && floorPat) { status.hidden = false; status.classList.add('err'); status.textContent = 'Errors: ' + errs.slice(-3).join(' · '); } }, 1000);
 })();
