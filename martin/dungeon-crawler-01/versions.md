@@ -9,9 +9,21 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v52 — item progression spread over more depths (2026-11-14)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 52`)*
+
+- Better item types unlock later: the best of each slot at depth 14–15 (was 10–11), the second tier at depth 4
+  (was 3).
+- Magic items and rings from depth 4 (was 3), amulets from 6 (was 5), rares from 8 (was 6).
+- Affix tiers 2 and 3 from depth 7 and 12 (were 5 and 9).
+- Older types still fade out as before (half as likely every 4 depths).
+- Harder: the balance simulation shows about three times as many deaths at depths 3–13
+  (`tools/simulation/results-2026-11-14.md`).
+
 ## v51 — later wraiths and boss room, bigger big rooms (2026-11-14)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 51`)*
+Commit: 6e364c4
 
 - A single wraith in one room at depth 3; wraiths appear from depth 4 (was 3), champions from depth 8.
 - The empty boss room moved from depth 3 to depth 5 (bosses still from depth 6).

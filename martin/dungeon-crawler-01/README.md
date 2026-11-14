@@ -694,38 +694,38 @@ type has its own icon.
 |---|---|---|---|
 | Short Sword | sword | 4–8, 0.55 s | 1 |
 | Longsword | sword | 7–14, 0.65 s | 2 |
-| Broadsword | sword | 13–22, 0.7 s | 4 |
-| Blackened Greatsword | sword | 20–34, 0.85 s | 6 |
-| Bastard Sword | sword | 24–40, 0.8 s | 8 |
-| Knight's Greatsword | sword | 32–52, 0.85 s | 11 |
+| Broadsword | sword | 13–22, 0.7 s | 5 |
+| Blackened Greatsword | sword | 20–34, 0.85 s | 8 |
+| Bastard Sword | sword | 24–40, 0.8 s | 11 |
+| Knight's Greatsword | sword | 32–52, 0.85 s | 15 |
 | Hand Axe | axe | 5–10, 0.7 s | 1 |
-| Bearded Axe | axe | 10–18, 0.8 s | 3 |
-| Battle Axe | axe | 17–29, 0.9 s | 5 |
-| Executioner's Axe | axe | 26–46, 1.05 s | 7 |
-| Great Axe | axe | 34–58, 1.05 s | 10 |
+| Bearded Axe | axe | 10–18, 0.8 s | 4 |
+| Battle Axe | axe | 17–29, 0.9 s | 7 |
+| Executioner's Axe | axe | 26–46, 1.05 s | 9 |
+| Great Axe | axe | 34–58, 1.05 s | 14 |
 | Short Bow | bow | 3–7, 0.6 s | 1 |
 | Hunting Bow | bow | 5–10, 0.65 s | 2 |
-| Yew Longbow | bow | 9–16, 0.75 s | 4 |
-| Bone Bow | bow | 14–25, 0.9 s | 6 |
-| Composite Bow | bow | 18–31, 0.85 s | 8 |
-| War Bow | bow | 25–42, 0.9 s | 11 |
+| Yew Longbow | bow | 9–16, 0.75 s | 5 |
+| Bone Bow | bow | 14–25, 0.9 s | 8 |
+| Composite Bow | bow | 18–31, 0.85 s | 11 |
+| War Bow | bow | 25–42, 0.9 s | 15 |
 | Leather Cap | helm | armor 3 | 1 |
-| Iron Helm | helm | armor 7 | 3 |
-| Horned Great Helm | helm | armor 13 | 6 |
-| Visored Helm | helm | armor 19 | 9 |
+| Iron Helm | helm | armor 7 | 4 |
+| Horned Great Helm | helm | armor 13 | 8 |
+| Visored Helm | helm | armor 19 | 12 |
 | Leather Tunic | armor | armor 6 | 1 |
-| Studded Leather | armor | armor 11 | 3 |
-| Chain Mail | armor | armor 18 | 5 |
-| Plate Cuirass | armor | armor 28 | 8 |
-| Full Plate | armor | armor 36 | 11 |
+| Studded Leather | armor | armor 11 | 4 |
+| Chain Mail | armor | armor 18 | 7 |
+| Plate Cuirass | armor | armor 28 | 11 |
+| Full Plate | armor | armor 36 | 15 |
 | Leather Gloves | gloves | armor 2 | 1 |
-| Iron Gauntlets | gloves | armor 6 | 3 |
-| Plated Gauntlets | gloves | armor 10 | 7 |
-| Heavy Gauntlets | gloves | armor 13 | 10 |
+| Iron Gauntlets | gloves | armor 6 | 4 |
+| Plated Gauntlets | gloves | armor 10 | 9 |
+| Heavy Gauntlets | gloves | armor 13 | 14 |
 | Leather Boots | boots | armor 2, +5 % move speed | 1 |
-| Plated Boots | boots | armor 6 | 3 |
-| Iron Greaves | boots | armor 10 | 7 |
-| Heavy Greaves | boots | armor 13 | 10 |
+| Plated Boots | boots | armor 6 | 4 |
+| Iron Greaves | boots | armor 10 | 9 |
+| Heavy Greaves | boots | armor 13 | 14 |
 | Silver Ring, Ruby Ring, Grave Ring | ring | none | 1 |
 | Sapphire Amulet, Blood Amulet, Bone Talisman | amulet | none | 1 |
 
@@ -736,7 +736,7 @@ sword is a Blackened Greatsword 38 % of the time, a Short Sword 16 %).
 
 **Rings and amulets** have no stats of their own: they only drop as **magic or rare** items (a common roll never
 picks them), and all their worth is in their affixes, whose ranges are doubled on them (`JEWEL_MULT`). With the
-rarity gates below they appear from depth 3 at the earliest (amulets from depth 5, `AMULET_FROM`; rings from 3,
+rarity gates below they appear from depth 4 at the earliest (amulets from depth 6, `AMULET_FROM`; rings from 4,
 `RING_FROM`). Old saves keep their rings and amulets as they were.
 
 **Rarity.**
@@ -751,17 +751,17 @@ So a plain drop is 0.7 % rare and 7.5 % magic, at every depth where the rarity i
 bosses add a rarity boost (with a 0.35 boost: 2.45 % rare, 16.25 % magic). An item with a forced rarity (the
 starting kit, the guardian's chest) skips the roll.
 
-**Rarity gates by depth.** No magic items before depth 3 (`MAGIC_FROM`) and no rares before depth 6 (`RARE_FROM`);
+**Rarity gates by depth.** No magic items before depth 4 (`MAGIC_FROM`) and no rares before depth 8 (`RARE_FROM`);
 a roll above what the depth allows is lowered to the best allowed rarity. Some sources count as deeper for these
 gates (and for the ring and amulet gates): **champions** + 1, **chests in the big room** + 1, the **boss** and the
-**guardian's chest** + 2. So a champion can drop magic items from depth 2 and rares from depth 5.
+**guardian's chest** + 2. So a champion's drops can be magic from depth 3 and rare from depth 7 (champions themselves appear from depth 5).
 
 **Affixes** are the bonuses of magic and rare items: **prefixes** go before the type's name, **suffixes** after it.
-Each kind has 3 tiers with fixed ranges and their own names. A tier can roll once the loot depth reaches 1, 5 or 9
+Each kind has 3 tiers with fixed ranges and their own names. A tier can roll once the loot depth reaches 1, 7 or 12
 (`AFFIX_FROM`); among the unlocked tiers, higher ones are likelier (weights 1 : 2 : 4). A kind appears at most once
 per item. On rings and amulets every range is doubled.
 
-| Stat | Tier 1 (from 1) | Tier 2 (from 5) | Tier 3 (from 9) |
+| Stat | Tier 1 (from 1) | Tier 2 (from 7) | Tier 3 (from 12) |
 |---|---|---|---|
 | +STR | Mighty / of the Bear, 1–4 | Brutal / of the Boar, 5–8 | Titanic / of the Giant, 9–12 |
 | +DEX | Nimble / of the Fox, 1–4 | Deft / of the Lynx, 5–8 | Lithe / of the Falcon, 9–12 |
