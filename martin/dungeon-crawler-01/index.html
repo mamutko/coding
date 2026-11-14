@@ -386,7 +386,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 63;
+const VERSION = 64;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -443,10 +443,16 @@ const SRC = { hero: 'assets/hero.webp', skeleton: 'assets/skeleton.webp', ghoul:
   wraith: 'assets/wraith.webp', demon: 'assets/demon.webp', items: 'assets/items.webp', props: 'assets/props.webp',
   floor: 'assets/floor.jpg', wall: 'assets/wall.jpg', dirt: 'assets/dirt.jpg',
   surface: 'assets/surface.webp', grassA: 'assets/grass_a.jpg', grassB: 'assets/grass_b.jpg' };
-const LOADED = { n: 0, of: Object.keys(SRC).length };   // images loaded so far (the sandbox's picker shows it)
+// A failed image is tried again up to IMG_RETRIES times, after 1, 2, 3 ... s (a phone's connection can drop one
+// request); only then does start-up fail. LOADED counts the images loaded and the retries (the sandbox shows both).
+const LOADED = { n: 0, of: Object.keys(SRC).length, retries: 0 }, IMG_RETRIES = 4;
 function loadAll() {
   return Promise.all(Object.entries(SRC).map(([k, s]) => new Promise((res, rej) => {
-    const i = new Image(); i.onload = () => { IMG[k] = i; LOADED.n++; res(); }; i.onerror = () => rej(s); i.src = s;
+    const go = n => { const i = new Image();
+      i.onload = () => { IMG[k] = i; LOADED.n++; res(); };
+      i.onerror = () => { if (n >= IMG_RETRIES) return rej(s); LOADED.retries++; setTimeout(() => go(n + 1), 1000 * (n + 1)); };
+      i.src = s; };
+    go(0);
   })));
 }
 let floorPat = null, dirtPat = null;

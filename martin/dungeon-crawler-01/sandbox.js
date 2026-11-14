@@ -237,7 +237,7 @@
     if (G && floorPat && !failed) { clearInterval(ready); for (const id of SC) $(id).disabled = false; $('sbFirePack').focus(); }
     status.classList.toggle('err', failed || errs.length > 0);
     status.textContent = failed ? sb + ' — the scenarios stay off.' : G && floorPat ? (errs.length ? 'Errors: ' + errs.slice(-3).join(' · ') : '')
-      : `Loading the game: ${LOADED.n} / ${LOADED.of} images…` + (errs.length ? ' Errors: ' + errs.slice(-3).join(' · ') : '');
+      : `Loading the game: ${LOADED.n} / ${LOADED.of} images…` + (LOADED.retries ? ` (${LOADED.retries} retried)` : '') + (errs.length ? ' Errors: ' + errs.slice(-3).join(' · ') : '');
     status.hidden = !status.textContent;
     if (G && floorPat && !failed && !errs.length) status.hidden = true;
   }, 100);
