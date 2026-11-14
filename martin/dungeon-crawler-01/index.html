@@ -342,7 +342,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 45;
+const VERSION = 46;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -810,8 +810,8 @@ const LEVEL_NAMES = ['The Forsaken Crypt', 'The Ossuary', 'Halls of the Hollow',
 const depthName = d => LEVEL_NAMES[(d - 1) % 8] + (d > 8 ? ' ' + ROMAN(Math.ceil(d / 8)) : '');
 
 // Tiers: normal; champion (10 % from depth 2, red glow); boss (one per level, green glow, see buildLevel).
-const TIER = { normal: { size: 1, hp: 1, dmg: 1, xp: 1, armor: 0 }, champ: { size: 1.15, hp: 2.5, dmg: 1.5, xp: 3, armor: 0 },
-  boss: { size: 1.35, hp: 8, dmg: 1.8, xp: 8, armor: 4 } };
+const TIER = { normal: { size: 1, hp: 1, dmg: 1, xp: 1, armor: 0 }, champ: { size: 1.15, hp: 2.5, dmg: 2, xp: 4, armor: 0 },
+  boss: { size: 1.35, hp: 8, dmg: 3, xp: 12, armor: 4 } };
 // New monster types: from the depth L where a type first appears (its minD), a room may hold at most
 // NEW_LIMIT[d - L] of it (1 at L, 2 at L+1 to L+3, no limit after; escorts included). Skeletons and spiders are
 // exempt. A type can be a champion only from depth L + CHAMP_AFTER.

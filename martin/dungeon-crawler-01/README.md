@@ -644,7 +644,7 @@ monster has 1.2× them (`MON_BASE`), e.g. a depth-1 skeleton has 31 life and hit
 |---|---|---|---|
 | Occurs | always | 10 % of monsters of a type at least 4 depths past its first depth (`canChamp`; none at depths 1–4; never in the big room, the lone demon or as escorts) | one per level from depth 6, in the boss room |
 | Name | type name | prefix + type, e.g. *Dread Ghoul* | *&lt;name&gt;, &lt;type&gt; Tyrant*, e.g. *Morgrath, Ghoul Tyrant* |
-| Life / damage / XP | ×1 | ×2.5 / ×1.5 / ×3 | ×8 / ×1.8 / ×8 |
+| Life / damage / XP | ×1 | ×2.5 / ×2 / ×4 | ×8 / ×3 / ×12 |
 | Armor | — | — | + 4·d |
 | Size | ×1 | ×1.15 (radius too) | ×1.35 drawn; radius ×1.15, at most 0.48 so it fits corridors |
 | Look | — | red glow, gold health bar and target name | green glow, green health bar and target name |

@@ -9,9 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v46 — tougher, richer champions and bosses (2026-11-14)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 46`)*
+
+- Champions hit twice as hard as a normal monster (was ×1.5) and give ×4 XP (was ×3).
+- Bosses hit three times as hard (was ×1.8) and give ×12 XP (was ×8).
+
 ## v45 — melee and chase fixes next to the target (2026-11-14)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 45`)*
+Commit: 13628f4
 
 - Fix: a melee attack on a monster one tile away diagonally but out of reach (typically a wraith keeping its
   distance) did nothing; the hero now steps in and strikes.
