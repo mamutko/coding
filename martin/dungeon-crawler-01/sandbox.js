@@ -24,6 +24,8 @@
   #sbBar .burn { color: #ff9a40; text-shadow: 0 0 6px rgba(255,120,40,0.8); }
   #sbLooks { display: flex; gap: 4px; align-items: center; }
   #sbLooks[hidden] { display: none !important; }
+  #sbKeepers { display: flex; gap: 4px; align-items: center; } #sbKeepers[hidden] { display: none !important; }
+  #sbBar #sbKeepers button.on { border-color: #e3c060; color: #fff; background: #3a2c12; }
   #sbBar #sbLooks button.on { border-color: #e8893a; color: #fff; background: #3a1f12; }
   #sbPick h2 { font-family: Cinzel, serif; color: #8c7650; font-size: 13px; letter-spacing: 2px; margin: 16px 0 8px; }
   #sbBar button { background: #1c1316; border: 1px solid #5a4528; color: #e8dcc4; font: 12px Georgia, serif; padding: 3px 8px; cursor: pointer; }
@@ -40,6 +42,8 @@
     <button class="sc" id="sbFirePack"><b>Fire bombs: pack fight</b>Depth 3, 15 fire bombs equipped, four skeletons and three ghouls rushing in. Right-click to throw at a monster or a spot (up to 7 tiles). Key 1 is your longsword, 2 the bombs. Mind the flames: they burn you too.</button>
     <button class="sc" id="sbFireLast"><b>Fire bombs: the last two</b>Only two bombs equipped and three skeletons coming. After the second throw your hands are empty until you equip the longsword (key 1).</button>
     <button class="sc" id="sbFireYard"><b>Fire bombs: practice yard</b>30 bombs, a quiet room: three sleeping skeletons to burn (a burn wakes them) and two small stacks of bombs on the floor to pick up (they join your stack). Switch the fire's look in the bar to compare.</button>
+    <h2>Market</h2>
+    <button class="sc" id="sbMarket"><b>Keeper of the Crypt</b>Depth 6, next to a keeper in its furnished room, with 3000 gold and things to sell or trade (a helm, an axe, a magic ring, potions, fire bombs). Click the keeper to open the market. Switch between the four keepers in the bar.</button>
     <h2>Kiting</h2>
     <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
     <h2>Music</h2>
@@ -47,7 +51,7 @@
     <button class="sc" id="sbDemon"><b>Pit Demon level</b>Depth 8 with a Pit Demon boss, next to its boss room. The 2nd, 5th and 9th play of each track is the choir version (use Next loop to skip ahead); stepping into the boss room plays the choir combat track.</button>
     <button class="sc" id="sbNormal"><b>Normal game</b>The usual title screen; the Sandbox scenarios button at its bottom left brings this list back.</button></div>`;
   const bar = document.createElement('div'); bar.id = 'sbBar'; bar.hidden = true;
-  bar.innerHTML = '<span id="sbInfo">–</span><span id="sbLooks" hidden>Fire look:' + [[1, 'Blaze'], [2, 'Ember bed'], [3, 'Oil pool']].map(([n, l]) => `<button data-look="${n}">${l}</button>`).join('') + '</span>'
+  bar.innerHTML = '<span id="sbInfo">–</span><span id="sbKeepers" hidden>Keeper:' + [1, 2, 3, 4].map(n => `<button data-keeper="${n}">${KEEPERS[n].name.split(' ')[0]}</button>`).join('') + '</span><span id="sbLooks" hidden>Fire look:' + [[1, 'Blaze'], [2, 'Ember bed'], [3, 'Oil pool']].map(([n, l]) => `<button data-look="${n}">${l}</button>`).join('') + '</span>'
     + '<button id="sbNext" title="Start the next play of this track now">Next loop</button><button id="sbBack">Scenarios</button>';
   let mode = 'music';   // what the bar shows: 'music' or 'fire'
   // on the normal title screen (after Normal game, or a real hero's death) a button brings the picker back
@@ -75,7 +79,7 @@
   showDeath = () => { if (!isTest()) return realDeath(); G.running = false; pick.hidden = false; bar.hidden = true; };
   const floorAt = (x, y) => G.map.t[y * G.map.w + x] === T_FLOOR && !G.objects.some(o => o.x === x && o.y === y && !o.walk);
   function start(m = 'music') {
-    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbNext').hidden = m !== 'music'; lookButtons();
+    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbNext').hidden = m !== 'music'; lookButtons();
     audio(); pick.hidden = true; bar.hidden = false;
     G.running = true; G.camSnap = true; G.deathShown = false;
     $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); $('heroCfg').classList.add('hidden'); hideTip();
@@ -121,6 +125,22 @@
   };
   function lookButtons() { $('sbLooks').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.look === LOOK.fire)); }
   $('sbLooks').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; setLook('fire', +b.dataset.look); lookButtons(); b.blur(); });
+  $('sbMarket').onclick = () => {
+    for (let i = 0; i < 50; i++) { testHero(6); if (G.objects.some(o => o.type === 'keeper')) break; }
+    const h = G.hero, k = G.objects.find(o => o.type === 'keeper');
+    h.gold = 3000; h.hp = Math.round(h.st.maxHp * 0.6);
+    for (const it of [genItem(4, 0, 'ironhelm', 'common', 4), genItem(5, 0, 'battleaxe', 'common', 5), genItem(6, 0, 'rubyring', 'magic', 6), makeBombs(3)])
+      h.inv[h.inv.indexOf(null)] = it;
+    // stand two tiles in front of the keeper (or as near as there is floor), the keeper's room cleared of anything else
+    let best = null; for (let y = k.y - 3; y <= k.y + 3; y++) for (let x = k.x - 3; x <= k.x + 3; x++) {
+      if (!floorAt(x, y) || G.map.block[y * G.map.w + x]) continue; const dd = Math.abs(Math.hypot(x - k.x, y - k.y) - 2); if (!best || dd < best[2]) best = [x, y, dd]; }
+    if (best) { h.x = best[0] + 0.5; h.y = best[1] + 0.5; h.path = []; }
+    G.monsters = G.monsters.filter(m => Math.hypot(m.x - h.x, m.y - h.y) > 16); refreshUI();
+    start('market'); keeperButtons(); log('Test: a Keeper of the Crypt. Click it to trade.', '#e3c060');
+  };
+  function keeperButtons() { const k = G.objects.find(o => o.type === 'keeper'); $('sbKeepers').querySelectorAll('button').forEach(b => b.classList.toggle('on', k && +b.dataset.keeper === k.look)); }
+  $('sbKeepers').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const k = G.objects.find(o => o.type === 'keeper');
+    if (k) { k.look = +b.dataset.keeper; if (marketOpen()) openMarket(k); } keeperButtons(); b.blur(); });
   $('sbKite').onclick = () => {
     for (let i = 0; i < 100; i++) { testHero(7); if (G.map.rooms.some(r => r.big === 'horde')) break; }
     const h = G.hero, bow = genItem(7, 0, 'huntingbow', 'common', 7), room = G.map.rooms.find(r => r.big === 'horde') || G.map.rooms[1];
@@ -168,6 +188,11 @@
   setInterval(() => {
     open.hidden = !pick.hidden || $('screen').classList.contains('hidden');
     if (bar.hidden || !G) return;
+    if (mode === 'market') {
+      const k = G.objects.find(o => o.type === 'keeper');
+      $('sbInfo').innerHTML = `<span class="mood">${k ? KEEPERS[k.look].name : 'no keeper'}</span> · ${G.hero.gold} gold · life ${Math.ceil(G.hero.hp)} / ${G.hero.st.maxHp}` + (marketOpen() ? ' · trading' : '');
+      return;
+    }
     if (mode === 'kite') {
       const h = G.hero, w = weaponOf(h), near = G.monsters.filter(m => !m.dead && m.state === 'chase');
       const ch = near.filter(m => m.chargeT > 0).map(m => MON[m.type].name);
@@ -189,7 +214,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbFirePack', 'sbFireLast', 'sbFireYard', 'sbKite', 'sbPack', 'sbDemon'];
+  const SC = ['sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   const ready = setInterval(() => { if (G && floorPat) { clearInterval(ready); for (const id of SC) $(id).disabled = false; $('sbFirePack').focus(); } }, 100);
 })();

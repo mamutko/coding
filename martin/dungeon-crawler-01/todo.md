@@ -18,10 +18,6 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
    - knock the monster back on a critical hit;
    - cleaving — every monster hit takes 100 % damage.
 
-6. **Item valuation** — items have a value.
-
-7. **Keepers of the Crypt** — merchants where the hero can buy and sell items and services.
-
 10. **Multiplayer** — several players exploring the crypt together online. See the `multiplayer-game` skill for
     the generic mechanics (PeerJS handshake, WebRTC data channels, host-authoritative simulation).
 
@@ -47,5 +43,5 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
       two common items of the same type can differ. Shown in the name (*Crude*, *Fine*,
       *Superior*, …) and/or only in the numbers.
     - **Wear** — items wear out with use (weapons when hitting, armor when hit) and lose effectiveness as they do.
-    - **Fixing** — some of it can be fixed: repairing wear (and perhaps improving quality) at a shop (see 7) or
+    - **Fixing** — some of it can be fixed: repairing wear (and perhaps improving quality) from a Keeper of the Crypt (the market, see README) or
       with a hero skill.

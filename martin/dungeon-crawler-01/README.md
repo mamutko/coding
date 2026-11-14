@@ -12,13 +12,14 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `assets/hero.webp`, `skeleton.webp`, `ghoul.webp` | 8-direction × 8-frame walk cycles (transparent). |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
 | `assets/items.webp` | 6 × 8 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–8 from `add_items.py`). |
-| `assets/props.webp` | Props: row 1 has the chest, open chest, door, stairs, brazier, bones, urn and gold, and the boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus), from `process_art.py`; row 2 has the searched bones (`bonesused`) and the door leaves (`doorA`, `doorB`), from `add_props.py`. |
+| `assets/props.webp` | Props: row 1 has the chest, open chest, door, stairs, brazier, bones, urn and gold, and the boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus), from `process_art.py`; row 2 has the searched bones (`bonesused`) and the door leaves (`doorA`, `doorB`), from `add_props.py`; rows 3 on have the four Keepers of the Crypt (`keeper1`–`keeper4`) and their stall's furnishings (`mtable`, `mrack`, `mchest`, `mshelf`, `mcrates`, `mbarrel`, `mlantern`, `mrug`), from `add_market.py`. |
 | `assets/floor.jpg`, `assets/wall.jpg` | 512 px seamless floor and wall textures. |
 | `assets/dirt.jpg` | 512 px seamless dirt texture for wall tops and wall faces toward solid ground (from `add_props.py`). |
 | `assets/meta.json` | Frame sizes and atlas coordinates written by the processing script (copied into `META` in `index.html`). |
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
 | `tools/walk_cycle.py` | Walk-cycle pipeline (hero, skeleton, ghoul): renders the 3D stick-figure pose guides and placeholders, and builds the 8-frame sheets. |
 | `tools/add_items.py`, `tools/raw/items2.png`, `items3.png`, `firebombs.png` | Appends the icons of the newer item types (and a quiver), and the six fire bomb designs, to `assets/items.webp` from the three raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
+| `tools/add_market.py`, `tools/raw/keepers.png`, `keeper_decor.png` | Adds the Keepers of the Crypt and their furnishings to `assets/props.webp` (the rows after row 2) and updates `assets/meta.json` and the inline `META`. See [Keepers of the Crypt](#keepers-of-the-crypt-the-market). |
 | `tools/add_props.py`, `tools/raw/bones_searched.png`, `doors.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones, door leaves) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
 | `assets/sfx/` | Ghoul moans and grunts (MP3). |
@@ -71,6 +72,10 @@ The picker (*Crypt Sandbox*) groups the scenarios:
   - **Fire bombs: practice yard** (depth 2, 30 bombs): monsters within 22 tiles are removed, and three skeletons
     sleep 4–6.5 tiles away. Their calm never ends, so they ignore the hero until a hit or a burn wakes them. Two
     small stacks of bombs (2 and 3) lie at the hero's feet, to pick up.
+- **Market:**
+  - **Keeper of the Crypt** (depth 6, regenerated until it has a keeper): the test hero stands about two tiles from
+    the keeper. It has 3000 gold, 60 % life (to try healing), and in the pack a common Iron Helm and Battle Axe, a
+    magic Ruby Ring and 3 fire bombs, besides the bow and 12 health potions. Monsters within 16 tiles are removed.
 - **Kiting:**
   - **Kiting with a bow** (depth 7, regenerated until the level has a big room): the test hero holds a common
     Hunting Bow (about 3 arrows per spider and 15 per Pit Demon there; the longsword in the pack, key 1).
@@ -102,6 +107,8 @@ A status bar at the top (above the bottom HUD on narrow screens) shows what the 
 
   It also has **Fire look** buttons (*Blaze*, *Ember bed*, *Oil pool*) that switch the fire's look for the next
   fires (see [Fire bombs](#fire-bombs)).
+- **In the market scenario** it shows the keeper's name, the hero's gold and life, and "trading" while the market is
+  open. **Keeper** buttons (*Aldric*, *Borin*, *Mirela*, *Old* Tobias) switch the keeper's look and name.
 - **In the kiting scenario** it shows the weapon and its draw time, "drawing" while the hero draws, the
   distance to the nearest pursuer, and which monsters are charging.
 - **In the music scenarios** it shows the music: mood, instrumental or choir (gold), play number, how many
@@ -170,6 +177,7 @@ template, never in `catalog.html`.
 |---|---|
 | Left click on floor | Walk there (A* pathfinding). Holding the button keeps walking toward the cursor. |
 | Left click on chest / door / urn / bones / gold / item / stairs | Walk to it and act on it: open, break, search, pick up, or descend. |
+| Left click on a Keeper of the Crypt | Walk up to it and open the market (see [Keepers of the Crypt](#keepers-of-the-crypt-the-market)); `Esc`, ✕ or walking away closes it. |
 | Double click / double tap on an item on the floor | Walk to it, pick it up and equip it at once; what it replaces goes into the pack slot it took. Needs a free pack slot, unless the item's equipment slot is empty (then it goes straight on). Potions are just picked up. |
 | Right click, or `Shift` + left click, or a tap while a finger rests on the attack button (touch) | Attack with the equipped weapon (see [Combat](#combat)). Hold to keep attacking. With fire bombs equipped: throw one at the monster or the spot (see [Fire bombs](#fire-bombs)). |
 | `I`, `C` or `Tab` | Toggle the equipment overlay (`Esc` closes it). |
@@ -449,6 +457,9 @@ Each depth `d` gets a freshly generated level.
   room (not the start room) holds a single one of it (normal tier, never a champion) and nothing else:
   - **depth 3:** a Wraith (wraiths appear from depth 4);
   - **depth 4:** a Pit Demon (demons appear from depth 5).
+- **A Keeper of the Crypt** on every third depth (3, 6, 9, …; `keeperAt`): a normal room that is neither the stairs'
+  room nor the lone monster's, preferably 7 × 7 or larger, becomes the keeper's stall, with no monsters, chests,
+  urns, bones or gold. See [Keepers of the Crypt](#keepers-of-the-crypt-the-market).
 - **Green banners.** Every room joined to the boss room by a corridor (also at depth 5, where it stands empty)
   gets a banner (the normal banner sprite: dark green with a skull) on its edge, as close as possible to the mouth
   of that corridor: the room's last tile on the carved corridor's way toward the boss room (corridors are
@@ -911,6 +922,59 @@ stronger fire bombs later:
 
 See [Assets](#assets).
 
+## Keepers of the Crypt (the market)
+
+On every third depth (3, 6, 9, …) a **Keeper of the Crypt**, a living human merchant, keeps a stall in a quiet room of
+its own. It is an NPC: it never fights and nothing attacks it. Hovering shows its name; clicking it walks the hero up
+to it and opens the **market** (`openMarket`). The constants are `KEEPER` in the code.
+
+- **The four keepers** (`KEEPERS`), one drawn at random for each stall (`look`):
+  - **Aldric the Wanderer**, a travelling merchant in a green fur-trimmed cloak with a lantern: "Long road down here,
+    friend. Let us trade."
+  - **Borin the Smith**, stout, in a leather apron with a hammer and tongs: "Steel for steel. What have you got?"
+  - **Mirela the Peddler**, in a blue hooded cloak with a basket of potions: "Potions, trinkets, a little luck. Come
+    and look."
+  - **Old Tobias**, a scholar with spectacles and a satchel of scrolls: "Ah, a customer! Rare finds for rare folk."
+- **The stall** (`furnishKeeper` in `buildLevel`):
+  - the keeper stands on a round red rug, on the free tile nearest the room's middle that the camera sees, and
+    blocks it;
+  - on the north and west edges, each only where it fits: a trestle table with wares (as near the keeper as
+    possible), a weapon rack, a shelf of potions, an open chest of trinkets, crates and sacks, a barrel of swords,
+    and two lanterns on posts;
+  - all furnishings are decor, not interactive. The keeper (light radius 3.4 tiles) and the lanterns (2.6) light the
+    room.
+- **The market screen** (`#market`, styled like the equipment overlay; it scales down to fit like it). The world
+  doesn't pause. It closes with `Esc`, the ✕ button, opening the equipment, or by walking more than 3 tiles from the
+  keeper (`KEEPER.reach`). It shows:
+  - the keeper's portrait (its sprite's upper part), name and greeting, and the hero's gold;
+  - **Wishes**, **Services**, **For sale** and **Your pack** (described below);
+  - a **detail pane**: a click on any item (for sale, in the pack, or a wish's offer) shows its stats, its value
+    and what can be done with it.
+- **Wishes** (`KEEPER.wishes`, 2 per keeper, `makeWish`): something the keeper wants, and the item it gives for it.
+  - **What it wants:** a piece of gear of a kind ("any helm", "any axe", …; from depth 6 sometimes "magic or rare
+    gloves" and the like), 2–3 health potions, or 2–3 fire bombs. A keeper never wants the same kind twice.
+  - **What it offers:** always a magic item of depth + 3, or a rare one (25 %) where depth + 3 allows rares. It is
+    rolled when the level is built, so you can see it before trading.
+  - **Trading:** the **Trade** button gives the least valuable matching item in the pack (gear), or that many from
+    a stack, for the offered item. It goes into the pack, or onto the floor if the pack is full. The wish is then
+    done. Equipped items never count.
+- **For sale** (`KEEPER.stock`, 4–6 items, `makeMarket`): gear of depth + 3 (`KEEPER.plus`) rolled like loot with a
+  0.25 rarity boost, so mostly common items, with magic and rare ones if you're lucky. Buying costs the item's
+  value and needs a free pack cell. A bought item's cell stays empty.
+- **Your pack** shows every pack item with its sell price. Selling gives `KEEPER.sell` (25 %) of the value, for
+  one at a time from a stack (or the whole stack), and clears quick keys bound to a sold item.
+- **Services:** **heal** to full life for `1 + 0.15 × depth` gold per missing life point (1.45 at depth 3, 1.9 at
+  depth 6).
+- **Values** (`itemValue`):
+  - an item type unlocking at depth L is worth `12 × L² + 50` (a Short Sword 62, a Broadsword 350, a War Bow 2750);
+  - rings and amulets count as L = 3 + 3 × their affix tier;
+  - magic items are worth × 2.5 and rare ones × 5, plus 15 % per affix tier above 1;
+  - potions and fire bombs have fixed prices per piece: health 40, iron skin 60, fire bomb 50.
+
+  For comparison, a level holds about 250 × depth gold (100 at depth 1, 370 at 3, 1300 at 6, 2400 at 9), so a hero
+  reaches the first keeper with about 500 gold.
+- Nothing about the market is saved: a keeper's stock and wishes belong to its level.
+
 ## Equipment overlay
 
 Opened with `I` / `C` / `Tab` or the **Equipment** button (the grid square at the end of the quick-key bar), closed with the same keys, `Esc`, the button,
@@ -1140,7 +1204,7 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
 The art was generated through the `ai-media-generation` skill in Martin's notes repo: monsters, items, props
 and textures with OpenAI `gpt-image-2` (medium quality, about $0.70), and the hero walk cycle with Google
 `gemini-3.1-flash-image` (see [Walk cycles](#walk-cycles-hero-skeleton-ghoul)). Total spend so far is about
-$3.32 ($0.08 for the fire bomb designs, $0.07 for the door leaves, $0.07 for the arch-door sheet, about $0.01 for the ghoul voice, $0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
+$3.54 ($0.22 for the keepers and their stall, $0.08 for the fire bomb designs, $0.07 for the door leaves, $0.07 for the arch-door sheet, about $0.01 for the ghoul voice, $0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
 walk cycles, plus small tests).
 
 - **Background.** `gpt-image-2` can't make transparent backgrounds (and a Gemini test returned an opaque JPEG
@@ -1202,6 +1266,15 @@ walk cycles, plus small tests).
 - **Props** (1536 × 1024): a 4 × 2 grid (closed chest, open chest with glowing gold, arched gothic door in a
   stone frame, descending stairway seen from above, lit brazier, skull-and-bone pile, cracked funeral urn,
   gold coin pile), on magenta.
+- **Keepers of the Crypt** (`tools/raw/keepers.png`, OpenAI `gpt-image-2` medium 1536 × 1024, ~$0.08): a 4 × 1
+  sheet on magenta of four "ordinary living HUMAN merchant[s] who [have] set up shop deep in a dungeon … Friendly,
+  weathered and human, not creepy, not undead, faces clearly visible", standing, facing down-left. A first sheet of
+  hooded, skeletal and monk-like keepers (~$0.08) was rejected as too creepy.
+- **The keeper's stall** (`tools/raw/keeper_decor.png`, Google `gemini-3.1-flash-image` `edit`, 1K, 3:2, ~$0.07,
+  with the props on magenta as a style reference): a 4 × 2 sheet "in exactly the same art style, camera angle …" of a
+  trestle table with wares, a weapon rack, an open chest of trinkets, a shelf of potions, crates and sacks, a barrel of
+  swords, a lantern on a post and a round red rug. `tools/add_market.py` keys both sheets (`add_items.py`'s
+  `key_cell`), scales each figure (keepers 220–230 px tall), and packs them into new rows of `props.webp`.
 - **Boss-room furnishings** (`decor.png`, Google `gemini-3.1-flash-image` `edit`, 1K, aspect 3:2, ~$0.07):
   the props sheet as a style reference, asking for a new sheet "in exactly the same art style, camera angle,
   lighting, painterly detail and scale": a 4 × 2 grid of a black stone and bone throne with a spiked back, a

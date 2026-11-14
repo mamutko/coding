@@ -9,9 +9,24 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v57 — Keepers of the Crypt: the market (2026-11-15)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 57`)*
+
+- On every third depth a Keeper of the Crypt, one of four human merchants (Aldric, Borin, Mirela, Old Tobias), keeps
+  a furnished stall in a quiet room: rug, table of wares, weapon rack, shelf, chest of trinkets, crates, barrel,
+  lanterns.
+- Click the keeper to trade:
+  - two wishes, each giving a magic (sometimes rare) item for something it wants;
+  - gear of depth + 3 for gold, sometimes magic or rare;
+  - selling pack items for a quarter of their value;
+  - healing to full for gold.
+- Items have a value (the price), from their type's depth, rarity and affix tier.
+- Sandbox: a "Keeper of the Crypt" scenario with keeper look buttons.
+
 ## v54–v56 — fire keeps burning (2026-11-14)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 56`)*
+Commit: 2995d78
 
 - Anyone who leaves a fire keeps burning for 10 s at 5 damage per second (50 in all); touching a fire again
   restarts it, and nothing stacks.
