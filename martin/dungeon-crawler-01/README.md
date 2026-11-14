@@ -97,7 +97,7 @@ A status bar at the top (above the bottom HUD on narrow screens) shows what the 
 - **In the fire bomb scenarios** it shows:
   - the bombs carried, or what the hero holds instead (bare hands, the longsword);
   - how many fires burn;
-  - "you are burning" while the hero stands in one;
+  - "you are burning", with the seconds left (or "in the fire"), while the hero burns;
   - how many monsters are burning.
 
   It also has **Fire look** buttons (*Blaze*, *Ember bed*, *Oil pool*) that switch the fire's look for the next
@@ -857,9 +857,17 @@ lands, and sets the ground on fire. The constants are `BOMB` and `FIRE` in the c
     `FIRE.fade` (1.5 s).
   - **Damage.** Anyone in it takes `FIRE.dps` (10) life per second: monsters and **the hero too**. A creature is
     in it when its centre is within the radius plus half its own radius.
-    - Damage comes in ticks of `FIRE.tick` (0.5 s, 5 life each), the first at once on stepping in. The tick
-      timer refills while outside, so stepping in and out never burns faster than 10 per second.
-    - Armor doesn't reduce it, it is never a critical, and overlapping fires don't add up.
+    - **Burning on.** A creature that leaves the fire keeps burning for `FIRE.after` (10 s) at `FIRE.afterDps`
+      (7 per second, 70 in all; `burnLeft`). Touching a fire again restarts the 10 s. Nothing stacks: in two
+      fires, or in a fire while still burning, it is 10 per second.
+    - Damage comes in ticks of `FIRE.tick` (0.5 s), the first at once on catching fire. A tick's fraction carries
+      over to the next (`burnCarry`): the afterburn's 3.5 per tick comes out as 3 and 4 alternately. The tick timer
+      refills while not burning, so catching fire again and again never burns faster.
+    - Armor doesn't reduce it, and it is never a critical.
+    - **A burning creature shows flames:** five flickering flames up its body, full size while in a fire and
+      shrinking as its burning runs out (`drawBurning`).
+    - **The hero's burn badge:** while the hero burns, a flame badge sits on the life orb's top-left edge, showing
+      the seconds left, or "in fire" (`#burnBadge`, in `updateHud`).
     - A burned monster shows orange damage numbers and starts pursuit like any hit (a calm monster too). A
       monster killed by fire gives its XP and loot as usual.
     - The hero gets the usual red numbers and red flash; a death by fire logs "You burned to death at depth N."
@@ -1010,6 +1018,8 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
   you switch between finger and touchpad (it changes how hover tooltips and the action box behave).
 - **Bottom right:** the **life orb**. A click or tap on it drinks
   a health potion (the same as `Q`, queued; "No health potions left." when there are none).
+- **Burn badge:** while the hero burns, a small flame badge on the life orb's top-left edge shows the seconds of
+  burning left, or "in fire" (see [Fire bombs](#fire-bombs)).
 - **Bottom centre:** quick-key hotbar and XP bar, between the two globes (see *Fitting* below). The last
   square of the hotbar, set 4 px apart from the keys, is the **Equipment** button (`#menuBtn`, title
   "Equipment (I)"): a 3 × 3 grid of rounded squares drawn in muted gold (`#8c7650`), turning gold on hover. It

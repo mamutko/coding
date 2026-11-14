@@ -108,6 +108,10 @@
   button { font-family: Cinzel, serif; color: var(--ink); background: linear-gradient(#2a1d17, #140d0b); border: 1px solid var(--gold-dim);
     padding: 7px 14px; cursor: pointer; font-size: 13px; letter-spacing: 1px; }
   button:hover { border-color: var(--gold); color: #fff; }
+  #burnBadge { position: fixed; z-index: 5; display: flex; align-items: center; gap: 2px; padding: 0 8px 0 2px; height: 34px;
+    background: rgba(30,10,4,0.85); border: 1px solid #b4561c; border-radius: 17px; box-shadow: 0 0 12px rgba(255,110,30,0.55); pointer-events: none; }
+  #burnIco { width: 22px; height: 28px; }
+  #burnText { font: 700 13px Cinzel, serif; color: #ffcf8a; text-shadow: 0 0 4px #000; white-space: nowrap; }
   #flash { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(120,0,0,0) 40%, rgba(150,0,0,0.55)); opacity: 0; }
 
   /* ---------- Equip overlay ---------- */
@@ -272,6 +276,7 @@
   <div id="log"></div>
   <div id="orb" title="Click to drink a health potion"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
   <div id="orbLabel">LIFE</div>
+  <div id="burnBadge" class="hidden" title="You are burning"><canvas id="burnIco" width="32" height="40"></canvas><span id="burnText"></span></div>
   <div id="atk" title="Hold, then tap to attack"><div id="atkIco"></div></div>
   <div id="atkLabel">ATTACK</div>
   <div id="bottom">
@@ -342,7 +347,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 53;
+const VERSION = 54;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -665,7 +670,8 @@ const BASES = {
 // and leaves a fire of radius FIRE.r tiles for FIRE.dur s. Everyone in it, the hero included, loses FIRE.dps life
 // per second (no armor, no criticals), in ticks of FIRE.tick s. Drops from depth BOMB.from (see Loot sources).
 const BOMB = { name: 'Fire Bomb', plural: 'fire bombs', cd: 1.0, range: 7, color: '#e8893a', glow: '232,137,58', from: 2 };
-const FIRE = { r: 1.5, dur: 12, dps: 10, tick: 0.5, fade: 1.5, scorch: 20 };
+// after / afterDps: on leaving a fire a creature goes on burning for `after` s at afterDps (70 damage in all)
+const FIRE = { r: 1.5, dur: 12, dps: 10, tick: 0.5, fade: 1.5, scorch: 20, after: 10, afterDps: 7 };
 const makeBombs = (count = 1) => ({ id: nextId++, base: 'firebomb', slot: 'weapon', kind: 'bomb', count, cd: BOMB.cd, rarity: 'common', name: BOMB.name, stats: {} });
 const isBomb = it => !!it && it.base === 'firebomb';
 // The fire's look is still being chosen (README, Fire bombs): LOOK.fire picks one of three (FIRE_LOOKS). Kept in
@@ -1210,7 +1216,7 @@ function buildLevel(d) {
   for (const o of objects) if (o.block && o.type !== 'door') map.block[o.y * w + o.x] = 1;   // doors block via their tile type
   const hero = G.hero;
   hero.x = start.cx + 0.5; hero.y = start.cy + 0.5; hero.path = []; hero.intent = null; hero.attackTarget = null; hero.swing = null;
-  hero.queue = []; hero.pendingAt = null; hero.using = null;
+  hero.queue = []; hero.pendingAt = null; hero.using = null; hero.burnLeft = 0; hero.burning = hero.inFire = false;
   G.fade = 1;
   updateMinimap(true);
 }
@@ -1526,13 +1532,22 @@ function updateFires(dt, hurt) {
   for (const m of G.monsters) if (!m.dead) burnTick(m, dt, v => burnMonster(m, v));
 }
 const inFire = e => G.fires.some(f => f.t < f.dur && Math.hypot(e.x - f.x, e.y - f.y) < f.r + e.r * 0.5);
-// Damage comes in ticks of FIRE.tick s: the first at once on stepping in, then one per tick while inside. Outside,
-// the timer refills, so stepping in and out never burns faster than FIRE.dps.
+// Burning: a creature in a fire burns at FIRE.dps, and goes on burning for FIRE.after s after it steps out
+// (e.burnLeft; a fire touched again restarts the 10 s) at FIRE.afterDps. Nothing stacks: in two fires, or in a
+// fire while still burning, it is FIRE.dps. Damage comes in ticks of FIRE.tick s: the first at once on catching
+// fire, then one per tick while burning; fractions carry over to the next tick (e.burnCarry), so the afterburn's
+// 3.5 per tick comes out as 70 in all. While not burning the timer refills, so it never burns faster.
 function burnTick(e, dt, hit) {
-  e.burning = inFire(e);
+  e.inFire = inFire(e);
+  if (e.inFire) e.burnLeft = FIRE.after; else if (e.burnLeft > 0) e.burnLeft = Math.max(0, e.burnLeft - dt);
+  e.burning = e.inFire || e.burnLeft > 0;
   e.burnAcc = (e.burnAcc ?? FIRE.tick) + dt;
   if (!e.burning) { e.burnAcc = Math.min(e.burnAcc, FIRE.tick); return; }
-  while (e.burnAcc >= FIRE.tick && !(e === G.hero && G.dead) && !e.dead) { e.burnAcc -= FIRE.tick; hit(FIRE.dps * FIRE.tick); }
+  while (e.burnAcc >= FIRE.tick && !(e === G.hero && G.dead) && !e.dead) {
+    e.burnAcc -= FIRE.tick;
+    const raw = (e.inFire ? FIRE.dps : FIRE.afterDps) * FIRE.tick + (e.burnCarry || 0), v = Math.floor(raw);
+    e.burnCarry = raw - v; if (v >= 1) hit(v);
+  }
 }
 function burnMonster(m, raw) {   // fire damage to a monster: no armor; it starts pursuit like any hit
   if (m.dead) return;
@@ -2096,6 +2111,12 @@ function updateHud() {
   set('depth', G.depth, d => { $('depthName').textContent = depthName(d); $('depthSub').textContent = 'Depth ' + d; });
   set('gold', h.gold, g => { $('goldText').textContent = g + ' gold'; });
   const fl = $('flash'); const o = +fl.style.opacity || 0; if (o > 0) fl.style.opacity = Math.max(0, o - 0.03);
+  // burning: a flame badge on the life orb's top-left edge with the seconds left (an ember while in a fire)
+  const bb = $('burnBadge'), bt = h.burning && !G.dead ? (h.inFire ? 'in fire' : Math.ceil(h.burnLeft) + ' s') : '';
+  set('burn', bt, v => { bb.classList.toggle('hidden', !v); $('burnText').textContent = v;
+    if (v && !bb.dataset.drawn) { bb.dataset.drawn = 1; const c = $('burnIco').getContext('2d'); c.globalCompositeOperation = 'lighter'; const sp = flameSprites();
+      c.drawImage(sp[2], 4, 2, 24, 36); c.drawImage(sp[1], 8, 8, 16, 28); c.drawImage(sp[0], 11, 16, 10, 20); } });
+  if (bt) { const r = $('orb').getBoundingClientRect(); bb.style.left = Math.max(4, r.left - 12) + 'px'; bb.style.top = Math.max(4, r.top - 14) + 'px'; }
   const m = G.hover && G.hover.kind === 'mon' ? G.hover.r : (h.attackTarget && !h.attackTarget.dead ? h.attackTarget : null);
   if (m && !m.dead) {
     $('target').classList.remove('hidden');
@@ -2819,6 +2840,18 @@ function drawChar(e, isHero) {
   }
   if (isHero && e.swing) drawSwing(e);
   if (isHero && e.using) drawUsing(e);
+  if (e.burning && !(isHero ? G.dead : e.dead)) drawBurning(e, sx, sy, hgt);
+}
+// A burning creature: a few flames licking up its body, smaller as its burning runs out (full while in a fire).
+function drawBurning(e, sx, sy, hgt) {
+  const k = e.inFire ? 1 : 0.35 + 0.65 * (e.burnLeft || 0) / FIRE.after, spr = flameSprites(), t = G.time, body = hgt * 0.62;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (let i = 0; i < 5; i++) {
+    const ph = i * 1.7 + (e.x + e.y) * 3, fl = 0.75 + 0.25 * Math.sin(t * 11 + ph);
+    const fw = (18 + 8 * (i % 2)) * k * fl, fh = fw * 1.9, fx = sx + Math.sin(ph) * 12 * (e.r / 0.3), fy = sy - body * (0.1 + 0.18 * i) + Math.sin(t * 7 + ph) * 2;
+    ctx.globalAlpha = 0.95; ctx.drawImage(spr[(i + Math.floor(t * 8)) % 3], fx - fw / 2, fy - fh, fw, fh);
+  }
+  ctx.restore();
 }
 // A potion being used: its icon rises above the hero's head and fades out.
 function drawUsing(h) {

@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v54 — fire keeps burning (2026-11-14)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 54`)*
+
+- Anyone who leaves a fire keeps burning for 10 s at 7 damage per second (70 in all); touching a fire again
+  restarts it, and nothing stacks.
+- Burning creatures show flames on their body, shrinking as the burn runs out; the hero gets a flame badge with a
+  countdown on the life orb.
+
 ## v53 — deeper loot from champions, bosses and their chests (2026-11-14)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 53`)*
+Commit: f7234b3
 
 - Champions and chests in the big room drop items allowed at depth + 2 (were + 1), bosses at depth + 3, and
   everything in the guardian's chest at depth + 4: item types, affix tiers, rarity, rings and amulets.

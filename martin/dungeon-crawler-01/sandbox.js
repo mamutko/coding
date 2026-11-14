@@ -180,7 +180,7 @@
     if (mode === 'fire') {
       const n = bombCount(), lit = G.fires.filter(f => f.t < f.dur).length, foes = G.monsters.filter(m => !m.dead && m.burning).length;
       $('sbInfo').innerHTML = `<span class="mood">Fire bombs ${n}</span>` + (isBomb(G.hero.equip.weapon) ? '' : ` · <span class="burn">${G.hero.equip.weapon ? G.hero.equip.weapon.name : 'bare hands'}</span>`)
-        + ` · fires ${lit}` + (G.hero.burning ? ' · <span class="burn">you are burning</span>' : '') + (foes ? ` · ${foes} burning` : '');
+        + ` · fires ${lit}` + (G.hero.burning ? ` · <span class="burn">you are burning${G.hero.inFire ? ' (in the fire)' : ' (' + G.hero.burnLeft.toFixed(1) + ' s)'}</span>` : '') + (foes ? ` · ${foes} burning` : '');
       return;
     }
     const c = MUSIC.cur, n = G.monsters.filter(m => !m.dead && m.state === 'chase').length;
