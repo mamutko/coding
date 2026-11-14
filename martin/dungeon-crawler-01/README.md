@@ -858,10 +858,10 @@ lands, and sets the ground on fire. The constants are `BOMB` and `FIRE` in the c
   - **Damage.** Anyone in it takes `FIRE.dps` (10) life per second: monsters and **the hero too**. A creature is
     in it when its centre is within the radius plus half its own radius.
     - **Burning on.** A creature that leaves the fire keeps burning for `FIRE.after` (10 s) at `FIRE.afterDps`
-      (7 per second, 70 in all; `burnLeft`). Touching a fire again restarts the 10 s. Nothing stacks: in two
+      (5 per second, 50 in all; `burnLeft`). Touching a fire again restarts the 10 s. Nothing stacks: in two
       fires, or in a fire while still burning, it is 10 per second.
     - Damage comes in ticks of `FIRE.tick` (0.5 s), the first at once on catching fire. A tick's fraction carries
-      over to the next (`burnCarry`): the afterburn's 3.5 per tick comes out as 3 and 4 alternately. The tick timer
+      over to the next (`burnCarry`): the afterburn's 2.5 per tick comes out as 2 and 3 alternately. The tick timer
       refills while not burning, so catching fire again and again never burns faster.
     - Armor doesn't reduce it, and it is never a critical.
     - **A burning creature shows flames:** five flickering flames up its body, full size while in a fire and

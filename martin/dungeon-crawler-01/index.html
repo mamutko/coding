@@ -347,7 +347,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 54;
+const VERSION = 55;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -670,8 +670,8 @@ const BASES = {
 // and leaves a fire of radius FIRE.r tiles for FIRE.dur s. Everyone in it, the hero included, loses FIRE.dps life
 // per second (no armor, no criticals), in ticks of FIRE.tick s. Drops from depth BOMB.from (see Loot sources).
 const BOMB = { name: 'Fire Bomb', plural: 'fire bombs', cd: 1.0, range: 7, color: '#e8893a', glow: '232,137,58', from: 2 };
-// after / afterDps: on leaving a fire a creature goes on burning for `after` s at afterDps (70 damage in all)
-const FIRE = { r: 1.5, dur: 12, dps: 10, tick: 0.5, fade: 1.5, scorch: 20, after: 10, afterDps: 7 };
+// after / afterDps: on leaving a fire a creature goes on burning for `after` s at afterDps (50 damage in all)
+const FIRE = { r: 1.5, dur: 12, dps: 10, tick: 0.5, fade: 1.5, scorch: 20, after: 10, afterDps: 5 };
 const makeBombs = (count = 1) => ({ id: nextId++, base: 'firebomb', slot: 'weapon', kind: 'bomb', count, cd: BOMB.cd, rarity: 'common', name: BOMB.name, stats: {} });
 const isBomb = it => !!it && it.base === 'firebomb';
 // The fire's look is still being chosen (README, Fire bombs): LOOK.fire picks one of three (FIRE_LOOKS). Kept in
@@ -1535,8 +1535,8 @@ const inFire = e => G.fires.some(f => f.t < f.dur && Math.hypot(e.x - f.x, e.y -
 // Burning: a creature in a fire burns at FIRE.dps, and goes on burning for FIRE.after s after it steps out
 // (e.burnLeft; a fire touched again restarts the 10 s) at FIRE.afterDps. Nothing stacks: in two fires, or in a
 // fire while still burning, it is FIRE.dps. Damage comes in ticks of FIRE.tick s: the first at once on catching
-// fire, then one per tick while burning; fractions carry over to the next tick (e.burnCarry), so the afterburn's
-// 3.5 per tick comes out as 70 in all. While not burning the timer refills, so it never burns faster.
+// fire, then one per tick while burning; fractions carry over to the next tick (e.burnCarry), so any rate comes
+// out exactly (the afterburn: 2.5 per tick, 50 in all). While not burning the timer refills, so it never burns faster.
 function burnTick(e, dt, hit) {
   e.inFire = inFire(e);
   if (e.inFire) e.burnLeft = FIRE.after; else if (e.burnLeft > 0) e.burnLeft = Math.max(0, e.burnLeft - dt);
