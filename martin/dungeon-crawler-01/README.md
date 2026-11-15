@@ -111,7 +111,8 @@ The picker (*Crypt Sandbox*) groups the scenarios:
 - **Lakes:**
   - **The underground lake** (depth 8, `LAKE_AT`, which always has the lake room): the hero stands on the dry
     shore where it faces the middle of the lake (the dry tile one step back from the water nearest the room's
-    diagonal), facing the water. Monsters within 14 tiles that aren't the lake's wraiths are removed. The bar
+    diagonal), facing the water, with 15 fire bombs in the pack on key 4 (the longsword stays equipped). Monsters
+    within 14 tiles that aren't the lake's wraiths are removed. The bar
     shows the wraiths left, how many pursue, the nearest one's distance, whether ripple refraction is on (or off:
     under 28 fps) and the frame rate.
 - **Music:**
@@ -1007,7 +1008,9 @@ Blue for magic items, gold for rare ones, as before.
 
 A **fire bomb** is a clay pot of lamp oil, stoppered with an oil-soaked rag. It is thrown, shatters where it
 lands, and sets the ground on fire. The constants are `BOMB` and `FIRE` in the code. One that lands in a lake
-sinks with a big splash (a ripple 1.6× a drip's and the drip sound) and starts no fire.
+doesn't shatter: it sinks with a big splash (a ripple 1.6× a drip's and the drip sound) and starts no fire. A fire
+on the shore spreads over the water within its circle (the oil burns on the water's surface), and burns whatever
+hovers there.
 
 - **The item.** Fire bombs aren't in `BASES`, so they never drop as a random weapon. A stack of them is one item
   (`makeBombs(n)`: base `firebomb`, slot `weapon`, kind `bomb`, with a `count`), shown with its count like a
@@ -1067,7 +1070,8 @@ new fire takes the current look.
 
 - **Common to all three:**
   - Flames, smoke and sparks are particles in world coordinates, spawned on walkable tiles inside the circle
-    (`fireSpot`), and depth-sorted with the walls, props and characters.
+    (`fireSpot`), and on a lake's water there too (the lamp oil floats and burns on it; drawn at the water's
+    level, `LAKE.drop` lower), and depth-sorted with the walls, props and characters.
   - Flames are pre-drawn soft tongues (narrow tip, a pale hot core at the root) in four colours, from yellow
     through orange to dark red as they age (`flameSprites`, `FLAME_COL`), drawn additively. Smoke is a soft puff
     drawn normally, growing as it rises.

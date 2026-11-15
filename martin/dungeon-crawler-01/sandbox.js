@@ -50,7 +50,7 @@
     <h2>Kiting</h2>
     <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
     <h2>Lakes</h2>
-    <button class="sc" id="sbLake"><b>The underground lake</b>Depth 8, on the shore of the huge lake room. The lake reaches out of sight; its far shores are the room's walls. Wraiths hover over the water in a loose group (only they can cross it). Drops fall from the ceiling now and then; watch the reflections ripple.</button>
+    <button class="sc" id="sbLake"><b>The underground lake</b>Depth 8, on the shore of the huge lake room. The lake reaches out of sight; its far shores are the room's walls. Wraiths hover over the water in a loose group (only they can cross it). You carry 15 fire bombs (key 4): one that lands in the water sinks, but fire on the shore spreads its burning oil over the water. Drops fall from the ceiling now and then; watch the reflections ripple.</button>
     <h2>Music</h2>
     <button class="sc" id="sbPack"><b>Pack fight</b>Five skeletons rush you at depth 3. Four or more pursuers start the combat track. Kill them all and it switches back at once; run until they lose interest and it holds 6 s.</button>
     <button class="sc" id="sbDemon"><b>Pit Demon level</b>Depth 8 with a Pit Demon boss, next to its boss room. The 2nd, 5th and 9th play of each track is the choir version (use Next loop to skip ahead); stepping into the boss room plays the choir combat track.</button>
@@ -177,6 +177,7 @@
       if (!floorAt(x, y) || !floorAt(x + 1, y + 1) || m.block[(y + 1) * m.w + x + 1] || m.at(x - 1, y - 1) !== T_WATER) continue;
       const dd = Math.abs((x - r.x) - (y - r.y)); if (!best || dd < best[2]) best = [x + 1, y + 1, dd]; }
     if (best) { h.x = best[0] + 0.5; h.y = best[1] + 0.5; h.path = []; h.dir = 5; }
+    h.inv[h.inv.indexOf(null)] = makeBombs(15); h.hotkeys[3] = { type: 'bomb' }; refreshUI();   // 15 fire bombs in the pack, on key 4
     G.monsters = G.monsters.filter(mo => mo.lake || Math.hypot(mo.x - h.x, mo.y - h.y) > 14);
     start('lake'); log('Test: the underground lake. Wraiths hover over the water.', '#9fb6c8');
   };

@@ -387,7 +387,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 68;
+const VERSION = 69;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1814,10 +1814,10 @@ function newFire(x, y) {
   return f;
 }
 const fireI = f => f.t >= f.dur ? 0 : Math.min(1, f.t / 0.25, (f.dur - f.t) / FIRE.fade);
-function fireSpot(f, rim) {   // a random point of the fire's circle on a walkable tile (rim: near the edge)
+function fireSpot(f, rim) {   // a random point of the fire's circle on a walkable tile or a lake (the oil burns on water too; rim: near the edge)
   for (let i = 0; i < 8; i++) {
     const a = rnd() * 7, rr = rim ? f.r * (0.72 + rnd() * 0.3) : Math.sqrt(rnd()) * f.r, x = f.x + Math.cos(a) * rr, y = f.y + Math.sin(a) * rr;
-    const t = G.map.at(Math.floor(x), Math.floor(y)); if (t === T_FLOOR || t === T_OPEN) return [x, y];
+    const t = G.map.at(Math.floor(x), Math.floor(y)); if (t === T_FLOOR || t === T_OPEN || (t === T_WATER && inLake(x, y))) return [x, y];
   }
   return null;
 }
@@ -3743,7 +3743,8 @@ function drawFireGround(f) {
   ctx.restore();
 }
 function drawFirePart(q, f) {
-  const [sx, sy] = iso(q.x, q.y), k = q.t / q.dur, L = FIRE_LOOKS[f.look] || FIRE_LOOKS[1];
+  // (a flame on a lake burns at the water's level, LAKE.drop lower)
+  const [sx, sy0] = iso(q.x, q.y), sy = sy0 + (G.map.at(Math.floor(q.x), Math.floor(q.y)) === T_WATER && inLake(q.x, q.y) ? LAKE.drop : 0), k = q.t / q.dur, L = FIRE_LOOKS[f.look] || FIRE_LOOKS[1];
   ctx.save();
   if (q.k === 'flame') {
     const spr = flameSprites()[Math.min(3, Math.floor(k * 4))], a = Math.min(1, k * 8) * (1 - k) ** 0.6;
