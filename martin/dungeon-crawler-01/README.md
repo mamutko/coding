@@ -1370,8 +1370,10 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
 - **World.** A door: the latch, a long hinge creak and the door settling. A chest: the hasp, a shorter, higher
   creak and the lid falling back; a sealed guardian's chest rattles. Picking things up is a faint rustle; gold
   a few faint coin clinks. Potions are gulps, stairs footsteps going down, plus tones for level-ups. A drop
-  falling into a lake (`drip`) is a short rising sine *plink* (900–1600 Hz up to almost twice that in 0.11 s),
-  quiet, with the reverb as the cave's echo.
+  falling into a lake (`drip`): a tiny high-passed noise tick (the splash, 0.03 s), the bubble's rising sine
+  *plink* (900–1500 Hz up to 1.9× that in 0.14 s, peak 0.3) with a soft octave above it, and 0.28 s later the
+  rebound droplet's smaller, higher plink (1500–2300 Hz, peak 0.13), matching the second ripple; the reverb is the
+  cave's echo. Like other positioned sounds it fades with distance and is silent beyond 14 tiles.
 - **Fire bombs.**
   - A throw is a soft rising whoosh.
   - The impact is clay breaking (a thud and shards, like an urn), then the oil catching: a deep rushing whoomp.

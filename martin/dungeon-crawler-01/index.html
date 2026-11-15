@@ -387,7 +387,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 66;
+const VERSION = 67;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -634,7 +634,11 @@ function sfx(type, o = {}) {
     case 'hurt': thud(T, 110, 0.14, 0.5); noise(T, 0.12, 500, 1.5, 0.15, 0.003); break;
     case 'die': tone(T, 180, 55, 0.5, 0.16, 'sawtooth'); noise(T, 0.4, [900, 200], 1, 0.3, 0.01); break;
     case 'bolt': noise(T, 0.35, [600, 2400], 4, 0.6, 0.05); tone(T, 700, 260, 0.35, 0.05, 'sine'); break;
-    case 'drip': { const f = r(900, 1600); tone(T, f, f * 1.9, 0.11, 0.09 * (o.vol || 1)); break; }   // a drop into a lake: a short rising plink (the reverb is the cave)
+    case 'drip': {   // a drop into a lake: a tiny splash tick, the bubble's rising plink (with a soft octave), then the rebound droplet's smaller plink
+      const f = r(900, 1500), v = o.vol || 1;
+      noise(T, 0.03, 3200, 2, 0.12 * v, 0.002, 'highpass');
+      tone(T + 0.005, f, f * 1.9, 0.14, 0.3 * v); tone(T + 0.005, f * 2, f * 3.6, 0.07, 0.07 * v);
+      const g = r(1500, 2300); tone(T + 0.28, g, g * 1.7, 0.08, 0.13 * v); break; }
     case 'pick':    // faint: a soft rustle and a small knock
       noise(T, 0.07, 1500, 0.7, 0.05, 0.01); knock(T + 0.03, 900, 0.02); break;
     case 'gold':    // faint coin clinks
