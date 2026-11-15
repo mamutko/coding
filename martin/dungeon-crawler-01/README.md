@@ -430,8 +430,11 @@ reflects at 70 % (`refl`), and a reflection fades by 45 % (`fade`) over 120 px o
      plane: a point `h` px above the floor at screen y appears at `y + h + 2·drop`. For it `ctx` is switched to that
      canvas and `MIR` is set: `face` then mirrors a wall face (wall tops are not drawn); a sprite (`mirSprite`,
      via `mirrorProp`, `mirrorChar`) is first faded with height on a scratch canvas (`destination-out` gradient),
-     then flipped about its ground point (a flipped prop also horizontally). Flat props (stairs, bones, gold, rug),
-     doors, fires and projectiles have no reflection; dead monsters fade in it as they do above.
+     then flipped about its ground point (a flipped prop also horizontally). Projectiles are mirrored too (`mirrorProj`): an arrow
+     or a wraith bolt at its flight height of 44 px, a fire bomb at its arc's height (upside down, its rag's flame
+     pointing down), each faded with height like the sprites (alpha `1 − fade · min(1, h / fadeH)`); a bolt's light
+     is mirrored with the other lights. Flat props (stairs, bones, gold, rug), doors and fires have no reflection;
+     dead monsters fade in it as they do above.
   2. **The water layer** (its own canvas, then drawn onto the scene): the deep colour; the lake bed (the floor
      texture) showing through near the shore, as three wide strokes along the outline (46, 28 and 12 px at 12, 16
      and 20 %), 5 px lower; the reflection at 70 %; the tint; a soft dark shadow (7 px) under the near shore's lip;

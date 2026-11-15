@@ -387,7 +387,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 67;
+const VERSION = 68;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -3087,6 +3087,25 @@ function mirrorProp(o) {
   const [px, py, pw, ph] = META.props[key], [s, off] = PROP_STYLE[key], [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy), w = pw * s, hh = ph * s;
   mirSprite(IMG.props, px, py, pw, ph, sx - w / 2, sy - hh + off, w, hh, sy, o.flip ? sx : null);
 }
+// A projectile's mirror image: an arrow or a wraith bolt flies 44 px up, a fire bomb at its arc's height p.z; the
+// mirror point of height h is h + 2 * drop below its ground point. Faded with height like the sprites.
+function mirrorProj(p) {
+  const [sx, sy] = iso(p.x, p.y), D2 = 2 * LAKE.drop, h = p.type === 'bomb' ? p.z : 44, my = sy + h + D2;
+  ctx.save(); ctx.globalAlpha = 1 - LAKE.fade * Math.min(1, h / LAKE.fadeH);
+  if (p.type === 'bomb') {   // the icon flipped upside down, tumbling the other way, its rag's flame pointing down
+    const [ix, iy] = META.items[iconKey('firebomb')], s = 30;
+    ctx.translate(sx, my); ctx.scale(1, -1); ctx.rotate(p.rot); ctx.drawImage(IMG.items, ix, iy, 96, 96, -s / 2, -s / 2, s, s);
+    ctx.globalCompositeOperation = 'lighter'; const fw = 9 + Math.sin(G.time * 30) * 1.5; ctx.drawImage(flameSprites()[1], -fw / 2, -s / 2 - fw * 1.4, fw, fw * 1.6);
+  } else if (p.type === 'arrow') {
+    const n = Math.hypot(p.vx, p.vy), [tx, ty] = iso(p.x - p.vx / n * 0.6, p.y - p.vy / n * 0.6);
+    ctx.strokeStyle = '#6b4a2a'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(tx, ty + h + D2); ctx.lineTo(sx, my); ctx.stroke();
+    ctx.fillStyle = '#d9d2c0'; ctx.beginPath(); ctx.arc(sx, my, 2.2, 0, 7); ctx.fill();
+  } else {
+    const gr = ctx.createRadialGradient(sx, my, 0, sx, my, 16); gr.addColorStop(0, 'rgba(210,255,220,1)'); gr.addColorStop(0.4, 'rgba(90,255,150,0.8)'); gr.addColorStop(1, 'rgba(40,200,100,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(sx, my, 16, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
 // The rock bank between the floor and the lower water where the floor is on the far side (and, when MIR, its
 // mirror image right below it). Shaded like a wall face by the direction it faces, a little darker (wet).
 function drawBanks(lk) {
@@ -3130,6 +3149,7 @@ function drawLake(lk, baseT, dl) {
     for (const d of dl) {
       if (d.k < lk.kmin - 10 || d.k > lk.kmax + 1) continue;
       if (d.t === 0) drawWall(d.x, d.y); else if (d.t === 1) mirrorProp(d.o); else if (d.t === 2) mirrorChar(d.e, false); else if (d.t === 3) mirrorChar(d.e, true);
+      else if (d.t === 4) mirrorProj(d.p);
     }
     drawBanks(lk);
   } finally { ctx = main; MIR = false; }

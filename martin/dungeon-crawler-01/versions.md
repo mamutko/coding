@@ -9,9 +9,9 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v66–v67 — the underground lake (2026-11-15)
+## v66–v68 — the underground lake (2026-11-15)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 67`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 68`)*
 
 - Depth 8 has a huge **lake room** (28–30 tiles a side) in a corner of a larger map: most of it is a still, dark
   underground lake whose far shores lie out of sight and out of reach. The dry shore along its near walls has
@@ -19,7 +19,7 @@ Commit: *(the next version records it; until then, the latest commit that set `V
 - A group of 8–10 **wraiths** hovers over the water. Wraiths are the only monsters that can cross water; loot
   from one slain over the lake washes ashore. A fire bomb thrown into the water just splashes.
 - **Lakes** are drawn as mirror-like water 8 px below the floor, with rounded shores, rock banks on the far
-  shores, reflections of walls, props, monsters and lights, and drops falling from the ceiling that leave ripples
+  shores, reflections of walls, props, monsters, lights and projectiles (arrows, wraith bolts, fire bombs in flight), and drops falling from the ceiling that leave ripples
   (rings plus a refraction that bends the reflections, and a clearly audible drip: a splash tick, a plink and the rebound's smaller plink). Under 28 fps (with Auto resolution on)
   the refraction switches off for the session.
 - Sandbox scenario **The underground lake**.
