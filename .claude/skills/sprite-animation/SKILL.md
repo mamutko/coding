@@ -129,6 +129,12 @@ its key files into this public repo. Only call it by path from the notes repo.
 
 - One `edit` image is one direction: about $0.07, and 8 frames cost the same as 4. A character is 5 images
   (~$0.37) plus 1–3 retries or cleanup passes, so budget about $0.40–0.75 per character.
+- Add ~$0.05–0.07 for a design image if the character has none yet (it becomes the design reference), and
+  count each extra animation (attack, death) as another walk-cycle-sized job (~$0.35–0.50).
+- Actual spend in martin/dungeon-crawler-01: the hero $0.83 (the first one, while the method was worked out:
+  redone directions, cleanup passes, a row that faced the wrong way), the skeleton and ghoul $0.88 together
+  (~$0.44 each, with the method settled). Armour, capes and odd shapes drift more between directions and need
+  more retries; plain figures land near the low end.
 - The ai-media-generation skill asks before any call over $0.20 or a turn total over $3.00, and the user may
   set a project budget. Keep a spend ledger and report the spend at the end of the turn.
 - Non-walking characters (floating wraiths, ghosts): skip the walk cycle; use one pose per direction plus
