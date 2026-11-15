@@ -114,7 +114,9 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     diagonal), facing the water, with 15 fire bombs in the pack on key 4 (the longsword stays equipped). Monsters
     within 14 tiles that aren't the lake's wraiths are removed. The bar
     shows the wraiths left, how many pursue, the nearest one's distance, whether ripple refraction is on (or off:
-    under 28 fps) and the frame rate.
+    under 28 fps) and the frame rate. Two pickers switch the lake sounds for the page's session: **Drip** (*Plink*,
+    *Hollow*, *Glassy*, *Echo*) and **Bomb splash** (*Plunge*, *Heavy*, *Gurgle*); a click picks one and plays it.
+    **Normal game** puts both back to the first.
 - **Music:**
   - **Pack fight** (depth 3): monsters within 18 tiles are removed, and five skeletons (no champions) are placed
     3.5–6.5 tiles from the hero, already pursuing. Shows the combat music starting, ending at once when the last
@@ -1011,7 +1013,7 @@ Blue for magic items, gold for rare ones, as before.
 
 A **fire bomb** is a clay pot of lamp oil, stoppered with an oil-soaked rag. It is thrown, shatters where it
 lands, and sets the ground on fire. The constants are `BOMB` and `FIRE` in the code. One that lands in a lake
-doesn't shatter: it sinks with a big splash (a ripple 1.6× a drip's and the drip sound) and starts no fire. But
+doesn't shatter: it sinks with a big splash (a ripple 1.6× a drip's and its own sound, `plunge`) and starts no fire. But
 something hard standing in the water breaks it: a bomb whose path passes within 0.45 tiles of the middle of a
 blocking prop on a water tile (the lake's broken pillars) below that prop's top (its sprite height × scale, against
 the bomb's height along its arc at that point) shatters there (`shatter(…, hard)`), and its fire burns on the water
@@ -1383,11 +1385,29 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
   use a generic death sound.
 - **World.** A door: the latch, a long hinge creak and the door settling. A chest: the hasp, a shorter, higher
   creak and the lid falling back; a sealed guardian's chest rattles. Picking things up is a faint rustle; gold
-  a few faint coin clinks. Potions are gulps, stairs footsteps going down, plus tones for level-ups. A drop
-  falling into a lake (`drip`): a tiny high-passed noise tick (the splash, 0.03 s), the bubble's rising sine
-  *plink* (900–1500 Hz up to 1.9× that in 0.14 s, peak 0.3) with a soft octave above it, and 0.28 s later the
-  rebound droplet's smaller, higher plink (1500–2300 Hz, peak 0.13), matching the second ripple; the reverb is the
-  cave's echo. Like other positioned sounds it fades with distance and is silent beyond 14 tiles.
+  a few faint coin clinks. Potions are gulps, stairs footsteps going down, plus tones for level-ups.
+- **Lakes.** Two sounds, each in several versions still being chosen (`SOUND_LOOK`: `drip` 1–4, `splash` 1–3,
+  default 1; the sandbox's lake scenario switches them for the page's session). Like other positioned sounds they
+  fade with distance and are silent beyond 14 tiles; the reverb is the cave's echo.
+  - **Drip** (`drip`, a drop falling into a lake):
+    1. *Plink*: a tiny high-passed noise tick (the splash, 0.03 s), the bubble's rising sine plink (900–1500 Hz up
+       to 1.9× in 0.14 s, peak 0.3) with a soft octave above, and 0.28 s later the rebound droplet's smaller,
+       higher plink (1500–2300 Hz, peak 0.13), matching the second ripple.
+    2. *Hollow*: a lower, rounder bubble (480–720 Hz up to 1.6× in 0.26 s, peak 0.34) with a faint fifth, a soft
+       low-passed tick, and a lower rebound (800–1100 Hz).
+    3. *Glassy*: very high and short (2600–3600 Hz up to 1.35× in 0.05 s, peak 0.2), a faint second tick 0.21 s later.
+    4. *Echo*: the plink (peak 0.28), then two discrete, duller cave echoes (triangle waves) 0.19 and 0.39 s later at
+       40 % and 18 %.
+  - **Bomb splash** (`plunge`, a fire bomb sinking into a lake; much louder and lower than a drip):
+    1. *Plunge*: a deep thump (110 → 42 Hz), a dark low-passed rush of water (1800 → 350 Hz, 0.45 s) with a little
+       brightness, then five big bubbles (220–380 Hz) from 0.3 s.
+    2. *Heavy*: a bright spray sweeping down (4200 → 700 Hz, 0.5 s), a hissing tail of falling droplets (high-passed,
+       0.7 s, with seven tiny high plinks), and a low thud.
+    3. *Gurgle*: a smaller splash and thump, then a long gurgle: twelve bubbles getting lower and quieter over about
+       a second, as it sinks.
+
+  AI sound generation was tried for these: Google's music model (Lyria) returned music (a drone and a beat) rather
+  than sound effects, so it isn't used.
 - **Fire bombs.**
   - A throw is a soft rising whoosh.
   - The impact is clay breaking (a thud and shards, like an urn), then the oil catching: a deep rushing whoomp.

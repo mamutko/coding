@@ -28,6 +28,8 @@
   #sbLooks { display: flex; gap: 4px; align-items: center; }
   #sbLooks[hidden] { display: none !important; }
   #sbKeepers { display: flex; gap: 4px; align-items: center; } #sbKeepers[hidden] { display: none !important; }
+  .sbSounds { display: flex; gap: 4px; align-items: center; } .sbSounds[hidden] { display: none !important; }
+  #sbBar .sbSounds button.on { border-color: #8fb6d0; color: #fff; background: #13263a; }
   #sbBar #sbKeepers button.on { border-color: #e3c060; color: #fff; background: #3a2c12; }
   #sbBar #sbLooks button.on { border-color: #e8893a; color: #fff; background: #3a1f12; }
   #sbPick h2 { font-family: Cinzel, serif; color: #8c7650; font-size: 13px; letter-spacing: 2px; margin: 16px 0 8px; }
@@ -57,6 +59,8 @@
     <button class="sc" id="sbNormal"><b>Normal game</b>The usual title screen; its Scenarios button at the bottom left brings this list back.</button></div>`;
   const bar = document.createElement('div'); bar.id = 'sbBar'; bar.hidden = true;
   bar.innerHTML = '<span id="sbInfo">–</span><span id="sbKeepers" hidden>Keeper:' + [1, 2, 3, 4].map(n => `<button data-keeper="${n}">${KEEPERS[n].name.split(' ')[0]}</button>`).join('') + '</span><span id="sbLooks" hidden>Fire look:' + [[1, 'Blaze'], [2, 'Ember bed'], [3, 'Oil pool']].map(([n, l]) => `<button data-look="${n}">${l}</button>`).join('') + '</span>'
+    + '<span id="sbDrips" class="sbSounds" hidden>Drip:' + [[1, 'Plink'], [2, 'Hollow'], [3, 'Glassy'], [4, 'Echo']].map(([n, l]) => `<button data-drip="${n}">${l}</button>`).join('') + '</span>'
+    + '<span id="sbSplash" class="sbSounds" hidden>Bomb splash:' + [[1, 'Plunge'], [2, 'Heavy'], [3, 'Gurgle']].map(([n, l]) => `<button data-splash="${n}">${l}</button>`).join('') + '</span>'
     + '<button id="sbNext" title="Start the next play of this track now">Next loop</button><button id="sbBack">Scenarios</button>';
   let mode = 'music';   // what the bar shows: 'music' or 'fire'
   // on the normal title screen (after Normal game, or a real hero's death) its Scenarios button (index.html) brings
@@ -84,7 +88,7 @@
   showDeath = () => { if (!isTest()) return realDeath(); G.running = false; pick.hidden = false; bar.hidden = true; };
   const floorAt = (x, y) => G.map.t[y * G.map.w + x] === T_FLOOR && !G.objects.some(o => o.x === x && o.y === y && !o.walk);
   function start(m = 'music') {
-    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
+    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbDrips').hidden = $('sbSplash').hidden = m !== 'lake'; soundButtons(); $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
     audio(); pick.hidden = true; bar.hidden = false;
     G.running = true; G.camSnap = true; G.deathShown = false;
     $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); $('heroCfg').classList.add('hidden'); hideTip();
@@ -128,6 +132,13 @@
     const h = G.hero; for (const n of [2, 3]) { const it = makeBombs(n); dropItem(it, h.x, h.y); }
     start('fire'); log('Test: a quiet room. The skeletons sleep until burned.', BOMB.color);
   };
+  // the lake scenario's sound pickers: a click picks a version (SOUND_LOOK, for this page's session) and plays it
+  function soundButtons() {
+    $('sbDrips').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.drip === SOUND_LOOK.drip));
+    $('sbSplash').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.splash === SOUND_LOOK.splash));
+  }
+  $('sbDrips').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; SOUND_LOOK.drip = +b.dataset.drip; soundButtons(); sfx('drip'); b.blur(); });
+  $('sbSplash').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; SOUND_LOOK.splash = +b.dataset.splash; soundButtons(); sfx('plunge'); b.blur(); });
   function lookButtons() { $('sbLooks').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.look === LOOK.fire)); }
   $('sbLooks').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; setLook('fire', +b.dataset.look); lookButtons(); b.blur(); });
   $('sbSurface').onclick = () => {
@@ -204,7 +215,7 @@
     G.monsters = G.monsters.filter(m => m.bossRoom || m.boss || Math.hypot(m.x - h.x, m.y - h.y) > 10);
     start(); log('Test: a Pit Demon level. Its boss room is close by.', '#7fe08a');
   };
-  $('sbNormal').onclick = () => { audio(); setLook('fire', 1); pick.hidden = true; bar.hidden = true; };   // the normal game: the settled look (Blaze)
+  $('sbNormal').onclick = () => { audio(); setLook('fire', 1); SOUND_LOOK.drip = SOUND_LOOK.splash = 1; pick.hidden = true; bar.hidden = true; };   // the normal game: the settled look (Blaze)
   $('sbBack').onclick = () => { G.running = false; pick.hidden = false; bar.hidden = true; };
   $('sbNext').onclick = () => { if (MUSIC.cur) MUSIC.cur.loopAt = 0; };
   setInterval(() => {
