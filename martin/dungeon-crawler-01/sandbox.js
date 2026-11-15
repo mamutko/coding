@@ -49,6 +49,8 @@
     <button class="sc" id="sbMarket"><b>Keeper of the Crypt</b>Depth 6, next to a keeper in its furnished room, with 3000 gold and things to sell or trade (a helm, an axe, a magic ring, potions, fire bombs). Click the keeper to open the market. Switch between the four keepers in the bar.</button>
     <h2>Kiting</h2>
     <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
+    <h2>Lakes</h2>
+    <button class="sc" id="sbLake"><b>The underground lake</b>Depth 8, on the shore of the huge lake room. The lake reaches out of sight; its far shores are the room's walls. Wraiths hover over the water in a loose group (only they can cross it). Drops fall from the ceiling now and then; watch the reflections ripple.</button>
     <h2>Music</h2>
     <button class="sc" id="sbPack"><b>Pack fight</b>Five skeletons rush you at depth 3. Four or more pursuers start the combat track. Kill them all and it switches back at once; run until they lose interest and it holds 6 s.</button>
     <button class="sc" id="sbDemon"><b>Pit Demon level</b>Depth 8 with a Pit Demon boss, next to its boss room. The 2nd, 5th and 9th play of each track is the choir version (use Next loop to skip ahead); stepping into the boss room plays the choir combat track.</button>
@@ -166,6 +168,18 @@
       const m = makeMonster(t, x + 0.5, y + 0.5, 7, false, false, true); m.calm = { walked: -1e9, t: 1e9 }; G.monsters.push(m); }
     start('kite'); log('Test: the big room. Shoot a sleeper from afar and watch it charge.', '#c9a45c');
   };
+  $('sbLake').onclick = () => {
+    testHero(LAKE_AT); const h = G.hero, r = G.map.lakeRoom, m = G.map;
+    // the hero on the dry shore where it faces the middle of the lake: the shore tile nearest the room's diagonal,
+    // one tile back from the water; other monsters within 14 tiles (not the lake's wraiths) are removed
+    let best = null;
+    for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+      if (!floorAt(x, y) || !floorAt(x + 1, y + 1) || m.block[(y + 1) * m.w + x + 1] || m.at(x - 1, y - 1) !== T_WATER) continue;
+      const dd = Math.abs((x - r.x) - (y - r.y)); if (!best || dd < best[2]) best = [x + 1, y + 1, dd]; }
+    if (best) { h.x = best[0] + 0.5; h.y = best[1] + 0.5; h.path = []; h.dir = 5; }
+    G.monsters = G.monsters.filter(mo => mo.lake || Math.hypot(mo.x - h.x, mo.y - h.y) > 14);
+    start('lake'); log('Test: the underground lake. Wraiths hover over the water.', '#9fb6c8');
+  };
   $('sbPack').onclick = () => {
     testHero(3); const h = G.hero;
     // clear the start room's surroundings, then five skeletons 4-6 tiles away, already pursuing
@@ -213,6 +227,13 @@
         + (ch.length ? ` · <span class="burn">charging: ${ch.join(', ')}</span>` : '');
       return;
     }
+    if (mode === 'lake') {
+      const h = G.hero, w = G.monsters.filter(mo => mo.lake && !mo.dead), pur = w.filter(mo => mo.state === 'chase').length;
+      const near = w.length ? Math.min(...w.map(mo => Math.hypot(mo.x - h.x, mo.y - h.y))).toFixed(1) : '–';
+      $('sbInfo').innerHTML = `<span class="mood">The lake</span> · wraiths ${w.length}` + (pur ? ` · <span class="burn">${pur} pursuing</span>` : '') + ` · nearest ${near} tiles`
+        + ` · ripples: rings${REFRACT ? ' + refraction' : ' (refraction off: under 28 fps)'}` + (PERF.fps ? ` · ${PERF.fps} fps` : '');
+      return;
+    }
     if (mode === 'fire') {
       const n = bombCount(), lit = G.fires.filter(f => f.t < f.dur).length, foes = G.monsters.filter(m => !m.dead && m.burning).length;
       $('sbInfo').innerHTML = `<span class="mood">Fire bombs ${n}</span>` + (isBomb(G.hero.equip.weapon) ? '' : ` · <span class="burn">${G.hero.equip.weapon ? G.hero.equip.weapon.name : 'bare hands'}</span>`)
@@ -225,7 +246,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbPack', 'sbDemon'];
+  const SC = ['sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbLake', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
   // the same, but the picker covers it); errors thrown later are listed there too

@@ -381,13 +381,13 @@ const ATLAS_W = 576, ATLAS_H = 768;   // assets/items.webp: 6 x 8 icons of 96 px
 //  Constants & helpers
 // =====================================================================================
 const TW = 96, TH = 48, HW = TW / 2, HH = TH / 2, WALLH = 72;   // wall height
-const T_VOID = 0, T_FLOOR = 1, T_WALL = 2, T_DOOR = 3, T_OPEN = 4;
+const T_VOID = 0, T_FLOOR = 1, T_WALL = 2, T_DOOR = 3, T_OPEN = 4, T_WATER = 5;   // water: a lake (see Lakes)
 // walk frames advance with distance walked: META.characters.<name>.fpt frames per tile (hero: 8-frame stride / 1.6 tiles)
 const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,W,SW) -> sheet row
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 65;
+const VERSION = 66;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -396,7 +396,7 @@ const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 const iso = (x, y) => [(x - y) * HW, (x + y) * HH];
 const ROMAN = n => { const r = [[10,'X'],[9,'IX'],[5,'V'],[4,'IV'],[1,'I']]; let s=''; for (const [v,c] of r) while (n >= v) { s += c; n -= v; } return s; };
 
-const cv = $('game'), ctx = cv.getContext('2d');
+const cv = $('game'); let ctx = cv.getContext('2d');   // let: the lake's reflection pass draws into its own canvas (see drawLake)
 const lc = document.createElement('canvas'), lctx = lc.getContext('2d');
 let W = 0, H = 0, DPR = 1;
 // Render scale: canvas pixels per CSS pixel, at most 2 (and the screen's own ratio). When frames are slow it
@@ -634,6 +634,7 @@ function sfx(type, o = {}) {
     case 'hurt': thud(T, 110, 0.14, 0.5); noise(T, 0.12, 500, 1.5, 0.15, 0.003); break;
     case 'die': tone(T, 180, 55, 0.5, 0.16, 'sawtooth'); noise(T, 0.4, [900, 200], 1, 0.3, 0.01); break;
     case 'bolt': noise(T, 0.35, [600, 2400], 4, 0.6, 0.05); tone(T, 700, 260, 0.35, 0.05, 'sine'); break;
+    case 'drip': { const f = r(900, 1600); tone(T, f, f * 1.9, 0.11, 0.09 * (o.vol || 1)); break; }   // a drop into a lake: a short rising plink (the reverb is the cave)
     case 'pick':    // faint: a soft rustle and a small knock
       noise(T, 0.07, 1500, 0.7, 0.05, 0.01); knock(T + 0.03, 900, 0.02); break;
     case 'gold':    // faint coin clinks
@@ -867,6 +868,12 @@ const bossRoomAt = d => d === BOSS_ROOM_FROM || d >= BOSS_FROM;
 // Big rooms: from depth 3, every second depth (3, 5, 7, ...) has one: boss-room sized, with 2 grey banners and
 // a larger pack of easier monsters (see buildLevel).
 const bigRoomAt = d => d >= 3 && d % 2 === 1;
+// The lake room: one huge room (28-30 tiles a side) in the map's top-left corner, most of it an underground lake
+// whose far shores are the room's own north and west walls, out of sight and out of reach. A group of wraiths
+// hovers over the water (the only monsters that can cross it). First on depth 8: the first depth after the
+// first boss fight (depth 6) that has no big room. The map is 16 tiles larger that depth.
+const LAKE_AT = 8, LAKE_ROOM = [28, 30], LAKE_SHORE = 4, LAKE_WRAITHS = [8, 10];
+const lakeRoomAt = d => d === LAKE_AT;
 // Lone monsters: a foretaste of a type one depth before it starts to appear (its minD): one random normal room
 // of that depth holds a single one of it (depth 3: a wraith, depth 4: a Pit Demon).
 const LONE_AT = { 3: 'wraith', 4: 'demon' };
@@ -1193,19 +1200,25 @@ function drawCrypt(o) {
 // =====================================================================================
 function buildLevel(d) {
   if (d === 0) return buildSurface();
-  const w = Math.min(44 + d * 2, 80), h = w;
+  const w = Math.min(44 + d * 2, 80) + (lakeRoomAt(d) ? 16 : 0), h = w;
   const t = new Uint8Array(w * h);
   const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? T_VOID : t[y * w + x];
   const rooms = [];
-  const want = Math.min(9 + Math.floor(d / 2), 18);
+  const want = Math.min(9 + Math.floor(d / 2), 18) + (lakeRoomAt(d) ? 1 : 0);
+  // the lake room's spot (top-left corner) is kept free from the start, so it always fits
+  const lakeR = lakeRoomAt(d) ? { x: 2, y: 2, w: ri(...LAKE_ROOM), h: ri(...LAKE_ROOM) } : null;
   for (let tries = 0; tries < 600 && rooms.length < want; tries++) {
     // after the start room come the big rooms of this depth: the boss room (bossRoomAt), then the big room
     // (bigRoomAt). The boss room is 11-14 tiles a side (about 2.8x the area of a normal 5-10 room), the big room
     // 16-20 (about twice the boss room's area)
-    const bigKinds = [bossRoomAt(d) && 'boss', bigRoomAt(d) && 'horde'].filter(Boolean);
-    const big = rooms.length >= 1 && rooms.length <= bigKinds.length && tries < 300 ? bigKinds[rooms.length - 1] : false;
+    const bigKinds = [lakeR && 'lake', bossRoomAt(d) && 'boss', bigRoomAt(d) && 'horde'].filter(Boolean);
+    const big = rooms.length >= 1 && rooms.length <= bigKinds.length && (tries < 300 || bigKinds[rooms.length - 1] === 'lake') ? bigKinds[rooms.length - 1] : false;
+    if (big === 'lake') {   // its "centre" (where corridors lead) is on the dry shore near its south-east corner
+      const r = lakeR; rooms.push({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.x + r.w - 3, cy: r.y + r.h - 3, big }); continue;
+    }
     const [lo, hi] = big === 'horde' ? [16, 20] : big ? [11, 14] : [5, 10], rw = ri(lo, hi), rh = ri(lo, hi), rx = ri(2, w - rw - 3), ry = ri(2, h - rh - 3);
     if (rooms.some(r => rx < r.x + r.w + 3 && rx + rw + 3 > r.x && ry < r.y + r.h + 3 && ry + rh + 3 > r.y)) continue;
+    if (lakeR && !rooms.some(r => r.big === 'lake') && rx < lakeR.x + lakeR.w + 3 && rx + rw + 3 > lakeR.x && ry < lakeR.y + lakeR.h + 3 && ry + rh + 3 > lakeR.y) continue;
     rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + (rw >> 1), cy: ry + (rh >> 1), big });
   }
   for (const r of rooms) for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) t[y * w + x] = T_FLOOR;
@@ -1262,6 +1275,22 @@ function buildLevel(d) {
     for (let dy = -1; dy <= 1 && !near; dy++) for (let dx = -1; dx <= 1; dx++) if (at(x + dx, y + dy) === T_FLOOR) { near = true; break; }
     if (near) t[y * w + x] = T_WALL;
   }
+  // The lake room: an underground lake (T_WATER) fills all of it but a dry shore LAKE_SHORE tiles wide along its
+  // east and south walls, where every corridor comes in (the room is in the map's top-left corner, so nothing lies
+  // north or west of it). The shoreline is a quarter superellipse around the north-west corner, made irregular by
+  // a few sine waves; any dry pocket cut off from the shore is flooded too. The far shores are the north and west walls.
+  const lakeRoom = rooms.find(r => r.big === 'lake') || null;
+  if (lakeRoom) {
+    const r = lakeRoom, A = r.w - LAKE_SHORE - 0.5, B = r.h - LAKE_SHORE - 0.5, ph = [0, 0, 0, 0].map(() => rnd() * 7);
+    for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
+      const lx = x - r.x, ly = y - r.y; if (lx > r.w - 1 - LAKE_SHORE || ly > r.h - 1 - LAKE_SHORE) continue;
+      const n = 0.1 * Math.sin(x * 0.42 + ph[0]) + 0.08 * Math.sin(y * 0.47 + ph[1]) + 0.06 * Math.sin((x + y) * 0.3 + ph[2]) + 0.05 * Math.sin((x - y) * 0.55 + ph[3]);
+      if (Math.pow((lx + 0.5) / A, 2.4) + Math.pow((ly + 0.5) / B, 2.4) < 1 + n) t[y * w + x] = T_WATER;
+    }
+    const dry = new Uint8Array(w * h), q = [r.cy * w + r.cx]; dry[q[0]] = 1;
+    while (q.length) { const i = q.pop(); for (const j of [i - 1, i + 1, i - w, i + w]) if (!dry[j] && t[j] === T_FLOOR) { dry[j] = 1; q.push(j); } }
+    for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) if (t[y * w + x] === T_FLOOR && !dry[y * w + x]) t[y * w + x] = T_WATER;
+  }
   const objects = [], monsters = [], items = [];
   const occ = new Uint8Array(w * h);
   for (const [x, y, axis, front] of doorSpots) {   // front: the room is on the +y / +x side
@@ -1269,6 +1298,7 @@ function buildLevel(d) {
     if ((big || rnd() < DOOR_ODDS) && occ[y * w + x] === 0) { t[y * w + x] = T_DOOR; occ[y * w + x] = 1; objects.push({ type: 'door', x, y, axis, front, look: rnd() < 0.75 ? 'doorA' : 'doorB', open: false, block: true }); }
   }
   const map = { w, h, t, at, seen: new Uint8Array(w * h), block: new Uint8Array(w * h), rooms };
+  map.lake = lakeRoom ? lakeGeom(map) : null; map.lakeRoom = lakeRoom; G.lakeFx = null;
   G.map = map; G.objects = objects; G.monsters = monsters; G.items = items; G.proj = []; G.fx = []; G.texts = [];
   stopFireSounds(); G.fires = [];
 
@@ -1292,7 +1322,7 @@ function buildLevel(d) {
       if (edgeOnly && seen) { if (rnd() < 0.5) { x = ri(r.x, xe); y = r.y; } else { y = ri(r.y, ye); x = r.x; } }
       else if (edgeOnly) { if (rnd() < 0.5) { x = ri(r.x, r.x + r.w - 1); y = rnd() < 0.5 ? r.y : r.y + r.h - 1; } else { y = ri(r.y, r.y + r.h - 1); x = rnd() < 0.5 ? r.x : r.x + r.w - 1; } }
       else { x = ri(r.x + 1, xe); y = ri(r.y + 1, ye); }
-      if (occ[y * w + x] || isOpening(x, y)) continue;
+      if (at(x, y) !== T_FLOOR || occ[y * w + x] || isOpening(x, y)) continue;
       if (edgeOnly) { // never block a corridor mouth: all 4-neighbours outside the room must be wall
         let ok = true;
         for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const nx = x + dx, ny = y + dy;
@@ -1316,7 +1346,7 @@ function buildLevel(d) {
     let best = null, bd = 1e9;
     for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
       if (x !== r.x && y !== r.y || x > r.x + r.w - 3 || y > r.y + r.h - 3) continue;   // north or west edge, in view
-      if (occ[y * w + x] || isOpening(x, y)) continue;
+      if (at(x, y) !== T_FLOOR || occ[y * w + x] || isOpening(x, y)) continue;
       let ok = true;
       for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const nx = x + dx, ny = y + dy;
         const inside = nx >= r.x && nx < r.x + r.w && ny >= r.y && ny < r.y + r.h; if (!inside && at(nx, ny) !== T_WALL) ok = false; }
@@ -1330,7 +1360,7 @@ function buildLevel(d) {
   const placeBack = (type, r, extra = {}) => {
     for (let tries = 0; tries < 40; tries++) {
       const left = rnd() < 0.5, x = left ? r.x : ri(r.x + 1, r.x + r.w - 3), y = left ? ri(r.y + 1, r.y + r.h - 3) : r.y;   // in view
-      if (occ[y * w + x] || isOpening(x, y) || at(left ? x - 1 : x, left ? y : y - 1) !== T_WALL) continue;
+      if (at(x, y) !== T_FLOOR || occ[y * w + x] || isOpening(x, y) || at(left ? x - 1 : x, left ? y : y - 1) !== T_WALL) continue;
       occ[y * w + x] = 1;
       const o = Object.assign({ type, x, y, used: false, block: true, flip: !left }, extra); objects.push(o); return o;
     }
@@ -1347,9 +1377,9 @@ function buildLevel(d) {
   const bossRoom = !bossRoomAt(d) ? null : rooms.find(r => r.big === 'boss') || rooms.filter(r => r !== start && r !== far && !r.big)
     .sort((a, b) => b.w * b.h * (distArr[b.cy * w + b.cx] + 10) - a.w * a.h * (distArr[a.cy * w + a.cx] + 10))[0] || far;
   // the big room (fallback: the largest remaining room); a lone monster (LONE_AT) gets a random normal room
-  const bigRoom = !bigRoomAt(d) ? null : rooms.find(r => r.big === 'horde') || rooms.filter(r => r !== start && r !== far && r !== bossRoom)
+  const bigRoom = !bigRoomAt(d) ? null : rooms.find(r => r.big === 'horde') || rooms.filter(r => r !== start && r !== far && r !== bossRoom && r !== lakeRoom)
     .sort((a, b) => b.w * b.h - a.w * a.h)[0] || null;
-  const normalRooms = rooms.filter(r => r !== start && r !== bossRoom && r !== bigRoom);
+  const normalRooms = rooms.filter(r => r !== start && r !== bossRoom && r !== bigRoom && r !== lakeRoom);
   const loneRoom = LONE_AT[d] && normalRooms.length ? pick(normalRooms) : null;
   // the Keeper of the Crypt's room (every KEEPER.every-th depth): a normal room, not the stairs' or the lone
   // monster's, preferably 7 x 7 or larger; it gets the stall's furnishings and no monsters, chests or urns
@@ -1372,6 +1402,47 @@ function buildLevel(d) {
     placeNear('mtable', r, kx, ky, { decor: true });
     for (const t of ['mrack', 'mshelf', 'mchest', 'mcrates', 'mbarrel', 'mlantern', 'mlantern']) place(t, r, true, { decor: true });
   };
+  // The lake room: braziers (5), two bone piles and, half the time, a chest along the shore (dry tiles next to the
+  // water that the camera sees, at least 5 tiles apart), and a loose group of wraiths over the water, around a
+  // point 45 % of the way from the north-west corner to the shore, on tiles with water all around.
+  const furnishLake = r => {
+    const shore = [];
+    for (let y = r.y; y <= r.y + r.h - 3; y++) for (let x = r.x; x <= r.x + r.w - 3; x++)
+      if (at(x, y) === T_FLOOR && !occ[y * w + x] && !isOpening(x, y) && [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => at(x + dx, y + dy) === T_WATER)) shore.push([x, y]);
+    const used = [], put = (type, gap, extra) => {
+      for (let k = 0; k < 40 && shore.length; k++) { const i = Math.floor(rnd() * shore.length), [x, y] = shore[i];
+        if (used.some(([ux, uy]) => Math.hypot(ux - x, uy - y) < gap)) continue;
+        shore.splice(i, 1); used.push([x, y]); occ[y * w + x] = 1; objects.push(Object.assign({ type, x, y, used: false }, extra)); return; }
+    };
+    for (let i = 0; i < 5; i++) put('brazier', 5, { block: true });
+    for (let i = 0; i < 2; i++) put('bones', 3, { block: false });
+    if (rnd() < 0.5) put('chest', 3, { block: true, big: true });
+    // 4 broken pillars standing in the water 2-7 tiles from the shore (water all around), at least 5 apart: from
+    // the shore they are what the lake visibly reflects (the shore's own props reflect onto the floor, out of view)
+    const inWater = [];
+    for (let y = r.y + 1; y < r.y + r.h - LAKE_SHORE; y++) for (let x = r.x + 1; x < r.x + r.w - LAKE_SHORE; x++) {
+      let wetAll = true; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (at(x + dx, y + dy) !== T_WATER) wetAll = false;
+      if (!wetAll) continue;
+      let dd = 99; for (let dy = -7; dy <= 7; dy++) for (let dx = -7; dx <= 7; dx++) if (at(x + dx, y + dy) === T_FLOOR) dd = Math.min(dd, Math.hypot(dx, dy));
+      if (dd >= 2 && dd <= 7) inWater.push([x, y]);
+    }
+    for (let i = 0, k = 0; i < 4 && k < 60 && inWater.length; k++) {
+      const [x, y] = pick(inWater); if (used.some(([ux, uy]) => Math.hypot(ux - x, uy - y) < 5)) continue;
+      used.push([x, y]); occ[y * w + x] = 1; objects.push({ type: 'pillar', x, y, used: false, block: true, decor: true }); i++;
+    }
+    const gx = r.x + (r.w - LAKE_SHORE) * 0.45, gy = r.y + (r.h - LAKE_SHORE) * 0.45, spots = [];
+    for (let y = Math.floor(gy - 7); y <= gy + 7; y++) for (let x = Math.floor(gx - 7); x <= gx + 7; x++) {
+      if (Math.hypot(x + 0.5 - gx, y + 0.5 - gy) > 6.5) continue;
+      let wet = true; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (at(x + dx, y + dy) !== T_WATER) wet = false;
+      if (wet) spots.push([x, y]);
+    }
+    const placed = [];
+    for (let n = ri(...LAKE_WRAITHS), k = 0; n > 0 && k < 200 && spots.length; k++) {
+      const [x, y] = pick(spots), px = x + 0.3 + rnd() * 0.4, py = y + 0.3 + rnd() * 0.4;
+      if (placed.some(p => Math.hypot(p[0] - px, p[1] - py) < 1.6)) continue;
+      placed.push([px, py]); const m = makeMonster('wraith', px, py, d, false, false, true); m.lake = true; monsters.push(m); n--;
+    }
+  };
   // typeFor draws a type by weight, skipping types that have reached their room limit (roomLimit) in this room
   const typeFor = (pool, cnt) => { for (let k = 0; k < 30; k++) { const t = pick(pool); if ((cnt[t] || 0) < roomLimit(t, d)) return t; } return 'skeleton'; };
   // 50 %: one green-flamed brazier in a room joined to the boss room by a corridor (a hint of what's near)
@@ -1391,6 +1462,7 @@ function buildLevel(d) {
   for (const r of rooms) {
     if (bannerAt.has(r)) placeNear('banner', r, ...bannerAt.get(r), { decor: true, bossSign: true });
     if (r === greenRoom) place('brazier', r, true, { green: true });
+    if (r === lakeRoom) { furnishLake(r); continue; }
     if (r === bossRoom) {
       map.bossRoom = r;
       // the boss stands on a rune circle in the middle, ringed by braziers and the furnishings unlocked at this depth
@@ -1477,9 +1549,13 @@ function bfs(sx, sy) {
 // =====================================================================================
 //  Collision, line of sight, pathfinding
 // =====================================================================================
+// FLY: the entity being moved can cross water (wraiths: MON float). It is set while a monster is updated
+// (updateMonster) and by moveEnt for the entity it moves, so canStand, lineWalkable and astar follow it.
+let FLY = false;
+const flies = e => !!(e && e.b && e.b.float);
 function blocked(tx, ty) {
   const m = G.map; if (tx < 0 || ty < 0 || tx >= m.w || ty >= m.h) return true;
-  const v = m.t[ty * m.w + tx]; return !(v === T_FLOOR || v === T_OPEN) || m.block[ty * m.w + tx] === 1;
+  const v = m.t[ty * m.w + tx]; return !(v === T_FLOOR || v === T_OPEN || (FLY && v === T_WATER)) || m.block[ty * m.w + tx] === 1;
 }
 function canStand(x, y, r) {
   return !blocked(Math.floor(x - r), Math.floor(y - r)) && !blocked(Math.floor(x + r), Math.floor(y - r)) &&
@@ -1553,10 +1629,11 @@ function pathTo(e, wx, wy, near) {
   return true;
 }
 function moveEnt(e, dx, dy) {
+  const fly = FLY; FLY = flies(e);
   let moved = false;
   if (canStand(e.x + dx, e.y, e.r)) { e.x += dx; moved = true; }
   if (canStand(e.x, e.y + dy, e.r)) { e.y += dy; moved = true; }
-  return moved;
+  FLY = fly; return moved;
 }
 function setDir(e, dx, dy) {
   if (Math.abs(dx) + Math.abs(dy) < 1e-4) return;
@@ -1716,6 +1793,7 @@ function updateBomb(p, dt) {
 }
 function shatter(p, x, y) {
   p.life = 0;
+  if (G.map.at(Math.floor(x), Math.floor(y)) === T_WATER) { sfx('drip', { x, y }); splash(x, y, 1.6); return; }   // into a lake: a splash, no fire
   sfx('shatter', { x, y });
   for (let i = 0; i < 12; i++) G.fx.push({ type: 'spark', x, y, vx: (rnd() - 0.5) * 4, vy: (rnd() - 0.5) * 4, z: 8, vz: 50 + rnd() * 90, t: 0, dur: 0.55, color: '150,80,50' });   // terracotta shards
   for (let i = 0; i < 16; i++) { const a = rnd() * 7; G.fx.push({ type: 'spark', x, y, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3, z: 10, vz: 40 + rnd() * 60, t: 0, dur: 0.6, color: '255,190,80' }); }
@@ -1863,14 +1941,17 @@ function damageHero(raw, m) {   // m: the attacking monster, or null for fire (n
 // =====================================================================================
 function dropSpot(x, y) {
   const cx = Math.floor(x), cy = Math.floor(y);
-  for (let rad = 0; rad < 4; rad++) {
+  // over water (a wraith slain over a lake) the search goes on, ring by ring, until it reaches dry land: the
+  // drop washes ashore
+  const wet = G.map.at(cx, cy) === T_WATER;
+  for (let rad = 0; rad < (wet ? 40 : 4); rad++) {
     const cands = [];
     for (let dy = -rad; dy <= rad; dy++) for (let dx = -rad; dx <= rad; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== rad) continue;
       const tx = cx + dx, ty = cy + dy; if (blocked(tx, ty)) continue;
       if (G.objects.some(o => o.x === tx && o.y === ty && o.type === 'stairs')) continue;
       const crowd = G.items.filter(it => Math.floor(it.x) === tx && Math.floor(it.y) === ty).length;
-      if (crowd < 1 || rad === 3) cands.push([tx, ty]);
+      if (crowd < 1 || rad >= 3) cands.push([tx, ty]);
     }
     if (cands.length) { const [tx, ty] = pick(cands); return [tx + 0.3 + rnd() * 0.4, ty + 0.3 + rnd() * 0.4]; }
   }
@@ -2625,7 +2706,7 @@ $('dbgPursuit').addEventListener('change', e => { DEBUG.pursuit = e.target.check
 $('dbgAutoRes').checked = DEBUG.autoRes;
 $('dbgAutoRes').addEventListener('change', e => {   // off: back to the full render scale at once, and it stays there
   DEBUG.autoRes = e.target.checked; saveDebug();
-  if (!DEBUG.autoRes) { DPR_CAP = 2; resize(); $('dbgFps').textContent = PERF.fps + ' fps · scale ' + DPR; }
+  if (!DEBUG.autoRes) { DPR_CAP = 2; REFRACT = true; resize(); $('dbgFps').textContent = PERF.fps + ' fps · scale ' + DPR; }
 });
 // Touch screens have no Ctrl+D: holding a finger on the minimap and one on the life orb together for 0.8 s
 // toggles the overlay too. A tap on the orb drinks no potion while the minimap is held.
@@ -2760,6 +2841,7 @@ function update(dt) {
     else if (!h.path.length) { if (dd <= 1.7) { h.intent = null; act(ref); } else h.intent = null; }
   }
   if (G.map.surface) shiftSurface();
+  updateLake(dt);
   // mark explored
   const m = G.map;
   for (let y = Math.floor(h.y) - 7; y <= Math.floor(h.y) + 7; y++) for (let x = Math.floor(h.x) - 7; x <= Math.floor(h.x) + 7; x++)
@@ -2767,7 +2849,7 @@ function update(dt) {
 
   // monsters
   for (const mo of G.monsters) {   // walk frames advance with distance walked: META fpt = frames per tile at scale 1
-    const px = mo.x, py = mo.y; updateMonster(mo, dt);
+    const px = mo.x, py = mo.y; FLY = flies(mo); try { updateMonster(mo, dt); } finally { FLY = false; }
     if (mo.moving) mo.anim += Math.hypot(mo.x - px, mo.y - py) * (META.characters[mo.type].fpt || 2) / mo.scale;
   }
   G.monsters = G.monsters.filter(mo => !(mo.dead && mo.deathT > 1.2));
@@ -2869,6 +2951,277 @@ function updateMonster(m, dt) {
 }
 
 // =====================================================================================
+//  Lakes (see README, Lakes): still, reflective water set LAKE.drop px below the floor, with drips
+// =====================================================================================
+// The look: drop (px below the floor), refl (reflection strength), fade (how much a reflection fades over fadeH px of
+// height), look (the water's colour, WATER_LOOKS), drips per minute, and the ripples' speed (px/s), life (s) and
+// wavelength (px). The other two colours are kept for future lakes.
+const LAKE = { drop: 8, refl: 0.7, fade: 0.45, fadeH: 120, look: 'ink', drips: 12, rspeed: 24, rlife: 3.8, lambda: 7.5 };
+const WATER_LOOKS = {
+  ink:  { deep: '#030407', deepRGB: '3,4,7', tint: 'rgba(4,8,14,0.42)', ring: '205,212,228' },
+  teal: { deep: '#061419', deepRGB: '6,20,25', tint: 'rgba(12,52,62,0.36)', ring: '190,226,240' },
+  moss: { deep: '#0a1309', deepRGB: '10,19,9', tint: 'rgba(32,54,26,0.38)', ring: '205,230,190' } };
+// Ripple refraction: on, unless the automatic adjustments (debug: Auto resolution) found the game under 28 fps
+// (SLOW_REFRACT, see adaptRes); then it stays off for the session and only the rings are drawn.
+let REFRACT = true;
+const SLOW_REFRACT = 1 / 28;
+const wc = document.createElement('canvas'), wctx = wc.getContext('2d');   // the water layer
+const rc = document.createElement('canvas'), rctx = rc.getContext('2d');   // the mirrored scene, at half resolution
+const mtmp = document.createElement('canvas'); mtmp.width = 260; mtmp.height = 270; const mtctx = mtmp.getContext('2d');
+const lakeHit = document.createElement('canvas').getContext('2d');   // untransformed, for point-in-lake tests
+let MIR = false;   // true while the reflection pass draws (face, drawWall and drawBanks then draw mirror images)
+const LAKE_PATS = new WeakMap();
+function lakePats(c) {   // per context: the floor texture in screen space (the lake bed) and the wall texture (the banks)
+  let p = LAKE_PATS.get(c); if (p) return p;
+  const bed = c.createPattern(IMG.floor, 'repeat'); bed.setTransform(new DOMMatrix([HW, HH, -HW, HH, 0, 0]).scale(3 / 512));
+  const rock = c.createPattern(IMG.wall, 'repeat'); rock.setTransform(new DOMMatrix().scale(0.75));
+  p = { bed, rock }; LAKE_PATS.set(c, p); return p;
+}
+// The lake's outline: the water tiles' boundary edges chained into loops (the outward normal of an edge a -> b is
+// (dy, -dx)), each edge marked when a wall is beyond it; then rounded by 3 rounds of Chaikin corner cutting, except
+// along walls (the wall stands in the water there). Segments are "far" where the dry floor beyond them is farther
+// from the camera (a rock bank shows there) and "near" where it is nearer (the floor's lip overhangs the water).
+function lakeGeom(m) {
+  const at = (x, y) => m.at(x, y), wet = (x, y) => at(x, y) === T_WATER, wall = (x, y) => at(x, y) === T_WALL;
+  const edges = [];
+  for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+    if (!wet(x, y)) continue;
+    if (!wet(x, y - 1)) edges.push({ a: [x, y], b: [x + 1, y], w: wall(x, y - 1) });
+    if (!wet(x + 1, y)) edges.push({ a: [x + 1, y], b: [x + 1, y + 1], w: wall(x + 1, y) });
+    if (!wet(x, y + 1)) edges.push({ a: [x + 1, y + 1], b: [x, y + 1], w: wall(x, y + 1) });
+    if (!wet(x - 1, y)) edges.push({ a: [x, y + 1], b: [x, y], w: wall(x - 1, y) });
+  }
+  if (!edges.length) return null;
+  const from = new Map(), key = p => p[0] + ',' + p[1];
+  for (const e of edges) { const k = key(e.a); if (!from.has(k)) from.set(k, []); from.get(k).push(e); }
+  const used = new Set(), loops = [];
+  for (const e0 of edges) {
+    if (used.has(e0)) continue;
+    let pts = [], w = [], e = e0;
+    while (e && !used.has(e)) { used.add(e); pts.push(e.a); w.push(e.w); e = (from.get(key(e.b)) || []).find(f => !used.has(f)); }
+    for (let it = 0; it < 3; it++) {   // Chaikin: cut every corner at 1/4 and 3/4 of its edges; wall edges stay
+      const P = [], F = [], n = pts.length;
+      for (let i = 0; i < n; i++) {
+        const a = pts[i], b = pts[(i + 1) % n], wi = w[i], wn = w[(i + 1) % n];
+        P.push(wi ? a : [a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25]); F.push(wi);
+        P.push(wi ? b : [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75]); F.push(wi && wn);
+      }
+      pts = []; w = [];
+      for (let i = 0; i < P.length; i++) { const q = P[(i + 1) % P.length]; if (Math.abs(P[i][0] - q[0]) + Math.abs(P[i][1] - q[1]) < 1e-9) continue; pts.push(P[i]); w.push(F[i]); }
+    }
+    loops.push({ pts, w });
+  }
+  const path = new Path2D(), segs = [];
+  for (const L of loops) {
+    const n = L.pts.length;
+    L.pts.forEach((p, i) => { const [X, Y] = iso(p[0], p[1]); i ? path.lineTo(X, Y) : path.moveTo(X, Y); }); path.closePath();
+    for (let i = 0; i < n; i++) {
+      const a = L.pts[i], b = L.pts[(i + 1) % n], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy), nx = dy / l, ny = -dx / l;
+      segs.push({ A: iso(a[0], a[1]), B: iso(b[0], b[1]), wall: L.w[i], n: [nx, ny], far: nx + ny < -0.02, near: nx + ny > 0.02, k: a[0] + a[1] });
+    }
+  }
+  return { path, segs };
+}
+const inLake = (x, y) => { const L = G.map.lake; if (!L) return false; const [X, Y] = iso(x, y); return lakeHit.isPointInPath(L.path, X, Y); };
+const lakeFx = () => G.lakeFx || (G.lakeFx = { drops: [], ripples: [], splashes: [], next: 2 });
+// a drop (or a fire bomb) hitting the water: a ripple, a smaller one a moment later (the rebound droplet falling
+// back), and a few droplets thrown up
+function splash(x, y, a = 1) {
+  const F = lakeFx();
+  F.ripples.push({ x, y, t: 0, a }, { x, y, t: -0.28, a: 0.45 * a });
+  for (let i = 0; i < 6 * a; i++) { const ang = rnd() * 6.28, v = 20 + rnd() * 30; F.splashes.push({ x, y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v * 0.5, vz: 60 + rnd() * 70 * a, z: 0, t: 0 }); }
+}
+const rippleAmp = r => r.t < 0 ? 0 : r.a * Math.min(1, r.t / 0.08) * Math.pow(Math.max(0, 1 - r.t / LAKE.rlife), 1.6);
+// Drips: LAKE.drips a minute on average, each on a random spot of the lake within 10 tiles of the hero that has
+// been seen; a drop falls from the dark for 0.55 s, then splashes (a short rising plink).
+function updateLake(dt) {
+  const m = G.map; if (!m.lake) return;
+  const F = lakeFx(), h = G.hero;
+  if ((F.next -= dt) <= 0) {
+    F.next = -Math.log(1 - rnd()) * 60 / LAKE.drips;
+    for (let k = 0; k < 30; k++) {
+      const x = h.x + (rnd() - 0.5) * 20, y = h.y + (rnd() - 0.5) * 20, tx = Math.floor(x), ty = Math.floor(y);
+      if (m.at(tx, ty) === T_WATER && m.seen[ty * m.w + tx] && inLake(x, y)) { F.drops.push({ x, y, t: 0, tf: 0.55 }); break; }
+    }
+  }
+  for (const d of F.drops) { d.t += dt; if (d.t >= d.tf) { d.done = true; splash(d.x, d.y); sfx('drip', { x: d.x, y: d.y }); } }
+  F.drops = F.drops.filter(d => !d.done);
+  for (const r of F.ripples) r.t += dt;
+  F.ripples = F.ripples.filter(r => r.t < LAKE.rlife);
+  for (const s of F.splashes) { s.t += dt; s.vz -= 520 * dt; s.z += s.vz * dt; s.x += s.vx * dt / HW * 0.5; s.y += s.vy * dt / HH * 0.5; }
+  F.splashes = F.splashes.filter(s => !(s.z < 0 && s.t > 0.05));
+}
+// A sprite mirrored about the water plane below its ground point gy (screen px), first faded with height (on mtmp);
+// flipX: the x to mirror about horizontally too (a flipped prop).
+function mirSprite(img, sx, sy, sw, sh, dx, dy, dw, dh, gy, flipX = null) {
+  if (mtmp.width < sw || mtmp.height < sh) { mtmp.width = Math.max(mtmp.width, sw); mtmp.height = Math.max(mtmp.height, sh); }
+  mtctx.globalCompositeOperation = 'source-over'; mtctx.clearRect(0, 0, mtmp.width, mtmp.height);
+  mtctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+  if (LAKE.fade > 0) {
+    const s = dh / sh, y0 = (gy - dy) / s, g = mtctx.createLinearGradient(0, y0, 0, y0 - LAKE.fadeH / s);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${LAKE.fade})`);
+    mtctx.globalCompositeOperation = 'destination-out'; mtctx.fillStyle = g; mtctx.fillRect(0, 0, sw, sh);
+  }
+  ctx.save(); ctx.translate(0, 2 * (gy + LAKE.drop)); ctx.scale(1, -1);
+  if (flipX !== null) { ctx.translate(flipX, 0); ctx.scale(-1, 1); ctx.translate(-flipX, 0); }
+  ctx.drawImage(mtmp, 0, 0, sw, sh, dx, dy, dw, dh); ctx.restore();
+}
+function mirrorChar(e, isHero) {
+  const sheet = isHero ? 'hero' : e.type, md = META.characters[sheet], s = isHero ? 1 : e.scale, [sx, sy0] = iso(e.x, e.y);
+  let sy = sy0, alpha = 1;
+  if (!isHero && e.dead) { alpha = Math.max(0, 1 - e.deathT / 1.1); sy += e.deathT * 14; }
+  if (isHero && G.dead) { alpha = Math.max(0, 1 - G.deadT / 1.1); sy += Math.min(G.deadT, 1.1) * 14; }
+  if (!isHero && e.b.float) sy -= 8 + Math.sin(G.time * 3 + e.x) * 4;
+  if (alpha <= 0) return;
+  const frame = e.moving ? Math.floor(e.anim) % md.frames : (md.idle || 0), footY = md.footY != null ? md.footY : md.fh - 6;
+  const w = md.fw * s, hgt = md.fh * s;
+  ctx.globalAlpha = alpha; mirSprite(IMG[sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, sx - w / 2, sy - footY * s, w, hgt, sy0); ctx.globalAlpha = 1;
+}
+function mirrorProp(o) {
+  if (o.surf || o.type === 'stairs' || o.type === 'bones' || o.type === 'gold' || o.type === 'mrug' || (o.type === 'urn' && o.used)) return;
+  const key = o.type === 'chest' && o.used ? 'chestopen' : o.type === 'keeper' ? 'keeper' + o.look : o.type;
+  const [px, py, pw, ph] = META.props[key], [s, off] = PROP_STYLE[key], [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy), w = pw * s, hh = ph * s;
+  mirSprite(IMG.props, px, py, pw, ph, sx - w / 2, sy - hh + off, w, hh, sy, o.flip ? sx : null);
+}
+// The rock bank between the floor and the lower water where the floor is on the far side (and, when MIR, its
+// mirror image right below it). Shaded like a wall face by the direction it faces, a little darker (wet).
+function drawBanks(lk) {
+  const D = LAKE.drop; if (D <= 0) return;
+  for (const g of G.map.lake.segs) {
+    if (!g.far || g.wall || g.k < lk.kmin - 2 || g.k > lk.kmax + 2) continue;
+    const { A, B } = g, f = [-g.n[0], -g.n[1]], shade = Math.min(0.85, 0.25 + (f[1] > 0 ? f[1] * f[1] * SHADE_Y : 0) + (f[0] > 0 ? f[0] * f[0] * SHADE_X : 0) + (MIR ? 0.25 : 0));
+    const y0 = MIR ? D : 0, y1 = MIR ? 2 * D : D, ex = (B[0] - A[0]) * 0.04, ey = (B[1] - A[1]) * 0.04;
+    ctx.beginPath(); ctx.moveTo(A[0] - ex, A[1] - ey + y0); ctx.lineTo(B[0] + ex, B[1] + ey + y0); ctx.lineTo(B[0] + ex, B[1] + ey + y1); ctx.lineTo(A[0] - ex, A[1] - ey + y1); ctx.closePath();
+    ctx.fillStyle = lakePats(ctx).rock; ctx.fill(); ctx.fillStyle = `rgba(0,0,0,${shade})`; ctx.fill();
+  }
+}
+// The visible part of the lake: water tiles, and tiles next to water (a rounded shore reaches into them), that are
+// seen or near the hero. Returns { vis: a Path2D of their diamonds, kmin, kmax (their x + y range) } or null.
+function lakeView(x0, x1, y0, y1, vis) {
+  const m = G.map; let n = 0, kmin = 1e9, kmax = -1e9; const p = new Path2D();
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
+    if (!vis(x, y)) continue;
+    let wet = false; for (let dy = -1; dy <= 1 && !wet; dy++) for (let dx = -1; dx <= 1; dx++) if (m.at(x + dx, y + dy) === T_WATER) { wet = true; break; }
+    if (!wet) continue;
+    const a = iso(x - 0.01, y - 0.01), b = iso(x + 1.01, y - 0.01), c = iso(x + 1.01, y + 1.01), d = iso(x - 0.01, y + 1.01);
+    p.moveTo(a[0], a[1]); p.lineTo(b[0], b[1]); p.lineTo(c[0], c[1]); p.lineTo(d[0], d[1]); p.closePath();
+    n++; if (m.at(x, y) === T_WATER) { kmin = Math.min(kmin, x + y); kmax = Math.max(kmax, x + y + 1); }
+  }
+  return n && kmax > kmin ? { vis: p, kmin, kmax } : null;
+}
+// The water layer (on wc, then drawn onto the scene): deep colour, the lake bed showing near the shore, the
+// reflection (the scene drawn again, mirrored, into rc at half resolution: soft), a tint, the shore lines, then the
+// ripples (refraction, when on, then rings). Everything is clipped to the visible lake, LAKE.drop px below the floor.
+function drawLake(lk, baseT, dl) {
+  const L = G.map.lake, look = WATER_LOOKS[LAKE.look], D = LAKE.drop, cw = cv.width, ch = cv.height;
+  if (wc.width !== cw || wc.height !== ch) { wc.width = cw; wc.height = ch; }
+  const rw = Math.max(1, Math.round(cw / 2)), rh = Math.max(1, Math.round(ch / 2));
+  if (rc.width !== rw || rc.height !== rh) { rc.width = rw; rc.height = rh; }
+  const clip = c => { c.translate(0, D); c.clip(L.path); c.clip(lk.vis); c.translate(0, -D); };
+  // 1. the mirrored scene: walls, props and characters whose reflection can reach the visible water
+  const main = ctx; ctx = rctx; MIR = true;
+  try {
+    rctx.setTransform(1, 0, 0, 1, 0, 0); rctx.clearRect(0, 0, rw, rh);
+    rctx.setTransform(baseT[0] / 2, 0, 0, baseT[3] / 2, baseT[4] / 2, baseT[5] / 2);
+    for (const d of dl) {
+      if (d.k < lk.kmin - 10 || d.k > lk.kmax + 1) continue;
+      if (d.t === 0) drawWall(d.x, d.y); else if (d.t === 1) mirrorProp(d.o); else if (d.t === 2) mirrorChar(d.e, false); else if (d.t === 3) mirrorChar(d.e, true);
+    }
+    drawBanks(lk);
+  } finally { ctx = main; MIR = false; }
+  // 2. the water layer
+  wctx.setTransform(1, 0, 0, 1, 0, 0); wctx.clearRect(0, 0, cw, ch);
+  wctx.setTransform(...baseT); wctx.save(); clip(wctx);
+  wctx.fillStyle = look.deep; wctx.fillRect(-1e5, -1e5, 2e5, 2e5);
+  wctx.save(); wctx.translate(0, D + 5); wctx.lineJoin = 'round'; wctx.strokeStyle = lakePats(wctx).bed;   // the lake bed near the shore
+  for (const [lw, a] of [[46, 0.12], [28, 0.16], [12, 0.2]]) { wctx.globalAlpha = a; wctx.lineWidth = lw; wctx.stroke(L.path); }
+  wctx.restore();
+  wctx.save(); wctx.setTransform(1, 0, 0, 1, 0, 0); wctx.globalAlpha = LAKE.refl; wctx.drawImage(rc, 0, 0, cw, ch); wctx.restore();
+  wctx.fillStyle = look.tint; wctx.fillRect(-1e5, -1e5, 2e5, 2e5);
+  wctx.lineCap = 'round';
+  for (const g of L.segs) {
+    if (g.k < lk.kmin - 2 || g.k > lk.kmax + 2) continue;
+    const { A, B } = g;
+    if (g.near) { wctx.strokeStyle = 'rgba(0,0,0,0.45)'; wctx.lineWidth = 7; wctx.beginPath(); wctx.moveTo(A[0], A[1]); wctx.lineTo(B[0], B[1]); wctx.stroke(); }
+    else if (g.far) {
+      wctx.strokeStyle = 'rgba(0,0,0,0.5)'; wctx.lineWidth = 3; wctx.beginPath(); wctx.moveTo(A[0], A[1] + D); wctx.lineTo(B[0], B[1] + D); wctx.stroke();
+      wctx.strokeStyle = `rgba(${look.ring},0.14)`; wctx.lineWidth = 1; wctx.beginPath(); wctx.moveTo(A[0], A[1] + D + 1.5); wctx.lineTo(B[0], B[1] + D + 1.5); wctx.stroke();
+    }
+  }
+  wctx.restore();
+  const F = lakeFx();
+  if (REFRACT && F.ripples.length) refract(baseT, cw, ch);
+  if (F.ripples.length) {
+    wctx.save(); wctx.setTransform(...baseT); clip(wctx); wctx.lineWidth = 1.2;
+    for (const r of F.ripples) {
+      const a = rippleAmp(r); if (a < 0.01) continue;
+      const [X, Y] = iso(r.x, r.y), R = r.t * LAKE.rspeed;
+      for (let k = 0; k < 3; k++) {
+        const rr = R - k * LAKE.lambda; if (rr <= 0.5) continue;
+        const al = a * (1 - k * 0.3) * 0.5;
+        wctx.strokeStyle = `rgba(${look.ring},${al})`; wctx.beginPath(); wctx.ellipse(X, Y + D - 0.6, rr, rr / 2, 0, 0, 7); wctx.stroke();
+        wctx.strokeStyle = `rgba(0,0,0,${al * 0.9})`; wctx.beginPath(); wctx.ellipse(X, Y + D + 0.9, rr, rr / 2, 0, 0, 7); wctx.stroke();
+      }
+    }
+    wctx.restore();
+  }
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(wc, 0, 0); ctx.restore();
+}
+// Ripple refraction: each ripple displaces the water layer's own pixels (the reflection included) radially by a
+// short wave packet, and lightens or darkens its slopes as if lit from the far side. Works on the box around the
+// ripple only (getImageData / putImageData).
+function refract(baseT, cw, ch) {
+  const sc = baseT[0], lam = LAKE.lambda * sc;
+  for (const r of lakeFx().ripples) {
+    const amp = rippleAmp(r) * 2.4 * sc; if (amp < 0.05) continue;
+    const [IX, IY] = iso(r.x, r.y), X = IX * sc + baseT[4], Y = (IY + LAKE.drop) * sc + baseT[5], R = r.t * LAKE.rspeed * sc, ext = R + lam * 2.6;
+    const x0 = Math.max(0, Math.floor(X - ext)), x1 = Math.min(cw, Math.ceil(X + ext)), y0 = Math.max(0, Math.floor(Y - ext / 2)), y1 = Math.min(ch, Math.ceil(Y + ext / 2));
+    const bw = x1 - x0, bh = y1 - y0; if (bw < 2 || bh < 2) continue;
+    let img; try { img = wctx.getImageData(x0, y0, bw, bh); } catch (e) { REFRACT = false; return; }
+    const src = img.data, out = new Uint8ClampedArray(src), k2 = 2 * Math.PI / lam, wid = lam * 1.15, lim = lam * 2.6;
+    for (let py = 0; py < bh; py++) {
+      const ey = (y0 + py - Y) * 2;
+      for (let px = 0; px < bw; px++) {
+        const ex = x0 + px - X, rr = Math.hypot(ex, ey), d = rr - R;
+        if (rr < 0.5 || d > lim || d < -lim) continue;
+        const o = (py * bw + px) * 4; if (src[o + 3] === 0) continue;
+        const env = Math.exp(-(d / wid) * (d / wid)), ph = d * k2, disp = amp * Math.sin(ph) * env, ux = ex / rr, uy = ey / rr;
+        let sx = Math.round(px - ux * disp), sy = Math.round(py - uy * disp * 0.5);
+        sx = sx < 0 ? 0 : sx >= bw ? bw - 1 : sx; sy = sy < 0 ? 0 : sy >= bh ? bh - 1 : sy;
+        const si = (sy * bw + sx) * 4; if (src[si + 3] === 0) continue;
+        const lit = Math.cos(ph) * env * (-uy) * Math.min(1, amp / sc) * 46;
+        out[o] = src[si] + lit; out[o + 1] = src[si + 1] + lit * 1.08; out[o + 2] = src[si + 2] + lit * 1.15; out[o + 3] = src[si + 3];
+      }
+    }
+    img.data.set(out); wctx.putImageData(img, x0, y0);
+  }
+}
+// After the lighting (additive, device pixels): the long reflections of the braziers' and candelabra's flames on
+// the water, and the falling drops and their splashes.
+function drawLakeLights(lk, baseT) {
+  const L = G.map.lake, sc = baseT[0], D = LAKE.drop, F = lakeFx();
+  const dev = (x, y, lift) => { const [X, Y] = iso(x, y); return [X * sc + baseT[4], (Y - lift) * sc + baseT[5]]; };
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.save(); ctx.setTransform(...baseT); ctx.translate(0, D); ctx.clip(L.path); ctx.clip(lk.vis); ctx.setTransform(1, 0, 0, 1, 0, 0);
+  for (const o of G.objects) {
+    if ((o.type !== 'brazier' && o.type !== 'candelabrum') || Math.abs(o.x - G.hero.x) > 16 || Math.abs(o.y - G.hero.y) > 16) continue;
+    const br = o.type === 'brazier', fl = 0.85 + 0.15 * Math.sin(G.time * 11 + o.x) * Math.sin(G.time * 7.3 + o.y);
+    const [X, Y] = dev(o.x + 0.5, o.y + 0.5, -((br ? 52 : 108) + 2 * D)), r = (br ? 26 : 13) * sc, c = o.green ? '90,255,130' : '255,170,80', c2 = o.green ? '60,220,100' : '255,120,40';
+    ctx.save(); ctx.translate(X, Y); ctx.scale(0.75, 2.4);
+    const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(${c},${0.5 * LAKE.refl * fl})`); gr.addColorStop(0.4, `rgba(${c2},${0.22 * LAKE.refl * fl})`); gr.addColorStop(1, `rgba(${c2},0)`);
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.restore();
+  }
+  ctx.restore();
+  for (const d of F.drops) {   // a bright streak, accelerating down from the dark
+    const k = d.t / d.tf, [X, Y] = dev(d.x, d.y, 320 * (1 - k * k) - D), len = (4 + 10 * k) * sc;
+    ctx.strokeStyle = `rgba(200,228,255,${0.35 + 0.5 * k})`; ctx.lineWidth = 1.4 * sc; ctx.beginPath(); ctx.moveTo(X, Y - len); ctx.lineTo(X, Y); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(200,228,255,0.7)';
+  for (const s of F.splashes) { const [X, Y] = dev(s.x, s.y, Math.max(0, s.z) - D), r = 1.1 * sc; ctx.fillRect(X - r, Y - r, 2 * r, 2 * r); }
+  ctx.restore();
+}
+
+// =====================================================================================
 //  Rendering
 // =====================================================================================
 const dl = [];
@@ -2888,14 +3241,43 @@ function render() {
   const lightR = 9.5;
   const nearHero = (x, y) => Math.abs(x - h.x) < lightR + 4 && Math.abs(y - h.y) < lightR + 4;
 
-  // floor (affine iso transform + texture pattern); the surface has grass instead
+  // depth-sorted drawables
+  dl.length = 0;
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const v = m.t[y * m.w + x]; if (v === T_WALL && (m.seen[y * m.w + x] || nearHero(x, y))) dl.push({ k: x + y + 1, t: 0, x, y }); }
+  for (const o of G.objects) if (o.type === 'door' && o.x >= x0 && o.x <= x1 && o.y >= y0 && o.y <= y1 && (m.seen[o.y * m.w + o.x] || nearHero(o.x, o.y))) dl.push({ k: doorKey(o), t: 5, o });
+  for (const o of G.objects) {
+    if (o.surf) { if ((o.type === 'decal' && o.look !== 'tuft') || o.type === 'cryptdoor') continue;
+      const big = o.type === 'crypt' ? SURF.cryptN : 1;   // the crypt sorts by its front corner
+      if (o.x + big >= x0 && o.x <= x1 + 1 && o.y + big >= y0 && o.y <= y1 + 1) dl.push({ k: o.x + o.y + 2 * big - 1, t: 1, o }); continue; }
+    if (o.type !== 'stairs' && o.type !== 'bones' && o.type !== 'gold' && o.type !== 'mrug' && o.type !== 'door' && o.x >= x0 && o.x <= x1 && o.y >= y0 && o.y <= y1) dl.push({ k: o.x + o.y + 1, t: 1, o });
+  }
+  for (const mo of G.monsters) if (mo.x >= x0 && mo.x <= x1 + 1 && mo.y >= y0 && mo.y <= y1 + 1) dl.push({ k: mo.x + mo.y, t: 2, e: mo });
+  dl.push({ k: h.x + h.y, t: 3, e: h });
+  for (const p of G.proj) dl.push({ k: p.x + p.y, t: 4, p });
+  for (const f of G.fires) for (const q of f.parts) if (q.x > x0 - 1 && q.x < x1 + 2 && q.y > y0 - 1 && q.y < y1 + 2) dl.push({ k: q.x + q.y, t: 6, q, f });
+  dl.sort((a, b) => a.k - b.k);
+  // a lake in view: its water layer first (reflections of the depth-sorted things above), then the floor around it
+  const vis = (x, y) => m.seen[y * m.w + x] || nearHero(x, y);
+  const lk = !m.surface && m.lake ? lakeView(x0, x1, y0, y1, vis) : null;
+  if (lk) drawLake(lk, baseT, dl);
+  // floor (affine iso transform + texture pattern); the surface has grass instead. Beside a lake the floor is
+  // drawn on the water tiles too (a rounded shore leaves dry corners on them), minus the lake's outline
   if (m.surface) drawSurfaceGround(x0, x1, y0, y1); else {
+  ctx.save();
+  if (lk) { const cut = new Path2D(); cut.rect(-1e5, -1e5, 2e5, 2e5); cut.addPath(m.lake.path); ctx.clip(cut, 'evenodd'); }
   ctx.save(); ctx.transform(HW, HH, -HW, HH, 0, 0);
   ctx.beginPath();
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const v = m.t[y * m.w + x]; if ((v === T_FLOOR || v === T_OPEN || v === T_DOOR) && (m.seen[y * m.w + x] || nearHero(x, y))) ctx.rect(x, y, 1.02, 1.02); }
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const v = m.t[y * m.w + x]; if ((v === T_FLOOR || v === T_OPEN || v === T_DOOR || (lk && v === T_WATER)) && vis(x, y)) ctx.rect(x, y, 1.02, 1.02); }
   ctx.fillStyle = floorPat; ctx.fill();
   ctx.lineWidth = 0.012; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.stroke();
-  ctx.restore(); }
+  ctx.restore();
+  if (lk) { ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 12; ctx.stroke(m.lake.path); ctx.lineWidth = 5; ctx.stroke(m.lake.path); }   // damp stone along the shore
+  ctx.restore();
+  if (lk) {   // a faint highlight on the near shore's lip, and the rock banks of the far shores
+    ctx.lineCap = 'round'; ctx.strokeStyle = 'rgba(255,236,210,0.12)'; ctx.lineWidth = 1.2;
+    for (const g of m.lake.segs) if (g.near && g.k >= lk.kmin - 2 && g.k <= lk.kmax + 2) { ctx.beginPath(); ctx.moveTo(g.A[0], g.A[1]); ctx.lineTo(g.B[0], g.B[1]); ctx.stroke(); }
+    drawBanks(lk);
+  } }
 
   // floor-level props (stairs, bones, gold) and items
   G.pick.length = 0;
@@ -2922,21 +3304,6 @@ function render() {
     G.pick.push({ kind: 'item', r: fi, x: sx - s / 2 - 4, y: sy - s, w: s + 8, h: s + 10 });
   }
 
-  // depth-sorted drawables
-  dl.length = 0;
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const v = m.t[y * m.w + x]; if (v === T_WALL && (m.seen[y * m.w + x] || nearHero(x, y))) dl.push({ k: x + y + 1, t: 0, x, y }); }
-  for (const o of G.objects) if (o.type === 'door' && o.x >= x0 && o.x <= x1 && o.y >= y0 && o.y <= y1 && (m.seen[o.y * m.w + o.x] || nearHero(o.x, o.y))) dl.push({ k: doorKey(o), t: 5, o });
-  for (const o of G.objects) {
-    if (o.surf) { if ((o.type === 'decal' && o.look !== 'tuft') || o.type === 'cryptdoor') continue;
-      const big = o.type === 'crypt' ? SURF.cryptN : 1;   // the crypt sorts by its front corner
-      if (o.x + big >= x0 && o.x <= x1 + 1 && o.y + big >= y0 && o.y <= y1 + 1) dl.push({ k: o.x + o.y + 2 * big - 1, t: 1, o }); continue; }
-    if (o.type !== 'stairs' && o.type !== 'bones' && o.type !== 'gold' && o.type !== 'mrug' && o.type !== 'door' && o.x >= x0 && o.x <= x1 && o.y >= y0 && o.y <= y1) dl.push({ k: o.x + o.y + 1, t: 1, o });
-  }
-  for (const mo of G.monsters) if (mo.x >= x0 && mo.x <= x1 + 1 && mo.y >= y0 && mo.y <= y1 + 1) dl.push({ k: mo.x + mo.y, t: 2, e: mo });
-  dl.push({ k: h.x + h.y, t: 3, e: h });
-  for (const p of G.proj) dl.push({ k: p.x + p.y, t: 4, p });
-  for (const f of G.fires) for (const q of f.parts) if (q.x > x0 - 1 && q.x < x1 + 2 && q.y > y0 - 1 && q.y < y1 + 2) dl.push({ k: q.x + q.y, t: 6, q, f });
-  dl.sort((a, b) => a.k - b.k);
   for (const d of dl) {
     if (d.t === 0) drawWall(d.x, d.y);
     else if (d.t === 1) drawProp(d.o);
@@ -2955,7 +3322,9 @@ function render() {
   lctx.clearRect(0, 0, lc.width, lc.height); lctx.fillStyle = m.surface ? 'rgba(6,10,26,0.62)' : 'rgba(3,1,5,0.93)'; lctx.fillRect(0, 0, lc.width, lc.height);   // the surface: a moonlit night
   lctx.globalCompositeOperation = 'destination-out';
   const toDev = (wx, wy, lift = 0) => { const [X, Y] = iso(wx, wy); return [((X - G.camX) * z + W / 2) * DPR, ((Y - lift - G.camY) * z + H / 2) * DPR]; };
-  const hole = (wx, wy, rad, str, lift = 0) => {
+  const lit = [];   // every light, mirrored into a lake in view afterwards (a light lights its own reflection)
+  const hole = (wx, wy, rad, str, lift = 0, mirror = false) => {
+    if (!mirror) lit.push([wx, wy, rad, str, lift]);
     const [X, Y] = toDev(wx, wy, lift), r = rad * HW * 1.42 * z * DPR;
     if (X < -r || Y < -r || X > lc.width + r || Y > lc.height + r) return;
     lctx.save(); lctx.translate(X, Y); lctx.scale(1, 0.62);
@@ -2972,7 +3341,13 @@ function render() {
   for (const o of G.objects) if ((o.type === 'mlantern' || o.type === 'keeper') && Math.abs(o.x - h.x) < 18 && Math.abs(o.y - h.y) < 18) hole(o.x + 0.5, o.y + 0.5, o.type === 'keeper' ? 3.4 : 2.6, 0.85, 50);
   for (const o of G.objects) if (o.type === 'candelabrum' && Math.abs(o.x - h.x) < 18 && Math.abs(o.y - h.y) < 18) hole(o.x + 0.5, o.y + 0.5, 2.6, 0.8, 60);
   const br = G.map.bossRoom; if (br && Math.abs(br.cx - h.x) < 20 && Math.abs(br.cy - h.y) < 20) hole(br.cx + 0.5, br.cy + 0.5, 3, 0.4, 0);
+  if (lk) {
+    lctx.save(); lctx.setTransform(...baseT); lctx.translate(0, LAKE.drop); lctx.clip(m.lake.path); lctx.clip(lk.vis); lctx.setTransform(1, 0, 0, 1, 0, 0);
+    for (const [wx, wy, rad, str, lift] of lit) hole(wx, wy, rad * 0.85, str * Math.min(1, LAKE.refl * 1.2), -(lift + 2 * LAKE.drop), true);
+    lctx.restore();
+  }
   ctx.drawImage(lc, 0, 0);
+  if (lk) drawLakeLights(lk, baseT);
   ctx.globalCompositeOperation = 'lighter';
   for (const b of braziers) { const [X, Y] = toDev(b.x + 0.5, b.y + 0.5, 50); const r = 170 * z * DPR;
     const c = b.green ? '70,255,120' : '255,120,40';
@@ -3029,13 +3404,22 @@ function render() {
 // Walls are full height (WALLH) blocks. A face that looks into a room or corridor (walkable or a doorway in front
 // of it) shows the stone texture; the tops and every face toward solid ground show dirt (assets/dirt.jpg).
 const walkable = (a, b) => { const t = G.map.at(a, b); return t === T_FLOOR || t === T_OPEN; };
-const roomSide = (a, b) => { const t = G.map.at(a, b); return t === T_FLOOR || t === T_OPEN || t === T_DOOR; };
-// A wall face from A to B, WALLH tall, from a 128 x 75 cell of a wall texture.
-function face(img, sx, sy, sw, sh, A, B, shade) {
-  const ux = B[0] - A[0], uy = B[1] - A[1];
-  ctx.save(); ctx.transform(ux / sw, uy / sw, 0, WALLH / sh, A[0], A[1] - WALLH);
+const roomSide = (a, b) => { const t = G.map.at(a, b); return t === T_FLOOR || t === T_OPEN || t === T_DOOR || t === T_WATER; };
+// A wall face from A to B, from height h0 (0, or -LAKE.drop for a wall standing in a lake: it reaches down to the
+// water) to WALLH, from a 128 x 75 cell of a wall texture. While MIR (the lake's reflection pass) it draws the
+// face's mirror image about the water plane instead, fading with height toward the water's colour.
+function face(img, sx, sy, sw, sh, A, B, shade, h0 = 0) {
+  const ux = B[0] - A[0], uy = B[1] - A[1], hh = WALLH - h0;
+  ctx.save();
+  if (MIR) ctx.transform(ux / sw, uy / sw, 0, -hh / sh, A[0], A[1] + 2 * LAKE.drop + WALLH);
+  else ctx.transform(ux / sw, uy / sw, 0, hh / sh, A[0], A[1] - WALLH);
   ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw * 1.02, sh * 1.01);
   if (shade) { ctx.fillStyle = `rgba(0,0,0,${shade})`; ctx.fillRect(0, 0, sw * 1.02, sh * 1.01); }
+  if (!MIR && h0 < 0) { const yb = sh * WALLH / hh; ctx.fillStyle = 'rgba(0,8,12,0.5)'; ctx.fillRect(0, yb, sw * 1.02, sh * 1.01 - yb); }   // the wet part
+  if (MIR && LAKE.fade > 0) {   // image y = sh is the water line
+    const g = ctx.createLinearGradient(0, sh, 0, sh - LAKE.fadeH / hh * sh), d = WATER_LOOKS[LAKE.look].deepRGB;
+    g.addColorStop(0, `rgba(${d},0)`); g.addColorStop(1, `rgba(${d},${LAKE.fade})`); ctx.fillStyle = g; ctx.fillRect(0, 0, sw * 1.02, sh * 1.01);
+  }
   ctx.restore();
 }
 const SHADE_Y = 0.42, SHADE_X = 0.18;   // faces toward +y (down-left on screen) and +x (down-right)
@@ -3049,12 +3433,12 @@ function drawWall(x, y) {
   const L = iso(x, y + 1), B = iso(x + 1, y + 1), R = iso(x + 1, y), T = iso(x, y);
   const tsx = ((x * 131 + y * 71) % 4) * 128, tsy = ((x * 37 + y * 113) % 4) * 100, dirt = IMG.dirt;
   if (G.map.at(x, y + 1) !== T_WALL) {
-    face(roomSide(x, y + 1) ? IMG.wall : dirt, tsx, tsy, 128, 75, L, B, SHADE_Y);
+    face(roomSide(x, y + 1) ? IMG.wall : dirt, tsx, tsy, 128, 75, L, B, SHADE_Y, G.map.at(x, y + 1) === T_WATER ? -LAKE.drop : 0);
   }
   if (G.map.at(x + 1, y) !== T_WALL) {
-    face(roomSide(x + 1, y) ? IMG.wall : dirt, (tsx + 256) % 512, tsy, 128, 75, B, R, SHADE_X);
+    face(roomSide(x + 1, y) ? IMG.wall : dirt, (tsx + 256) % 512, tsy, 128, 75, B, R, SHADE_X, G.map.at(x + 1, y) === T_WATER ? -LAKE.drop : 0);
   }
-  wallTop([[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]], WALLH);
+  if (!MIR) wallTop([[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]], WALLH);
 }
 // A door is a wooden leaf (doorA 75 %, doorB 25 %; no frame, threshold or lintel) DOOR_T thick, filling the
 // doorway tile's room-side edge: a full tile wide and as tall as the walls. Open, it has swung 90° into the
@@ -3195,7 +3579,7 @@ function drawProp(o) {
   const hov = G.hover && G.hover.r === o;
   // shadow under the prop's base: the sprite's bottom is its front-most ground point, so a box (whose base is
   // a diamond about w wide and w/2 deep) has its base centre w/4 above that; posts stand on a small base
-  const shape = PROP_SHADOW[key];
+  const shape = G.map.at(o.x, o.y) === T_WATER ? null : PROP_SHADOW[key];   // none on water (the lake's pillars)
   if (shape) {
     const bottom = top + hh, [k, rxF, ryF, sa, sm] = shape === 'box' ? [0.25, 0.62, 0.32, 0.5] : shape === 'mound' ? [0.2, 0.58, 0.28, 0.5]
       : shape === 'tripod' ? [0.2, 0.44, 0.2, 0.75, 0.7] : [0.08, 0.46, 0.21, 0.5];   // tripod: centred between the feet, darker
@@ -3222,7 +3606,7 @@ function drawChar(e, isHero) {
   if (isHero && G.dead) { alpha = Math.max(0, 1 - G.deadT / 1.1); sy += Math.min(G.deadT, 1.1) * 14; }   // fades like a slain monster
   if (!isHero && e.b.float) sy -= 8 + Math.sin(G.time * 3 + e.x) * 4;
   const [shw, shh, sha, shm, shy] = CHAR_SHADOW[isHero ? 'hero' : e.type] || CHAR_SHADOW.hero;
-  softShadow(sx, sy0 + shy * s, shw * s, shh * s, sha * alpha, shm);
+  if (G.map.at(Math.floor(e.x), Math.floor(e.y)) !== T_WATER) softShadow(sx, sy0 + shy * s, shw * s, shh * s, sha * alpha, shm);   // none on water
   const frame = e.moving ? Math.floor(e.anim) % md.frames : (md.idle || 0), row = e.dir;
   // lunge toward facing direction
   let ox = 0, oy = 0;
@@ -3392,7 +3776,7 @@ function updateMinimap() {
   } else
   for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
     const i = y * m.w + x; if (!m.seen[i]) continue; const v = m.t[i];
-    mctx.fillStyle = v === T_WALL ? '#6d6257' : v === T_DOOR ? '#8a5a2b' : '#2d2629'; mctx.fillRect(x, y, 1, 1);
+    mctx.fillStyle = v === T_WALL ? '#6d6257' : v === T_DOOR ? '#8a5a2b' : v === T_WATER ? '#1b2b36' : '#2d2629'; mctx.fillRect(x, y, 1, 1);
   }
   for (const o of G.objects) if (o.type === 'stairs' && m.seen[o.y * m.w + o.x]) { mctx.fillStyle = '#e6c84a'; mctx.fillRect(o.x - 0.5, o.y - 0.5, 2, 2); }
   mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.fillStyle = '#ff4030'; mctx.beginPath(); mctx.arc(mm.width / 2, mm.height / 2, 3, 0, 7); mctx.fill();
@@ -3566,7 +3950,9 @@ function adaptRes(real) {
   PERF.sum += real; PERF.n++; PERF.t += real;
   if (PERF.t < 2) return;
   const avg = PERF.sum / PERF.n; PERF.fps = Math.round(1 / avg); PERF.t = PERF.sum = PERF.n = 0;
-  if ($('dbgFps')) $('dbgFps').textContent = PERF.fps + ' fps · scale ' + DPR;
+  // under 28 fps the lakes' ripple refraction goes off first (for the session), under 25 the render scale drops
+  if (G && G.running && DEBUG.autoRes && avg > SLOW_REFRACT && REFRACT) REFRACT = false;
+  if ($('dbgFps')) $('dbgFps').textContent = PERF.fps + ' fps · scale ' + DPR + (REFRACT ? '' : ' · refraction off');
   if (G && G.running && DEBUG.autoRes && avg > SLOW_FRAME && DPR > 1) { DPR_CAP = Math.max(1, DPR - 0.25); resize(); }
 }
 function frame(now) {

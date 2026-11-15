@@ -29,7 +29,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `assets/sfx/` | Ghoul moans and grunts (MP3). |
 | `assets/music/explore-instrumental.mp3`, `combat-instrumental.mp3`, `explore.mp3`, `combat.mp3`, `surface-1.mp3`, `surface-2.mp3` | The music: exploration and combat loops, each instrumental and with a Latin choir, and two cheerful instrumental surface tracks. See [Music](#music). |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
-| `lake-prototype.html` | A standalone prototype of underground lakes (not part of the game): still water set a few pixels below the floor, a mirrored reflection of the walls, props and characters, rock banks on the far shores, and ripples from drips. A panel compares the options (tile or rounded shore, ripple rings or refraction, water colour, depth, reflection strength). Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page lake-prototype.html --skip 'assets/*' --inline` (the seven images it uses). |
+| `lake-prototype.html` | A standalone prototype of underground lakes (not loaded by the game, which now has lakes: see [Lakes](#lakes)): still water set a few pixels below the floor, a mirrored reflection of the walls, props and characters, rock banks on the far shores, and ripples from drips. A panel compares the options (tile or rounded shore, ripple rings or refraction, water colour, depth, reflection strength). Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page lake-prototype.html --skip 'assets/*' --inline` (the seven images it uses). |
 | `sandbox.js` | Test scenarios, loaded with `?sandbox` and inlined into the Claude artifact: see [Sandbox](#sandbox). |
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
 | `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
@@ -108,6 +108,12 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     - Four cave spiders and two Pit Demons (no champions) are placed in the room at least 5 tiles from the hero,
       asleep: their calm never ends, so only a hit wakes one. Until then they wander slowly.
     - Shows the draw time and the charge, with room to run.
+- **Lakes:**
+  - **The underground lake** (depth 8, `LAKE_AT`, which always has the lake room): the hero stands on the dry
+    shore where it faces the middle of the lake (the dry tile one step back from the water nearest the room's
+    diagonal), facing the water. Monsters within 14 tiles that aren't the lake's wraiths are removed. The bar
+    shows the wraiths left, how many pursue, the nearest one's distance, whether ripple refraction is on (or off:
+    under 28 fps) and the frame rate.
 - **Music:**
   - **Pack fight** (depth 3): monsters within 18 tiles are removed, and five skeletons (no champions) are placed
     3.5–6.5 tiles from the hero, already pursuing. Shows the combat music starting, ending at once when the last
@@ -399,7 +405,65 @@ and the picker shows no saved heroes.
   take priority over everything else. A hovered thing is brightened, objects show a name label, and the
   cursor becomes a crosshair over monsters or a pointer over interactables.
 - **Minimap** (top right, toggled with `M`). An isometric overview of explored tiles, centred on the hero,
-  redrawn 4× per second. Walls are tan, doors brown, floor dark, the stairs gold, and the hero red.
+  redrawn 4× per second. Walls are tan, doors brown, floor dark, water dark blue, the stairs gold, and the hero red.
+
+## Lakes
+
+Still, dark, mirror-like underground water (`T_WATER`), so far only in the lake room (see
+[Dungeon generation](#dungeon-generation)). The settings are `LAKE`: the water lies `drop` 8 px below the floor,
+reflects at 70 % (`refl`), and a reflection fades by 45 % (`fade`) over 120 px of height (`fadeH`). Its colour is
+*ink* (`WATER_LOOKS.ink`: deep `#030407`, tint `rgba(4,8,14,0.42)`); two more looks are kept for future lakes,
+*teal* and *moss*. The way it is drawn was tried out first in the standalone `lake-prototype.html` (see Files).
+
+- **The outline** (`lakeGeom`, once per level, `map.lake`): the water tiles' boundary edges, chained into loops,
+  each edge marked when a wall is beyond it; then rounded by three rounds of Chaikin corner cutting (cuts at ¼ and
+  ¾ of every edge), except edges along walls, which stay straight (the wall stands in the water). It is kept as
+  a `Path2D` in screen (iso) coordinates and as segments, each `far` (the dry floor beyond it is farther from the
+  camera: its outward normal has `nx + ny < 0`) or `near`. `inLake(x, y)` tests a world point against it.
+- **Order of drawing** (in `render`, before the floor; the depth-sorted list is built first). The visible part
+  (`lakeView`): water tiles and tiles next to water (a rounded shore reaches into them) that are seen or near the
+  hero, as a path of their diamonds, with the range of `x + y` they cover. Everything of the water is clipped to
+  the outline moved down by `drop`, and to that path.
+  1. **The reflection** (`drawLake`, into its own canvas at half the resolution, which softens it on every browser,
+     WebKit included): the walls, props and characters of the depth-sorted list whose reflection can reach the
+     visible water (`x + y` from 10 below to 1 above its range) are drawn again as mirror images about the water
+     plane: a point `h` px above the floor at screen y appears at `y + h + 2·drop`. For it `ctx` is switched to that
+     canvas and `MIR` is set: `face` then mirrors a wall face (wall tops are not drawn); a sprite (`mirSprite`,
+     via `mirrorProp`, `mirrorChar`) is first faded with height on a scratch canvas (`destination-out` gradient),
+     then flipped about its ground point (a flipped prop also horizontally). Flat props (stairs, bones, gold, rug),
+     doors, fires and projectiles have no reflection; dead monsters fade in it as they do above.
+  2. **The water layer** (its own canvas, then drawn onto the scene): the deep colour; the lake bed (the floor
+     texture) showing through near the shore, as three wide strokes along the outline (46, 28 and 12 px at 12, 16
+     and 20 %), 5 px lower; the reflection at 70 %; the tint; a soft dark shadow (7 px) under the near shore's lip;
+     at the foot of the far shores a dark contact line (3 px) and a faint light meniscus line; then the ripples.
+  3. **The floor** is drawn on dry tiles and on the water tiles too (a rounded shore leaves dry corners on them),
+     clipped to everything outside the outline (even-odd), with damp stone along the shore (two dark strokes, 12
+     and 5 px, 22 %). The near shore's lip gets a faint light line.
+  4. **Rock banks** (`drawBanks`): on the far shores the water's 8 px drop shows as a strip of rock (the wall
+     texture, darkened by the direction it faces like a wall face, and 25 % for the wet), and its mirror image
+     right under it. Walls standing in the water reach down to it (`face` from `-drop`, the wet part darker),
+     and their reflections start there.
+  5. **The lights** are mirrored too: after the usual lighting holes (see Rendering), every light is cut again,
+     clipped to the visible water, at its mirror point (`lift → −(lift + 2·drop)`), 85 % as wide and 84 % as
+     strong, so a light lights its own reflection. Then, additively, the braziers' and candelabra's flames leave
+     long vertical streaks of glow on the water (green for a green brazier), flickering.
+  - **No shadows** are drawn on water (a hovering wraith, a pillar in the lake).
+- **Drips** (`updateLake`): on average 12 a minute (`LAKE.drips`, exponential gaps) a drop falls on a random point
+  of the lake within 10 tiles of the hero that has been seen: a bright streak accelerating down from 320 px for
+  0.55 s, then a splash (`splash`): a ripple, a smaller one 0.28 s later (the rebound droplet falling back, 45 %),
+  6 droplets thrown up, and the `drip` sound. They are drawn after the lighting, additively, so they catch the eye
+  in the dark.
+- **Ripples** grow at 24 px/s (`rspeed`) and last 3.8 s (`rlife`), their strength rising over 0.08 s and then
+  falling as `(1 − t / life)^1.6`. Two kinds, both on:
+  - **Rings:** up to three ellipses 7.5 px apart (`lambda`), half as tall as wide (they lie on the water), each a
+    light line (the look's `ring` colour) with a dark one 1.5 px below it.
+  - **Refraction** (`refract`): for each ripple, the pixels of the water layer in the box around it
+    (`getImageData` / `putImageData`) are displaced radially by a short wave packet (a sine of wavelength 7.5 px
+    under a Gaussian envelope), so the reflections bend where it passes, and its slopes are lightened or darkened
+    as if lit from the far side. Under 28 fps it is switched off for the session (see [Main loop](#main-loop)).
+- **Loot over water.** A drop where a wraith dies over the lake washes ashore: `dropSpot` keeps searching, ring by
+  ring up to 40 tiles, until it finds a free dry tile (the nearest ring with one, picked at random on it).
+- **The minimap** shows explored water dark blue.
 
 ## Main loop
 
@@ -416,6 +480,10 @@ work.
   by 0.25 (`DPR_CAP`), down to 1, and the canvas is resized. It never goes back up during the session. On a
   phone with a 3× screen, 1.5 is still sharp, and each step cuts the pixels drawn a lot (2 → 1.75 is 23 %
   fewer). This matters most for the home-screen app, which has the whole screen to draw.
+- **Ripple refraction off under 28 fps.** In the same check, a 2 s average under 28 fps (`SLOW_REFRACT`) while
+  Auto resolution is on switches the lakes' ripple refraction off (`REFRACT`) for the session; only the cheaper
+  rings are drawn then (see [Lakes](#lakes)). It comes first, before the render scale drops at 25 fps. Switching
+  Auto resolution off turns refraction back on.
 
 Update and render run inside a `try/catch`: if something goes wrong, the
 canvas state is reset, the first error is logged to the console, and the game keeps running instead of
@@ -471,7 +539,7 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
 
 Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, above).
 
-- Map size `min(44 + 2d, 80)` square. Up to `min(9 + ⌊d/2⌋, 18)` rectangular rooms of 5–10 × 5–10 tiles,
+- Map size `min(44 + 2d, 80)` square (16 tiles more at the lake room's depth, see below). Up to `min(9 + ⌊d/2⌋, 18)` rectangular rooms of 5–10 × 5–10 tiles,
   kept at least 3 tiles apart.
 - Each room is joined to the nearest earlier room by an L-shaped corridor, so the whole level is connected.
   `2 + ⌊d/4⌋` extra random corridors add loops. A corridor is 1 tile wide, or 2 wide with 65 % chance
@@ -524,6 +592,28 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
   depth 3, 13 at depth 7), never champions, of the types unlocked at depth `d − 4` or earlier, skeletons always
   allowed and weighted ×3 (depth 3: skeletons only; depths 5 and 7: skeletons, ghouls, spiders; depth 9: also
   wraiths).
+- **The lake room** (`LAKE_AT`: depth 8, the first depth after the first boss fight at depth 6 that has no big
+  room; `lakeRoomAt`). See [Lakes](#lakes) for how it looks and behaves.
+  - **Placement.** A huge room, 28–30 tiles a side (`LAKE_ROOM`), in the map's top-left corner (`x = y = 2`). Its
+    spot is kept free from the start (the start room and the others are never placed within 3 tiles of it), and
+    it is placed first, right after the start room, so it always fits. Its "centre" (`cx`, `cy`: where corridors
+    lead, and what the connectivity checks use) is on its dry shore, 3 tiles in from its south-east corner. With
+    nothing north or west of it, every corridor reaches it through its east or south wall. Like the boss and big
+    rooms it is entered only through doors. It is never the stairs', boss, big, keeper or lone monster's room.
+  - **The lake.** After the walls are built, its tiles become water (`T_WATER`) except a dry shore 4 tiles wide
+    (`LAKE_SHORE`) along the east and south walls. The shoreline is a quarter superellipse around the north-west
+    corner (`((lx + 0.5) / A)^2.4 + ((ly + 0.5) / B)^2.4 < 1 + n`, with `A`, `B` the room's sides minus 4.5 and `n` a
+    sum of four sine waves of random phase, ±0.29 at most), and any dry pocket not connected to the shore is
+    flooded as well. The water covers 55–62 % of the room. Its far shores are the room's north and west walls,
+    20 and more tiles from the nearest dry tile: out of sight (see Fog) and out of reach.
+  - **On the shore:** 5 braziers, 2 bone piles and (50 %) a chest with the big room's better loot, on dry tiles
+    next to the water that the camera sees, at least 5 (bones and chest: 3) tiles apart.
+  - **In the water:** 4 broken pillars (decor, blocking, no shadow) 2–7 tiles from the shore with water all
+    around them, at least 5 tiles apart. From the shore they are what the lake visibly reflects.
+  - **A group of wraiths** (8–10, `LAKE_WRAITHS`, never champions, `lake: true`) hovering over the water: within
+    6.5 tiles of a point 45 % of the way from the north-west corner to the shore, on tiles with water all around,
+    at least 1.6 tiles apart. They wake and fight like any wraith; only wraiths can cross water (see
+    [Movement & pathfinding](#movement--pathfinding)). The room has no other monsters.
 - **Lone monsters** (`LONE_AT`): a foretaste of a type one depth before it starts to appear. One random normal
   room (not the start room) holds a single one of it (normal tier, never a champion) and nothing else:
   - **depth 3:** a Wraith (wraiths appear from depth 4);
@@ -538,6 +628,7 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
   usual edge rule (solid wall behind it, no doorway next to it), so it never blocks the corridor.
 - **Green brazier.** When there is a boss room, with 50 % chance one room joined to the boss room by a corridor gets an extra brazier
   with green flames, a hint of what lies next door.
+- Props are only placed on dry floor (`T_FLOOR`), never on water, except the lake's pillars.
 - Blocking props are only placed on a room's edge, against solid wall, and never next to a doorway or
   corridor mouth, so they can't cut off a path.
 - **Props stay in view.** The full-height south and east walls hide about the last two rows and columns of a
@@ -563,7 +654,12 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
 ## Movement & pathfinding
 
 - **Collision.** Entities are circles (hero radius 0.28). A position is valid when all four corners of the
-  circle's bounding box are on walkable tiles: floor or open door, with no blocking prop. Movement resolves
+  circle's bounding box are on walkable tiles: floor or open door, with no blocking prop.
+- **Water** (`T_WATER`, a lake) blocks everyone but wraiths, which hover (`MON` `float`, `flies(e)`). `blocked`
+  lets water through while the global `FLY` is set: during each flying monster's update (`updateMonster`, so its
+  A\* paths, straight walks, wandering and retreats can cross a lake) and inside `moveEnt` for the entity it moves
+  (pushes and separation). Water doesn't block sight or projectiles (only walls and closed doors do), so arrows
+  and wraith bolts fly over it. A hero click on water walks to the nearest reachable dry tile (partial path). Movement resolves
   the x and y axes separately, so entities slide along walls.
 - **A\*** runs on the 8-connected tile grid with a binary heap and octile heuristic. Diagonal steps are not
   allowed past corners. A "near" mode stops on any free tile adjacent to the goal from which the goal is one
@@ -907,7 +1003,8 @@ Blue for magic items, gold for rare ones, as before.
 ### Fire bombs
 
 A **fire bomb** is a clay pot of lamp oil, stoppered with an oil-soaked rag. It is thrown, shatters where it
-lands, and sets the ground on fire. The constants are `BOMB` and `FIRE` in the code.
+lands, and sets the ground on fire. The constants are `BOMB` and `FIRE` in the code. One that lands in a lake
+sinks with a big splash (a ripple 1.6× a drip's and the drip sound) and starts no fire.
 
 - **The item.** Fire bombs aren't in `BASES`, so they never drop as a random weapon. A stack of them is one item
   (`makeBombs(n)`: base `firebomb`, slot `weapon`, kind `bomb`, with a `count`), shown with its count like a
@@ -1127,12 +1224,13 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 - **Music** (always shown, under the frame rate) — the current mood, file and play number, e.g.
   `music: explore · explore (play 2) · demon level` (see [Music](#music)).
 - **Frame rate** (always shown under the switches) — the average frames per second over the last 2 s and the
-  current render scale, e.g. `58 fps · scale 2` (see [Main loop](#main-loop)).
+  current render scale, e.g. `58 fps · scale 2`, plus `· refraction off` once the lakes' ripple refraction has
+  been switched off (see [Main loop](#main-loop)).
 - **Pursuit indicator** — a red dot (5 px, black outline) above every monster that is pursuing the hero
   (`state === 'chase'`).
 - **Auto resolution** (on by default) — the automatic render scale of [Main loop](#main-loop). Switching it off
-  puts the scale back to `min(2, devicePixelRatio)` at once and keeps it there (the frame-time fix, real game
-  speed at a low frame rate, stays on either way).
+  puts the scale back to `min(2, devicePixelRatio)` at once and keeps it there, and turns ripple refraction back
+  on (the frame-time fix, real game speed at a low frame rate, stays on either way).
 
 ## HUD
 
@@ -1271,7 +1369,9 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
   use a generic death sound.
 - **World.** A door: the latch, a long hinge creak and the door settling. A chest: the hasp, a shorter, higher
   creak and the lid falling back; a sealed guardian's chest rattles. Picking things up is a faint rustle; gold
-  a few faint coin clinks. Potions are gulps, stairs footsteps going down, plus tones for level-ups.
+  a few faint coin clinks. Potions are gulps, stairs footsteps going down, plus tones for level-ups. A drop
+  falling into a lake (`drip`) is a short rising sine *plink* (900–1600 Hz up to almost twice that in 0.11 s),
+  quiet, with the reverb as the cave's echo.
 - **Fire bombs.**
   - A throw is a soft rising whoosh.
   - The impact is clay breaking (a thud and shards, like an urn), then the oil catching: a deep rushing whoomp.
