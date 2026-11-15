@@ -387,7 +387,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 70;
+const VERSION = 71;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1791,14 +1791,23 @@ function updateBomb(p, dt) {
   for (let i = 1; i <= n; i++) {
     const qx = p.x + (nx - p.x) * i / n, qy = p.y + (ny - p.y) * i / n;
     if (opaque(Math.floor(qx), Math.floor(qy))) { shatter(p, p.x + (nx - p.x) * (i - 1) / n, p.y + (ny - p.y) * (i - 1) / n); return; }
+    // a hard object standing in a lake (a broken pillar): the bomb shatters against it if it passes within 0.45
+    // tiles of its middle below its top (the bomb's height along the arc at that point)
+    const ui = (p.u || 0) + (u - (p.u || 0)) * i / n, z = 44 * (1 - ui) + 4 * p.peak * ui * (1 - ui);
+    for (const o of G.objects) {
+      if (!o.block || G.map.at(o.x, o.y) !== T_WATER || Math.hypot(qx - o.x - 0.5, qy - o.y - 0.5) > 0.45) continue;
+      const [, , , ph] = META.props[o.type], top = ph * PROP_STYLE[o.type][0];
+      if (z < top) { shatter(p, qx, qy, true); return; }
+    }
   }
+  p.u = u;
   p.x = nx; p.y = ny; p.z = 44 * (1 - u) + 4 * p.peak * u * (1 - u);
   if (rnd() < dt * 40) G.fx.push({ type: 'spark', x: p.x, y: p.y, vx: 0, vy: 0, z: p.z + 12, vz: 20, t: 0, dur: 0.3, color: '255,180,70' });
   if (u >= 1) shatter(p, p.x, p.y);
 }
-function shatter(p, x, y) {
+function shatter(p, x, y, hard = false) {   // hard: against something solid (a pillar in a lake), so it breaks even over water
   p.life = 0;
-  if (G.map.at(Math.floor(x), Math.floor(y)) === T_WATER) { sfx('drip', { x, y }); splash(x, y, 1.6); return; }   // into a lake: a splash, no fire
+  if (!hard && G.map.at(Math.floor(x), Math.floor(y)) === T_WATER) { sfx('drip', { x, y }); splash(x, y, 1.6); return; }   // into a lake: a splash, no fire
   sfx('shatter', { x, y });
   for (let i = 0; i < 12; i++) G.fx.push({ type: 'spark', x, y, vx: (rnd() - 0.5) * 4, vy: (rnd() - 0.5) * 4, z: 8, vz: 50 + rnd() * 90, t: 0, dur: 0.55, color: '150,80,50' });   // terracotta shards
   for (let i = 0; i < 16; i++) { const a = rnd() * 7; G.fx.push({ type: 'spark', x, y, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3, z: 10, vz: 40 + rnd() * 60, t: 0, dur: 0.6, color: '255,190,80' }); }

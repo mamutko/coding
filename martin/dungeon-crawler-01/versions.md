@@ -9,15 +9,15 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v66–v70 — the underground lake (2026-11-15)
+## v66–v71 — the underground lake (2026-11-15)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 70`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 71`)*
 
 - Depth 8 has a huge **lake room** (28–30 tiles a side) in a corner of a larger map: most of it is a still, dark
   underground lake whose far shores lie out of sight and out of reach. The dry shore along its near walls has
   braziers, bones and sometimes a chest; broken pillars stand in the water.
 - A group of 8–10 **wraiths** hovers over the water. Wraiths are the only monsters that can cross water; loot
-  from one slain over the lake washes ashore. A fire bomb that lands in the water sinks with a splash; a fire on the shore spreads its burning oil over the water.
+  from one slain over the lake washes ashore. A fire bomb that lands in the water sinks with a splash, but one that hits a pillar standing in the water breaks against it; a fire on the shore spreads its burning oil over the water.
 - **Lakes** are drawn as mirror-like water 8 px below the floor, with rounded shores, rock banks on the far
   shores, reflections of walls, props, monsters, lights, projectiles (arrows, wraith bolts, fire bombs in flight) and fire (bomb fires and burning monsters), and drops falling from the ceiling that leave ripples
   (rings plus a refraction that bends the reflections, and a clearly audible drip: a splash tick, a plink and the rebound's smaller plink). Under 28 fps (with Auto resolution on)

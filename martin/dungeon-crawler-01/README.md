@@ -1011,7 +1011,11 @@ Blue for magic items, gold for rare ones, as before.
 
 A **fire bomb** is a clay pot of lamp oil, stoppered with an oil-soaked rag. It is thrown, shatters where it
 lands, and sets the ground on fire. The constants are `BOMB` and `FIRE` in the code. One that lands in a lake
-doesn't shatter: it sinks with a big splash (a ripple 1.6× a drip's and the drip sound) and starts no fire. A fire
+doesn't shatter: it sinks with a big splash (a ripple 1.6× a drip's and the drip sound) and starts no fire. But
+something hard standing in the water breaks it: a bomb whose path passes within 0.45 tiles of the middle of a
+blocking prop on a water tile (the lake's broken pillars) below that prop's top (its sprite height × scale, against
+the bomb's height along its arc at that point) shatters there (`shatter(…, hard)`), and its fire burns on the water
+around it. A fire
 on the shore spreads over the water within its circle (the oil burns on the water's surface), and burns whatever
 hovers there.
 
