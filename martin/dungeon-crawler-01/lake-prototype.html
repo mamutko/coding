@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crypt Lake Prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  /* Layout: the scene fills the screen; a floating options panel (a collapsible bottom sheet on phones). One dark look, like the game. */
+  :root {
+    --bg: #040205; --panel: rgba(16, 12, 9, 0.88); --line: #3d3024; --fg: #e8dcc4; --muted: #a49378; --gold: #d8b45a;
+    --on: #2b4a52; --onfg: #d9f1f6;
+    --display: Cinzel, Georgia, serif; --body: "IM Fell English", Georgia, serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; }
+  body { font-family: var(--body); font-size: 15px; }
+  #cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #panel { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: calc(12px + env(safe-area-inset-right, 0px));
+    width: 300px; max-height: calc(100% - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow: auto;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 14px; box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(3px); }
+  #panel header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  h1 { font-family: var(--display); font-size: 17px; letter-spacing: 0.06em; margin: 0; color: var(--gold); font-weight: 700; }
+  .hint { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.35; }
+  .row { display: flex; flex-direction: column; gap: 4px; }
+  .lab { font-family: var(--display); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+  .lab output { font-family: var(--body); letter-spacing: 0; text-transform: none; color: var(--fg); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { flex: 1; background: transparent; color: var(--fg); border: 0; border-left: 1px solid var(--line); padding: 6px 4px;
+    font: 14px var(--body); cursor: pointer; }
+  .seg button:first-child { border-left: 0; }
+  .seg button[aria-pressed="true"] { background: var(--on); color: var(--onfg); }
+  input[type=range] { width: 100%; accent-color: var(--gold); margin: 0; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+  .checks label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  input[type=checkbox] { accent-color: var(--gold); }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btn { background: #241b13; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: 14px var(--body); cursor: pointer; }
+  .btn:hover, .seg button:hover { filter: brightness(1.25); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+  #toggle { display: none; }
+  #status { position: fixed; left: calc(12px + env(safe-area-inset-left, 0px)); top: calc(10px + env(safe-area-inset-top, 0px));
+    font: 13px var(--body); color: var(--muted); text-shadow: 0 0 3px #000; pointer-events: none; }
+  @media (max-width: 640px) {
+    #panel { left: 0; right: 0; top: auto; bottom: 0; width: auto; max-height: 55%; border-radius: 12px 12px 0 0; border-bottom: 0;
+      padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+    #panel.closed > :not(header) { display: none; }
+    #toggle { display: inline-block; }
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="status">Loading…</div>
+<div id="panel" class="closed">
+  <header><h1>Crypt Lake</h1><button class="btn" id="toggle" aria-expanded="false">Options</button></header>
+  <p class="hint">Tap the floor to walk, tap the water to drip. The lake is still; only falling drops disturb it.</p>
+  <div class="row"><div class="lab">Shore</div>
+    <div class="seg" data-opt="shore"><button data-v="tile">Tile edges</button><button data-v="round">Rounded</button></div></div>
+  <div class="row"><div class="lab">Ripples</div>
+    <div class="seg" data-opt="ripple"><button data-v="rings">Rings</button><button data-v="refract">Refraction</button><button data-v="both">Both</button></div></div>
+  <div class="row"><div class="lab">Water</div>
+    <div class="seg" data-opt="tint"><button data-v="teal">Teal</button><button data-v="ink">Ink</button><button data-v="moss">Moss</button></div></div>
+  <div class="row"><label class="lab" for="drop">Water below the floor <output id="dropV"></output></label><input type="range" id="drop" min="0" max="18" step="1"></div>
+  <div class="row"><label class="lab" for="refl">Reflection <output id="reflV"></output></label><input type="range" id="refl" min="0" max="100" step="5"></div>
+  <div class="row"><label class="lab" for="fade">Reflection fades with height <output id="fadeV"></output></label><input type="range" id="fade" min="0" max="100" step="5"></div>
+  <div class="row"><label class="lab" for="drips">Drips per minute <output id="dripsV"></output></label><input type="range" id="drips" min="0" max="40" step="1"></div>
+  <div class="checks">
+    <label><input type="checkbox" id="soft"> Soft reflection</label>
+    <label><input type="checkbox" id="shallows"> Shallows</label>
+    <label><input type="checkbox" id="light"> Lighting</label>
+    <label><input type="checkbox" id="sound"> Drip sound</label>
+  </div>
+  <div class="btns">
+    <button class="btn" id="dripNow">Drip now</button>
+    <button class="btn" id="north">Hero to the north shore</button>
+    <button class="btn" id="south">Hero to the south shore</button>
+    <button class="btn" id="zout" aria-label="Zoom out">−</button>
+    <button class="btn" id="zin" aria-label="Zoom in">+</button>
+  </div>
+</div>
+<script>
+'use strict';
+// =====================================================================================
+//  Underground lake prototype for the crypt (dungeon-crawler-01). The same projection, tile size, walls,
+//  props and characters as the game; no game loop beyond walking and drips.
+//  How it works (see the README, Lakes, once it is in the game):
+//   - The lake is a set of water tiles. Its outline is traced from the tile edges (optionally rounded by
+//     Chaikin corner cutting, except along walls) and the water surface is that outline drawn D px lower.
+//   - The reflection is the scene drawn again, mirrored about the water plane: a point h px above the floor
+//     at screen y appears at y + h + 2D. It is drawn into its own canvas (half resolution when soft), faded
+//     with height, and clipped to the water.
+//   - Shores: where the floor is on the far side, the gap between the floor edge and the lower water shows a
+//     D px rock bank (and its reflection); on the near side the floor's lip overlaps the water. Walls standing
+//     in the water reach down to it.
+//   - Drips fall from the ceiling and start ripples: drawn rings, a refraction (displacement) of the water
+//     layer's pixels, or both. The lights are mirrored into the water too.
+// =====================================================================================
+const TW = 96, TH = 48, HW = TW / 2, HH = TH / 2, WALLH = 72, SHADE_Y = 0.42, SHADE_X = 0.18;
+const iso = (x, y) => [(x - y) * HW, (x + y) * HH];
+const MAP = [
+  '#################',
+  '#....~~~~~......#',
+  '#...~~~~~~~~~~..#',
+  '#..~~~~~~~~~~~..#',
+  '#..~~~~~~~~~~~~.#',
+  '#...~~~~~~~~~~~.#',
+  '#....~~~~~~~~...#',
+  '#......~~~~.....#',
+  '#...............#',
+  '#...........~~..#',
+  '#...........~~..#',
+  '#...............#',
+  '#################'];
+const MW = MAP[0].length, MH = MAP.length;
+const T = (x, y) => x < 0 || y < 0 || x >= MW || y >= MH ? '#' : MAP[y][x];
+const isWall = (x, y) => T(x, y) === '#', isWater = (x, y) => T(x, y) === '~', isFloor = (x, y) => T(x, y) === '.';
+
+const SRC = { floor: 'assets/floor.jpg', wall: 'assets/wall.jpg', dirt: 'assets/dirt.jpg', props: 'assets/props.webp',
+  hero: 'assets/hero.webp', skeleton: 'assets/skeleton.webp', wraith: 'assets/wraith.webp' };
+const CHARS = { hero: { fw: 144, fh: 152, frames: 8, idle: 3, footY: 128, fpt: 5 }, skeleton: { fw: 176, fh: 152, frames: 8, idle: 3, footY: 128, fpt: 5 },
+  wraith: { fw: 102, fh: 152, frames: 4, idle: 0, footY: 128, fpt: 2 } };
+const PROPS = { brazier: [571, 0, 104, 167], banner: [1593, 0, 84, 206], pillar: [1679, 0, 98, 191], candelabrum: [1339, 0, 84, 196],
+  sarcophagus: [1779, 0, 154, 144], skullpile: [1425, 0, 166, 136], urn: [827, 0, 95, 151] };
+const PROP_STYLE = { brazier: [0.62, 10], banner: [0.66, 6], pillar: [0.72, 8], candelabrum: [0.62, 6], sarcophagus: [0.64, 10], skullpile: [0.42, 8], urn: [0.52, 8] };
+const POST = [0.08, 0.46, 0.21, 0.5, 0.55];
+const PROP_SHADOW = { brazier: [0.2, 0.44, 0.2, 0.75, 0.7], banner: POST, pillar: POST, candelabrum: POST, urn: POST,
+  sarcophagus: [0.25, 0.62, 0.32, 0.5, 0.55], skullpile: [0.2, 0.58, 0.28, 0.5, 0.55] };
+const objects = [
+  { k: 'brazier', x: 2, y: 2, light: [4.2, 40, 0.95], flame: 52 }, { k: 'banner', x: 4, y: 1 }, { k: 'pillar', x: 10, y: 1 },
+  { k: 'candelabrum', x: 14, y: 1, light: [2.6, 60, 0.8], flame: 108 }, { k: 'sarcophagus', x: 6, y: 9 }, { k: 'skullpile', x: 14, y: 7 },
+  { k: 'urn', x: 1, y: 8 }, { k: 'brazier', x: 15, y: 10, light: [4.2, 40, 0.95], flame: 52 }];
+
+// options (the panel)
+const O = { shore: 'round', ripple: 'both', tint: 'teal', drop: 8, refl: 0.7, fade: 0.45, drips: 12, soft: true, shallows: true, light: true, sound: false };
+const TINTS = {
+  teal: { deep: '#061419', deepRGB: '6,20,25', tint: 'rgba(12,52,62,0.36)', ring: '190,226,240' },
+  ink:  { deep: '#030407', deepRGB: '3,4,7', tint: 'rgba(4,8,14,0.42)', ring: '205,212,228' },
+  moss: { deep: '#0a1309', deepRGB: '10,19,9', tint: 'rgba(32,54,26,0.38)', ring: '205,230,190' } };
+const FADEH = 120;                                       // px of height over which a reflection fades by O.fade
+const RSPEED = 24, RLIFE = 3.8, LAMBDA = 7.5;            // ripples: px/s, s, wavelength px
+
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const wc = document.createElement('canvas'), wctx = wc.getContext('2d', { willReadFrequently: true });   // the water layer
+const rc = document.createElement('canvas'), rctx = rc.getContext('2d');   // the mirrored scene
+const lc = document.createElement('canvas'), lctx = lc.getContext('2d');   // lighting
+const tmp = document.createElement('canvas'), tctx = tmp.getContext('2d'); // one sprite, faded, before mirroring
+let W = 0, H = 0, DPR = 1, Z = 1, camX = 0, camY = 0, time = 0, D = O.drop, TF = [1, 0, 0, 1, 0, 0];
+const IMG = {};
+
+// ---------- the lake outline ----------
+// Boundary edges of the water tiles, chained into loops (water on the left when walking a loop in screen
+// terms; the outward normal of an edge a -> b is (dy, -dx)). Each edge remembers if a wall is on its far side.
+function traceLoops() {
+  const edges = [];
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+    if (!isWater(x, y)) continue;
+    if (!isWater(x, y - 1)) edges.push({ a: [x, y], b: [x + 1, y], w: isWall(x, y - 1) });
+    if (!isWater(x + 1, y)) edges.push({ a: [x + 1, y], b: [x + 1, y + 1], w: isWall(x + 1, y) });
+    if (!isWater(x, y + 1)) edges.push({ a: [x + 1, y + 1], b: [x, y + 1], w: isWall(x, y + 1) });
+    if (!isWater(x - 1, y)) edges.push({ a: [x, y + 1], b: [x, y], w: isWall(x - 1, y) });
+  }
+  const from = new Map(), key = p => p[0] + ',' + p[1];
+  for (const e of edges) { const k = key(e.a); if (!from.has(k)) from.set(k, []); from.get(k).push(e); }
+  const used = new Set(), loops = [];
+  for (const e0 of edges) {
+    if (used.has(e0)) continue;
+    const pts = [], w = []; let e = e0;
+    while (e && !used.has(e)) { used.add(e); pts.push(e.a); w.push(e.w); e = (from.get(key(e.b)) || []).find(f => !used.has(f)); }
+    loops.push({ pts, w });
+  }
+  return loops;
+}
+// Chaikin corner cutting; edges along walls stay straight (the wall face meets the water there).
+function chaikin(L, n) {
+  let { pts, w } = L;
+  for (let it = 0; it < n; it++) {
+    const P = [], F = [], m = pts.length;
+    for (let i = 0; i < m; i++) {
+      const a = pts[i], b = pts[(i + 1) % m], wi = w[i], wn = w[(i + 1) % m];
+      const s = wi ? a : [a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], e = wi ? b : [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75];
+      P.push(s); F.push(wi); P.push(e); F.push(wi && wn);
+    }
+    pts = []; w = [];
+    for (let i = 0; i < P.length; i++) { const q = P[(i + 1) % P.length]; if (Math.abs(P[i][0] - q[0]) + Math.abs(P[i][1] - q[1]) < 1e-9) continue; pts.push(P[i]); w.push(F[i]); }
+  }
+  return { pts, w };
+}
+let LOOPS = [], SEGS = [], WATER2D = null;
+function buildLake() {
+  LOOPS = traceLoops().map(L => O.shore === 'round' ? chaikin(L, 3) : L);
+  SEGS = [];
+  WATER2D = new Path2D();   // world coordinates, for hit tests
+  for (const L of LOOPS) {
+    const m = L.pts.length;
+    L.pts.forEach((p, i) => i ? WATER2D.lineTo(p[0], p[1]) : WATER2D.moveTo(p[0], p[1])); WATER2D.closePath();
+    for (let i = 0; i < m; i++) {
+      const a = L.pts[i], b = L.pts[(i + 1) % m], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
+      const n = [dy / l, -dx / l];          // toward the shore
+      SEGS.push({ a, b, wall: L.w[i], n, far: n[0] + n[1] < -0.02, near: n[0] + n[1] > 0.02 });
+    }
+  }
+}
+const hit = document.createElement('canvas').getContext('2d');   // untransformed, for point-in-lake tests
+const inWater = (x, y) => hit.isPointInPath(WATER2D, x, y);
+function waterPath(c, dy) {   // the outline, dy px lower, in the current (world -> screen) transform
+  c.beginPath();
+  for (const L of LOOPS) { L.pts.forEach((p, i) => { const [X, Y] = iso(p[0], p[1]); i ? c.lineTo(X, Y + dy) : c.moveTo(X, Y + dy); }); c.closePath(); }
+}
+
+// ---------- patterns (made per context) ----------
+const PATS = new Map();
+function pats(c) {
+  if (PATS.has(c)) return PATS.get(c);
+  const floor = c.createPattern(IMG.floor, 'repeat'); floor.setTransform(new DOMMatrix([HW, HH, -HW, HH, 0, 0]).scale(3 / 512));
+  const dirt = c.createPattern(IMG.dirt, 'repeat'); dirt.setTransform(new DOMMatrix().scale(1.5 / 512));
+  const rock = c.createPattern(IMG.wall, 'repeat'); rock.setTransform(new DOMMatrix().scale(0.75));
+  const p = { floor, dirt, rock }; PATS.set(c, p); return p;
+}
+
+// ---------- drawing (c = target context, mir = draw the mirror image about the water plane) ----------
+function face(c, img, sx, sy, sw, sh, A, B, h0, h1, shade, mir) {   // a vertical face from A to B, heights h0..h1
+  const ux = B[0] - A[0], uy = B[1] - A[1], hh = h1 - h0;
+  c.save();
+  if (mir) c.transform(ux / sw, uy / sw, 0, -hh / sh, A[0], A[1] + 2 * D + h1);
+  else c.transform(ux / sw, uy / sw, 0, hh / sh, A[0], A[1] - h1);
+  c.drawImage(img, sx, sy, sw, sh, 0, 0, sw * 1.02, sh * 1.01);
+  if (shade) { c.fillStyle = `rgba(0,0,0,${shade})`; c.fillRect(0, 0, sw * 1.02, sh * 1.01); }
+  if (!mir && h0 < 0) {   // the wet part below the floor line, darker
+    const yb = sh * h1 / hh; c.fillStyle = 'rgba(0,8,12,0.5)'; c.fillRect(0, yb, sw * 1.02, sh * 1.01 - yb);
+  }
+  if (mir && O.fade > 0) {  // image y = sh is the water line; fade toward the water's own colour with height
+    const g = c.createLinearGradient(0, sh, 0, sh - FADEH / hh * sh), d = TINTS[O.tint].deepRGB;
+    g.addColorStop(0, `rgba(${d},0)`); g.addColorStop(1, `rgba(${d},${O.fade})`);
+    c.fillStyle = g; c.fillRect(0, 0, sw * 1.02, sh * 1.01);
+  }
+  c.restore();
+}
+function wallTop(c, x, y) {
+  c.save(); c.translate(0, -WALLH); c.transform(HW, HH, -HW, HH, 0, 0);
+  c.beginPath(); c.rect(x, y, 1, 1); c.fillStyle = pats(c).dirt; c.fill(); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fill();
+  c.lineWidth = 0.012; c.strokeStyle = 'rgba(255,240,220,0.05)'; c.stroke(); c.restore();
+}
+function drawWall(c, x, y, mir) {
+  const L = iso(x, y + 1), B = iso(x + 1, y + 1), R = iso(x + 1, y);
+  const tsx = ((x * 131 + y * 71) % 4) * 128, tsy = ((x * 37 + y * 113) % 4) * 100;
+  if (!isWall(x, y + 1)) face(c, IMG.wall, tsx, tsy, 128, 75, L, B, isWater(x, y + 1) ? -D : 0, WALLH, SHADE_Y, mir);
+  if (!isWall(x + 1, y)) face(c, IMG.wall, (tsx + 256) % 512, tsy, 128, 75, B, R, isWater(x + 1, y) ? -D : 0, WALLH, SHADE_X, mir);
+  if (!mir) wallTop(c, x, y);
+}
+function softShadow(c, x, y, rx, ry, a, mid) {
+  c.save(); c.translate(x, y); c.scale(1, ry / rx);
+  const g = c.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(mid, `rgba(0,0,0,${a * 0.7})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(0, 0, rx, 0, 7); c.fill(); c.restore();
+}
+// A sprite mirrored about the water plane under its ground point gy: faded with height first (on tmp).
+function mirSprite(c, img, sx, sy, sw, sh, dx, dy, dw, dh, gy) {
+  tmp.width = sw; tmp.height = sh; tctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+  if (O.fade > 0) {
+    const s = dh / sh, y0 = (gy - dy) / s, y1 = y0 - FADEH / s;
+    const g = tctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${O.fade})`);
+    tctx.globalCompositeOperation = 'destination-out'; tctx.fillStyle = g; tctx.fillRect(0, 0, sw, sh); tctx.globalCompositeOperation = 'source-over';
+  }
+  c.save(); c.translate(0, 2 * (gy + D)); c.scale(1, -1); c.drawImage(tmp, dx, dy, dw, dh); c.restore();
+}
+function drawProp(c, o, mir) {
+  const [px, py, pw, ph] = PROPS[o.k], [s, off] = PROP_STYLE[o.k], [sx, sy] = iso(o.x + 0.5, o.y + 0.5);
+  const w = pw * s, hh = ph * s, top = sy - hh + off;
+  if (mir) return mirSprite(c, IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh, sy);
+  const sh = PROP_SHADOW[o.k];
+  if (sh) softShadow(c, sx, top + hh - w * sh[0], w * sh[1], w * sh[2], sh[3], sh[4]);
+  c.drawImage(IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh);
+  if (o.k === 'brazier') for (let i = 0; i < 2; i++) {
+    const t = (time * 0.9 + i * 0.5 + o.x * 0.13) % 1;
+    c.fillStyle = `rgba(255,${150 + i * 40},60,${1 - t})`; c.fillRect(sx - 6 + Math.sin(t * 9 + i) * 8, top + 10 - t * 40, 2, 2);
+  }
+}
+function drawChar(c, e, mir) {
+  const md = CHARS[e.sheet], s = e.scale || 1, [sx, sy] = iso(e.x, e.y);
+  const lift = e.float ? 8 + Math.sin(time * 3 + e.x) * 4 : 0;
+  const frame = e.moving ? Math.floor(e.anim) % md.frames : md.idle, dw = md.fw * s, dh = md.fh * s, dx = sx - dw / 2, dy = sy - lift - md.footY * s;
+  if (mir) return mirSprite(c, IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, dx, dy, dw, dh, sy);
+  if (!inWater(e.x, e.y)) softShadow(c, sx, sy + 2 * s, 32 * s, 15 * s, 0.55, 0.55);
+  c.drawImage(IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, dx, dy, dw, dh);
+}
+// The rock bank between the floor and the lower water, where the floor is on the far side (and its mirror).
+function drawBanks(c, mir) {
+  if (D <= 0) return;
+  for (const g of SEGS) {
+    if (!g.far || g.wall) continue;
+    const A = iso(g.a[0], g.a[1]), B = iso(g.b[0], g.b[1]), f = [-g.n[0], -g.n[1]];   // f: the face's normal (toward the water)
+    const shade = 0.25 + (f[1] > 0 ? f[1] * f[1] * SHADE_Y : 0) + (f[0] > 0 ? f[0] * f[0] * SHADE_X : 0) + (mir ? 0.25 : 0);
+    const y0 = mir ? D : 0, y1 = mir ? 2 * D : D, ex = (B[0] - A[0]) * 0.04, ey = (B[1] - A[1]) * 0.04;
+    c.beginPath(); c.moveTo(A[0] - ex, A[1] - ey + y0); c.lineTo(B[0] + ex, B[1] + ey + y0); c.lineTo(B[0] + ex, B[1] + ey + y1); c.lineTo(A[0] - ex, A[1] - ey + y1); c.closePath();
+    c.fillStyle = pats(c).rock; c.fill(); c.fillStyle = `rgba(0,0,0,${Math.min(0.85, shade)})`; c.fill();
+  }
+}
+
+// ---------- the scene ----------
+const hero = { sheet: 'hero', x: 2.5, y: 3.5, dir: 1, anim: 0, moving: false, tx: null, ty: null };
+const skel = { sheet: 'skeleton', x: 11.4, y: 1.6, dir: 6, anim: 0, moving: false, leg: 0, wait: 1 };
+const wraith = { sheet: 'wraith', x: 8.6, y: 4.4, dir: 0, anim: 0, moving: true, float: true, a: 0 };
+const PATROL = [[11.4, 1.6], [13.3, 1.6]];
+function dirOf(dx, dy) {   // the sheet row (S, SW, W, NW, N, NE, E, SE) for a world-space move
+  const X = (dx - dy) * HW, Y = (dx + dy) * HH, a = Math.atan2(X, Y);
+  return ((Math.round(-a / (Math.PI / 4)) % 8) + 8) % 8;
+}
+function drawables() {
+  const dl = [];
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (isWall(x, y)) dl.push({ k: x + y + 1, f: (c, m) => drawWall(c, x, y, m) });
+  for (const o of objects) dl.push({ k: o.x + o.y + 1, f: (c, m) => drawProp(c, o, m) });
+  for (const e of [hero, skel, wraith]) dl.push({ k: e.x + e.y, f: (c, m) => drawChar(c, e, m) });
+  return dl.sort((a, b) => a.k - b.k);
+}
+
+// ---------- drips and ripples ----------
+const drops = [], ripples = [], splashes = [];
+let nextDrip = 2;
+function randomWaterPoint() {
+  const tiles = []; for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (isWater(x, y)) tiles.push([x, y]);
+  for (let i = 0; i < 40; i++) { const [x, y] = tiles[Math.floor(Math.random() * tiles.length)], p = [x + 0.15 + Math.random() * 0.7, y + 0.15 + Math.random() * 0.7]; if (inWater(...p)) return p; }
+  return [8.5, 4.5];
+}
+function drip(x, y) { drops.push({ x, y, t: 0, tf: 0.55 }); }
+function land(d) {
+  ripples.push({ x: d.x, y: d.y, t: 0, a: 1 });
+  ripples.push({ x: d.x, y: d.y, t: -0.28, a: 0.45 });    // the rebound droplet falls back a moment later
+  for (let i = 0; i < 6; i++) { const ang = Math.random() * 6.28, v = 20 + Math.random() * 30; splashes.push({ x: d.x, y: d.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v * 0.5, vz: 60 + Math.random() * 70, z: 0, t: 0 }); }
+  plink(d);
+}
+const rippleAmp = r => r.t < 0 ? 0 : r.a * Math.min(1, r.t / 0.08) * Math.pow(Math.max(0, 1 - r.t / RLIFE), 1.6);
+
+// a drip sound: a short rising "plink" (the bubble's ring), with a cave echo
+let AC = null, ECHO = null;
+function audio() {
+  if (AC) return AC;
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    const dl = AC.createDelay(1), fb = AC.createGain(), lp = AC.createBiquadFilter(), out = AC.createGain();
+    dl.delayTime.value = 0.23; fb.gain.value = 0.38; lp.type = 'lowpass'; lp.frequency.value = 2200; out.gain.value = 0.5;
+    dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(out); out.connect(AC.destination); ECHO = dl;
+  } catch (e) { AC = null; }
+  return AC;
+}
+function plink(d) {
+  if (!O.sound || !audio()) return;
+  const t = AC.currentTime, o = AC.createOscillator(), g = AC.createGain(), f = 900 + Math.random() * 700;
+  const vol = 0.32 * Math.max(0.15, 1 - Math.hypot(d.x - hero.x, d.y - hero.y) / 14);
+  o.type = 'sine'; o.frequency.setValueAtTime(f, t); o.frequency.exponentialRampToValueAtTime(f * 1.9, t + 0.05);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+  o.connect(g); g.connect(AC.destination); g.connect(ECHO); o.start(t); o.stop(t + 0.15);
+}
+
+// ---------- update ----------
+function walkTo(e, tx, ty, speed, dt) {
+  const dx = tx - e.x, dy = ty - e.y, l = Math.hypot(dx, dy);
+  if (l < 0.03) { e.moving = false; return true; }
+  const st = Math.min(l, speed * dt), nx = e.x + dx / l * st, ny = e.y + dy / l * st;
+  if (!isFloor(Math.floor(nx), Math.floor(ny)) || inWater(nx, ny)) { e.moving = false; return true; }
+  e.x = nx; e.y = ny; e.anim += st * CHARS[e.sheet].fpt; e.dir = dirOf(dx, dy); e.moving = true; return false;
+}
+function update(dt) {
+  time += dt;
+  if (hero.tx !== null && walkTo(hero, hero.tx, hero.ty, 3.2, dt)) hero.tx = null;
+  if (skel.wait > 0) { skel.wait -= dt; skel.moving = false; }
+  else if (walkTo(skel, ...PATROL[skel.leg], 1.1, dt)) { skel.leg ^= 1; skel.wait = 1.6; }
+  const pa = wraith.a; wraith.a += dt * 0.22;
+  const p = a => [8.6 + Math.cos(a) * 1.7, 4.3 + Math.sin(a) * 1.0];
+  const [x0, y0] = p(pa), [x1, y1] = p(wraith.a); wraith.x = x1; wraith.y = y1; wraith.dir = dirOf(x1 - x0, y1 - y0); wraith.anim = time * 3;
+  if (O.drips > 0 && (nextDrip -= dt) <= 0) { drip(...randomWaterPoint()); nextDrip = -Math.log(1 - Math.random()) * 60 / O.drips; }
+  for (const d of drops) { d.t += dt; if (d.t >= d.tf && !d.done) { d.done = true; land(d); } }
+  for (let i = drops.length - 1; i >= 0; i--) if (drops[i].done) drops.splice(i, 1);
+  for (const r of ripples) r.t += dt;
+  for (let i = ripples.length - 1; i >= 0; i--) if (ripples[i].t > RLIFE) ripples.splice(i, 1);
+  for (const s of splashes) { s.t += dt; s.vz -= 520 * dt; s.z += s.vz * dt; s.x += s.vx * dt / HW * 0.5; s.y += s.vy * dt / HH * 0.5; }
+  for (let i = splashes.length - 1; i >= 0; i--) if (splashes[i].z < 0 && splashes[i].t > 0.05) splashes.splice(i, 1);
+  // camera: halfway between the hero and the middle of the lake, so the lake stays in view
+  const [hx, hy] = iso(hero.x, hero.y), [lx, ly] = iso(8.5, 4.5), tx = (hx + lx) / 2, ty = (hy + ly) / 2 + 10;
+  camX += (tx - camX) * Math.min(1, dt * 6); camY += (ty - camY) * Math.min(1, dt * 6);
+}
+
+// ---------- render ----------
+function resize() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(2, devicePixelRatio || 1);
+  for (const c of [cv, wc, lc]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+  PATS.clear();
+}
+const toDev = (wx, wy, lift = 0) => { const [X, Y] = iso(wx, wy); return [((X - camX) * Z + W / 2) * DPR, ((Y - lift - camY) * Z + H / 2) * DPR]; };
+function render() {
+  const cw = cv.width, ch = cv.height, tint = TINTS[O.tint];
+  TF = [DPR * Z, 0, 0, DPR * Z, DPR * (W / 2 - camX * Z), DPR * (H / 2 - camY * Z)];
+  const dl = drawables();
+
+  // 1. the mirrored scene (half resolution when soft: a cheap blur that works without canvas filters)
+  const rs = O.soft ? 0.5 : 1;
+  if (O.refl > 0) {
+    const rw = Math.round(cw * rs), rh = Math.round(ch * rs);
+    if (rc.width !== rw || rc.height !== rh) { rc.width = rw; rc.height = rh; PATS.delete(rctx); }
+    rctx.setTransform(1, 0, 0, 1, 0, 0); rctx.clearRect(0, 0, rw, rh);
+    rctx.setTransform(TF[0] * rs, 0, 0, TF[3] * rs, TF[4] * rs, TF[5] * rs);
+    for (const d of dl) d.f(rctx, true);
+    drawBanks(rctx, true);
+  }
+
+  // 2. the water layer: deep colour, shallows, reflection, tint, shore lines; then ripples
+  wctx.setTransform(1, 0, 0, 1, 0, 0); wctx.clearRect(0, 0, cw, ch);
+  wctx.setTransform(...TF); wctx.save(); waterPath(wctx, D); wctx.clip();
+  wctx.fillStyle = tint.deep; wctx.fillRect(-4000, -4000, 8000, 8000);
+  if (O.shallows) {   // the lake bed shows through near the shore (stacked wide strokes along the outline)
+    wctx.save(); wctx.translate(0, D + 5); wctx.lineJoin = 'round'; wctx.strokeStyle = pats(wctx).floor;
+    for (const [lw, a] of [[46, 0.12], [28, 0.16], [12, 0.2]]) { wctx.globalAlpha = a; wctx.lineWidth = lw; waterPath(wctx, 0); wctx.stroke(); }
+    wctx.restore(); wctx.globalAlpha = 1;
+  }
+  if (O.refl > 0) { wctx.save(); wctx.setTransform(1, 0, 0, 1, 0, 0); wctx.globalAlpha = O.refl; wctx.drawImage(rc, 0, 0, cw, ch); wctx.restore(); }
+  wctx.fillStyle = tint.tint; wctx.fillRect(-4000, -4000, 8000, 8000);
+  wctx.lineCap = 'round';
+  for (const g of SEGS) {
+    const A = iso(g.a[0], g.a[1]), B = iso(g.b[0], g.b[1]);
+    if (g.near) {   // the floor's lip overhangs: a soft shadow on the water just beyond it
+      wctx.strokeStyle = 'rgba(0,0,0,0.45)'; wctx.lineWidth = 7; wctx.beginPath(); wctx.moveTo(A[0], A[1]); wctx.lineTo(B[0], B[1]); wctx.stroke();
+    } else if (g.far) {   // the waterline at the foot of the bank or wall: a dark contact line and a faint meniscus
+      wctx.strokeStyle = 'rgba(0,0,0,0.5)'; wctx.lineWidth = 3; wctx.beginPath(); wctx.moveTo(A[0], A[1] + D); wctx.lineTo(B[0], B[1] + D); wctx.stroke();
+      wctx.strokeStyle = `rgba(${tint.ring},0.14)`; wctx.lineWidth = 1; wctx.beginPath(); wctx.moveTo(A[0], A[1] + D + 1.5); wctx.lineTo(B[0], B[1] + D + 1.5); wctx.stroke();
+    }
+  }
+  wctx.restore();
+  if (O.ripple !== 'rings') refract(cw, ch);
+  if (O.ripple !== 'refract') {
+    wctx.save(); wctx.setTransform(...TF); waterPath(wctx, D); wctx.clip();
+    for (const r of ripples) {
+      const a = rippleAmp(r); if (a < 0.01) continue;
+      const [X, Y] = iso(r.x, r.y), R = r.t * RSPEED;
+      for (let k = 0; k < 3; k++) {
+        const rr = R - k * LAMBDA; if (rr <= 0.5) continue;
+        const al = a * (1 - k * 0.3) * 0.5;
+        wctx.lineWidth = 1.2;
+        wctx.strokeStyle = `rgba(${tint.ring},${al})`; wctx.beginPath(); wctx.ellipse(X, Y + D - 0.6, rr, rr / 2, 0, 0, 7); wctx.stroke();
+        wctx.strokeStyle = `rgba(0,0,0,${al * 0.9})`; wctx.beginPath(); wctx.ellipse(X, Y + D + 0.9, rr, rr / 2, 0, 0, 7); wctx.stroke();
+      }
+    }
+    wctx.restore();
+  }
+
+  // 3. the main scene: background, water, floor (minus the lake), banks, then the depth-sorted things
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#040205'; ctx.fillRect(0, 0, cw, ch);
+  ctx.drawImage(wc, 0, 0);
+  ctx.setTransform(...TF);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(-4000, -4000, 8000, 8000);
+  for (const L of LOOPS) { L.pts.forEach((p, i) => { const [X, Y] = iso(p[0], p[1]); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.closePath(); }
+  ctx.clip('evenodd');
+  ctx.save(); ctx.transform(HW, HH, -HW, HH, 0, 0); ctx.beginPath();
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (!isWall(x, y)) ctx.rect(x, y, 1.02, 1.02);
+  ctx.fillStyle = pats(ctx).floor; ctx.fill(); ctx.lineWidth = 0.012; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.stroke(); ctx.restore();
+  ctx.lineJoin = 'round';   // damp stone along the shore
+  ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 12; waterPath(ctx, 0); ctx.stroke(); ctx.lineWidth = 5; ctx.stroke();
+  ctx.restore();
+  ctx.lineCap = 'round';
+  for (const g of SEGS) if (g.near && D > 0) {   // a faint highlight on the lip of the near shore
+    const A = iso(g.a[0], g.a[1]), B = iso(g.b[0], g.b[1]);
+    ctx.strokeStyle = 'rgba(255,236,210,0.12)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+  }
+  drawBanks(ctx, false);
+  for (const d of dl) d.f(ctx, false);
+
+  // 4. lighting, with each light mirrored in the water (a light reflects what it lights)
+  const lights = [[hero.x, hero.y, 7.2, 30, 1]];
+  for (const o of objects) if (o.light) lights.push([o.x + 0.5, o.y + 0.5, o.light[0] + Math.sin(time * 9 + o.x) * 0.15 + Math.sin(time * 13.7 + o.y) * 0.1, o.light[1], o.light[2]]);
+  if (O.light) {
+    lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-over'; lctx.clearRect(0, 0, cw, ch);
+    lctx.fillStyle = 'rgba(3,1,5,0.93)'; lctx.fillRect(0, 0, cw, ch); lctx.globalCompositeOperation = 'destination-out';
+    const hole = (wx, wy, rad, str, lift) => {
+      const [X, Y] = toDev(wx, wy, lift), r = rad * HW * 1.42 * Z * DPR;
+      lctx.save(); lctx.translate(X, Y); lctx.scale(1, 0.62);
+      const gr = lctx.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(0,0,0,${str})`); gr.addColorStop(0.5, `rgba(0,0,0,${str * 0.8})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      lctx.fillStyle = gr; lctx.beginPath(); lctx.arc(0, 0, r, 0, 7); lctx.fill(); lctx.restore();
+    };
+    for (const L of lights) hole(L[0], L[1], L[2], L[4], L[3]);
+    if (O.refl > 0) {
+      lctx.save(); lctx.setTransform(...TF); waterPath(lctx, D); lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clip();
+      for (const L of lights) hole(L[0], L[1], L[2] * 0.85, L[4] * Math.min(1, O.refl * 1.2), -(L[3] + 2 * D));
+      lctx.restore();
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(lc, 0, 0);
+  }
+
+  // 5. light: the braziers' glow, the flames' long reflections, the falling drops and splashes (additive)
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'lighter';
+  for (const o of objects) if (o.k === 'brazier') {
+    const [X, Y] = toDev(o.x + 0.5, o.y + 0.5, 50), r = 170 * Z * DPR;
+    const gr = ctx.createRadialGradient(X, Y, 0, X, Y, r); gr.addColorStop(0, 'rgba(255,120,40,0.16)'); gr.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = gr; ctx.fillRect(X - r, Y - r, 2 * r, 2 * r);
+  }
+  if (O.refl > 0) {
+    ctx.save(); ctx.setTransform(...TF); waterPath(ctx, D); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clip();
+    for (const o of objects) if (o.flame) {
+      const fl = 0.85 + 0.15 * Math.sin(time * 11 + o.x) * Math.sin(time * 7.3 + o.y), [X, Y] = toDev(o.x + 0.5, o.y + 0.5, -(o.flame + 2 * D));
+      const r = (o.k === 'brazier' ? 26 : 13) * Z * DPR;
+      ctx.save(); ctx.translate(X, Y); ctx.scale(0.75, 2.4);
+      const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(255,170,80,${0.5 * O.refl * fl})`); gr.addColorStop(0.4, `rgba(255,120,40,${0.22 * O.refl * fl})`); gr.addColorStop(1, 'rgba(255,100,30,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.restore();
+    }
+    ctx.restore();
+  }
+  for (const d of drops) {   // a bright streak, accelerating down from the dark
+    const k = d.t / d.tf, h = 320 * (1 - k * k), [X, Y] = toDev(d.x, d.y, h - D), len = (4 + 10 * k) * Z * DPR;
+    ctx.strokeStyle = `rgba(200,228,255,${0.35 + 0.5 * k})`; ctx.lineWidth = 1.4 * Z * DPR; ctx.beginPath(); ctx.moveTo(X, Y - len); ctx.lineTo(X, Y); ctx.stroke();
+  }
+  ctx.fillStyle = 'rgba(200,228,255,0.7)';
+  for (const s of splashes) { const [X, Y] = toDev(s.x, s.y, Math.max(0, s.z) - D), r = 1.1 * Z * DPR; ctx.fillRect(X - r, Y - r, 2 * r, 2 * r); }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+// Ripple refraction: each ripple displaces the water layer's own pixels (reflections included) radially by a
+// short wave packet, and brightens or darkens its slopes as if lit from the far (north) side.
+function refract(cw, ch) {
+  const sc = DPR * Z, lam = LAMBDA * sc;
+  for (const r of ripples) {
+    const amp = rippleAmp(r) * 2.4 * sc; if (amp < 0.05) continue;
+    const [X, Y] = toDev(r.x, r.y, -D), R = r.t * RSPEED * sc, ext = R + lam * 2.6;
+    const x0 = Math.max(0, Math.floor(X - ext)), x1 = Math.min(cw, Math.ceil(X + ext)), y0 = Math.max(0, Math.floor(Y - ext / 2)), y1 = Math.min(ch, Math.ceil(Y + ext / 2));
+    const bw = x1 - x0, bh = y1 - y0; if (bw < 2 || bh < 2) continue;
+    let img; try { img = wctx.getImageData(x0, y0, bw, bh); } catch (e) { O.ripple = 'rings'; syncUI(); return; }
+    const src = img.data, out = new Uint8ClampedArray(src), k2 = 2 * Math.PI / lam, wid = lam * 1.15;
+    for (let py = 0; py < bh; py++) {
+      const ey = (y0 + py - Y) * 2;
+      for (let px = 0; px < bw; px++) {
+        const ex = x0 + px - X, rr = Math.hypot(ex, ey), d = rr - R;
+        if (rr < 0.5 || d > lam * 2.6 || d < -lam * 2.6) continue;
+        const env = Math.exp(-(d / wid) * (d / wid)), ph = d * k2, disp = amp * Math.sin(ph) * env;
+        const ux = ex / rr, uy = ey / rr;
+        let sx = Math.round(px - ux * disp), sy = Math.round(py - uy * disp * 0.5);
+        sx = sx < 0 ? 0 : sx >= bw ? bw - 1 : sx; sy = sy < 0 ? 0 : sy >= bh ? bh - 1 : sy;
+        const si = (sy * bw + sx) * 4, o = (py * bw + px) * 4;
+        if (src[o + 3] === 0 || src[si + 3] === 0) continue;
+        const lit = Math.cos(ph) * env * (-uy) * Math.min(1, amp / sc) * 46;
+        out[o] = src[si] + lit; out[o + 1] = src[si + 1] + lit * 1.08; out[o + 2] = src[si + 2] + lit * 1.15; out[o + 3] = src[si + 3];
+      }
+    }
+    img.data.set(out); wctx.putImageData(img, x0, y0);
+  }
+}
+
+// ---------- input and the panel ----------
+function screenToWorld(px, py, lift = 0) {
+  const X = (px - W / 2) / Z + camX, Y = (py - H / 2) / Z + camY - lift;
+  return [(X / HW + Y / HH) / 2, (Y / HH - X / HW) / 2];
+}
+cv.addEventListener('pointerdown', ev => {
+  audio(); if (AC && AC.state === 'suspended') AC.resume();
+  const [wx, wy] = screenToWorld(ev.clientX, ev.clientY, D);
+  if (inWater(wx, wy)) { drip(wx, wy); return; }
+  const [fx, fy] = screenToWorld(ev.clientX, ev.clientY);
+  if (isFloor(Math.floor(fx), Math.floor(fy))) { hero.tx = fx; hero.ty = fy; }
+});
+function syncUI() {
+  for (const seg of document.querySelectorAll('.seg')) for (const b of seg.children) b.setAttribute('aria-pressed', String(O[seg.dataset.opt] === b.dataset.v));
+  $('drop').value = O.drop; $('dropV').textContent = O.drop + ' px';
+  $('refl').value = Math.round(O.refl * 100); $('reflV').textContent = Math.round(O.refl * 100) + ' %';
+  $('fade').value = Math.round(O.fade * 100); $('fadeV').textContent = Math.round(O.fade * 100) + ' %';
+  $('drips').value = O.drips; $('dripsV').textContent = O.drips ? String(O.drips) : 'off';
+  for (const k of ['soft', 'shallows', 'light', 'sound']) $(k).checked = O[k];
+}
+for (const seg of document.querySelectorAll('.seg')) seg.addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  O[seg.dataset.opt] = b.dataset.v; if (seg.dataset.opt === 'shore') buildLake(); syncUI();
+});
+$('drop').oninput = e => { O.drop = D = +e.target.value; syncUI(); };
+$('refl').oninput = e => { O.refl = e.target.value / 100; syncUI(); };
+$('fade').oninput = e => { O.fade = e.target.value / 100; syncUI(); };
+$('drips').oninput = e => { O.drips = +e.target.value; nextDrip = Math.min(nextDrip, 60 / Math.max(1, O.drips)); syncUI(); };
+for (const k of ['soft', 'shallows', 'light', 'sound']) $(k).onchange = e => { O[k] = e.target.checked; if (k === 'sound' && O[k]) { audio(); if (AC) AC.resume(); } };
+$('dripNow').onclick = () => drip(...randomWaterPoint());
+$('north').onclick = () => { hero.x = 2.5; hero.y = 3.5; hero.tx = null; hero.dir = 1; };
+$('south').onclick = () => { hero.x = 8.5; hero.y = 8.6; hero.tx = null; hero.dir = 4; };
+$('zin').onclick = () => { Z = Math.min(2, Z * 1.2); };
+$('zout').onclick = () => { Z = Math.max(0.35, Z / 1.2); };
+$('toggle').onclick = () => { const p = $('panel'), open = p.classList.toggle('closed') === false; $('toggle').setAttribute('aria-expanded', String(open)); $('toggle').textContent = open ? 'Close' : 'Options'; };
+addEventListener('resize', resize);
+
+// ---------- start ----------
+function loadImg(src) { return new Promise((ok, no) => { const im = new Image(); im.onload = () => ok(im); im.onerror = () => no(src); im.src = src; }); }
+Promise.all(Object.entries(SRC).map(([k, s]) => loadImg(s).then(im => { IMG[k] = im; }))).then(() => {
+  $('status').textContent = '';
+  resize(); Z = W < 640 ? 0.62 : Math.min(1.2, Math.max(0.7, W / 1200));
+  buildLake(); syncUI();
+  const [hx, hy] = iso(hero.x, hero.y), [lx, ly] = iso(8.5, 4.5); camX = (hx + lx) / 2; camY = (hy + ly) / 2 + 10;
+  let last = performance.now();
+  const loop = now => { update(Math.min(0.05, (now - last) / 1000)); last = now; render(); requestAnimationFrame(loop); };
+  requestAnimationFrame(loop);
+}).catch(src => { $('status').textContent = 'Could not load ' + src; });
+</script>
+</body>
+</html>
