@@ -434,8 +434,10 @@ reflects at 70 % (`refl`), and a reflection fades by 45 % (`fade`) over 120 px o
      then flipped about its ground point (a flipped prop also horizontally). Projectiles are mirrored too (`mirrorProj`): an arrow
      or a wraith bolt at its flight height of 44 px, a fire bomb at its arc's height (upside down, its rag's flame
      pointing down), each faded with height like the sprites (alpha `1 − fade · min(1, h / fadeH)`); a bolt's light
-     is mirrored with the other lights. Flat props (stairs, bones, gold, rug), doors and fires have no reflection;
-     dead monsters fade in it as they do above.
+     is mirrored with the other lights. **Fire** is mirrored too: a fire's flames, smoke and sparks
+     (`mirrorFirePart`, at 85 %; flames burning on the water are drawn at its level, so the same mirror line
+     serves both) and the flames on a burning creature (with its mirror image). Flat props (stairs, bones, gold,
+     rug) and doors have no reflection; dead monsters fade in it as they do above.
   2. **The water layer** (its own canvas, then drawn onto the scene): the deep colour; the lake bed (the floor
      texture) showing through near the shore, as three wide strokes along the outline (46, 28 and 12 px at 12, 16
      and 20 %), 5 px lower; the reflection at 70 %; the tint; a soft dark shadow (7 px) under the near shore's lip;
@@ -450,7 +452,8 @@ reflects at 70 % (`refl`), and a reflection fades by 45 % (`fade`) over 120 px o
   5. **The lights** are mirrored too: after the usual lighting holes (see Rendering), every light is cut again,
      clipped to the visible water, at its mirror point (`lift → −(lift + 2·drop)`), 85 % as wide and 84 % as
      strong, so a light lights its own reflection. Then, additively, the braziers' and candelabra's flames leave
-     long vertical streaks of glow on the water (green for a green brazier), flickering.
+     long vertical streaks of glow on the water (green for a green brazier), flickering, and a burning fire a wider,
+     warm one (radius `60 + 25 · r` px, stronger while it burns).
   - **No shadows** are drawn on water (a hovering wraith, a pillar in the lake).
 - **Drips** (`updateLake`): on average 12 a minute (`LAKE.drips`, exponential gaps) a drop falls on a random point
   of the lake within 10 tiles of the hero that has been seen: a bright streak accelerating down from 320 px for
@@ -1064,9 +1067,9 @@ hovers there.
 - **Loot.** From depth 2 (`BOMB.from`): chests 15 % (1–3 bombs), urns 5 % (one), monsters 2 % (one). See
   *Loot sources* above.
 
-**How the fire looks.** One of three looks, `LOOK.fire` (1–3, `FIRE_LOOKS`), still being chosen. The sandbox's
-**Fire look** buttons switch it (`setLook`), and the choice is kept in `localStorage` `dc01-look` (default 1). A
-new fire takes the current look.
+**How the fire looks.** The look is **Blaze** (`LOOK.fire` 1 of `FIRE_LOOKS`). The other two, Ember bed and Oil
+pool, are kept for comparison: the sandbox's fire scenarios have **Fire look** buttons that switch it (`setLook`)
+for the page's session only (nothing is saved; **Normal game** puts Blaze back). A new fire takes the current look.
 
 - **Common to all three:**
   - Flames, smoke and sparks are particles in world coordinates, spawned on walkable tiles inside the circle

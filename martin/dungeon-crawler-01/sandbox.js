@@ -204,7 +204,7 @@
     G.monsters = G.monsters.filter(m => m.bossRoom || m.boss || Math.hypot(m.x - h.x, m.y - h.y) > 10);
     start(); log('Test: a Pit Demon level. Its boss room is close by.', '#7fe08a');
   };
-  $('sbNormal').onclick = () => { audio(); pick.hidden = true; bar.hidden = true; };
+  $('sbNormal').onclick = () => { audio(); setLook('fire', 1); pick.hidden = true; bar.hidden = true; };   // the normal game: the settled look (Blaze)
   $('sbBack').onclick = () => { G.running = false; pick.hidden = false; bar.hidden = true; };
   $('sbNext').onclick = () => { if (MUSIC.cur) MUSIC.cur.loopAt = 0; };
   setInterval(() => {

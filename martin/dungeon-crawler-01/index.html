@@ -387,7 +387,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 69;
+const VERSION = 70;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -734,11 +734,12 @@ const BOMB = { name: 'Fire Bomb', plural: 'fire bombs', cd: 1.0, range: 7, color
 const FIRE = { r: 1.5, dur: 12, dps: 10, tick: 0.5, fade: 1.5, scorch: 20, after: 10, afterDps: 5, catchMon: 1.5 };
 const makeBombs = (count = 1) => ({ id: nextId++, base: 'firebomb', slot: 'weapon', kind: 'bomb', count, cd: BOMB.cd, rarity: 'common', name: BOMB.name, stats: {} });
 const isBomb = it => !!it && it.base === 'firebomb';
-// The fire's look is still being chosen (README, Fire bombs): LOOK.fire picks one of three (FIRE_LOOKS). Kept in
-// localStorage dc01-look; the sandbox switches it (setLook). The bomb is design 1 of the six icons (firebomb1, a
+// The fire's look (README, Fire bombs): LOOK.fire picks one of three (FIRE_LOOKS); Blaze (1) is the game's, the
+// sandbox can switch it (setLook). The bomb is design 1 of the six icons (firebomb1, a
 // brown clay pot stoppered with a rag); designs 2-6 are kept in the atlas for stronger fire bombs later.
-const LOOK = (() => { const d = { fire: 1 }; try { return Object.assign(d, JSON.parse(localStorage.getItem('dc01-look')) || {}); } catch (e) { return d; } })();
-function setLook(k, n) { LOOK[k] = n; try { localStorage.setItem('dc01-look', JSON.stringify(LOOK)); } catch (e) {} if (G) refreshUI(); }
+// The fire's look is Blaze (1). The sandbox's fire scenarios can switch it for the page's session (not saved).
+const LOOK = { fire: 1 };
+function setLook(k, n) { LOOK[k] = n; if (G) refreshUI(); }
 const iconKey = base => base === 'firebomb' ? 'firebomb1' : (BASES[base] && BASES[base].icon) || base;
 // Item groups a drop first chooses from (evenly): each weapon kind, each armor slot, rings, amulets.
 const ITEM_GROUP = b => b.kind || b.slot;
@@ -3080,12 +3081,21 @@ function mirrorChar(e, isHero) {
   const frame = e.moving ? Math.floor(e.anim) % md.frames : (md.idle || 0), footY = md.footY != null ? md.footY : md.fh - 6;
   const w = md.fw * s, hgt = md.fh * s;
   ctx.globalAlpha = alpha; mirSprite(IMG[sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, sx - w / 2, sy - footY * s, w, hgt, sy0); ctx.globalAlpha = 1;
+  if (e.burning && !(isHero ? G.dead : e.dead)) {   // the flames on a burning creature, mirrored with it
+    ctx.save(); ctx.translate(0, 2 * (sy0 + LAKE.drop)); ctx.scale(1, -1); drawBurning(e, sx, sy, hgt); ctx.restore();
+  }
 }
 function mirrorProp(o) {
   if (o.surf || o.type === 'stairs' || o.type === 'bones' || o.type === 'gold' || o.type === 'mrug' || (o.type === 'urn' && o.used)) return;
   const key = o.type === 'chest' && o.used ? 'chestopen' : o.type === 'keeper' ? 'keeper' + o.look : o.type;
   const [px, py, pw, ph] = META.props[key], [s, off] = PROP_STYLE[key], [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy), w = pw * s, hh = ph * s;
   mirSprite(IMG.props, px, py, pw, ph, sx - w / 2, sy - hh + off, w, hh, sy, o.flip ? sx : null);
+}
+// A fire's flame, smoke puff or spark mirrored about the water plane (a flame burning on the water is drawn at
+// the water's level already, so the same mirror line works for both), at 85 %.
+function mirrorFirePart(q, f) {
+  const [, sy0] = iso(q.x, q.y);
+  ctx.save(); ctx.translate(0, 2 * (sy0 + LAKE.drop)); ctx.scale(1, -1); ctx.globalAlpha = 0.85; drawFirePart(q, f); ctx.restore();
 }
 // A projectile's mirror image: an arrow or a wraith bolt flies 44 px up, a fire bomb at its arc's height p.z; the
 // mirror point of height h is h + 2 * drop below its ground point. Faded with height like the sprites.
@@ -3150,6 +3160,7 @@ function drawLake(lk, baseT, dl) {
       if (d.k < lk.kmin - 10 || d.k > lk.kmax + 1) continue;
       if (d.t === 0) drawWall(d.x, d.y); else if (d.t === 1) mirrorProp(d.o); else if (d.t === 2) mirrorChar(d.e, false); else if (d.t === 3) mirrorChar(d.e, true);
       else if (d.t === 4) mirrorProj(d.p);
+      else if (d.t === 6) mirrorFirePart(d.q, d.f);
     }
     drawBanks(lk);
   } finally { ctx = main; MIR = false; }
@@ -3233,6 +3244,13 @@ function drawLakeLights(lk, baseT) {
     const [X, Y] = dev(o.x + 0.5, o.y + 0.5, -((br ? 52 : 108) + 2 * D)), r = (br ? 26 : 13) * sc, c = o.green ? '90,255,130' : '255,170,80', c2 = o.green ? '60,220,100' : '255,120,40';
     ctx.save(); ctx.translate(X, Y); ctx.scale(0.75, 2.4);
     const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(${c},${0.5 * LAKE.refl * fl})`); gr.addColorStop(0.4, `rgba(${c2},${0.22 * LAKE.refl * fl})`); gr.addColorStop(1, `rgba(${c2},0)`);
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.restore();
+  }
+  for (const f of G.fires) {   // a burning fire: a wide, warm streak of its glow (stronger while it burns)
+    const I = fireI(f); if (I <= 0 || Math.abs(f.x - G.hero.x) > 18 || Math.abs(f.y - G.hero.y) > 18) continue;
+    const [X, Y] = dev(f.x, f.y, -(30 + 2 * D)), r = (60 + 25 * f.r) * sc, fl = 0.85 + 0.15 * Math.sin(G.time * 11 + f.x);
+    ctx.save(); ctx.translate(X, Y); ctx.scale(1, 1.8);
+    const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(255,150,60,${0.3 * LAKE.refl * I * fl})`); gr.addColorStop(1, 'rgba(255,100,30,0)');
     ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.restore();
   }
   ctx.restore();
