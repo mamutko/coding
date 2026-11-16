@@ -9,6 +9,7 @@ The findings are in the skill ("What doesn't work", recipe step 4 and the prompt
   (`../walk_cycle.py guide hero NW out.png --magenta --limbs`, or `--mannequin` for grey).
 - `build.py` / `nwbuild.py`: slice AI images into frames (alpha or magenta key, connected components by cell).
   `nwbuild.py` anchors painted frames on the guide's per-frame foot drop and head x, as `walk_cycle.py build` does.
+- `HANDOFF.md`: the brief for rendering a NW guide from the Quaternius 3D walk.
 - `review.html`: the NW review page (loads `nwdata.js`, written by `nwbuild.py <dir> <dir>/nwdata.js`; expects
   `guide-{grey,color}-NW.png` and `{openai,google}-{grey,color}-NW.png` in `<dir>`).
 
