@@ -89,7 +89,8 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     sheet loads when first picked (`loadCast`; until then the hero keeps its own look);
     the hero takes the picked look (`G.hero.look`, see [Rendering](#rendering)) and walks as that character. The
     bar shows the name, the frames per direction, the row (direction) and frame being drawn (or "idle") and the
-    scale. **Normal game** puts the hero's own look back.
+    scale. On narrow screens, where the bar normally sits low above the HUD, this scenario keeps it at the top of
+    the screen (over the HUD's top row), so it never covers the character. **Normal game** puts the hero's own look back.
 - **Surface:**
   - **The surface** (depth 0): a new level-1 hero (never saved) a few steps from the crypt's entrance. The bar shows
     the world tile and super tile the hero is on, then the level's name once below, and the music track and play

@@ -37,7 +37,8 @@
   #sbPick h2 { font-family: Cinzel, serif; color: #8c7650; font-size: 13px; letter-spacing: 2px; margin: 16px 0 8px; }
   #sbBar button { background: #1c1316; border: 1px solid #5a4528; color: #e8dcc4; font: 12px Georgia, serif; padding: 3px 8px; cursor: pointer; }
   #sbBar button:hover { border-color: #c9a45c; }
-  body.narrow #sbBar { top: auto; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); font-size: 12px; }`;
+  body.narrow #sbBar { top: auto; bottom: calc(150px + env(safe-area-inset-bottom, 0px)); font-size: 12px; }
+  body.narrow #sbBar.top { top: calc(8px + env(safe-area-inset-top, 0px)); bottom: auto; z-index: 56; }   /* the character viewer: out of the hero's way */`;
   document.head.appendChild(css);
   const pick = document.createElement('div'); pick.id = 'sbPick'; pick.innerHTML = `<div class="box">
     <h1>Crypt Sandbox</h1>
@@ -93,7 +94,7 @@
   showDeath = () => { if (!isTest()) return realDeath(); G.running = false; pick.hidden = false; bar.hidden = true; };
   const floorAt = (x, y) => G.map.t[y * G.map.w + x] === T_FLOOR && !G.objects.some(o => o.x === x && o.y === y && !o.walk);
   function start(m = 'music') {
-    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbDrips').hidden = $('sbSplash').hidden = m !== 'lake'; soundButtons(); $('sbLookPick').hidden = m !== 'looks'; $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
+    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbDrips').hidden = $('sbSplash').hidden = m !== 'lake'; soundButtons(); $('sbLookPick').hidden = m !== 'looks'; bar.classList.toggle('top', m === 'looks'); $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
     audio(); pick.hidden = true; bar.hidden = false;
     G.running = true; G.camSnap = true; G.deathShown = false;
     $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); $('heroCfg').classList.add('hidden'); hideTip();
