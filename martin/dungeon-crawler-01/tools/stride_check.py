@@ -1,6 +1,9 @@
 """Stride check for an AI walk-cycle image (see the sprite-animation skill, "Verifying").
 
-  python stride_check.py <CHAR> <DIR> <raw.png>
+  python stride_check.py <CHAR> <DIR> <raw.png> [--guide guide.png]
+
+--guide compares against a given guide image (e.g. ranger_test/guide-mocap-NW.png) instead of the stick figure.
+A painted image with real transparency (OpenAI --background transparent) is measured on its alpha channel.
 
 Compares the painted 4 x 2 image with the pose guide walk_cycle.py makes for that character and direction, per
 frame, on two numbers measured from the silhouette (flat magenta background):
@@ -21,8 +24,12 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 import walk_cycle as wc
 
 def measure(path):
-    im = np.asarray(Image.open(path).convert('RGB')).astype(int); H, W, _ = im.shape
-    fg = ~((im[:, :, 0] > 190) & (im[:, :, 1] < 90) & (im[:, :, 2] > 190))
+    src = Image.open(path)
+    im = np.asarray(src.convert('RGBA')).astype(int); H, W, _ = im.shape
+    if (im[:, :, 3] < 128).mean() > 0.2:                  # real transparency: the alpha channel is the silhouette
+        fg = im[:, :, 3] > 128
+    else:
+        fg = ~((im[:, :, 0] > 190) & (im[:, :, 1] < 90) & (im[:, :, 2] > 190))
     out = []
     for f in range(8):
         c = fg[(f // 4) * H // 2:(f // 4 + 1) * H // 2, (f % 4) * W // 4:(f % 4 + 1) * W // 4]
@@ -35,9 +42,12 @@ def measure(path):
 
 if __name__ == '__main__':
     char, d, raw = sys.argv[1], sys.argv[2], sys.argv[3]
-    wc.use(char); g = pathlib.Path(tempfile.mkdtemp()) / 'guide.png'
-    wc.STYLE.update(thick=1.9, left=(55, 55, 60), right=(175, 175, 180), mid=(115, 115, 120))
-    wc.guide(d, str(g), (255, 0, 255), False)
+    if '--guide' in sys.argv:
+        g = sys.argv[sys.argv.index('--guide') + 1]
+    else:
+        wc.use(char); g = pathlib.Path(tempfile.mkdtemp()) / 'guide.png'
+        wc.STYLE.update(thick=1.9, left=(55, 55, 60), right=(175, 175, 180), mid=(115, 115, 120))
+        wc.guide(d, str(g), (255, 0, 255), False)
     G, P = measure(g), measure(raw)
     print('frame   guide spread/low   painted spread/low')
     for f in range(8):

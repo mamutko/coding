@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <title>Ranger NW Pose Guides</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -83,6 +84,8 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   <div class="answer">
     <b>Did a colour per limb help?</b>
     <p>A little, for Google. All four images match the guide's foot spread in 7 of 8 frames. With the colour guide Google's frames 1 and 2 match almost exactly, while with the grey guide they are borderline (off by 0.18–0.19, the limit is 0.2). Google missed frame 3 both times. OpenAI missed frame 1 both times: it should be the widest stance, but its feet are together. No guide colour leaked into the painting in any of the four images.</p>
+    <b>And a guide rendered from a real 3D walk (Quaternius mannequin)?</b>
+    <p>Better, for OpenAI. Measured against the mocap guide itself, OpenAI's ranger matches the foot spread in all 8 frames, within 0.07 everywhere. Its one fault: the far boot in frames 4 and 6 (and the far arm in 8) is painted half-transparent, a ghost of a limb: it would show the ground through it in the game. Google's ranger stays within the 0.2 limit too, but frames 2 and 3 have a narrower stance than the guide (0.26 vs 0.43, 0.10 vs 0.28), and its long cape hides the right arm. No guide colour leaked in either. (The grey and stick-figure colour sets painted in the cloud session were not saved, so only the mocap sets are shown here when rebuilt on this PC.)</p>
   </div>
 
   <div class="bar" role="toolbar" aria-label="Playback">
@@ -103,7 +106,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   <section><h2>Source images</h2></section>
   <section class="sources" id="sources"></section>
 
-  <p class="foot">Guides: <code>walk_cycle.py</code> from dungeon-crawler-01 (hero gait, symmetric arm swing). Models: OpenAI <code>gpt-image-2.6-flare</code> (edit, medium, transparent output) and Google <code>gemini-nano-banana-2.1</code> (edit, 1K, 4:3, magenta keyed out). Foot spread is from the project's <code>stride_check.py</code>: the width of the bottom 12% of the figure divided by its height. In this view it tells the two halves of the stride apart. The guide is cut by its exact cells, so it shows the 3D model's real motion. Each painted frame is scaled to a common height and placed like its guide frame: the same drop of the lowest foot below the ground line (the foot nearer the camera hangs lower) and the same head position. An earlier version put every lowest pixel on the ground line, which made the figures jump between the two halves of the stride. Cost: about $0.15.</p>
+  <p class="foot">Guides: <code>walk_cycle.py</code> from dungeon-crawler-01 (hero gait, symmetric arm swing), and <code>render_guide.py</code> (the Quaternius mannequin's <code>Walk_Loop</code>, CC0; its painted sets are compared against that guide). Models: OpenAI <code>gpt-image-2.6-flare</code> (edit, medium, transparent output) and Google <code>gemini-nano-banana-2.1</code> (edit, 1K, 4:3, magenta keyed out). Foot spread is from the project's <code>stride_check.py</code>: the width of the bottom 12% of the figure divided by its height. In this view it tells the two halves of the stride apart. The guide is cut by its exact cells, so it shows the 3D model's real motion. Each painted frame is scaled to a common height and placed like its guide frame: the same drop of the lowest foot below the ground line (the foot nearer the camera hangs lower) and the same head position. An earlier version put every lowest pixel on the ground line, which made the figures jump between the two halves of the stride. Cost: about $0.15, plus about $0.07 for the two mocap paintings.</p>
 </div>
 
 <script src="nwdata.js"></script>
@@ -114,7 +117,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
   const cards = [], imgs = {};
   const load = (src) => { const i = new Image(); i.src = src; i.onload = drawAll; return i; };
   Object.entries(D.guides).forEach(([k, g]) => (imgs["guide-" + k] = load(g.strip)));
-  const label = { openai: "OpenAI", google: "Google", grey: "grey mannequin", color: "colour per limb" };
+  const label = { openai: "OpenAI", google: "Google", grey: "grey mannequin", color: "colour per limb", mocap: "mocap walk (Quaternius)" };
 
   const grid = $("grid");
   D.sets.forEach((s) => {
@@ -133,9 +136,9 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
     for (let i = 0; i < 8; i++) {
       const b = document.createElement("button"); b.type = "button";
       const off = s.flag.includes(i + 1);
-      const gh = Math.round(D.guideSpread[i] / 0.6 * 32), ph = Math.round(s.spread[i] / 0.6 * 32);
+      const gs = s.guideSpread || D.guideSpread, gh = Math.round(gs[i] / 0.6 * 32), ph = Math.round(s.spread[i] / 0.6 * 32);
       b.innerHTML = `<span class="bars${off ? " off" : ""}"><i class="g" style="height:${gh}px"></i><i class="p" style="height:${ph}px"></i></span><span class="n">${i + 1}</span>`;
-      b.setAttribute("aria-label", `Frame ${i + 1}: guide spread ${D.guideSpread[i]}, painted ${s.spread[i]}${off ? ", off" : ""}`);
+      b.setAttribute("aria-label", `Frame ${i + 1}: guide spread ${gs[i]}, painted ${s.spread[i]}${off ? ", off" : ""}`);
       b.onclick = () => { setPlaying(false); frame = i; drawAll(); };
       fr.appendChild(b);
     }
@@ -146,7 +149,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 
   const src = $("sources");
   const fig = (url, cap) => { const f = document.createElement("figure"); f.innerHTML = `<img loading="lazy" alt="${cap}" src="${url}"><figcaption>${cap}</figcaption>`; src.appendChild(f); };
-  fig(D.guides.grey.raw, "guide · grey mannequin"); fig(D.guides.color.raw, "guide · colour per limb");
+  Object.entries(D.guides).forEach(([k, g]) => fig(g.raw, "guide · " + label[k]));
   D.sets.forEach((s) => fig(s.raw, `${label[s.prov]} · ${label[s.guide]}`));
 
   function blit(cv, img, f, alpha) {
