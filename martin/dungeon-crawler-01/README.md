@@ -89,7 +89,9 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     sheet loads when first picked (`loadCast`; until then the hero keeps its own look);
     the hero takes the picked look (`G.hero.look`, see [Rendering](#rendering)) and walks as that character. The
     bar shows the name, the frames per direction, the row (direction) and frame being drawn (or "idle") and the
-    scale. On narrow screens, where the bar normally sits low above the HUD, this scenario keeps it at the top of
+    scale, and the walking speed in tiles per second. A **Speed** list sets that speed as a fraction of the hero's own
+    (`G.hero.speedMul`: 0.05×, 0.1×, 0.15×, 0.25×, 0.35×, 0.5×, 0.75×, normal, 1.5×); the walk frames advance with the
+    distance walked, so a slow walk steps through every frame (at 0.05× a stride takes about 8 s). On narrow screens, where the bar normally sits low above the HUD, this scenario keeps it at the top of
     the screen (over the HUD's top row), so it never covers the character. **Normal game** puts the hero's own look back.
 - **Surface:**
   - **The surface** (depth 0): a new level-1 hero (never saved) a few steps from the crypt's entrance. The bar shows

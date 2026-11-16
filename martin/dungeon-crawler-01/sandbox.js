@@ -64,7 +64,8 @@
     <button class="sc" id="sbNormal"><b>Normal game</b>The usual title screen; its Scenarios button at the bottom left brings this list back.</button></div>`;
   const bar = document.createElement('div'); bar.id = 'sbBar'; bar.hidden = true;
   bar.innerHTML = '<span id="sbInfo">–</span><span id="sbKeepers" hidden>Keeper:' + [1, 2, 3, 4].map(n => `<button data-keeper="${n}">${KEEPERS[n].name.split(' ')[0]}</button>`).join('') + '</span><span id="sbLooks" hidden>Fire look:' + [[1, 'Blaze'], [2, 'Ember bed'], [3, 'Oil pool']].map(([n, l]) => `<button data-look="${n}">${l}</button>`).join('') + '</span>'
-    + '<span id="sbLookPick" hidden>Look: <select id="sbLookSel"></select></span>'
+    + '<span id="sbLookPick" hidden>Look: <select id="sbLookSel"></select> Speed: <select id="sbSpeedSel">'
+    + [0.05, 0.1, 0.15, 0.25, 0.35, 0.5, 0.75, 1, 1.5].map(v => `<option value="${v}"${v === 1 ? ' selected' : ''}>${v === 1 ? 'normal' : v + '×'}</option>`).join('') + '</select></span>'
     + '<span id="sbDrips" class="sbSounds" hidden>Drip:' + [[1, 'Plink'], [2, 'Hollow'], [3, 'Glassy'], [4, 'Echo']].map(([n, l]) => `<button data-drip="${n}">${l}</button>`).join('') + '</span>'
     + '<span id="sbSplash" class="sbSounds" hidden>Bomb splash:' + [[1, 'Plunge'], [2, 'Heavy'], [3, 'Gurgle']].map(([n, l]) => `<button data-splash="${n}">${l}</button>`).join('') + '</span>'
     + '<button id="sbNext" title="Start the next play of this track now">Next loop</button><button id="sbBack">Scenarios</button>';
@@ -207,6 +208,9 @@
     const sel = $('sbLookSel'); sel.innerHTML = [...new Set(keys.map(grp))].map(g => `<optgroup label="${g}">` + keys.filter(k => grp(k) === g).map(k => `<option value="${k}">${lookName(k)}</option>`).join('') + '</optgroup>').join('');
     sel.value = heroLook(G.hero);
   }
+  // walking speed: a multiplier on the hero's own (G.hero.speedMul); the walk frames follow the distance, so a slow
+  // walk shows every frame
+  $('sbSpeedSel').addEventListener('change', e => { G.hero.speedMul = +e.target.value; e.target.blur(); });
   $('sbLookSel').addEventListener('change', e => { const k = e.target.value; G.hero.look = k; loadCast(k); e.target.blur(); });   // a cast sheet loads on first pick
   $('sbLooks2').onclick = () => {
     for (let i = 0; i < 100; i++) { testHero(3); if (G.map.rooms.some(r => r.big === 'horde')) break; }
@@ -214,7 +218,7 @@
     let best = null; for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++)
       if (floorAt(x, y)) { const dd = Math.hypot(x - room.cx, y - room.cy); if (!best || dd < best[2]) best = [x, y, dd]; }
     h.x = best[0] + 0.5; h.y = best[1] + 0.5; h.path = []; G.camSnap = true; G.monsters = [];
-    start('looks'); fillLooks(); log('Test: the character viewer. Pick a look in the bar and walk around.', '#c9a45c');
+    $('sbSpeedSel').value = '1'; start('looks'); fillLooks(); log('Test: the character viewer. Pick a look in the bar and walk around.', '#c9a45c');
   };
   $('sbPack').onclick = () => {
     testHero(3); const h = G.hero;
@@ -266,7 +270,8 @@
     if (mode === 'looks') {
       const h = G.hero, k = heroLook(h), md = META.characters[k];
       $('sbInfo').innerHTML = `<span class="mood">${lookName(k)}</span> · ${md.frames} frames × 8 directions · row ${['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'][h.dir]}`
-        + ` · frame ${h.moving ? Math.floor(h.anim) % md.frames : (md.idle || 0) + ' (idle)'} · scale ${lookScale(k)}`;
+        + ` · frame ${h.moving ? Math.floor(h.anim) % md.frames : (md.idle || 0) + ' (idle)'} · scale ${lookScale(k)}`
+        + ` · ${(h.st.speed * (h.speedMul || 1)).toFixed(2)} tiles/s`;
       return;
     }
     if (mode === 'lake') {

@@ -387,7 +387,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 76;
+const VERSION = 77;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2890,7 +2890,7 @@ function update(dt) {
     }
   }
   const ox = h.x, oy = h.y;
-  h.moving = !h.swing && !h.draw && followPath(h, h.st.speed, dt);
+  h.moving = !h.swing && !h.draw && followPath(h, h.st.speed * (h.speedMul || 1), dt);   // speedMul: the sandbox's character viewer
   const stepD = Math.hypot(h.x - ox, h.y - oy);
   if (h.moving) { const lk = heroLook(h); h.anim += stepD * (META.characters[lk].fpt || 2) / lookScale(lk); if (stepD < 1e-4) { h.stuckT += dt; if (h.stuckT > 0.3) { h.path = []; h.stuckT = 0; } } else h.stuckT = 0; }
   if (h.intent) {
