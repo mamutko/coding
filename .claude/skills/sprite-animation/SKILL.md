@@ -11,7 +11,11 @@ the raw AI images are in `tools/raw/`, and the README sections **Walk cycles (he
 parameters.
 
 Image generation goes through the `ai-media-generation` skill in Martin's **notes** repo (Google
-`gemini-3.1-flash-image` `edit`, ~$0.07 per image). That skill holds API keys: never copy it, its scripts or
+`gemini-3.1-flash-image` `edit`, ~$0.07 per image; OpenAI `gpt-image-2` `edit` at medium quality, 1536 × 1024,
+~$0.075, works just as well: the four Keepers of the Crypt were made with it when Google's prepaid credit ran out.
+With OpenAI, say which input is which: "the first image is the 8-mannequin guide to paint over (keep its 4 x 2
+layout and its magenta background); the second is the design reference; the third is the same character already
+painted in another direction: match its look exactly"). That skill holds API keys: never copy it, its scripts or
 its key files into this public repo. Only call it by path from the notes repo.
 
 ## What doesn't work (learned the hard way)
@@ -135,6 +139,10 @@ its key files into this public repo. Only call it by path from the notes repo.
   redone directions, cleanup passes, a row that faced the wrong way), the skeleton and ghoul $0.88 together
   (~$0.44 each, with the method settled). Armour, capes and odd shapes drift more between directions and need
   more retries; plain figures land near the low end.
+- The four keepers (cloaks, a dress, held items, one character per keeper): 21 images, $1.58 (~$0.40 each); one
+  redo, for a held basket that came and went between frames.
+- Held items and long clothes: name which hand holds what ("her RIGHT forearm (light grey) … carries a basket"), and
+  when an item is hidden in one view, say how it must look in every frame, or it appears in some frames only.
 - The ai-media-generation skill asks before any call over $0.20 or a turn total over $3.00, and the user may
   set a project budget. Keep a spend ledger and report the spend at the end of the turn.
 - Non-walking characters (floating wraiths, ghosts): skip the walk cycle; use one pose per direction plus

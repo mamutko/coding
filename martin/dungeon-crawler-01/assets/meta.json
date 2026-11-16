@@ -44,6 +44,38 @@
    "frames": 4,
    "footY": 128,
    "fpt": 2
+  },
+  "keeper1": {
+   "fw": 160,
+   "fh": 152,
+   "frames": 8,
+   "idle": 3,
+   "footY": 128,
+   "fpt": 5
+  },
+  "keeper2": {
+   "fw": 168,
+   "fh": 152,
+   "frames": 8,
+   "idle": 3,
+   "footY": 128,
+   "fpt": 5
+  },
+  "keeper3": {
+   "fw": 168,
+   "fh": 160,
+   "frames": 8,
+   "idle": 3,
+   "footY": 136,
+   "fpt": 5
+  },
+  "keeper4": {
+   "fw": 160,
+   "fh": 152,
+   "frames": 8,
+   "idle": 3,
+   "footY": 128,
+   "fpt": 5.5
   }
  },
  "items": {

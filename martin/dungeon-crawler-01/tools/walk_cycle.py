@@ -33,6 +33,16 @@ CHARS = {
     # taller frame: seen from behind (N, NW) the hunched figure leans away and stands taller on screen
     "ghoul":    dict(fw=160, fh=162, foot_y=138, idle=3, fpt=5.5, lean=25, crouch=24, hip_amp=19, arm_amp=(14, 14), arm_off=(8, 8),
                      elbow=(14, 14)),
+    # the Keepers of the Crypt: calm merchants with something in one hand (see README, Keepers of the Crypt)
+    # Aldric: a coin pouch in the left hand (short swing), a lantern on the left hip
+    "keeper1":  dict(fw=160, idle=3, fpt=5, lean=3, crouch=0, hip_amp=20, arm_amp=(8, 16), arm_off=(10, 0), elbow=(55, 18)),
+    # Borin: stout smith, a hammer and tongs on the belt, arms swinging wide
+    "keeper2":  dict(fw=168, idle=3, fpt=5, lean=2, crouch=0, hip_amp=20, arm_amp=(16, 16), arm_off=(0, 0), elbow=(20, 20)),
+    # Mirela: a basket on the bent right forearm (barely moves), a shorter stride under the long dress; a taller
+    # frame (her hood reaches above the default one in the side view)
+    "keeper3":  dict(fw=168, fh=160, foot_y=136, idle=3, fpt=5, lean=2, crouch=0, hip_amp=17, arm_amp=(16, 3), arm_off=(0, 12), elbow=(18, 85)),
+    # Old Tobias: stooped, short steps, the right hand on the satchel of scrolls at his hip
+    "keeper4":  dict(fw=160, idle=3, fpt=5.5, lean=10, crouch=8, hip_amp=15, arm_amp=(10, 3), arm_off=(4, 6), elbow=(25, 40)),
 }
 G = dict(CHARS["hero"])     # active character's settings (set by use())
 

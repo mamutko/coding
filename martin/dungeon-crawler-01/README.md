@@ -9,7 +9,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | Path | Purpose |
 |---|---|
 | `index.html` | The whole game: markup, CSS, and JavaScript. Asset metadata (`META`) is inlined so the page also works from `file://`. |
-| `assets/hero.webp`, `skeleton.webp`, `ghoul.webp` | 8-direction × 8-frame walk cycles (transparent). |
+| `assets/hero.webp`, `skeleton.webp`, `ghoul.webp`, `keeper1.webp`–`keeper4.webp` | 8-direction × 8-frame walk cycles (transparent): the hero, two monsters and the four Keepers of the Crypt. |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
 | `assets/items.webp` | 6 × 8 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–8 from `add_items.py`). |
 | `assets/props.webp` | Props: row 1 has the chest, open chest, door, stairs, brazier, bones, urn and gold, and the boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus), from `process_art.py`; row 2 has the searched bones (`bonesused`) and the door leaves (`doorA`, `doorB`), from `add_props.py`; rows 3 on have the four Keepers of the Crypt (`keeper1`–`keeper4`) and their stall's furnishings (`mtable`, `mrack`, `mchest`, `mshelf`, `mcrates`, `mbarrel`, `mlantern`, `mrug`), from `add_market.py`. |
@@ -28,7 +28,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
 | `assets/sfx/` | Ghoul moans and grunts (MP3). |
 | `assets/music/explore-instrumental.mp3`, `combat-instrumental.mp3`, `explore.mp3`, `combat.mp3`, `surface-1.mp3`, `surface-2.mp3` | The music: exploration and combat loops, each instrumental and with a Latin choir, and two cheerful instrumental surface tracks. See [Music](#music). |
-| `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
+| `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul`, `keeper1`–`keeper4` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 | `lake-prototype.html` | A standalone prototype of underground lakes (not loaded by the game, which now has lakes: see [Lakes](#lakes)): still water set a few pixels below the floor, a mirrored reflection of the walls, props and characters, rock banks on the far shores, and ripples from drips. A panel compares the options (tile or rounded shore, ripple rings or refraction, water colour, depth, reflection strength). Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page lake-prototype.html --skip 'assets/*' --inline` (the seven images it uses). |
 | `sandbox.js` | Test scenarios, loaded with `?sandbox` and inlined into the Claude artifact: see [Sandbox](#sandbox). |
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
@@ -56,8 +56,8 @@ it. They live in `sandbox.js`, apart from the game; the game itself never uses t
   publishing and testing):
   `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music Sandbox" --skip assets/meta.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*' --inline 'assets/*.webp' 'assets/*.jpg'`.
   It removes the document wrapper (the viewer adds its own) and the manifest and touch-icon links, inlines
-  `sandbox.js` in place of the loader block (the artifact's address carries no query string), embeds the 14
-  images (`assets/*.webp`, `*.jpg`) in the page as data URIs (about 3.6 MB; the claude.ai app on a phone failed
+  `sandbox.js` in place of the loader block (the artifact's address carries no query string), embeds the 18
+  images (`assets/*.webp`, `*.jpg`) in the page as data URIs (about 4.9 MB; the claude.ai app on a phone failed
   to load them as separate files, every one and every retry), copies the other assets (sounds and music, minus
   `meta.json`, inlined as `META`, and the unused icon sizes) and writes `files.json` for publishing; the
   artifact is then republished to the same URL. Nothing is copied by hand, so a rebuild always matches the
@@ -71,7 +71,7 @@ the picker comes back instead of the title screen (`showDeath` is wrapped). **No
 and leaves the usual title screen, whose **Scenarios** button at its bottom left brings the picker back.
 
 The scenario buttons (all but **Normal game**) stay off until the game's own start-up is done: all images
-loaded (`LOADED` counts them) and a first level built. Until then the picker says `Loading the game: n / 14
+loaded (`LOADED` counts them) and a first level built. Until then the picker says `Loading the game: n / 18
 images…` (with how many loads were retried, if any); if an image fails to load or start-up throws, it shows that message instead (the same text the title
 screen's start button shows, which the picker covers) and the scenarios stay off; for a failed image it also
 fetches the file once and adds what the server answered (an HTTP status, or the fetch error). Errors thrown later
@@ -1121,12 +1121,27 @@ to it and opens the **market** (`openMarket`). The constants are `KEEPER` in the
   - **Old Tobias**, a scholar with spectacles and a satchel of scrolls: "Ah, a customer! Rare finds for rare folk."
 - **The stall** (`furnishKeeper` in `buildLevel`):
   - the keeper stands on a round red rug, on the free tile nearest the room's middle that the camera sees, and
-    blocks it;
+    blocks it (until it walks, see below);
   - on the north and west edges, each only where it fits: a trestle table with wares (as near the keeper as
     possible), a weapon rack, a shelf of potions, an open chest of trinkets, crates and sacks, a barrel of swords,
     and two lanterns on posts;
   - all furnishings are decor, not interactive. The keeper (light radius 3.4 tiles) and the lanterns (2.6) light the
     room.
+- **The keeper walks** (`updateKeeper`, `drawKeeper`): each keeper has an 8-direction walk cycle (`keeper1`–
+  `keeper4` in `META.characters`; see [Walk cycles](#walk-cycles-hero-skeleton-ghoul)), drawn at the hero's size
+  (`KEEPER.scale` 1) with a character's shadow and depth-sorted like one (by its position `fx + fy`).
+  - It **always faces the hero** (`setDir`, the same 8 screen sectors as the characters), standing on its idle
+    frame.
+  - **It walks up to the hero once:** the first time the hero is inside its room (the room's rectangle), the
+    keeper walks straight toward the hero at 1.6 tiles/s (`KEEPER.speed`; walk frames advance with distance, `fpt`
+    5, Old Tobias 5.5) and stops 1.4 tiles from the hero (`KEEPER.meet`). It also stops where its next step would
+    leave its room (0.35 tiles in from the edge), run into a wall or a blocking prop, or after 8 s
+    (`KEEPER.walkMax`). From then on it stays where it stopped (`state` `wait` → `come` → `done`) and only turns
+    to keep facing the hero; it never follows the hero and never leaves its room.
+  - Its tile doesn't block while it walks; where it stops it blocks again (unless the hero stands on that tile).
+    Its tile (`x`, `y`) follows its position, so the market's reach (3 tiles), its light (3.4 tiles) and the
+    walk-up click all use where it is now. The keeper's look switch in the sandbox changes the walking sprite too.
+  - The market's portrait still uses the standing sprite (`keeper1`–`keeper4` in `META.props`).
 - **The market screen** (`#market`, styled like the equipment overlay; it scales down to fit like it). The world
   doesn't pause. It closes with `Esc`, the ✕ button, opening the equipment, or by walking more than 3 tiles from the
   keeper (`KEEPER.reach`). It shows:
@@ -1427,7 +1442,7 @@ The art was generated through the `ai-media-generation` skill in Martin's notes 
 and textures with OpenAI `gpt-image-2` (medium quality, about $0.70), and the hero walk cycle with Google
 `gemini-3.1-flash-image` (see [Walk cycles](#walk-cycles-hero-skeleton-ghoul)). Total spend so far is about
 $3.93 ($0.39 for the surface, $0.22 for the keepers and their stall, $0.08 for the fire bomb designs, $0.07 for the door leaves, $0.07 for the arch-door sheet, about $0.01 for the ghoul voice, $0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
-walk cycles, plus small tests).
+walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycles, OpenAI, see Walk cycles).
 
 - **Background.** `gpt-image-2` can't make transparent backgrounds (and a Gemini test returned an opaque JPEG
   too). Every sprite is therefore generated on flat magenta `#FF00FF` and keyed out by `tools/process_art.py`.
@@ -1602,6 +1617,45 @@ follow.
     `index.html`.
 - **Status:** all five base directions (and so all eight) of the hero use AI art. Every raw image was checked
   for leftover flat-grey guide pieces (none ≥ 150 px remain).
+
+#### Keepers of the Crypt
+
+The four keepers (Aldric, Borin, Mirela, Old Tobias) walk with the same pipeline, `CHARS` `keeper1`–`keeper4`:
+
+| | keeper1 Aldric | keeper2 Borin | keeper3 Mirela | keeper4 Old Tobias |
+|---|---|---|---|---|
+| frame `fw × fh`, `footY` | 160 × 152, 128 | 168 × 152, 128 | 168 × 160, 136 | 160 × 152, 128 |
+| forward lean, knee bend | 3, 0 | 2, 0 | 2, 0 | 10, 8 (stooped) |
+| hip swing | 20 | 20 | 17 (long dress) | 15 (short steps) |
+| arm swing (left, right) | 8, 16 | 16, 16 | 16, 3 | 10, 3 |
+| arm forward offset | 10, 0 | 0, 0 | 0, 12 | 4, 6 |
+| base elbow bend | 55, 18 (the pouch) | 20, 20 | 18, 85 (the basket) | 25, 40 (hand on the satchel) |
+| `fpt` | 5 | 5 | 5 | 5.5 |
+
+- **Generation:** Google's prepaid credit had run out, so these were made with **OpenAI** `gpt-image-2` `edit`
+  (medium, 1536 × 1024, ~$0.075 per direction), with the same three inputs as the monsters: the mannequin guide
+  (first, "keep its 4 × 2 layout and its magenta background"), the keeper cut from `tools/raw/keepers.png` (its
+  front view, as the design reference) and, for every direction after SW, the first frame of the finished SW sheet.
+  It followed the guides as well as Gemini did. The prompt (built per keeper and view) has the same parts as
+  the monsters': paint over every mannequin keeping each pose, dark grey = left / light grey = right, the view
+  sentence, an explicit design paragraph and what each hand holds, the per-frame legs and arms, "long clothes
+  (cloak, coat, dress, apron) swing with the legs", no grey left, flat magenta.
+  - Aldric: grey-streaked dark hair and short beard, green scarf, long dark-green hooded cloak with a thick fur
+    collar, brown leather jerkin, belt pouches; a coin pouch in the left hand, a small lit lantern on the left hip.
+  - Borin: short, stout, bald, a bushy black moustache, cream shirt with rolled sleeves, heavy leather apron; hammer
+    and tongs on the left hip, big fists.
+  - Mirela: dark curly hair under a deep-blue hooded cloak with gold trim (hood up), long blue dress; a wicker
+    basket of potion bottles on the bent right forearm.
+  - Old Tobias: stooped, wild white hair, white beard, round spectacles, long brown leather coat, dark scarf; a big
+    satchel of scrolls at the right hip on a strap across the chest, the right hand on it.
+- **Fixes:** Mirela's NW view first showed her basket in some frames and not in others (it would flicker); it was
+  made again with "the basket … must look the SAME in all 8 frames: from this back-left view it is mostly hidden
+  behind her body, with only its rim and a few bottle tops peeking out". Her side view reached above the default
+  frame, so her frame is 160 tall (ground point 136). Old Tobias's satchel shows on his left side in the back
+  views (the model's choice); it stays the same within each direction.
+- **Raw images used:** `tools/raw/keeper<N>_walk_<DIR>.png`. In the mirrored rows (SE, E, NE) what a keeper holds
+  changes hands.
+- **Cost:** 21 images, about $1.58.
 
 #### Skeleton and ghoul
 

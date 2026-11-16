@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v73 — the Keepers of the Crypt walk (2026-11-16)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 73`)*
+
+- The four Keepers of the Crypt have full 8-direction walk cycles (AI-painted, OpenAI).
+- A keeper always faces the hero. The first time the hero enters its room it walks up to the hero, once, and
+  stops a step away; after that it stays put and only turns. It never follows the hero or leaves its room.
+- The sandbox's market scenario starts a few steps away, so the keeper walks up.
+
 ## v66–v72 — the underground lake (2026-11-15)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 72`)*
+Commit: bb18528
 
 - Depth 8 has a huge **lake room** (28–30 tiles a side) in a corner of a larger map: most of it is a still, dark
   underground lake whose far shores lie out of sight and out of reach. The dry shore along its near walls has

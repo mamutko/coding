@@ -48,7 +48,7 @@
     <button class="sc" id="sbFireLast"><b>Fire bombs: the last two</b>Only two bombs equipped and three skeletons coming. After the second throw your hands are empty until you equip the longsword (key 1).</button>
     <button class="sc" id="sbFireYard"><b>Fire bombs: practice yard</b>30 bombs, a quiet room: three sleeping skeletons to burn (a burn wakes them) and two small stacks of bombs on the floor to pick up (they join your stack). Switch the fire's look in the bar to compare.</button>
     <h2>Market</h2>
-    <button class="sc" id="sbMarket"><b>Keeper of the Crypt</b>Depth 6, next to a keeper in its furnished room, with 3000 gold and things to sell or trade (a helm, an axe, a magic ring, potions, fire bombs). Click the keeper to open the market. Switch between the four keepers in the bar.</button>
+    <button class="sc" id="sbMarket"><b>Keeper of the Crypt</b>Depth 6, in a keeper's furnished room, a few steps from the keeper (who walks up to you), with 3000 gold and things to sell or trade (a helm, an axe, a magic ring, potions, fire bombs). Click the keeper to open the market. Switch between the four keepers in the bar.</button>
     <h2>Kiting</h2>
     <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
     <h2>Lakes</h2>
@@ -151,9 +151,10 @@
     h.gold = 3000; h.hp = Math.round(h.st.maxHp * 0.6);
     for (const it of [genItem(4, 0, 'ironhelm', 'common', 4), genItem(5, 0, 'battleaxe', 'common', 5), genItem(6, 0, 'rubyring', 'magic', 6), makeBombs(3)])
       h.inv[h.inv.indexOf(null)] = it;
-    // stand two tiles in front of the keeper (or as near as there is floor), the keeper's room cleared of anything else
-    let best = null; for (let y = k.y - 3; y <= k.y + 3; y++) for (let x = k.x - 3; x <= k.x + 3; x++) {
-      if (!floorAt(x, y) || G.map.block[y * G.map.w + x]) continue; const dd = Math.abs(Math.hypot(x - k.x, y - k.y) - 2); if (!best || dd < best[2]) best = [x, y, dd]; }
+    // stand in the keeper's room about 4.5 tiles from it (or as near as there is floor), so it walks up to the hero;
+    // the keeper's room cleared of anything else
+    const kr = k.room; let best = null; for (let y = kr.y; y < kr.y + kr.h; y++) for (let x = kr.x; x < kr.x + kr.w; x++) {
+      if (!floorAt(x, y) || G.map.block[y * G.map.w + x]) continue; const dd = Math.abs(Math.hypot(x - k.x, y - k.y) - 4.5); if (!best || dd < best[2]) best = [x, y, dd]; }
     if (best) { h.x = best[0] + 0.5; h.y = best[1] + 0.5; h.path = []; }
     G.monsters = G.monsters.filter(m => Math.hypot(m.x - h.x, m.y - h.y) > 16); refreshUI();
     start('market'); keeperButtons(); log('Test: a Keeper of the Crypt. Click it to trade.', '#e3c060');
