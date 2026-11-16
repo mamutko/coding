@@ -43,6 +43,16 @@ CHARS = {
     "keeper3":  dict(fw=168, fh=160, foot_y=136, idle=3, fpt=5, lean=2, crouch=0, hip_amp=17, arm_amp=(16, 3), arm_off=(0, 12), elbow=(18, 85)),
     # Old Tobias: stooped, short steps, the right hand on the satchel of scrolls at his hip
     "keeper4":  dict(fw=160, idle=3, fpt=5.5, lean=10, crouch=8, hip_amp=15, arm_amp=(10, 3), arm_off=(4, 6), elbow=(25, 40)),
+    # villagers and nobles (for now only in the sandbox's character viewer): what each holds is in README, Walk cycles
+    "hunter":   dict(fw=176, idle=3, fpt=5, lean=4, crouch=0, hip_amp=23, arm_amp=(6, 18), arm_off=(8, 0), elbow=(30, 18)),   # bow in the left hand
+    "huntress": dict(fw=176, idle=3, fpt=5, lean=3, crouch=0, hip_amp=22, arm_amp=(6, 18), arm_off=(8, 0), elbow=(30, 18)),   # bow in the left hand
+    "girl":     dict(fw=144, idle=3, fpt=5, lean=2, crouch=0, hip_amp=24, arm_amp=(18, 10), arm_off=(0, 6), elbow=(18, 40)),  # flowers in the right hand
+    "boy":      dict(fw=144, idle=3, fpt=5, lean=3, crouch=0, hip_amp=26, arm_amp=(20, 12), arm_off=(0, 4), elbow=(18, 35)),  # toy sword in the right hand
+    "duke":     dict(fw=176, idle=3, fpt=5, lean=0, crouch=0, hip_amp=19, arm_amp=(4, 14), arm_off=(10, 0), elbow=(60, 18)),  # left hand on the rapier's hilt
+    "princess": dict(fw=160, idle=3, fpt=5, lean=1, crouch=0, hip_amp=16, arm_amp=(10, 10), arm_off=(0, 0), elbow=(25, 25)),  # long dress: short steps
+    "smithess": dict(fw=168, idle=3, fpt=5, lean=3, crouch=0, hip_amp=21, arm_amp=(16, 10), arm_off=(0, 4), elbow=(20, 30)),  # hammer in the right hand
+    "sorcerer": dict(fw=176, fh=176, foot_y=152, idle=3, fpt=5.5, lean=5, crouch=0, hip_amp=16, arm_amp=(12, 4), arm_off=(0, 16),
+                     elbow=(20, 70)),   # the staff in the right hand, taller than him (a taller frame)
 }
 G = dict(CHARS["hero"])     # active character's settings (set by use())
 

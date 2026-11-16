@@ -141,6 +141,12 @@ its key files into this public repo. Only call it by path from the notes repo.
   more retries; plain figures land near the low end.
 - The four keepers (cloaks, a dress, held items, one character per keeper): 21 images, $1.58 (~$0.40 each); one
   redo, for a held basket that came and went between frames.
+- Eight more characters with no art yet (2 design sheets of 4 front views each, made with an existing sheet as
+  the style reference, then cut by columns): 45 images, about $3.45 (~$0.43 each); one redo pair for a hammer
+  that vanished in the front and back views. A whole set like that is over a $3.00 turn cap: get the budget
+  approved first, and do SW for all of them before the other 32 directions.
+- Children: paint them over the same adult guide with "CHILD proportions (a big head, short limbs, small hands)"
+  in the design; the build scales every figure to the pose model's height, so draw them smaller in the game.
 - Held items and long clothes: name which hand holds what ("her RIGHT forearm (light grey) … carries a basket"), and
   when an item is hidden in one view, say how it must look in every frame, or it appears in some frames only.
 - The ai-media-generation skill asks before any call over $0.20 or a turn total over $3.00, and the user may

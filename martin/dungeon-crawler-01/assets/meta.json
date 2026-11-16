@@ -76,6 +76,70 @@
    "idle": 3,
    "footY": 128,
    "fpt": 5.5
+  },
+  "hunter": {
+   "fw": 176,
+   "fh": 152,
+   "frames": 8,
+   "idle": 3,
+   "footY": 128,
+   "fpt": 5
+  },
+  "huntress": {
+   "fw": 176,
+   "fh": 152,
+   "frames": 8,
+   "idle": 3,
+   "footY": 128,
+   "fpt": 5
+  },
+  "girl": {
+   "fw": 144,
+   "fh": 152,
+   "frames": 8,
+   "idle": 3,
+   "footY": 128,
+   "fpt": 5
+  },
+  "boy": {
+   "fw": 144,
+   "fh": 152,
+   "frames": 8,
+   "idle": 3,
+   "footY": 128,
+   "fpt": 5
+  },
+  "duke": {
+   "fw": 176,
+   "fh": 152,
+   "frames": 8,
+   "idle": 3,
+   "footY": 128,
+   "fpt": 5
+  },
+  "princess": {
+   "fw": 160,
+   "fh": 152,
+   "frames": 8,
+   "idle": 3,
+   "footY": 128,
+   "fpt": 5
+  },
+  "smithess": {
+   "fw": 168,
+   "fh": 152,
+   "frames": 8,
+   "idle": 3,
+   "footY": 128,
+   "fpt": 5
+  },
+  "sorcerer": {
+   "fw": 176,
+   "fh": 176,
+   "frames": 8,
+   "idle": 3,
+   "footY": 152,
+   "fpt": 5.5
   }
  },
  "items": {

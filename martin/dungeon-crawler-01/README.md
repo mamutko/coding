@@ -10,6 +10,8 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 |---|---|
 | `index.html` | The whole game: markup, CSS, and JavaScript. Asset metadata (`META`) is inlined so the page also works from `file://`. |
 | `assets/hero.webp`, `skeleton.webp`, `ghoul.webp`, `keeper1.webp`–`keeper4.webp` | 8-direction × 8-frame walk cycles (transparent): the hero, two monsters and the four Keepers of the Crypt. |
+| `assets/hunter.webp`, `huntress.webp`, `girl.webp`, `boy.webp`, `duke.webp`, `princess.webp`, `smithess.webp`, `sorcerer.webp` | The cast: 8-direction × 8-frame walk cycles of villagers and nobles not yet in the game, shown only in the sandbox's character viewer (loaded on demand). See [Walk cycles](#walk-cycles-hero-skeleton-ghoul). |
+| `tools/raw/cast_design1.png`, `cast_design2.png` | The cast's front-view design sheets (4 × 1 each, on magenta). |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
 | `assets/items.webp` | 6 × 8 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–8 from `add_items.py`). |
 | `assets/props.webp` | Props: row 1 has the chest, open chest, door, stairs, brazier, bones, urn and gold, and the boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus), from `process_art.py`; row 2 has the searched bones (`bonesused`) and the door leaves (`doorA`, `doorB`), from `add_props.py`; rows 3 on have the four Keepers of the Crypt (`keeper1`–`keeper4`) and their stall's furnishings (`mtable`, `mrack`, `mchest`, `mshelf`, `mcrates`, `mbarrel`, `mlantern`, `mrug`), from `add_market.py`. |
@@ -28,7 +30,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
 | `assets/sfx/` | Ghoul moans and grunts (MP3). |
 | `assets/music/explore-instrumental.mp3`, `combat-instrumental.mp3`, `explore.mp3`, `combat.mp3`, `surface-1.mp3`, `surface-2.mp3` | The music: exploration and combat loops, each instrumental and with a Latin choir, and two cheerful instrumental surface tracks. See [Music](#music). |
-| `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul`, `keeper1`–`keeper4` × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
+| `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul`, `keeper1`–`keeper4` and the cast × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 | `lake-prototype.html` | A standalone prototype of underground lakes (not loaded by the game, which now has lakes: see [Lakes](#lakes)): still water set a few pixels below the floor, a mirrored reflection of the walls, props and characters, rock banks on the far shores, and ripples from drips. A panel compares the options (tile or rounded shore, ripple rings or refraction, water colour, depth, reflection strength). Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page lake-prototype.html --skip 'assets/*' --inline` (the seven images it uses). |
 | `sandbox.js` | Test scenarios, loaded with `?sandbox` and inlined into the Claude artifact: see [Sandbox](#sandbox). |
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
@@ -56,8 +58,8 @@ it. They live in `sandbox.js`, apart from the game; the game itself never uses t
   publishing and testing):
   `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music Sandbox" --skip assets/meta.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*' --inline 'assets/*.webp' 'assets/*.jpg'`.
   It removes the document wrapper (the viewer adds its own) and the manifest and touch-icon links, inlines
-  `sandbox.js` in place of the loader block (the artifact's address carries no query string), embeds the 18
-  images (`assets/*.webp`, `*.jpg`) in the page as data URIs (about 4.9 MB; the claude.ai app on a phone failed
+  `sandbox.js` in place of the loader block (the artifact's address carries no query string), embeds the 26
+  images (`assets/*.webp`, `*.jpg`, the cast's included) in the page as data URIs (about 7.6 MB; the claude.ai app on a phone failed
   to load them as separate files, every one and every retry), copies the other assets (sounds and music, minus
   `meta.json`, inlined as `META`, and the unused icon sizes) and writes `files.json` for publishing; the
   artifact is then republished to the same URL. Nothing is copied by hand, so a rebuild always matches the
@@ -82,7 +84,9 @@ The picker (*Crypt Sandbox*) groups the scenarios:
 - **Characters:**
   - **Character viewer** (depth 3, regenerated until it has a big room): the test hero stands in the middle of the
     big room, and every monster of the level is removed. A **Look** list in the bar holds every sheet in
-    `META.characters` (the hero, the five monsters, the four Keepers of the Crypt, and any added later), by name;
+    `META.characters` by name, in groups: Hero, Monsters (five), Keepers of the Crypt (four) and Villagers and
+    nobles (the cast: hunter, huntress, village girl and boy, duke, princess, female blacksmith, sorcerer). A cast
+    sheet loads when first picked (`loadCast`; until then the hero keeps its own look);
     the hero takes the picked look (`G.hero.look`, see [Rendering](#rendering)) and walks as that character. The
     bar shows the name, the frames per direction, the row (direction) and frame being drawn (or "idle") and the
     scale. **Normal game** puts the hero's own look back.
@@ -1453,7 +1457,7 @@ The art was generated through the `ai-media-generation` skill in Martin's notes 
 and textures with OpenAI `gpt-image-2` (medium quality, about $0.70), and the hero walk cycle with Google
 `gemini-3.1-flash-image` (see [Walk cycles](#walk-cycles-hero-skeleton-ghoul)). Total spend so far is about
 $3.93 ($0.39 for the surface, $0.22 for the keepers and their stall, $0.08 for the fire bomb designs, $0.07 for the door leaves, $0.07 for the arch-door sheet, about $0.01 for the ghoul voice, $0.26 for the dirt texture, the searched bones and a first door attempt, $0.14 for the newer item icons, $0.07 for the boss-room furnishings, and before that about $0.70 for the original sheets, $0.83 for the hero walk cycle and $0.88 for the skeleton and ghoul
-walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycles, OpenAI, see Walk cycles).
+walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycles and about $3.45 for the cast's, OpenAI, see Walk cycles).
 
 - **Background.** `gpt-image-2` can't make transparent backgrounds (and a Gemini test returned an opaque JPEG
   too). Every sprite is therefore generated on flat magenta `#FF00FF` and keyed out by `tools/process_art.py`.
@@ -1667,6 +1671,37 @@ The four keepers (Aldric, Borin, Mirela, Old Tobias) walk with the same pipeline
 - **Raw images used:** `tools/raw/keeper<N>_walk_<DIR>.png`. In the mirrored rows (SE, E, NE) what a keeper holds
   changes hands.
 - **Cost:** 21 images, about $1.58.
+
+#### The cast (villagers and nobles)
+
+Eight more walking characters, so far only for the sandbox's character viewer: a **hunter**, a **huntress**, a
+**village girl** and a **village boy**, a **duke**, a modest **princess**, a **female blacksmith** (`smithess`) and a
+**sorcerer**. Their sheets are not loaded at start-up (`CAST_SRC`, `loadCast`); `CAST_NAMES` names them and
+`CAST_SCALE` draws the children smaller (girl 0.7, boy 0.74) and the huntress and princess a little smaller (0.97,
+0.95).
+
+- **Designs:** two 4 × 1 front-view sheets on magenta (`tools/raw/cast_design1.png`, `cast_design2.png`), OpenAI
+  `gpt-image-2` `edit` with `tools/raw/keepers.png` as the style reference ("EXACTLY the same art style, lighting,
+  rendering, camera angle, scale and framing"), ~$0.075 each; each figure was cut out by the columns of
+  non-magenta pixels.
+- **Walk cycles:** as for the keepers (OpenAI `edit`, the guide, the design crop, the first SW frame), with these
+  `CHARS` and what each holds:
+
+| | frame `fw × fh`, `footY` | lean, hip swing | arm swing (left, right) | holds |
+|---|---|---|---|---|
+| hunter | 176 × 152, 128 | 4, 23 | 6, 18 | a longbow upright in the left hand, a quiver on the back |
+| huntress | 176 × 152, 128 | 3, 22 | 6, 18 | the same |
+| girl | 144 × 152, 128 | 2, 24 | 18, 10 | wildflowers in the right hand (child proportions) |
+| boy | 144 × 152, 128 | 3, 26 | 20, 12 | a wooden toy sword in the right hand (child proportions) |
+| duke | 176 × 152, 128 | 0, 19 | 4, 14 | the left hand on his rapier's hilt (elbow 60) |
+| princess | 160 × 152, 128 | 1, 16 | 10, 10 | nothing (a long dress, short steps) |
+| smithess | 168 × 152, 128 | 3, 21 | 16, 10 | a smith's hammer hanging from the right hand |
+| sorcerer | 176 × 176, 152 | 5, 16 | 12, 4 | a staff taller than him in the right hand (elbow 70); a taller frame for it; `fpt` 5.5 |
+
+- **Fixes:** one request failed and was sent again; the female blacksmith's S and N views first lost the hammer and
+  were made again with "in ALL 8 frames her RIGHT hand … grips the wooden handle of a heavy iron smith's hammer …
+  clearly visible in every frame".
+- **Cost:** 2 design sheets and 43 walk images, about $3.45 (OpenAI).
 
 #### Skeleton and ghoul
 

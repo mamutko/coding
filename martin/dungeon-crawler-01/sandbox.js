@@ -200,12 +200,13 @@
   };
   // Character viewer: every sheet in META.characters, named; the hero takes the picked look (G.hero.look, see
   // heroLook in the game), in an empty big room
-  const lookName = k => k === 'hero' ? 'The hero (knight)' : MON[k] ? MON[k].name : /^keeper\d$/.test(k) ? KEEPERS[+k.slice(6)].name : k;
+  const lookName = k => k === 'hero' ? 'The hero (knight)' : MON[k] ? MON[k].name : /^keeper\d$/.test(k) ? KEEPERS[+k.slice(6)].name : CAST_NAMES[k] || k;
   function fillLooks() {
-    const sel = $('sbLookSel'); sel.innerHTML = Object.keys(META.characters).map(k => `<option value="${k}">${lookName(k)}</option>`).join('');
+    const keys = Object.keys(META.characters), grp = k => k === 'hero' ? 'Hero' : MON[k] ? 'Monsters' : /^keeper\d$/.test(k) ? 'Keepers of the Crypt' : 'Villagers and nobles';
+    const sel = $('sbLookSel'); sel.innerHTML = [...new Set(keys.map(grp))].map(g => `<optgroup label="${g}">` + keys.filter(k => grp(k) === g).map(k => `<option value="${k}">${lookName(k)}</option>`).join('') + '</optgroup>').join('');
     sel.value = heroLook(G.hero);
   }
-  $('sbLookSel').addEventListener('change', e => { G.hero.look = e.target.value; e.target.blur(); });
+  $('sbLookSel').addEventListener('change', e => { const k = e.target.value; G.hero.look = k; loadCast(k); e.target.blur(); });   // a cast sheet loads on first pick
   $('sbLooks2').onclick = () => {
     for (let i = 0; i < 100; i++) { testHero(3); if (G.map.rooms.some(r => r.big === 'horde')) break; }
     const h = G.hero, room = G.map.rooms.find(r => r.big === 'horde') || G.map.rooms[1];
