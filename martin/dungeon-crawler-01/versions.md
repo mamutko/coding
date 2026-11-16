@@ -9,14 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v73 — the Keepers of the Crypt walk (2026-11-16)
+## v73–v74 — the Keepers of the Crypt walk; character viewer (2026-11-16)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 73`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 74`)*
 
 - The four Keepers of the Crypt have full 8-direction walk cycles (AI-painted, OpenAI).
 - A keeper always faces the hero. The first time the hero enters its room it walks up to the hero, once, and
   stops a step away; after that it stays put and only turns. It never follows the hero or leaves its room.
 - The sandbox's market scenario starts a few steps away, so the keeper walks up.
+- Sandbox **Character viewer**: walk around an empty room as any character with a sprite sheet (the hero,
+  the monsters, the keepers), picked from a list.
 
 ## v66–v72 — the underground lake (2026-11-15)
 

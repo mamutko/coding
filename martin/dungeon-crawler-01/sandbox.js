@@ -28,6 +28,8 @@
   #sbLooks { display: flex; gap: 4px; align-items: center; }
   #sbLooks[hidden] { display: none !important; }
   #sbKeepers { display: flex; gap: 4px; align-items: center; } #sbKeepers[hidden] { display: none !important; }
+  #sbLookPick { display: flex; gap: 6px; align-items: center; } #sbLookPick[hidden] { display: none !important; }
+  #sbBar select { background: #1c1316; border: 1px solid #5a4528; color: #e8dcc4; font: 13px Georgia, serif; padding: 3px 6px; }
   .sbSounds { display: flex; gap: 4px; align-items: center; } .sbSounds[hidden] { display: none !important; }
   #sbBar .sbSounds button.on { border-color: #8fb6d0; color: #fff; background: #13263a; }
   #sbBar #sbKeepers button.on { border-color: #e3c060; color: #fff; background: #3a2c12; }
@@ -51,6 +53,8 @@
     <button class="sc" id="sbMarket"><b>Keeper of the Crypt</b>Depth 6, in a keeper's furnished room, a few steps from the keeper (who walks up to you), with 3000 gold and things to sell or trade (a helm, an axe, a magic ring, potions, fire bombs). Click the keeper to open the market. Switch between the four keepers in the bar.</button>
     <h2>Kiting</h2>
     <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
+    <h2>Characters</h2>
+    <button class="sc" id="sbLooks2"><b>Character viewer</b>Walk around an empty big room as any character that has a sprite sheet: the hero, the monsters and the Keepers of the Crypt. Pick the look in the bar; click to walk, and watch every direction.</button>
     <h2>Lakes</h2>
     <button class="sc" id="sbLake"><b>The underground lake</b>Depth 8, on the shore of the huge lake room. The lake reaches out of sight; its far shores are the room's walls. Wraiths hover over the water in a loose group (only they can cross it). You carry 15 fire bombs (key 4): one that lands in the water sinks, but fire on the shore spreads its burning oil over the water. Drops fall from the ceiling now and then; watch the reflections ripple.</button>
     <h2>Music</h2>
@@ -59,6 +63,7 @@
     <button class="sc" id="sbNormal"><b>Normal game</b>The usual title screen; its Scenarios button at the bottom left brings this list back.</button></div>`;
   const bar = document.createElement('div'); bar.id = 'sbBar'; bar.hidden = true;
   bar.innerHTML = '<span id="sbInfo">–</span><span id="sbKeepers" hidden>Keeper:' + [1, 2, 3, 4].map(n => `<button data-keeper="${n}">${KEEPERS[n].name.split(' ')[0]}</button>`).join('') + '</span><span id="sbLooks" hidden>Fire look:' + [[1, 'Blaze'], [2, 'Ember bed'], [3, 'Oil pool']].map(([n, l]) => `<button data-look="${n}">${l}</button>`).join('') + '</span>'
+    + '<span id="sbLookPick" hidden>Look: <select id="sbLookSel"></select></span>'
     + '<span id="sbDrips" class="sbSounds" hidden>Drip:' + [[1, 'Plink'], [2, 'Hollow'], [3, 'Glassy'], [4, 'Echo']].map(([n, l]) => `<button data-drip="${n}">${l}</button>`).join('') + '</span>'
     + '<span id="sbSplash" class="sbSounds" hidden>Bomb splash:' + [[1, 'Plunge'], [2, 'Heavy'], [3, 'Gurgle']].map(([n, l]) => `<button data-splash="${n}">${l}</button>`).join('') + '</span>'
     + '<button id="sbNext" title="Start the next play of this track now">Next loop</button><button id="sbBack">Scenarios</button>';
@@ -88,7 +93,7 @@
   showDeath = () => { if (!isTest()) return realDeath(); G.running = false; pick.hidden = false; bar.hidden = true; };
   const floorAt = (x, y) => G.map.t[y * G.map.w + x] === T_FLOOR && !G.objects.some(o => o.x === x && o.y === y && !o.walk);
   function start(m = 'music') {
-    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbDrips').hidden = $('sbSplash').hidden = m !== 'lake'; soundButtons(); $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
+    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbDrips').hidden = $('sbSplash').hidden = m !== 'lake'; soundButtons(); $('sbLookPick').hidden = m !== 'looks'; $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
     audio(); pick.hidden = true; bar.hidden = false;
     G.running = true; G.camSnap = true; G.deathShown = false;
     $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); $('heroCfg').classList.add('hidden'); hideTip();
@@ -193,6 +198,22 @@
     G.monsters = G.monsters.filter(mo => mo.lake || Math.hypot(mo.x - h.x, mo.y - h.y) > 14);
     start('lake'); log('Test: the underground lake. Wraiths hover over the water.', '#9fb6c8');
   };
+  // Character viewer: every sheet in META.characters, named; the hero takes the picked look (G.hero.look, see
+  // heroLook in the game), in an empty big room
+  const lookName = k => k === 'hero' ? 'The hero (knight)' : MON[k] ? MON[k].name : /^keeper\d$/.test(k) ? KEEPERS[+k.slice(6)].name : k;
+  function fillLooks() {
+    const sel = $('sbLookSel'); sel.innerHTML = Object.keys(META.characters).map(k => `<option value="${k}">${lookName(k)}</option>`).join('');
+    sel.value = heroLook(G.hero);
+  }
+  $('sbLookSel').addEventListener('change', e => { G.hero.look = e.target.value; e.target.blur(); });
+  $('sbLooks2').onclick = () => {
+    for (let i = 0; i < 100; i++) { testHero(3); if (G.map.rooms.some(r => r.big === 'horde')) break; }
+    const h = G.hero, room = G.map.rooms.find(r => r.big === 'horde') || G.map.rooms[1];
+    let best = null; for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++)
+      if (floorAt(x, y)) { const dd = Math.hypot(x - room.cx, y - room.cy); if (!best || dd < best[2]) best = [x, y, dd]; }
+    h.x = best[0] + 0.5; h.y = best[1] + 0.5; h.path = []; G.camSnap = true; G.monsters = [];
+    start('looks'); fillLooks(); log('Test: the character viewer. Pick a look in the bar and walk around.', '#c9a45c');
+  };
   $('sbPack').onclick = () => {
     testHero(3); const h = G.hero;
     // clear the start room's surroundings, then five skeletons 4-6 tiles away, already pursuing
@@ -216,7 +237,7 @@
     G.monsters = G.monsters.filter(m => m.bossRoom || m.boss || Math.hypot(m.x - h.x, m.y - h.y) > 10);
     start(); log('Test: a Pit Demon level. Its boss room is close by.', '#7fe08a');
   };
-  $('sbNormal').onclick = () => { audio(); setLook('fire', 1); SOUND_LOOK.drip = SOUND_LOOK.splash = 1; pick.hidden = true; bar.hidden = true; };   // the normal game: the settled look (Blaze)
+  $('sbNormal').onclick = () => { audio(); setLook('fire', 1); SOUND_LOOK.drip = SOUND_LOOK.splash = 1; if (G && G.hero) G.hero.look = null; pick.hidden = true; bar.hidden = true; };   // the normal game: the settled look (Blaze)
   $('sbBack').onclick = () => { G.running = false; pick.hidden = false; bar.hidden = true; };
   $('sbNext').onclick = () => { if (MUSIC.cur) MUSIC.cur.loopAt = 0; };
   setInterval(() => {
@@ -240,6 +261,12 @@
         + (ch.length ? ` · <span class="burn">charging: ${ch.join(', ')}</span>` : '');
       return;
     }
+    if (mode === 'looks') {
+      const h = G.hero, k = heroLook(h), md = META.characters[k];
+      $('sbInfo').innerHTML = `<span class="mood">${lookName(k)}</span> · ${md.frames} frames × 8 directions · row ${['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'][h.dir]}`
+        + ` · frame ${h.moving ? Math.floor(h.anim) % md.frames : (md.idle || 0) + ' (idle)'} · scale ${lookScale(k)}`;
+      return;
+    }
     if (mode === 'lake') {
       const h = G.hero, w = G.monsters.filter(mo => mo.lake && !mo.dead), pur = w.filter(mo => mo.state === 'chase').length;
       const near = w.length ? Math.min(...w.map(mo => Math.hypot(mo.x - h.x, mo.y - h.y))).toFixed(1) : '–';
@@ -259,7 +286,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbLake', 'sbPack', 'sbDemon'];
+  const SC = ['sbLooks2', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbLake', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
   // the same, but the picker covers it); errors thrown later are listed there too

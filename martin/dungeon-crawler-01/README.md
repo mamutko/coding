@@ -79,6 +79,13 @@ fetches the file once and adds what the server answered (an HTTP status, or the 
 
 The picker (*Crypt Sandbox*) groups the scenarios:
 
+- **Characters:**
+  - **Character viewer** (depth 3, regenerated until it has a big room): the test hero stands in the middle of the
+    big room, and every monster of the level is removed. A **Look** list in the bar holds every sheet in
+    `META.characters` (the hero, the five monsters, the four Keepers of the Crypt, and any added later), by name;
+    the hero takes the picked look (`G.hero.look`, see [Rendering](#rendering)) and walks as that character. The
+    bar shows the name, the frames per direction, the row (direction) and frame being drawn (or "idle") and the
+    scale. **Normal game** puts the hero's own look back.
 - **Surface:**
   - **The surface** (depth 0): a new level-1 hero (never saved) a few steps from the crypt's entrance. The bar shows
     the world tile and super tile the hero is on, then the level's name once below, and the music track and play
@@ -369,6 +376,10 @@ and the picker shows no saved heroes.
   60 %, extra soft (70 % shade reached at 0.3 of the radius instead of 0.55), 28 px above it; the demon 42 × 19
   at 60 %, 14 px above it. Those two sheets stand above their ground point, so their shadows move up under the
   body.
+  - **The hero's look** (`heroLook`): normally its own sheet; the sandbox's character viewer can give it any sheet
+    in `META.characters` (`G.hero.look`). It is then drawn at that character's scale (`lookScale`: a monster's
+    `scale`, a keeper's `KEEPER.scale`, else 1), with its shadow, hovering like a wraith if it is one, its walk
+    frames advancing by that sheet's `fpt`, and the same in a lake's reflection.
   - **Walk frames advance with distance walked**, `anim += distance × fpt / scale` (the hero's scale is 1), so
     feet don't slide at any move speed and bigger monsters take longer strides.
   - **Hero, skeleton, ghoul:** 8 frames per direction = one full stride (two steps): 0 left foot forward,
