@@ -10,6 +10,10 @@ The findings are in the skill ("What doesn't work", recipe step 4 and the prompt
 - `build.py` / `nwbuild.py`: slice AI images into frames (alpha or magenta key, connected components by cell).
   `nwbuild.py` anchors painted frames on the guide's per-frame foot drop and head x, as `walk_cycle.py build` does.
 - `HANDOFF.md`: the brief for rendering a NW guide from the Quaternius 3D walk.
+- `render_guide.py <UAL1_Standard.glb> <DIR> <out.png>`: renders that guide (pure numpy + PIL: glTF parsing,
+  linear blend skinning, painter's-order triangles, `walk_cycle.project()`). 8 samples of `Walk_Loop` from the left
+  heel strike, one colour per limb by dominant bone weight, scaled and shifted to fill the cell like the stick
+  figure. Output: `guide-mocap-NW.png`.
 - `review.html`: the NW review page (loads `nwdata.js`, written by `nwbuild.py <dir> <dir>/nwdata.js`; expects
   `guide-{grey,color}-NW.png` and `{openai,google}-{grey,color}-NW.png` in `<dir>`).
 
