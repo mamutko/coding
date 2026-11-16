@@ -12,7 +12,9 @@ parameters.
 
 Image generation goes through the `ai-media-generation` skill in Martin's **notes** repo (Google
 `gemini-3.1-flash-image` `edit`, ~$0.07 per image; OpenAI `gpt-image-2` `edit` at medium quality, 1536 × 1024,
-~$0.075, works just as well: the four Keepers of the Crypt were made with it when Google's prepaid credit ran out.
+~$0.075, works just as well: the four Keepers of the Crypt were made with it when Google's prepaid credit ran out. Newer models tested on 2026-11-16 with the colour guide: OpenAI `gpt-image-2.6-flare` (now the script's default,
+~$0.034 per direction at medium, transparent output) and Google `gemini-nano-banana-2.1` (~$0.04 at 1K); both
+followed the guide in 7 of 8 frames. Pick models with the ai-media-generation skill's `models` command, not from this list.
 With OpenAI, say which input is which: "the first image is the 8-mannequin guide to paint over (keep its 4 x 2
 layout and its magenta background); the second is the design reference; the third is the same character already
 painted in another direction: match its look exactly"). That skill holds API keys: never copy it, its scripts or
@@ -54,7 +56,16 @@ its key files into this public repo. Only call it by path from the notes repo.
   the near boot far to the upper RIGHT: the boots WIDE apart left-right, the widest stance of all 8 frames". The
   models follow positions in the picture far better than which leg is which. A row that passes `stride_check` can
   still look wrong (the same boot leading): watch it walk slowly in the game too.
-- **Coloured guide limbs** (blue left, orange right) leak into the art as blue and orange armour.
+- **No pose guide at all** (tested 2026-11-16 with `gpt-image-2.6-flare` and `gemini-nano-banana-2.1`, a
+  ranger made from scratch): the stride was bad in every direction for both models, whatever the per-frame
+  wording. A whole 8 × 8 sheet in one image failed in both (wrong rows; Google even drew 6 × 10). Google
+  without a guide could not draw a figure facing LEFT at all. Always use a guide.
+- **"The other leg leads in frames 5–8" read as "turn around".** Without a guide, OpenAI turned frames 5–8 the
+  other way in several directions. Say outright: "all 8 figures face exactly the same direction; the body
+  NEVER turns around between figures".
+- **Coloured guide limbs once leaked** (blue left, orange right became blue and orange armour). With one colour
+  per limb and the explicit "colours are ONLY a pose guide" sentence below, nothing leaked in the 2026-11-16
+  test, so the colour guide is now the default.
 - **"Make the arms swing"** without per-frame detail gives stiff, hanging arms even if the guide swings them.
 - **A long shared design reference is not enough** to keep the design: without an explicit design paragraph
   the model drifted (flat-topped helm, light-grey armour) in one direction.
@@ -77,9 +88,13 @@ its key files into this public repo. Only call it by path from the notes repo.
    dimetric view): `screen_x = X`, `screen_y = −Y·cos30° + Z·sin30°`. Draw parts far to near.
 3. **Placeholders first.** Render the stick figures at game scale into the real sheet layout, so the game
    animates correctly before any art exists, and so you can check the gait and facing in the game itself.
-4. **Guide image per direction** (`guide <CHAR> <DIR> out.png --magenta --mannequin`): the 8 poses in a 4 × 2
-   grid on flat magenta, drawn as a **grey mannequin** with thick limbs: dark grey = left, light grey =
-   right. One image per direction; generate only the 5 base directions S, SW, W, NW, N.
+4. **Guide image per direction** (`guide <CHAR> <DIR> out.png --magenta --limbs`): the 8 poses in a 4 × 2
+   grid on flat magenta, drawn as a mannequin with thick limbs and **one colour per limb**: blue = left leg,
+   orange = right leg, teal = left arm, yellow = right arm, grey = torso and head. The colours let the model
+   follow each limb from figure to figure. In the 2026-11-16 NW test both guides gave 7 of 8 frames matching in
+   `stride_check`, and with Google the colour guide's frames 1–2 matched almost exactly where the grey one's
+   were borderline. `--mannequin` still draws the older grey version (dark grey = left, light grey = right).
+   One image per direction; generate only the 5 base directions S, SW, W, NW, N.
 5. **Generate with `edit`** at aspect 4:3 and 1K. Inputs, in order:
    1. the guide, as the image being edited;
    2. a crop of the character in the same view, as a design reference (from an older sheet or concept art;
@@ -88,9 +103,14 @@ its key files into this public repo. Only call it by path from the notes repo.
 
    Prompt checklist (see the README for full text):
    - "Paint over EVERY mannequin, keeping each one's exact position, size and pose of legs, arms and torso."
-   - "Dark grey limbs = its left arm and leg, light grey = its right." Name what each hand holds per side.
-   - Per-frame legs: frame 1 left leg far forward and right far back, frame 3 right knee bent with the foot
-     lifted, frame 5 the reverse, frame 7 left foot lifted.
+   - The limb key, word for word: "Each limb of the mannequin has its own colour so you can follow it from figure
+     to figure: BLUE = his LEFT leg, ORANGE = his RIGHT leg, TEAL = his LEFT arm, YELLOW = his RIGHT arm, grey =
+     torso and head." Name what each hand holds per side ("the YELLOW arm's hand holds …").
+   - Per-frame legs, by guide colour: "1: the BLUE leg reaches forward, the ORANGE leg stretched far back.
+     3: the BLUE leg under the body; the ORANGE leg bent at the knee, foot lifted, swinging forward. 5: the
+     OPPOSITE of 1: now the ORANGE leg reaches forward and the BLUE leg is stretched far back. Figure 5 is NOT a
+     copy of figure 1. 7: the ORANGE leg under the body; the BLUE leg bent, foot lifted, swinging forward.
+     Figures 2, 4, 6, 8 are the in-between poses: copy them from the guide."
    - Per-frame arms: which arm is forward in frames 1 and 5, both arms close to the body in frames 3 and 7,
      "hands at clearly different positions from frame to frame".
    - Torso: shoulders twist against the hips, slight lean and shift over the supporting leg, "not stiff".
@@ -98,8 +118,13 @@ its key files into this public repo. Only call it by path from the notes repo.
      not the pose".
    - **An explicit view sentence**, e.g. W: "strict side profile, walks to the LEFT; we see only its LEFT
      side, NOT turned toward the viewer". Side visibility: facing SW/W/NW (screen left) shows the character's
-     *left* side; facing S shows the front; N the back.
-   - "The grey shades are only a guide, not colours; no grey mannequin parts may remain."
+     *left* side; facing S shows the front; N the back. End it with "The body NEVER turns around between
+     figures."
+   - "The colours are ONLY a pose guide: NONE of blue, orange, teal or yellow may appear anywhere in the
+     painting; paint every limb in the character's own clothing colours." (With `--mannequin`: "The grey
+     shades are only a guide, not colours; no grey mannequin parts may remain.")
+   - With OpenAI, ask for "Transparent background (remove the magenta)" and pass `--background transparent`:
+     `gpt-image-2.6-flare` (the ai-media-generation default) returns real alpha, so no chroma key is needed.
    - "Flat solid pure magenta #FF00FF background, no floor, no shadows, no text."
 6. **Review every image** (Read it) before building. Typical faults and fixes:
    - **Leftover flat grey mannequin limbs** (common in the S view): run a second `edit` on the result:

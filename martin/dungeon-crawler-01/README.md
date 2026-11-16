@@ -1601,7 +1601,11 @@ follow.
   scale (~118 px tall, ground point at `footY`), so it still animates correctly in the game.
 - **Guide** (`python walk_cycle.py guide <CHAR> <DIR> <out.png> --magenta --mannequin`): the 8 poses for one direction
   in a 4 × 2 grid (1200 × 880) on magenta, as a grey mannequin with thicker limbs (dark grey = left, light
-  grey = right). Coloured limbs leaked into the armour, so the guide is grey.
+  grey = right). Coloured limbs once leaked into the armour, so these sheets used the grey guide.
+  `--limbs` instead of `--mannequin` draws one colour per limb (blue left leg, orange right leg, teal left arm,
+  yellow right arm, grey torso). In a test on 2026-11-16 (a ranger, NW, `gpt-image-2.6-flare` and
+  `gemini-nano-banana-2.1`), with the prompt saying the colours are only a guide and must not appear, nothing
+  leaked and the legs followed the guide at least as well as with the grey one. See the `sprite-animation` skill.
 - **Generation** (`google_media.py edit`, `gemini-3.1-flash-image`, 1K, aspect 4:3, ~$0.07 per direction). The
   inputs are the guide (as the image being edited), a clean crop of the knight from the original sheet in the
   same view (the original NW row actually faced NE, so that crop is mirrored), and a frame of the finished SW

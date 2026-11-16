@@ -1,6 +1,7 @@
 """Walk-cycle pipeline (hero, skeleton, ghoul): 3D stick-figure pose guides / placeholders + sheet builder.
 
-  python walk_cycle.py guide <CHAR> <DIR> <out.png> [--magenta] [--mannequin]  # 4x2 pose guide
+  python walk_cycle.py guide <CHAR> <DIR> <out.png> [--magenta] [--mannequin | --limbs]  # 4x2 pose guide
+                         # --limbs: one colour per limb (blue left leg, orange right leg, teal left arm, yellow right arm)
   python walk_cycle.py build <CHAR> <raw_dir> <out_dir>  # assemble assets/<CHAR>.webp + update meta.json
   python walk_cycle.py placeholders <CHAR> <out.png>     # preview: all 8 directions as stick figures
 
@@ -69,6 +70,7 @@ MIRROR = {"SE": "SW", "E": "W", "NE": "NW"}
 BASE = ["S", "SW", "W", "NW", "N"]
 LEFT, RIGHT, MID = (40, 110, 230), (240, 120, 20), (90, 90, 90)
 STYLE = {"thick": 1.0, "left": LEFT, "right": RIGHT, "mid": MID}   # guide --mannequin swaps in greys
+LIMBS = dict(thick=1.9, left=(30, 90, 230), right=(245, 130, 0), larm=(0, 190, 200), rarm=(245, 215, 0), mid=(120, 120, 125))
 
 
 # ---------------------------------------------------------------- 3D stick figure ----------
@@ -136,8 +138,8 @@ def pose(t):
     segs = [  # (a, b, colour, width)
         (L[0], L[1], LEFT, 7), (L[1], L[2], LEFT, 6), (L[2], L[3], LEFT, 5),
         (R[0], R[1], RIGHT, 7), (R[1], R[2], RIGHT, 6), (R[2], R[3], RIGHT, 5),
-        (La[0], La[1], LEFT, 6), (La[1], La[2], LEFT, 5), (La[2], La[3], LEFT, 9),
-        (Ra[0], Ra[1], RIGHT, 6), (Ra[1], Ra[2], RIGHT, 5), (Ra[2], Ra[3], RIGHT, 9),
+        (La[0], La[1], "larm", 6), (La[1], La[2], "larm", 5), (La[2], La[3], "larm", 9),
+        (Ra[0], Ra[1], "rarm", 6), (Ra[1], Ra[2], "rarm", 5), (Ra[2], Ra[3], "rarm", 9),
         (L[0], R[0], MID, 8), (pelvis, neck, MID, 16), (La[0], Ra[0], MID, 8),
     ]
     pts = [p for s in segs for p in s[:2]]
@@ -165,7 +167,8 @@ def draw_figure(dr, k, t, cx, foot_y, scale, ss):
     hp = project(head - [0, ground, 0], k)
     nose = project(head - [0, ground, 0] + [0, -0.01, 0.12], k)
     items.append((hp[2], "head", hp, nose, MID, 0))
-    recol = {LEFT: STYLE["left"], RIGHT: STYLE["right"], MID: STYLE["mid"]}
+    recol = {LEFT: STYLE["left"], RIGHT: STYLE["right"], MID: STYLE["mid"],     # arms take the leg colour of their side
+             "larm": STYLE.get("larm", STYLE["left"]), "rarm": STYLE.get("rarm", STYLE["right"])}  # unless --limbs
     for depth, kind, pa, pb, col, wid in sorted(items, key=lambda i: i[0]):
         col = recol[col]; wid = wid * STYLE["thick"]
         X = lambda p: (cx + p[0] * scale, foot_y + p[1] * scale)
@@ -337,6 +340,8 @@ if __name__ == "__main__":
         magenta = "--magenta" in sys.argv
         if "--mannequin" in sys.argv:
             STYLE.update(thick=1.9, left=(55, 55, 60), right=(175, 175, 180), mid=(115, 115, 120))
+        if "--limbs" in sys.argv:
+            STYLE.update(LIMBS)
         guide(sys.argv[3], sys.argv[4], (255, 0, 255) if magenta else (255, 255, 255), not magenta)
     elif cmd == "build":
         build(pathlib.Path(sys.argv[3]), pathlib.Path(sys.argv[4]))
