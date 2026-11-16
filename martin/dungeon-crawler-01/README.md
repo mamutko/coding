@@ -23,6 +23,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `assets/dirt.jpg` | 512 px seamless dirt texture for wall tops and wall faces toward solid ground (from `add_props.py`). |
 | `assets/meta.json` | Frame sizes and atlas coordinates written by the processing script (copied into `META` in `index.html`). |
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
+| `tools/stride_check.py` | Checks an AI walk-cycle image against its pose guide, frame by frame (foot spread in the side views, which foot is lower in the front and back views), and marks frames that copy the other half of the stride. See [Walk cycles](#walk-cycles-hero-skeleton-ghoul). |
 | `tools/walk_cycle.py` | Walk-cycle pipeline (hero, skeleton, ghoul): renders the 3D stick-figure pose guides and placeholders, and builds the 8-frame sheets. |
 | `tools/add_items.py`, `tools/raw/items2.png`, `items3.png`, `firebombs.png` | Appends the icons of the newer item types (and a quiver), and the six fire bomb designs, to `assets/items.webp` from the three raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
 | `tools/add_market.py`, `tools/raw/keepers.png`, `keeper_decor.png` | Adds the Keepers of the Crypt and their furnishings to `assets/props.webp` (the rows after row 2) and updates `assets/meta.json` and the inline `META`. See [Keepers of the Crypt](#keepers-of-the-crypt-the-market). |
@@ -1673,10 +1674,10 @@ The four keepers (Aldric, Borin, Mirela, Old Tobias) walk with the same pipeline
   views (the model's choice); it stays the same within each direction.
 - **Raw images used:** `tools/raw/keeper<N>_walk_<DIR>.png`. In the mirrored rows (SE, E, NE) what a keeper holds
   changes hands.
-- **Known flaw (keepers and the cast):** in the side and three-quarter views (SW, W, NW, and so SE, E, NE) frames
-  4–7 were painted like 0–3, so the same leg always leads and the walk glides instead of striding (found on the
-  hunter and huntress; the front and back views alternate roughly). Fixing it means painting those directions
-  again; see the sprite-animation skill, "What doesn't work".
+- **Known flaw (keepers and the cast, except the hunter):** in the side and three-quarter views (SW, W, NW, and
+  so SE, E, NE) frames 4–7 were painted like 0–3, so the same leg always leads and the walk glides instead of
+  striding; the front and back views alternate only roughly. The hunter has been redone (see The cast); the
+  others still have it.
 - **Cost:** 21 images, about $1.58.
 
 #### The cast (villagers and nobles)
@@ -1709,6 +1710,25 @@ Eight more walking characters, so far only for the sandbox's character viewer: a
   were made again with "in ALL 8 frames her RIGHT hand … grips the wooden handle of a heavy iron smith's hammer …
   clearly visible in every frame".
 - **Cost:** 2 design sheets and 43 walk images, about $3.45 (OpenAI).
+- **The hunter, redone** (Google `gemini-3.1-flash-image` `edit`, 1K, 4:3, about $0.62 for 9 images), because his
+  OpenAI sheet had the stride flaw above. The inputs were the guide, `ref_hunter` (the design crop) and the first
+  OpenAI SW frame; the prompt (built per view) names the legs **near** and **far** in the side views and spells out
+  every frame, with "5: the FAR leg far forward … the NEAR leg far BACK … the OPPOSITE of frame 1, NOT a copy of
+  it" and "frames 5–8 must look clearly different from frames 1–4: the legs have swapped places".
+  - **W** and **NW** came out right at once (W: in a profile the halves share a silhouette, so it was checked by
+    which boot overlaps the other; NW: `stride_check.py`). W kept flat grey guide hands in two frames, removed with
+    a second edit ("repaint every flat light grey hand as … a dark brown leather glove … change nothing else").
+  - **SW** was right except frame 0, which copied frame 4's wide stance; it was fixed from the image itself by
+    using frame 1 (the next moment, the same leg arrangement) in its place. A second try, given a W frame as the
+    look reference, mixed profile figures into the three-quarter view and was not used.
+  - **S** (front view): two tries kept both feet at nearly the same height, with the same foot slightly lower in
+    almost every frame, despite describing the feet by image side ("the foot on the RIGHT side of the image … is
+    clearly LOWER"). The S row was put together from the two tries' frames by `stride_check`'s *low* measure: the
+    four frames whose right-side foot is lower for frames 0–2 and 7, the four whose left-side foot is lower for
+    3–6 (all from the second try but frame 7, from the first; the second try's frame 0, which lost the bow, unused).
+  - **N** (back view): the second try (the feet described by image side) alternates; the first did not.
+  - `tools/stride_check.py` passes all five rows; the old OpenAI SW, W and NW fail it.
+  - The look is Gemini's: a little cleaner and more saturated than the other OpenAI-made characters.
 
 #### Skeleton and ghoul
 

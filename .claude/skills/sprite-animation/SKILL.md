@@ -38,6 +38,15 @@ its key files into this public repo. Only call it by path from the notes repo.
   outright that frame 5 is the opposite of frame 1 ("the near leg is BEHIND, the far leg in front, partly hidden
   by the near one") and must not be a copy; then reject the image if it fails the check below and try again.
   Always check this before building (see Verifying).
+  **Result (the hunter, redone with Gemini):** the near/far wording worked for W and NW at once, and for SW except
+  one frame. The front view (S) did not alternate with any wording (left/right, or "the foot on the RIGHT side of
+  the image is clearly LOWER"); the back view (N) did with the image-side wording. What fixed S was assembling the
+  row from two attempts' frames, choosing each frame by which foot is lower. A single wrong frame can also be
+  replaced by its neighbour with the same leg arrangement. Repainting with Gemini a character first made with
+  OpenAI changes its look a little: redo all five directions, not just the broken ones.
+- **The look reference must be in a similar view.** Giving a side-view (W) frame as the look reference for a
+  three-quarter (SW) sheet made the model paint some figures in profile (and drop the bow). Use the first frame of
+  the SW sheet (or the front-view design) as the reference for every other direction.
 - **Coloured guide limbs** (blue left, orange right) leak into the art as blue and orange armour.
 - **"Make the arms swing"** without per-frame detail gives stiff, hanging arms even if the guide swings them.
 - **A long shared design reference is not enough** to keep the design: without an explicit design paragraph
@@ -135,9 +144,12 @@ its key files into this public repo. Only call it by path from the notes repo.
 - Preview each sheet on a dark background with the ground point marked in every cell, and look at it.
   Check feet on the marker, no clipping, consistent size between directions, and correct facing per row.
 - Check the raw images for leftover flat-grey guide pieces before building.
-- **Check the stride in every direction:** put frames 0–3 above 4–7 at 3× size, legs only, and confirm that the
-  leading leg in frame 0 is the trailing one in frame 4 (near vs far, the boots' overlap), and the same for 1/5, 2/6
-  and 3/7. If the two rows look alike, the direction must be made again (see "What doesn't work").
+- **Check the stride in every direction:** `python tools/stride_check.py <CHAR> <DIR> <raw.png>` (in
+  martin/dungeon-crawler-01) compares each painted frame with the guide: the feet's spread in the three-quarter
+  and side views, which foot is lower in the front and back views, and marks frames that copy the other half.
+  A profile (W) has the same silhouette in both halves, so also look: frames 0–3 above 4–7 at 3× size, legs only,
+  and confirm that the leg in front in frame 0 (the near one, by which boot overlaps the other) is behind in
+  frame 4, and so on. If a direction fails, make it again (see "What doesn't work").
 - Rebuild an existing sheet after refactoring the tool and diff it against the old one (expect only
   sub-pixel differences).
 - Run the game headless (Playwright with `channel: 'msedge'`, served by `python -m http.server`), make
