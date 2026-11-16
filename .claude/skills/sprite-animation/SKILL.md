@@ -26,6 +26,18 @@ its key files into this public repo. Only call it by path from the notes repo.
   a sprite with its head missing and floating.
 - **The character as the main image and a pose guide as a reference:** the model copies the reference pose
   and you get 8 nearly identical frames.
+- **The second half of the stride painted like the first (the most common failure, easy to miss).** The models
+  follow the guide's *silhouette* well (how far apart the feet are, which foot is lifted), but not *which* leg is
+  in front: the dark grey / light grey shading is too weak a cue. So frames 4–7 come out as copies of frames 0–3,
+  the same leg (usually the one nearer the camera) leads all the time, and in the game the character glides with
+  one leg always forward instead of striding. Front (S) and back (N) views suffer least; the side and three-quarter
+  views (SW, W, NW) most. Seen clearly with OpenAI `gpt-image-2` (the keepers and the villagers of
+  martin/dungeon-crawler-01); the Gemini-made knight's SW row looks affected too, less visibly. A per-frame
+  "left leg forward / right leg forward" description in the prompt was **not** enough. Untested remedies, in the
+  order to try: describe the legs as **near** (nearer the viewer) and **far** instead of left and right, and say
+  outright that frame 5 is the opposite of frame 1 ("the near leg is BEHIND, the far leg in front, partly hidden
+  by the near one") and must not be a copy; then reject the image if it fails the check below and try again.
+  Always check this before building (see Verifying).
 - **Coloured guide limbs** (blue left, orange right) leak into the art as blue and orange armour.
 - **"Make the arms swing"** without per-frame detail gives stiff, hanging arms even if the guide swings them.
 - **A long shared design reference is not enough** to keep the design: without an explicit design paragraph
@@ -123,6 +135,9 @@ its key files into this public repo. Only call it by path from the notes repo.
 - Preview each sheet on a dark background with the ground point marked in every cell, and look at it.
   Check feet on the marker, no clipping, consistent size between directions, and correct facing per row.
 - Check the raw images for leftover flat-grey guide pieces before building.
+- **Check the stride in every direction:** put frames 0–3 above 4–7 at 3× size, legs only, and confirm that the
+  leading leg in frame 0 is the trailing one in frame 4 (near vs far, the boots' overlap), and the same for 1/5, 2/6
+  and 3/7. If the two rows look alike, the direction must be made again (see "What doesn't work").
 - Rebuild an existing sheet after refactoring the tool and diff it against the old one (expect only
   sub-pixel differences).
 - Run the game headless (Playwright with `channel: 'msedge'`, served by `python -m http.server`), make

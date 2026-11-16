@@ -1673,6 +1673,10 @@ The four keepers (Aldric, Borin, Mirela, Old Tobias) walk with the same pipeline
   views (the model's choice); it stays the same within each direction.
 - **Raw images used:** `tools/raw/keeper<N>_walk_<DIR>.png`. In the mirrored rows (SE, E, NE) what a keeper holds
   changes hands.
+- **Known flaw (keepers and the cast):** in the side and three-quarter views (SW, W, NW, and so SE, E, NE) frames
+  4–7 were painted like 0–3, so the same leg always leads and the walk glides instead of striding (found on the
+  hunter and huntress; the front and back views alternate roughly). Fixing it means painting those directions
+  again; see the sprite-animation skill, "What doesn't work".
 - **Cost:** 21 images, about $1.58.
 
 #### The cast (villagers and nobles)
