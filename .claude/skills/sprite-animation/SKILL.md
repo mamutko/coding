@@ -44,9 +44,16 @@ its key files into this public repo. Only call it by path from the notes repo.
   row from two attempts' frames, choosing each frame by which foot is lower. A single wrong frame can also be
   replaced by its neighbour with the same leg arrangement. Repainting with Gemini a character first made with
   OpenAI changes its look a little: redo all five directions, not just the broken ones.
-- **The look reference must be in a similar view.** Giving a side-view (W) frame as the look reference for a
-  three-quarter (SW) sheet made the model paint some figures in profile (and drop the bow). Use the first frame of
-  the SW sheet (or the front-view design) as the reference for every other direction.
+- **The look reference must be in the same view.** It sets the body angle more strongly than the prompt or the
+  guide: a side-view (W) frame as the reference for a three-quarter (SW) sheet put some figures in profile (and
+  dropped the bow); a front-view (S) frame made every SW figure face the viewer. For a redo, give a frame of the
+  same direction from an earlier attempt (even a flawed one) and add a body-angle line ("turned about 45 degrees to
+  the LEFT … NOT facing the viewer straight on, and NOT in full profile").
+- **Picture cues beat leg names for three-quarter views.** What fixed the hunter's SW: "1: … its boot is planted
+  directly BELOW the other boot in the image (nearly in one vertical line) … 5: … its boot far to the lower LEFT,
+  the near boot far to the upper RIGHT: the boots WIDE apart left-right, the widest stance of all 8 frames". The
+  models follow positions in the picture far better than which leg is which. A row that passes `stride_check` can
+  still look wrong (the same boot leading): watch it walk slowly in the game too.
 - **Coloured guide limbs** (blue left, orange right) leak into the art as blue and orange armour.
 - **"Make the arms swing"** without per-frame detail gives stiff, hanging arms even if the guide swings them.
 - **A long shared design reference is not enough** to keep the design: without an explicit design paragraph

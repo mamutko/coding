@@ -9,9 +9,9 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v73–v78 — the Keepers of the Crypt walk; character viewer and a new cast (2026-11-16)
+## v73–v79 — the Keepers of the Crypt walk; character viewer and a new cast (2026-11-16)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 78`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 79`)*
 
 - The four Keepers of the Crypt have full 8-direction walk cycles (AI-painted, OpenAI).
 - A keeper always faces the hero. The first time the hero enters its room it walks up to the hero, once, and
@@ -23,7 +23,7 @@ Commit: *(the next version records it; until then, the latest commit that set `V
 - A new cast of walking characters, so far only in the viewer: a hunter, a huntress, a village girl and boy, a
   duke, a princess, a female blacksmith and a sorcerer (8 directions × 8 frames each).
 - The hunter walks with a real stride now (repainted with Google's model): before, the same leg led in both
-  halves of the stride in the side views, so he glided.
+  halves of the stride in the side views, so he glided (his SW / SE walk was redone once more in v79).
 
 ## v66–v72 — the underground lake (2026-11-15)
 

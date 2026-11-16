@@ -1710,7 +1710,7 @@ Eight more walking characters, so far only for the sandbox's character viewer: a
   were made again with "in ALL 8 frames her RIGHT hand … grips the wooden handle of a heavy iron smith's hammer …
   clearly visible in every frame".
 - **Cost:** 2 design sheets and 43 walk images, about $3.45 (OpenAI).
-- **The hunter, redone** (Google `gemini-3.1-flash-image` `edit`, 1K, 4:3, about $0.62 for 9 images), because his
+- **The hunter, redone** (Google `gemini-3.1-flash-image` `edit`, 1K, 4:3, about $0.90 for 13 images), because his
   OpenAI sheet had the stride flaw above. The inputs were the guide, `ref_hunter` (the design crop) and the first
   OpenAI SW frame; the prompt (built per view) names the legs **near** and **far** in the side views and spells out
   every frame, with "5: the FAR leg far forward … the NEAR leg far BACK … the OPPOSITE of frame 1, NOT a copy of
@@ -1718,9 +1718,16 @@ Eight more walking characters, so far only for the sandbox's character viewer: a
   - **W** and **NW** came out right at once (W: in a profile the halves share a silhouette, so it was checked by
     which boot overlaps the other; NW: `stride_check.py`). W kept flat grey guide hands in two frames, removed with
     a second edit ("repaint every flat light grey hand as … a dark brown leather glove … change nothing else").
-  - **SW** was right except frame 0, which copied frame 4's wide stance; it was fixed from the image itself by
-    using frame 1 (the next moment, the same leg arrangement) in its place. A second try, given a W frame as the
-    look reference, mixed profile figures into the three-quarter view and was not used.
+  - **SW** took five tries. The first was right by `stride_check` except frame 0, and a patch (frame 1 in its
+    place) still looked odd in the game: the lower-left boot led in almost every frame, frames 0 and 1 stalled, and
+    the head jumped. A try given a W frame as the look reference mixed profile figures in; two given the front-view
+    frame came out facing the viewer. The one used gave a three-quarter frame of the first try as the look
+    reference, described the legs by picture cues ("1: the NEAR (left) leg steps forward: its boot is planted
+    directly BELOW the other boot in the image … 5: the FAR (right) leg steps forward: its boot is planted far to
+    the lower LEFT … the boots are WIDE apart left-right, the widest stance of all 8 frames … NOT a copy") and added
+    "BODY ANGLE: a three-quarter view exactly like the third reference image: his chest, hips and face are turned
+    about 45 degrees to the LEFT … NOT facing the viewer straight on, and NOT in full profile". Its frame 6 is
+    painted a little taller, so the head rises about 9 px more on that step.
   - **S** (front view): two tries kept both feet at nearly the same height, with the same foot slightly lower in
     almost every frame, despite describing the feet by image side ("the foot on the RIGHT side of the image … is
     clearly LOWER"). The S row was put together from the two tries' frames by `stride_check`'s *low* measure: the
