@@ -1,12 +1,19 @@
-"""Render a pose guide from a real 3D walk (Quaternius Universal Animation Library, CC0), in exactly the format of
-`walk_cycle.py guide hero <DIR> out.png --magenta --limbs`: 1200 x 880, flat magenta, 4 x 2 cells of 300 x 440,
-the body centred in each cell and standing on a ground line 70 px above the cell bottom, ~360 px tall.
+"""Render a pose guide from a real 3D animation (Quaternius Universal Animation Library, CC0). The defaults give
+exactly the format of `walk_cycle.py guide hero <DIR> out.png --magenta --limbs`: 1200 x 880, flat magenta, 4 x 2
+cells of 300 x 440, the body centred in each cell, standing on a ground line 70 px above the cell bottom, ~360 px tall.
 
-  python render_guide.py <UAL1_Standard.glb> <DIR> <out.png> [--clip Walk_Loop] [--frames-dir DIR]
+  python render_guide.py <UAL1_Standard.glb> <DIR> <out.png> [options]
+    DIR              one direction (S SW W NW N NE E SE), a comma list, or "all" (the 8 rows of a game sheet in
+                     walk_cycle.ROWS order: S SW W NW N NE E SE). Several directions = one row per direction.
+    --clip NAME      animation clip (default Walk_Loop; also Walk_Formal_Loop, Jog_Fwd_Loop, Sprint_Loop, ...)
+    --frames N       samples over one loop (default 8)
+    --cols C         columns for a single direction (default 4; several directions always use N columns)
+    --cell WxH       cell size in px (default 300x440); the figure height and ground offset scale with H
+    --start strike|0 frame 1 at the left heel strike (default; walk / jog / sprint loops) or at t = 0 (other clips)
 
-Pure numpy + PIL (no Blender / three.js): parses the GLB, samples the clip at 8 evenly spaced phases of one full
-cycle starting at the LEFT heel strike, skins the mesh (linear blend skinning), removes root drift, colours each
-triangle by the limb its vertices are mostly weighted to, and draws it with walk_cycle.project() (30 deg camera).
+Pure numpy + PIL (no Blender / three.js): parses the GLB, samples the clip at N evenly spaced phases of one loop,
+skins the mesh (linear blend skinning), removes root drift, colours each triangle by the limb its vertices are
+mostly weighted to, and draws the triangles far to near with walk_cycle.project()'s 30 deg camera.
 Use the non-root-motion file (UAL1_Standard.glb, not _RM).
 """
 import json, math, struct, sys, pathlib
@@ -160,9 +167,19 @@ def limb_colour(name):
 
 
 # ------------------------------------------------------------------ render ---------------
+def opt(name, default):
+    return sys.argv[sys.argv.index(name) + 1] if name in sys.argv else default
+
+
 def main():
-    glb, dirname, out = sys.argv[1], sys.argv[2], sys.argv[3]
-    clip = sys.argv[sys.argv.index("--clip") + 1] if "--clip" in sys.argv else "Walk_Loop"
+    glb, dirarg, out = sys.argv[1], sys.argv[2], sys.argv[3]
+    clip = opt("--clip", "Walk_Loop")
+    frames = int(opt("--frames", FRAMES))
+    cw, ch = map(int, opt("--cell", "300x440").split("x"))
+    start = opt("--start", "strike")
+    dirs = wc.ROWS if dirarg == "all" else dirarg.split(",")
+    cols = frames if len(dirs) > 1 else int(opt("--cols", 4))
+    rows_per_dir = -(-frames // cols)
     rig = Rig(glb, clip)
     names = [rig.nodes[ji].get("name", "") for ji in rig.joints]
     jcol = [limb_colour(n) for n in names]
@@ -174,116 +191,101 @@ def main():
     tri_j = acc[rig.tri].sum(1).argmax(1)
     tri_col = np.array([jcol[k] for k in tri_j], float)
 
-    # character frame from the rest skeleton: up = +Y; right = thigh_r - thigh_l; forward from the walk itself
+    # character frame: up = +Y; right = thigh_r - thigh_l; forward from the walk itself
     _, g0 = rig.skin(0.0)
     right = rig.joint_pos(g0, "thigh_r") - rig.joint_pos(g0, "thigh_l")
     right[1] = 0; right /= np.linalg.norm(right)
     up = np.array([0.0, 1.0, 0.0])
-    fwd = np.cross(right, up)                         # candidate; sign checked below against the stance foot
-    N = 240
-    ts = np.linspace(0, rig.dur, N, endpoint=False)
+    fwd = np.cross(right, up)
+    ts = np.linspace(0, rig.dur, 240, endpoint=False)
     gl = [rig.globals_(t) for t in ts]
     rel = lambda g, b: rig.joint_pos(g, b) - rig.joint_pos(g, "pelvis")
     lf = np.array([rel(g, "foot_l") @ fwd for g in gl])
     lh = np.array([rig.joint_pos(g, "foot_l")[1] for g in gl])
     # a stance foot is low and slides backward relative to the pelvis: if the low foot moves +fwd, flip
-    low = lh < np.percentile(lh, 30)
-    dv = np.gradient(lf)
-    if np.mean(dv[low]) > 0:
-        fwd = -fwd
-        lf = -lf
-    # left heel strike = left foot furthest forward
-    t0 = ts[int(np.argmax(lf))]
-    rf = np.array([rel(g, "foot_r") @ fwd for g in gl])
-    print(f"clip {clip}: {rig.dur:.3f}s, left strike at {t0:.3f}s, right strike at {ts[int(np.argmax(rf))]:.3f}s "
-          f"(expected {(t0 + rig.dur / 2) % rig.dur:.3f}s)")
+    if np.mean(np.gradient(lf)[lh < np.percentile(lh, 30)]) > 0:
+        fwd = -fwd; lf = -lf
+    if start == "strike":
+        t0 = ts[int(np.argmax(lf))]               # left heel strike = left foot furthest forward
+        rf = np.array([rel(g, "foot_r") @ fwd for g in gl])
+        print(f"clip {clip}: {rig.dur:.3f}s, left strike at {t0:.3f}s, right strike at {ts[int(np.argmax(rf))]:.3f}s "
+              f"(one cycle per loop if this is {(t0 + rig.dur / 2) % rig.dur:.3f}s)")
+    else:
+        t0 = 0.0
+        print(f"clip {clip}: {rig.dur:.3f}s, from t = 0")
+    times = [(t0 + rig.dur * i / frames) % rig.dur for i in range(frames)]
+    pel = np.mean([rig.joint_pos(g, "pelvis") for g in gl], 0)     # in place: cycle-mean pelvis (horizontal)
+    height = rig.pos[:, 1].max() - rig.pos[:, 1].min()           # standing (bind pose) height
+    skins = [rig.skin(t) for t in times]
 
-    # height normalisation: the STANDING mannequin (bind pose = the mesh's own vertex positions) is scaled to
-    # 1.75 m, the stick figure's standing height
-    height = rig.pos[:, 1].max() - rig.pos[:, 1].min()
-    k = 1.75 / height
-    # in-place: subtract the cycle-mean pelvis position (horizontal)
-    pel = np.mean([rig.joint_pos(g, "pelvis") for g in gl], 0)
-
-    kdir = (8 - wc.ROWS.index(dirname)) % 8
-    # then match the stick-figure guide's mean on-screen height (head top to lowest point) in this direction,
-    # so the figure fills the cell the same way (the mannequin's head and neck are proportionally longer)
-    wc.use("hero")
-    sm = np.array([wc.metrics(kdir, i / FRAMES) for i in range(FRAMES)]) / wc.PX_PER_M   # (top, height), metres
-    a = math.radians(45 * kdir)
-    f_scr = np.array([math.sin(a), 0, math.cos(a)])
-    r_scr = np.array([-f_scr[2], 0, f_scr[0]])
-    hs, tops = [], []
-    for i in range(FRAMES):
-        vs, _ = rig.skin((t0 + rig.dur * i / FRAMES) % rig.dur)
+    def screen(vs, kdir, k):
+        a = math.radians(45 * kdir)
+        f_scr = np.array([math.sin(a), 0, math.cos(a)]); r_scr = np.array([-f_scr[2], 0, f_scr[0]])
         d = vs - [pel[0], 0, pel[2]]
-        d[:, 1] -= d[:, 1].min()
-        w = (d @ right)[:, None] * r_scr + (d @ up)[:, None] * up + (d @ fwd)[:, None] * f_scr
-        sy = -w[:, 1] * math.cos(wc.ELEV) + w[:, 2] * math.sin(wc.ELEV)
-        hs.append(sy.max() - sy.min()); tops.append(sy.min())
-    k = sm[:, 1].mean() / np.mean(hs)
-    # the mannequin's feet hang less far below the ground line than the stick figure's (its lowest point is
-    # nearly under the body), so shift it down by a constant to sit in the cell where the stick figure does
-    y_off = sm[:, 0].mean() - np.mean(tops) * k
-    print(f"bind-pose height {height:.3f}; scale {k:.3f} (bind pose = {height * k:.2f} m); "
-          f"shifted down {y_off * 360 / (1.75 * math.cos(wc.ELEV)):.0f} px")
-    cw, ch, ss = 300, 440, 2
-    scale = 360 * ss / (1.75 * math.cos(wc.ELEV))
-    im = Image.new("RGB", (cw * 4 * ss, ch * 2 * ss), (255, 0, 255))
-    dr = ImageDraw.Draw(im)
-    a = math.radians(45 * kdir)
-    f_scr = np.array([math.sin(a), 0, math.cos(a)])
-    r_scr = np.array([-f_scr[2], 0, f_scr[0]])
-    light = np.array([0.3, 0.8, 0.5]); light /= np.linalg.norm(light)
-    frames_dir = sys.argv[sys.argv.index("--frames-dir") + 1] if "--frames-dir" in sys.argv else None
-    for i in range(FRAMES):
-        t = (t0 + rig.dur * i / FRAMES) % rig.dur
-        vs, g = rig.skin(t)
-        d = vs - [pel[0], 0, pel[2]]
-        # local coords as walk_cycle.pose(): x = character right, y = up, z = forward (metres)
         loc = np.c_[d @ right, d @ up, d @ fwd] * k
-        loc[:, 1] -= loc[:, 1].min()                   # lowest point on the ground (natural bob), as pose()
+        loc[:, 1] -= loc[:, 1].min()                 # lowest point on the ground (natural bob), as pose()
         w = loc[:, :1] * r_scr + loc[:, 1:2] * up + loc[:, 2:3] * f_scr
-        sx = w[:, 0]
-        sy = -w[:, 1] * math.cos(wc.ELEV) + w[:, 2] * math.sin(wc.ELEV) + y_off
-        dep =w[:, 2] * math.cos(wc.ELEV) + w[:, 1] * math.sin(wc.ELEV)   # larger = nearer the camera
-        r_, c_ = divmod(i, 4)
-        cx, fy = (c_ + 0.5) * cw * ss, (r_ * ch + ch - 70) * ss
-        X, Y = cx + sx * scale, fy + sy * scale
-        print("  frame", i, "top %.0f bottom %.0f px from ground" % ((Y.min() - fy) / ss, (Y.max() - fy) / ss))
-        tri = rig.tri
-        # back-face cull + mild shading (world-space normals, light from above/front)
-        p0, p1, p2 = w[tri[:, 0]], w[tri[:, 1]], w[tri[:, 2]]
-        nrm = np.cross(p1 - p0, p2 - p0)
-        nl = np.linalg.norm(nrm, axis=1, keepdims=True); nrm = nrm / np.maximum(nl, 1e-12)
-        cam = np.array([0, math.sin(wc.ELEV), math.cos(wc.ELEV)])     # toward the camera
-        shade = 0.82 + 0.18 * np.clip(nrm @ light, 0, 1)
-        order = np.argsort(dep[tri].mean(1))
-        for ti in order:
-            if nrm[ti] @ cam < -0.02:
-                continue                               # facing away (glTF CCW winding)
-            col = tuple(int(v) for v in np.clip(tri_col[ti] * shade[ti], 0, 255))
-            a_, b_, c3 = tri[ti]
-            dr.polygon([(X[a_], Y[a_]), (X[b_], Y[b_]), (X[c3], Y[c3])], fill=col)
-        # face marker, as walk_cycle: a red dot at the front of the head when it faces the camera
-        hd = (rig.joint_pos(g, "Head") - [pel[0], 0, pel[2]])
-        hl = np.array([hd @ right, hd @ up, hd @ fwd]) * k
-        ground = (d @ up * k).min()
-        hc = hl + [0, 0.09 - ground, 0]                      # head centre a little above the head joint
-        nose = hc + [0, -0.01, 0.12]
-        pc, pn = wc.project(hc, kdir), wc.project(nose, kdir)
-        if pn[2] > pc[2] + 0.06:                             # clearly facing the camera (not in NW)
-            nx, ny = cx + pn[0] * scale, fy + pn[1] * scale
-            rr = 0.11 * scale * 0.35
-            dr.ellipse([nx - rr, ny - rr, nx + rr, ny + rr], fill=RED)
-    im = im.resize((cw * 4, ch * 2), Image.LANCZOS)
-    im.save(out)
-    print("guide (mocap)", dirname, "->", out)
-    if frames_dir:
-        pathlib.Path(frames_dir).mkdir(parents=True, exist_ok=True)
-        for i in range(FRAMES):
-            r_, c_ = divmod(i, 4)
-            im.crop((c_ * cw, r_ * ch, (c_ + 1) * cw, (r_ + 1) * ch)).save(f"{frames_dir}/f{i}.png")
+        sy = -w[:, 1] * math.cos(wc.ELEV) + w[:, 2] * math.sin(wc.ELEV)
+        dep = w[:, 2] * math.cos(wc.ELEV) + w[:, 1] * math.sin(wc.ELEV)   # larger = nearer the camera
+        return w, w[:, 0], sy, dep
+
+    # scale: one for all directions, so the mocap figure's mean on-screen height over the 5 base directions matches
+    # the stick-figure guide's (the mannequin's head and neck are proportionally longer than the stick figure's)
+    wc.use("hero")
+    kd = lambda d: (8 - wc.ROWS.index(d)) % 8
+    ph = np.array([[wc.metrics(kd(d), i / 8) for i in range(8)] for d in wc.BASE]) / wc.PX_PER_M  # (dir, frame, 2)
+    hs = [np.ptp(screen(vs, kd(d), 1.0)[2]) for d in wc.BASE for vs, _ in skins]
+    k = ph[..., 1].mean() / np.mean(hs)
+    print(f"bind-pose height {height:.3f}; scale {k:.3f} (bind pose = {height * k:.2f} m)")
+
+    ss = 2
+    fig = 360 * ch / 440                                # figure height and ground offset scale with the cell
+    gy = 70 * ch / 440
+    scale = fig * ss / (1.75 * math.cos(wc.ELEV))
+    W, H = cw * cols, ch * rows_per_dir * len(dirs)
+    im = Image.new("RGB", (W * ss, H * ss), (255, 0, 255))
+    dr = ImageDraw.Draw(im)
+    light = np.array([0.3, 0.8, 0.5]); light /= np.linalg.norm(light)
+    cam = np.array([0, math.sin(wc.ELEV), math.cos(wc.ELEV)])     # toward the camera
+    for di, dname in enumerate(dirs):
+        kdir = kd(dname)
+        # the mannequin's feet hang less far below the ground line than the stick figure's: shift it down by a
+        # constant per direction so its head sits where the stick figure's does (mirrored directions use their base)
+        base = wc.MIRROR.get(dname, dname)
+        tops = [screen(vs, kdir, k)[2].min() for vs, _ in skins]
+        y_off = ph[wc.BASE.index(base), :, 0].mean() - np.mean(tops)
+        ext = []
+        for i, (vs, g) in enumerate(skins):
+            w, sx, sy, dep = screen(vs, kdir, k)
+            sy = sy + y_off
+            r_, c_ = divmod(i, cols)
+            r_ += di * rows_per_dir
+            cx, fy = (c_ + 0.5) * cw * ss, (r_ * ch + ch - gy) * ss
+            X, Y = cx + sx * scale, fy + sy * scale
+            ext.append((round((Y.min() - fy) / ss), round((Y.max() - fy) / ss)))
+            tri = rig.tri
+            p0, p1, p2 = w[tri[:, 0]], w[tri[:, 1]], w[tri[:, 2]]
+            nrm = np.cross(p1 - p0, p2 - p0)
+            nrm = nrm / np.maximum(np.linalg.norm(nrm, axis=1, keepdims=True), 1e-12)
+            shade = 0.82 + 0.18 * np.clip(nrm @ light, 0, 1)
+            for ti in np.argsort(dep[tri].mean(1)):        # painter's order, far to near
+                if nrm[ti] @ cam < -0.02:
+                    continue                               # back face (glTF CCW winding)
+                col = tuple(int(v) for v in np.clip(tri_col[ti] * shade[ti], 0, 255))
+                a_, b_, c3 = tri[ti]
+                dr.polygon([(X[a_], Y[a_]), (X[b_], Y[b_]), (X[c3], Y[c3])], fill=col)
+            # face marker, as walk_cycle: a red dot at the front of the head when it clearly faces the camera
+            hd = rig.joint_pos(g, "Head") - [pel[0], 0, pel[2]]
+            ground = ((vs - [pel[0], 0, pel[2]]) @ up * k).min()
+            hc = np.array([hd @ right, hd @ up, hd @ fwd]) * k + [0, 0.09 - ground, 0]
+            pc, pn = wc.project(hc, kdir), wc.project(hc + [0, -0.01, 0.12], kdir)
+            if pn[2] > pc[2] + 0.06:
+                nx, ny = cx + pn[0] * scale, fy + (pn[1] + y_off) * scale
+                rr = 0.11 * scale * 0.35
+                dr.ellipse([nx - rr, ny - rr, nx + rr, ny + rr], fill=RED)
+        print(f"  {dname}: head top / lowest point, px from the ground line:", ext)
+    im.resize((W, H), Image.LANCZOS).save(out)
+    print(f"guide (mocap) {clip} {','.join(dirs)} {frames} frames {W}x{H} -> {out}")
 
 
 if __name__ == "__main__":
