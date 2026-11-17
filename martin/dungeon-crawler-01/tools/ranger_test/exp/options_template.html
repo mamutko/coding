@@ -95,6 +95,8 @@ output, .mono { font-family: var(--mono); font-variant-numeric: tabular-nums; co
 @media (max-width: 480px) { .grid8 { grid-template-columns: repeat(2, 1fr) } }
 .grid8 .stage { aspect-ratio: 3 / 4; cursor: pointer }
 .grid8 .stage .tag { font-size: 12px; opacity: 1 }
+.sheetpick { display: grid; gap: 6px; margin-bottom: 14px }
+.sheetpick .sub { margin: 0 }
 .dirmeta { display: grid; gap: 8px; max-width: 560px }
 .note { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: grid; gap: 6px; max-width: 80ch }
 .note p { margin: 0; color: var(--muted) }
@@ -142,12 +144,13 @@ code { font-family: var(--mono); font-size: .92em }
   <section aria-labelledby="sheet-h">
     <h2 id="sheet-h">8 × 8: all directions in one image</h2>
     <p class="sub">Pick a direction on the compass, or click any walker in the overview. In the game E, NE and SE are usually mirrors of W, NW and SW; here they were painted directly, so the knife stays on the left hip.</p>
+    <div class="sheetpick"><span class="ctl">Sheet <span class="seg" id="sheetSel"></span></span><p class="sub" id="sheetNote"></p></div>
     <div class="inspector">
       <div class="compass" id="compass" role="group" aria-label="Direction"></div>
       <div class="dirmeta">
         <div class="big" id="big">
-          <div class="stage st"><canvas width="384" height="512" aria-label="Guide"></canvas><span class="tag">guide</span></div>
-          <div class="stage st"><canvas width="384" height="512" aria-label="Painted"></canvas><span class="tag">painted</span></div>
+          <div class="stage st"><canvas width="450" height="600" aria-label="Guide"></canvas><span class="tag">guide</span></div>
+          <div class="stage st"><canvas width="450" height="600" aria-label="Painted"></canvas><span class="tag">painted</span></div>
         </div>
         <div class="row" style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><span class="name" id="dirName"></span><span id="dirChip"></span></div>
         <div class="frames" id="dirFrames"></div>
@@ -161,7 +164,9 @@ code { font-family: var(--mono); font-size: .92em }
   <section aria-labelledby="find-h">
     <h2 id="find-h">What the tests say</h2>
     <div class="note">
-      <p><b>8 × 8 in one pass works.</b> 64 of 64 cells match the guide's stride, every row faces the right way, and it is one consistent character in all directions for $0.055, about a third of five single-direction images. The figures are about 200 px tall instead of about 390 px; the game draws them at about 118 px. In S and N, 4 of 16 cells have both feet at nearly the same height where the guide has one clearly lower (the known front and back weakness).</p>
+      <p><b>8 × 8 in one pass works, and is best at 2400 × 3200.</b> OpenAI accepts custom sizes up to about 8.3 megapixels; 2400 × 3200 (cells 300 × 400, figures about 320 px) costs $0.104 against $0.055 at 1536 × 2048, and fixes the soft, smudgy look: clean ink outlines, readable faces, steadier shading from frame to frame. Every row faces the right way, and it is one consistent character in all 8 directions, cheaper than five single-direction images (about $0.17).</p>
+      <p><b>The lighter right leg came from the guide.</b> The default orange is much lighter than the blue (luma 150 vs 88), and the model keeps part of that lightness and warmth: the right trouser leg came out about 30 % lighter in both 8 × 8 sheets. <code>render_guide.py --balanced</code> darkens orange and yellow to the lightness of their blue and teal partners, and the legs now match (luma 33 vs 31).</p>
+      <p><b>The character is painted from the description each time.</b> No reference image is sent yet, so face, cloak length and shades differ between sheets. Passing an approved portrait as a second input image is the next thing to test.</p>
       <p><b>10 and 12 frames match every frame</b> at the same price per image. The game needs no code change: frames come from <code>meta.json</code>, and <code>fpt</code> scales with the frame count. The hero walks 4.2 tiles/s and already plays 8 frames at about 21 fps; villagers walk 1.6 tiles/s and play 8 frames at about 8 fps, where 12 frames look visibly smoother.</p>
       <p><b>The faded foot is opaque.</b> OpenAI sometimes paints the far boot pale, desaturated and without an outline (alpha about 250, so not see-through). "Every part fully OPAQUE: no faded, ghostly or see-through limbs" in the prompt removed it in all four new images. <code>grid_check.py</code> flags the clear case; milder ones still need a look on the dark floor.</p>
     </div>
@@ -240,7 +245,8 @@ window.OPT = __DATA__;
   });
 
   // 8 x 8 inspector
-  const S = D.sheet, ORDER = [["NW", "N", "NE"], ["W", null, "E"], ["SW", "S", "SE"]];
+  let S = D.sheets[D.sheets.length - 1];
+  const ORDER = [["NW", "N", "NE"], ["W", null, "E"], ["SW", "S", "SE"]];
   let dir = "NW", showAll = false;
   const compass = $("compass");
   const dbtn = {};
@@ -251,6 +257,17 @@ window.OPT = __DATA__;
     b.onclick = () => selectDir(d); compass.appendChild(b); dbtn[d] = b;
   });
   const bigC = $("big").querySelectorAll("canvas");
+  const ssel = $("sheetSel");
+  function selectSheet(k) {
+    S = D.sheets.find((x) => x.key === k);
+    [...ssel.children].forEach((b) => b.setAttribute("aria-pressed", b.dataset.k === k ? "true" : "false"));
+    $("sheetNote").textContent = `${S.match} of 64 cells match the guide. ${S.note}`;
+    Object.entries(dbtn).forEach(([d, b]) => { const r = S.rows[d];
+      b.innerHTML = `${d}<small>${r.match}/8</small>`; b.setAttribute("aria-label", `${d}: ${r.match} of 8 frames match`); });
+    selectDir(dir);
+  }
+  D.sheets.forEach((x) => { const b = document.createElement("button"); b.className = "btn"; b.type = "button";
+    b.dataset.k = x.key; b.textContent = x.label; b.onclick = () => selectSheet(x.key); ssel.appendChild(b); });
   function selectDir(d) {
     dir = d; Object.entries(dbtn).forEach(([k, b]) => b.setAttribute("aria-pressed", k === d ? "true" : "false"));
     const r = S.rows[d];
@@ -268,7 +285,7 @@ window.OPT = __DATA__;
     st.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); st.onclick(); } };
     g8.appendChild(st); small.push({ d, cv: st.querySelector("canvas") });
   });
-  selectDir("NW");
+  selectSheet(S.key);
 
   function frameOf(n) { return Math.floor(((t / dur) % 1) * n) % n; }
   function render() {

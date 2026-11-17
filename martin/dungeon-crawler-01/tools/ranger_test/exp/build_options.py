@@ -73,6 +73,31 @@ def nw_set(name, guide, paint, cols, rows, n, facts, fw=300, fh=400):
                 ghost=ghost[:n], match=n - sum(off[:n]), facts=facts)
 
 
+def sheet(key, label, g8, p8, fw, fh, note):
+    gs, ps, off, ghost = stats(g8, p8, 8, 8, DIRS)
+    gG, _ = gc.cell_stats(*gc.load(g8), 8, 8)
+    pP, _ = gc.cell_stats(*gc.load(p8), 8, 8)
+    gc_, pc_ = cells(g8, 8, 8), cells(p8, 8, 8)
+    rows = {}
+    for r, d in enumerate(DIRS):
+        sl = slice(r * 8, r * 8 + 8)
+        o = off[sl]
+        facts = "judged by which foot is lower (front / back view)" if d in ("S", "N") else "judged by foot spread"
+        if d in ("S", "N"):
+            lv = [i % 8 + 1 for i in range(r * 8, r * 8 + 8) if abs(gG[i][1]) > 0.08 and abs(pP[i][1]) < 0.04]
+            if lv:
+                facts += f"; frame{'s' if len(lv) > 1 else ''} {', '.join(map(str, lv))}: feet nearly level where the guide has one clearly lower"
+        bad = [i + 1 for i, x in enumerate(o) if x]
+        if bad and d not in ("S", "N"):
+            facts += f"; frame{'s' if len(bad) > 1 else ''} {', '.join(map(str, bad))}: stride off the guide"
+        rows[d] = dict(n=8, fw=fw, fh=fh, guide=strip([fit(c, fw, fh) for c in gc_[sl]]),
+                       paint=strip([fit(c, fw, fh) for c in pc_[sl]]), gs=gs[sl], ps=ps[sl], off=o, ghost=ghost[sl],
+                       match=8 - sum(o), view=VIEW[d], facts=facts)
+    match = 64 - sum(off)
+    print(key, "match", match)
+    return dict(key=key, label=label, note=note, rows=rows, match=match)
+
+
 def main():
     out = pathlib.Path(sys.argv[1])
     os_ = lambda p: str(HERE / p)
@@ -86,21 +111,19 @@ def main():
         nw_set("12 frames", os_("guide-walk-NW-12.png"), os_("openai-walk-NW-12.png"), 6, 2, 12,
                "6 × 2 · 1536 × 960 · $0.031"),
     ]
-    g8, p8 = os_("guide-walk-8x8.png"), os_("openai-walk-8x8.png")
-    gs, ps, off, ghost = stats(g8, p8, 8, 8, DIRS)
-    gc_, pc_ = cells(g8, 8, 8), cells(p8, 8, 8)
-    rows = {}
-    for r, d in enumerate(DIRS):
-        sl = slice(r * 8, r * 8 + 8)
-        o = off[sl]
-        rows[d] = dict(n=8, fw=240, fh=320, guide=strip([fit(c, 240, 320) for c in gc_[sl]]),
-                       paint=strip([fit(c, 240, 320) for c in pc_[sl]]), gs=gs[sl], ps=ps[sl], off=o, ghost=ghost[sl],
-                       match=8 - sum(o), view=VIEW[d],
-                       facts=("judged by which foot is lower (front / back view)" if d in ("S", "N")
-                              else "judged by foot spread"))
-    rows["S"]["facts"] += "; frames 2 and 3: feet nearly level where the guide has the left foot clearly lower"
-    rows["N"]["facts"] += "; frames 4 and 8: feet nearly level where the guide has one clearly lower"
-    match8 = 64 - sum(off)
+    sheets = [
+        sheet("lo", "1536 × 2048", os_("guide-walk-8x8.png"), os_("openai-walk-8x8.png"), 240, 320,
+              "Cells 192 × 256, figure ~200 px. Bright default guide colours: the right trouser leg comes out lighter and "
+              "warmer (orange guide colour shows through)."),
+        sheet("hi", "2400 × 3200", os_("guide-walk-8x8-hi.png"), os_("openai-walk-8x8-hi.png"), 300, 400,
+              "Cells 300 × 400, figure ~320 px: crisp outlines and faces. Same bright guide colours, so the right leg is "
+              "still lighter."),
+        sheet("bal", "2400 × 3200 · balanced", os_("guide-walk-8x8-hi-bal.png"), os_("openai-walk-8x8-hi-bal.png"),
+              300, 400, "As 2400 × 3200, but the guide's orange and yellow are darkened to the lightness of the blue and "
+              "teal (render_guide.py --balanced): both legs now the same shade. The 7 faded-limb flags in S are false "
+              "alarms (dark olive trousers), not faded legs."),
+    ]
+    m = {k['key']: k['match'] for k in sheets}
     summary = [
         dict(name="NW 4 × 2 · first prompt", size="1536 × 1024", fig="~390 px", stride="8 / 8", strideOk=True,
              ghost="3 frames", ghostOk=False, cost="$0.034", note="The faded far boot (frames 4, 6) and arm (8)."),
@@ -110,11 +133,17 @@ def main():
              ghost="none", ghostOk=True, cost="$0.031", note="Smoother at villager pace; game needs fpt × 1.25."),
         dict(name="NW 6 × 2 · 12 frames", size="1536 × 960", fig="~390 px", stride="12 / 12", strideOk=True,
              ghost="none", ghostOk=True, cost="$0.031", note="Smoothest at villager pace; game needs fpt × 1.5."),
-        dict(name="All 8 directions · 8 × 8", size="1536 × 2048", fig="~200 px", stride=f"{match8} / 64",
-             strideOk=match8 == 64, ghost="none", ghostOk=True, cost="$0.055",
-             note="One consistent character; E, NE, SE painted, not mirrored. 5 directions one by one: ~$0.17."),
+        dict(name="8 × 8 · 1536 × 2048", size="1536 × 2048", fig="~200 px", stride=f"{m['lo']} / 64",
+             strideOk=m['lo'] == 64, ghost="none", ghostOk=True, cost="$0.055",
+             note="Soft, smudgy shading; right leg lighter (guide colour shows through)."),
+        dict(name="8 × 8 · 2400 × 3200", size="2400 × 3200", fig="~320 px", stride=f"{m['hi']} / 64",
+             strideOk=m['hi'] == 64, ghost="none", ghostOk=True, cost="$0.104",
+             note="Near OpenAI's maximum (~8.3 MP). Much crisper; right leg still lighter. NW frame 2: short stride."),
+        dict(name="8 × 8 · 2400 × 3200 balanced", size="2400 × 3200", fig="~320 px", stride=f"{m['bal']} / 64",
+             strideOk=m['bal'] == 64, ghost="none", ghostOk=True, cost="$0.104",
+             note="Darker orange / yellow in the guide: legs even. Recommended."),
     ]
-    data = dict(nw=nw, sheet=dict(rows=rows), summary=summary)
+    data = dict(nw=nw, sheets=sheets, summary=summary)
     html = (HERE / "options_template.html").read_text(encoding="utf-8").replace("__DATA__", json.dumps(data))
     out.write_text(html, encoding="utf-8")
     print(out, round(out.stat().st_size / 1e6, 2), "MB")

@@ -10,6 +10,9 @@ cells of 300 x 440, the body centred in each cell, standing on a ground line 70 
     --cols C         columns for a single direction (default 4; several directions always use N columns)
     --cell WxH       cell size in px (default 300x440); the figure height and ground offset scale with H
     --start strike|0 frame 1 at the left heel strike (default; walk / jog / sprint loops) or at t = 0 (other clips)
+    --balanced       darker orange / yellow with about the lightness of the blue / teal partner. OpenAI keeps some
+                     of a guide colour's lightness: with the bright default orange, the 8 x 8 sheets came out with
+                     the RIGHT trouser leg ~30 % lighter and warmer than the left.
 
 Pure numpy + PIL (no Blender / three.js): parses the GLB, samples the clip at N evenly spaced phases of one loop,
 skins the mesh (linear blend skinning), removes root drift, colours each triangle by the limb its vertices are
@@ -24,6 +27,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
 import walk_cycle as wc  # noqa: E402
 
 BLUE, ORANGE, TEAL, YELLOW = (30, 90, 230), (245, 130, 0), (0, 190, 200), (245, 215, 0)
+ORANGE_BAL, YELLOW_BAL = (160, 75, 0), (175, 150, 0)    # luma ~92 / ~140 (blue 88, teal 134)
 GREY, HEAD, RED = (120, 120, 125), (205, 205, 205), (200, 30, 30)
 FRAMES = 8
 
@@ -172,6 +176,9 @@ def opt(name, default):
 
 
 def main():
+    global ORANGE, YELLOW
+    if "--balanced" in sys.argv:
+        ORANGE, YELLOW = ORANGE_BAL, YELLOW_BAL
     glb, dirarg, out = sys.argv[1], sys.argv[2], sys.argv[3]
     clip = opt("--clip", "Walk_Loop")
     frames = int(opt("--frames", FRAMES))
