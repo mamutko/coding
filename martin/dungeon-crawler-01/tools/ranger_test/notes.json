@@ -1,8 +1,0 @@
-{
- "openai-v2": {"S":"Faces the viewer.","SW":"Correct: three-quarter angle.","W":"Correct: side profile.","NW":"Correct: back and left side.","N":"Seen from behind, some frames drift toward NW.","NE":"Correct.","E":"Profile to the right, slightly toward the viewer.","SE":"Correct: three-quarter angle."},
- "google-v2": {"S":"Turned toward the lower right, not straight at the viewer.","SW":"Wrong: faces lower RIGHT (mirror image of SW).","W":"Wrong: faces lower right.","NW":"Wrong: walks away to the upper RIGHT.","N":"Leans toward NE.","NE":"Correct.","E":"Closer to SE than to a profile.","SE":"Correct."},
- "openai-v1": {"S":"Faces the viewer.","SW":"Barely turned, close to S.","W":"Frames 5-8 turn away from the viewer.","NW":"Frames 5-8 turn away.","N":"The two halves walk different ways.","NE":"The two halves walk different ways.","E":"Closer to SE.","SE":"Correct."},
- "google-v1": {"S":"Wrong: faces lower right.","SW":"Wrong: copies the reference, faces lower right.","W":"Wrong: faces lower right.","NW":"Wrong: walks to the upper right.","N":"Leans toward NE.","NE":"Correct.","E":"Closer to SE.","SE":"Correct."},
- "openai-oneshot": {"_":"Kept the 8 x 8 grid. Row 6 repeats the back view instead of NE; rows 7-8 face right but not cleanly E / SE. Tiny figures (about 120 px tall)."},
- "google-oneshot": {"_":"Ignored the layout: 6 rows of 10 figures instead of 8 x 8, and only S, SW, E-ish and N facings."}
-}

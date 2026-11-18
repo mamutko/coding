@@ -2,7 +2,7 @@
 
   python stride_check.py <CHAR> <DIR> <raw.png> [--guide guide.png]
 
---guide compares against a given guide image (e.g. ranger_test/guide-mocap-NW.png) instead of the stick figure.
+--guide compares against a given guide image (e.g. a render_guide.py guide from the sprite-animation skill) instead of the stick figure.
 A painted image with real transparency (OpenAI --background transparent) is measured on its alpha channel.
 
 Compares the painted 4 x 2 image with the pose guide walk_cycle.py makes for that character and direction, per

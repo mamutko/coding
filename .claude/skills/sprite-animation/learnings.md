@@ -2,7 +2,8 @@
 
 The evidence behind the workflow in SKILL.md. Dated where a model version matters; re-check old findings when the
 models change. Worked example: `martin/dungeon-crawler-01` (hero, skeleton, ghoul, keepers, villagers, the
-ranger tests in `tools/ranger_test`).
+ranger tests of 2026-11-16/18, whose experiment folder was removed once its tools moved here: see the git history
+of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparison pages).
 
 ## Guides
 

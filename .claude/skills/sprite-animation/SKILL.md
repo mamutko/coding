@@ -22,6 +22,7 @@ tools/
   grid_check.py      checks a painting against its guide: stride, faded limbs, colour drift (--ref)
   board.py + board_template.html   the character board (review page, published as an Artifact)
   build_sheet.py     painted directions -> game sprite sheet + meta.json entry
+tests/          a known guide + painting pair for grid_check (a real faded boot), see Verifying the tools
 ```
 
 Images are painted with the **ai-media-generation** skill in Martin's **notes** repo
@@ -145,7 +146,8 @@ A batch of characters easily passes the $3.00 turn cap: get a budget approved fi
 
 - After changing `render_guide.py`, re-render one committed guide and diff it (`default_guides.py --only walk`
   rewrites all; `git diff --stat guides/` should show only what you meant to change).
-- `grid_check.py` on a known pair: `../../../martin/dungeon-crawler-01/tools/ranger_test/openai-mocap-NW.png` has a
-  real faded boot in frame 4 (1 cell flagged).
+- `grid_check.py` on the known pair in `tests/`: `python tools/grid_check.py tests/faded-boot-guide-NW.png
+  tests/faded-boot-painted-NW.png 4 2 --dir NW` must report 8 of 8 stride matches and 1 faded cell (frame 4: the
+  far boot, pale and outline-less; frames 6 and 8 have milder ones it does not catch).
 - Build a sheet, preview it on a dark background with the ground point marked in every cell; then run the game
   headless (Playwright, `python -m http.server`), walk in several directions, and confirm no page errors.
