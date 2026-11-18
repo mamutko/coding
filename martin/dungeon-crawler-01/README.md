@@ -11,6 +11,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `index.html` | The whole game: markup, CSS, and JavaScript. Asset metadata (`META`) is inlined so the page also works from `file://`. |
 | `assets/hero.webp`, `skeleton.webp`, `ghoul.webp`, `keeper1.webp`–`keeper4.webp` | 8-direction × 8-frame walk cycles (transparent): the hero, two monsters and the four Keepers of the Crypt. |
 | `assets/hunter.webp`, `huntress.webp`, `girl.webp`, `boy.webp`, `duke.webp`, `princess.webp`, `smithess.webp`, `sorcerer.webp` | The cast: 8-direction × 8-frame walk cycles of villagers and nobles not yet in the game, shown only in the sandbox's character viewer (loaded on demand). See [Walk cycles](#walk-cycles-hero-skeleton-ghoul). |
+| `art/characters/hero/` | The hero being repainted with the `sprite-animation` skill's workflow: `character.json` (design, decisions, spend, board URL), `source-knight.png` (front / side / back frames cut from the current sprite, the input for the references), `reference-1..3.png` (turnaround candidates). `board.html` is the generated review page (not committed). |
 | `tools/raw/cast_design1.png`, `cast_design2.png` | The cast's front-view design sheets (4 × 1 each, on magenta). |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
 | `assets/items.webp` | 6 × 8 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–8 from `add_items.py`). |

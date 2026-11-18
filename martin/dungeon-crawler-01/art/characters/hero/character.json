@@ -1,0 +1,34 @@
+{
+  "name": "Hero (knight)",
+  "description": "a broad-shouldered armoured knight of average adult height in full plate armour of nearly black dark steel with a reddish-brown sheen and bright steel highlights on the edges; a rounded dome great helm with a single narrow horizontal visor slit and a raised central ridge, no face visible; layered pauldrons, a breastplate with a shallow X-shaped ridge, articulated plate gauntlets, plate greaves and sabatons; red-brown leather straps and a wide red-brown leather belt with a dark buckle; a short tattered red-brown leather tasset skirt over a chainmail skirt reaching mid-thigh; a dark crimson cloth cape draped over both shoulders like a mantle, hanging to the back of the knees with a ragged, torn hem; both hands empty, no weapon, no shield",
+  "frames": null,
+  "mirror": null,
+  "guide": "walk",
+  "body": "adult 1.82 m, EU 43",
+  "references": [
+    {
+      "file": "reference-1.png",
+      "status": "candidate",
+      "note": "brighter red cape, wider stance"
+    },
+    {
+      "file": "reference-2.png",
+      "status": "candidate",
+      "note": "stockier, deeper crimson, closest to the current sprite"
+    },
+    {
+      "file": "reference-3.png",
+      "status": "candidate",
+      "note": "leaner, textured plate"
+    }
+  ],
+  "directions": {},
+  "next": "Pick a reference; then decide 8 or 12 frames and mirroring",
+  "spend": [
+    {
+      "what": "3 reference candidates (edit from the current knight sprite)",
+      "usd": 0.1
+    }
+  ],
+  "artifact": "https://claude.ai/artifact/N4tikGyTBrktPKfH1pyDN4"
+}
