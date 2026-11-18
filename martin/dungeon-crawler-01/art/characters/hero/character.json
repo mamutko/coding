@@ -13,23 +13,33 @@
     },
     {
       "file": "reference-2.png",
-      "status": "approved",
-      "note": "stockier, deeper crimson, closest to the current sprite"
+      "status": "rejected",
+      "note": "stockier, deeper crimson, closest to the current sprite (approved first; its fine texture shimmered in the walk)"
     },
     {
       "file": "reference-3.png",
       "status": "rejected",
       "note": "leaner, textured plate"
+    },
+    {
+      "file": "reference-4-simple.png",
+      "status": "rejected",
+      "note": "reference 2 redrawn simpler (flat tones, no texture); colours drifted light"
+    },
+    {
+      "file": "reference-5-simple-dark.png",
+      "status": "approved",
+      "note": "reference 4 recoloured in Python to the dark steel / crimson of reference 2 (colour 0.85); in use as reference.png"
     }
   ],
   "directions": {
     "NW": {
       "file": "paint/NW.png",
       "status": "review",
-      "note": "attempt 2 (attempt 1 in attempts/: too side-on, visor visible). Stride 12/12, colour 0.93; faded-limb flag on all 12 cells is a false alarm from the dark armour."
+      "note": "attempt 3, simple reference + consistent-shading prompt: detail at game scale 24 (attempt 2: 45, in game: 31). Stride 12/12, colour 0.80. View again rather side-on (visor visible)."
     }
   },
-  "next": "Approve NW (first direction), then paint the other 7 with --match NW",
+  "next": "Approve NW (less shimmer, but rather side-on) or repaint it toward the back view",
   "spend": [
     {
       "what": "3 reference candidates (edit from the current knight sprite)",
@@ -38,6 +48,14 @@
     {
       "what": "NW walk, 2 attempts (12 frames)",
       "usd": 0.06
+    },
+    {
+      "what": "Simplified reference",
+      "usd": 0.034
+    },
+    {
+      "what": "NW attempt 3 (+1 call lost to a network error)",
+      "usd": 0.03
     }
   ],
   "artifact": "https://claude.ai/artifact/N4tikGyTBrktPKfH1pyDN4",

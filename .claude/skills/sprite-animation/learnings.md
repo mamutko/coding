@@ -106,3 +106,14 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
 - 2026-11 tests with `gpt-image-2.6-flare` medium: one direction 8 frames 1536 × 1024 $0.034; 12 frames 1536 × 960
   $0.031; 8 × 8 sheet 1536 × 2048 $0.055, 2400 × 3200 $0.104. Cost follows the image size, not the frame count
   (roughly $0.02 + $0.011 per megapixel).
+
+## Shimmer (2026-11-18, dungeon-crawler hero)
+
+- **A detailed reference makes the walk shimmer:** fine texture (mottled plate, speckled cloth) is repainted
+  differently in every frame and flickers when the frames play. Measured at game scale (figure 118 px tall, mean
+  edge strength over the figure): the detailed NW walk 45, the old in-game sprite 31.
+- **Fix: a simple reference plus a consistency paragraph.** Redraw the approved reference with `edit` ("large clean
+  areas of colour, 2-3 tones per material, NO texture, NO speckles"); it came back lighter (grey steel, bright red),
+  so its colours were pulled back in Python (colour 0.85 against the original). Add to the prompt: "this is an
+  animation ... every figure is shaded IDENTICALLY: the same highlight on the same plate, the same few broad folds".
+  Result: 24, flat and steady from frame to frame. Make references simple from the start.
