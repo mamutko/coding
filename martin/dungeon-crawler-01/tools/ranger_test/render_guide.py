@@ -13,6 +13,11 @@ cells of 300 x 440, the body centred in each cell, standing on a ground line 70 
     --shaded         no limb colours: a smooth-shaded light-grey clay mannequin (key light from the upper left, fill,
                      rim, joints a shade darker, the far side of the body slightly darker, ink outline on the
                      silhouette and where a limb passes in front of the body). No face dot.
+    --shoe EU        shrink (or grow) the feet to this EU shoe size. The mannequin is 1.83 m tall with 30.3 cm feet
+                     (~EU 48; an average man is ~EU 43). Foot length = EU / 1.5 - 1.5 cm (Paris point, 1.5 cm toe
+                     allowance), so 43 -> 27.2 cm = x0.90. The feet are scaled about the ankle in the bind pose,
+                     blended by skin weight so the ankle stays joined to the shin.
+    --foot-scale S   the same with a raw factor (1 = the mannequin's own feet)
     --balanced       darker orange / yellow with about the lightness of the blue / teal partner. OpenAI keeps some
                      of a guide colour's lightness: with the bright default orange, the 8 x 8 sheets came out with
                      the RIGHT trouser leg ~30 % lighter and warmer than the left.
@@ -112,6 +117,18 @@ class Rig:
             self.tracks[(ch["target"]["node"], ch["target"]["path"])] = (tin, vout)
             self.dur = max(self.dur, tin[-1])
         self.name_idx = {n.get("name"): i for i, n in enumerate(self.nodes)}
+
+    FOOT_CM = 30.3                                   # bind-pose heel-to-toe length of the mannequin's foot
+
+    def scale_feet(self, f):
+        """Scale each foot about its ankle (bind pose), per vertex by its weight on foot / ball bones."""
+        names = [self.nodes[ji].get("name", "").lower() for ji in self.joints]
+        for side in "lr":
+            ks = [k for k, n in enumerate(names) if n in (f"foot_{side}", f"ball_{side}", f"ball_leaf_{side}")]
+            ankle = np.linalg.inv(self.ibm[names.index(f"foot_{side}")])[:3, 3]
+            w = sum(self.wt[:, c] * np.isin(self.jnt[:, c], ks) for c in range(4))
+            fac = 1 + (f - 1) * w
+            self.pos = ankle + (self.pos - ankle) * fac[:, None]
 
     def sample(self, node, path, t, default):
         tr = self.tracks.get((node, path))
@@ -272,6 +289,12 @@ def main():
     cols = frames if len(dirs) > 1 else int(opt("--cols", 4))
     rows_per_dir = -(-frames // cols)
     rig = Rig(glb, clip)
+    fs = float(opt("--foot-scale", 1.0))
+    if "--shoe" in sys.argv:
+        fs = (float(opt("--shoe", 0)) / 1.5 - 1.5) / Rig.FOOT_CM
+    if fs != 1.0:
+        rig.scale_feet(fs)
+        print(f"feet x{fs:.3f}: {Rig.FOOT_CM * fs:.1f} cm (~EU {(Rig.FOOT_CM * fs + 1.5) * 1.5:.0f})")
     names = [rig.nodes[ji].get("name", "") for ji in rig.joints]
     jcol = [limb_colour(n) for n in names]
     # each triangle takes the colour of the bone its three vertices are most weighted to (summed)
