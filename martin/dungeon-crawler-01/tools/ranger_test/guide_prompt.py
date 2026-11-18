@@ -2,7 +2,8 @@
 for any layout: one direction in a C x R grid of N frames, or several directions with one row each.
 OpenAI wording (transparent background). Generalises nwprompt.py.
 
-  python guide_prompt.py <DIR|DIR,DIR,...|all> [--frames N] [--cols C]
+  python guide_prompt.py <DIR|DIR,DIR,...|all> [--frames N] [--cols C] [--plain]
+  --plain   for the shaded grey mannequin (render_guide.py --shaded): no limb-colour key
 """
 import sys
 
@@ -23,7 +24,7 @@ CHARACTER = ("a lean young ranger/hunter, adult man about 25. Deep forest-green 
              "knee-high scuffed brown leather boots. Hands EMPTY: NO bow, NO quiver, NO weapon held.")
 
 
-def prompt(dirs, frames=8, cols=4, character=CHARACTER):
+def prompt(dirs, frames=8, cols=4, character=CHARACTER, plain=False):
     multi = len(dirs) > 1
     rows = len(dirs) if multi else -(-frames // cols)
     n = len(dirs) * frames if multi else frames
@@ -42,25 +43,42 @@ def prompt(dirs, frames=8, cols=4, character=CHARACTER):
         where = "Counting the figures in reading order:"
         view = (f"DIRECTION: every figure {VIEW[dirs[0]]}, exactly as the mannequins are turned. "
                 "The body NEVER turns around between figures.")
-    return f"""This image is a POSE GUIDE: {layout} Paint over EVERY mannequin, keeping each one's EXACT position, size and pose of legs, arms, torso and head. Do not move, add or remove any figure, and do not change any pose.
-
-Each limb of the mannequin has its own colour so you can follow it from figure to figure: BLUE = his LEFT leg, ORANGE = his RIGHT leg, TEAL = his LEFT arm, YELLOW = his RIGHT arm, grey = torso, light grey = head. A red dot marks the face where it is visible.
-
-{view}
-
-FOLLOW THE LEGS EXACTLY, they alternate. {where}
+    if plain:
+        key = ("The mannequins are smooth light-grey shaded figures; the darker side of the body is the side turned "
+               "away from the viewer, and dark lines mark where a limb passes in front of the body.")
+        legs = f"""FOLLOW THE LEGS EXACTLY, they alternate. {where}
+figure 1: one leg reaches forward, the other is stretched far back.
+figure {h + 1}: the OPPOSITE: the leg that was back in figure 1 now reaches forward. It is NOT a copy of figure 1.
+All other figures are in-between poses (a leg passing under the body, the other bent with its foot lifted): copy them exactly from the guide.
+Arms swing opposite to the legs, following the mannequin's arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY."""
+        colours = ("The grey mannequin is ONLY a pose guide: paint the character's own clothing, skin and hair colours "
+                   "over it, with no grey mannequin showing.")
+    else:
+        key = ("Each limb of the mannequin has its own colour so you can follow it from figure to figure: BLUE = his "
+               "LEFT leg, ORANGE = his RIGHT leg, TEAL = his LEFT arm, YELLOW = his RIGHT arm, grey = torso, light "
+               "grey = head. A red dot marks the face where it is visible.")
+        legs = f"""FOLLOW THE LEGS EXACTLY, they alternate. {where}
 figure 1: the BLUE leg reaches forward, the ORANGE leg stretched far back.
 figure {q1}: the BLUE leg under the body; the ORANGE leg bent at the knee, foot lifted, swinging forward.
 figure {h + 1}: the OPPOSITE of figure 1: now the ORANGE leg reaches forward and the BLUE leg is stretched far back. It is NOT a copy of figure 1.
 figure {q3}: the ORANGE leg under the body; the BLUE leg bent, foot lifted, swinging forward.
 All other figures are in-between poses: copy them from the guide.
-Arms swing opposite to the legs, following the TEAL and YELLOW arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY.
+Arms swing opposite to the legs, following the TEAL and YELLOW arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY."""
+        colours = ("The colours are ONLY a pose guide: NONE of blue, orange, teal, yellow or the red dot may appear "
+                   "anywhere in the painting; paint every limb in the character's own clothing colours.")
+    return f"""This image is a POSE GUIDE: {layout} Paint over EVERY mannequin, keeping each one's EXACT position, size and pose of legs, arms, torso and head. Do not move, add or remove any figure, and do not change any pose.
+
+{key}
+
+{view}
+
+{legs}
 
 CHARACTER (identical in all {n} figures): {character} Copy only the pose from the mannequins, not their shapes: give him natural human proportions and clothing.
 
 STYLE: hand-drawn 2D game sprite art for an isometric RPG, clean dark ink outlines, painterly watercolour-and-gouache shading, light from the upper left. NOT pixel art, NOT 3D.
 
-The colours are ONLY a pose guide: NONE of blue, orange, teal, yellow or the red dot may appear anywhere in the painting; paint every limb in the character's own clothing colours. Every part of the character is fully OPAQUE: no faded, ghostly or see-through limbs, even a leg or arm partly behind the body.
+{colours} Every part of the character is fully OPAQUE: no faded, ghostly or see-through limbs, even a leg or arm partly behind the body.
 Transparent background (remove the magenta). No text, numbers or grid lines."""
 
 
@@ -69,4 +87,4 @@ if __name__ == "__main__":
     dirs = ROWS if a == "all" else a.split(",")
     f = int(sys.argv[sys.argv.index("--frames") + 1]) if "--frames" in sys.argv else 8
     c = int(sys.argv[sys.argv.index("--cols") + 1]) if "--cols" in sys.argv else (f if len(dirs) > 1 else 4)
-    print(prompt(dirs, f, c))
+    print(prompt(dirs, f, c, plain="--plain" in sys.argv))

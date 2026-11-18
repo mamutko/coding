@@ -110,6 +110,10 @@ def main():
                "5 × 2 · 1520 × 960 · $0.031"),
         nw_set("12 frames", os_("guide-walk-NW-12.png"), os_("openai-walk-NW-12.png"), 6, 2, 12,
                "6 × 2 · 1536 × 960 · $0.031"),
+        nw_set("8 frames · shaded mannequin", os_("guide-shaded-NW.png"), os_("openai-shaded-NW-8.png"), 4, 2, 8,
+               "4 × 2 · 1536 × 1024 · $0.034 · grey clay guide, no limb colours (render_guide.py --shaded)"),
+        nw_set("12 frames · shaded mannequin", os_("guide-shaded-NW-12.png"), os_("openai-shaded-NW-12.png"), 6, 2, 12,
+               "6 × 2 · 1536 × 960 · $0.031 · grey clay guide, no limb colours"),
     ]
     sheets = [
         sheet("lo", "1536 × 2048", os_("guide-walk-8x8.png"), os_("openai-walk-8x8.png"), 240, 320,
@@ -133,6 +137,12 @@ def main():
              ghost="none", ghostOk=True, cost="$0.031", note="Smoother at villager pace; game needs fpt × 1.25."),
         dict(name="NW 6 × 2 · 12 frames", size="1536 × 960", fig="~390 px", stride="12 / 12", strideOk=True,
              ghost="none", ghostOk=True, cost="$0.031", note="Smoothest at villager pace; game needs fpt × 1.5."),
+        dict(name="NW 4 × 2 · shaded mannequin", size="1536 × 1024", fig="~390 px", stride="8 / 8", strideOk=True,
+             ghost="none", ghostOk=True, cost="$0.034",
+             note="No limb colours: legs the same shade, rounder shading. Cloak shrank to a capelet."),
+        dict(name="NW 6 × 2 · shaded, 12 frames", size="1536 × 960", fig="~390 px", stride="12 / 12", strideOk=True,
+             ghost="none", ghostOk=True, cost="$0.031",
+             note="As above, 12 frames: the most natural shoulder and hip motion so far."),
         dict(name="8 × 8 · 1536 × 2048", size="1536 × 2048", fig="~200 px", stride=f"{m['lo']} / 64",
              strideOk=m['lo'] == 64, ghost="none", ghostOk=True, cost="$0.055",
              note="Soft, smudgy shading; right leg lighter (guide colour shows through)."),

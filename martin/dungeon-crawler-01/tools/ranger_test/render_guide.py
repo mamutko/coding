@@ -10,6 +10,9 @@ cells of 300 x 440, the body centred in each cell, standing on a ground line 70 
     --cols C         columns for a single direction (default 4; several directions always use N columns)
     --cell WxH       cell size in px (default 300x440); the figure height and ground offset scale with H
     --start strike|0 frame 1 at the left heel strike (default; walk / jog / sprint loops) or at t = 0 (other clips)
+    --shaded         no limb colours: a smooth-shaded light-grey clay mannequin (key light from the upper left, fill,
+                     rim, joints a shade darker, the far side of the body slightly darker, ink outline on the
+                     silhouette and where a limb passes in front of the body). No face dot.
     --balanced       darker orange / yellow with about the lightness of the blue / teal partner. OpenAI keeps some
                      of a guide colour's lightness: with the bright default orange, the 8 x 8 sheets came out with
                      the RIGHT trouser leg ~30 % lighter and warmer than the left.
@@ -85,7 +88,7 @@ class Rig:
         mesh, skin = j["meshes"][self.nodes[mi]["mesh"]], j["skins"][self.nodes[mi]["skin"]]
         self.joints = skin["joints"]
         self.ibm = accessor(j, binc, skin["inverseBindMatrices"]).reshape(-1, 4, 4).transpose(0, 2, 1)
-        P, J, W, I = [], [], [], []
+        P, J, W, I, NR, M = [], [], [], [], [], []
         for prim in mesh["primitives"]:
             at = prim["attributes"]
             base = sum(len(p) for p in P)
@@ -93,7 +96,11 @@ class Rig:
             J.append(accessor(j, binc, at["JOINTS_0"]).astype(np.int64))
             W.append(accessor(j, binc, at["WEIGHTS_0"]).astype(np.float64))
             I.append(accessor(j, binc, prim["indices"]).reshape(-1, 3).astype(np.int64) + base)
+            NR.append(accessor(j, binc, at["NORMAL"]).astype(np.float64))
+            mname = j.get("materials", [{}] * 99)[prim.get("material", 0)].get("name", "")
+            M.append(np.full(len(I[-1]), 1 if "joint" in mname.lower() else 0))
         self.pos, self.jnt, self.wt, self.tri = map(np.concatenate, (P, J, W, I))
+        self.nrm, self.tri_mat = np.concatenate(NR), np.concatenate(M)
         self.wt /= self.wt.sum(1, keepdims=True)
         anim = next(a for a in j["animations"] if a["name"] == clip)
         self.tracks = {}
@@ -152,10 +159,87 @@ class Rig:
         for c in range(4):
             m = mats[self.jnt[:, c]]                                                 # (V,4,4)
             out += self.wt[:, c:c + 1] * np.einsum("vij,vj->vi", m, hp)[:, :3]
+        self.last_nrm = np.zeros((len(self.pos), 3))
+        for c in range(4):
+            m = mats[self.jnt[:, c], :3, :3]
+            self.last_nrm += self.wt[:, c:c + 1] * np.einsum("vij,vj->vi", m, self.nrm)
+        self.last_nrm /= np.maximum(np.linalg.norm(self.last_nrm, axis=1, keepdims=True), 1e-12)
         return out, g
 
     def joint_pos(self, g, name):
         return g(self.name_idx[name])[:3, 3]
+
+
+# ------------------------------------------------------------------ shaded (clay) render --
+SS = 3                                                # supersampling for the shaded render
+
+try:
+    from numba import njit
+except ImportError:                                   # works without numba, just much slower
+    def njit(*a, **k):
+        return (lambda f: f) if not (len(a) == 1 and callable(a[0])) else a[0]
+
+
+@njit(cache=True)
+def raster(X, Y, Z, N, tri, tmat, zbuf, nbuf, mbuf):
+    """z-buffer: per pixel the nearest triangle's interpolated normal (larger Z = nearer the camera)."""
+    H, W = zbuf.shape
+    for t in range(tri.shape[0]):
+        a, b, c = tri[t, 0], tri[t, 1], tri[t, 2]
+        x0, y0, x1, y1, x2, y2 = X[a], Y[a], X[b], Y[b], X[c], Y[c]
+        area = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0)
+        if abs(area) < 1e-9:
+            continue
+        lo_x = max(int(min(x0, x1, x2)), 0); hi_x = min(int(max(x0, x1, x2)) + 1, W - 1)
+        lo_y = max(int(min(y0, y1, y2)), 0); hi_y = min(int(max(y0, y1, y2)) + 1, H - 1)
+        for py in range(lo_y, hi_y + 1):
+            sy = py + 0.5
+            for px in range(lo_x, hi_x + 1):
+                sx = px + 0.5
+                w0 = ((x1 - sx) * (y2 - sy) - (x2 - sx) * (y1 - sy)) / area
+                w1 = ((x2 - sx) * (y0 - sy) - (x0 - sx) * (y2 - sy)) / area
+                w2 = 1.0 - w0 - w1
+                if w0 < 0 or w1 < 0 or w2 < 0:
+                    continue
+                z = w0 * Z[a] + w1 * Z[b] + w2 * Z[c]
+                if z > zbuf[py, px]:
+                    zbuf[py, px] = z
+                    for k in range(3):
+                        nbuf[py, px, k] = w0 * N[a, k] + w1 * N[b, k] + w2 * N[c, k]
+                    mbuf[py, px] = tmat[t]
+
+
+def clay(zbuf, nbuf, mbuf, cam):
+    """Shade the z-buffer: light-grey clay, key light from the upper left, fill, rim; far side darker; ink lines."""
+    from scipy import ndimage
+    m = np.isfinite(zbuf)
+    n = nbuf / np.maximum(np.linalg.norm(nbuf, axis=-1, keepdims=True), 1e-9)
+    E = wc.ELEV
+    scr_up = np.array([0, math.cos(E), -math.sin(E)])
+    key = np.array([-0.55, 0, 0]) + 0.65 * scr_up + 0.55 * cam; key /= np.linalg.norm(key)
+    fill = np.array([0.6, 0, 0]) - 0.1 * scr_up + 0.8 * cam; fill /= np.linalg.norm(fill)
+    nk = n @ key
+    lit = 0.30 + 0.62 * np.clip((nk + 0.25) / 1.25, 0, 1) ** 1.3 + 0.12 * np.clip(n @ fill, 0, 1)
+    rim = np.clip(1 - np.abs(n @ cam), 0, 1) ** 3 * 0.10
+    z = np.where(m, zbuf, 0)
+    depth = np.clip(1 + 0.9 * np.minimum(z, 0) + 0.15 * np.maximum(z, 0), 0.72, 1.06)   # far side darker
+    base = np.where(mbuf == 1, 0.80, 1.0)                                                  # joints darker
+    v = np.clip((lit + rim) * depth * base, 0, 1.15)
+    col = np.array([218, 212, 202], float)                                                 # warm light grey
+    rgb = np.clip(v[..., None] * col, 0, 255)
+    # ink: silhouette, and depth steps (a limb passing in front of the body)
+    zf = np.where(m, zbuf, -10.0)
+    step = np.zeros_like(m)
+    for dy, dx in ((0, 1), (1, 0)):
+        d = np.abs(zf - np.roll(np.roll(zf, dy, 0), dx, 1)) > 0.06
+        step |= d | np.roll(np.roll(d, -dy, 0), -dx, 1)
+    sil = m & ~ndimage.binary_erosion(m, iterations=SS)
+    ink = (step & m) | sil
+    ink = ndimage.binary_dilation(ink, iterations=max(1, SS // 3)) & m
+    rgb[ink] = (55, 52, 50)
+    out = np.zeros(m.shape + (3,), np.uint8); out[:] = (255, 0, 255)
+    out[m] = rgb[m].astype(np.uint8)
+    return Image.fromarray(out, "RGB")
 
 
 def limb_colour(name):
@@ -223,7 +307,12 @@ def main():
     times = [(t0 + rig.dur * i / frames) % rig.dur for i in range(frames)]
     pel = np.mean([rig.joint_pos(g, "pelvis") for g in gl], 0)     # in place: cycle-mean pelvis (horizontal)
     height = rig.pos[:, 1].max() - rig.pos[:, 1].min()           # standing (bind pose) height
-    skins = [rig.skin(t) for t in times]
+    skins, snrm = [], []
+    for t in times:
+        skins.append(rig.skin(t)); snrm.append(rig.last_nrm.copy())
+    shaded = "--shaded" in sys.argv
+    if shaded:
+        zbuf = None
 
     def screen(vs, kdir, k):
         a = math.radians(45 * kdir)
@@ -270,6 +359,18 @@ def main():
             cx, fy = (c_ + 0.5) * cw * ss, (r_ * ch + ch - gy) * ss
             X, Y = cx + sx * scale, fy + sy * scale
             ext.append((round((Y.min() - fy) / ss), round((Y.max() - fy) / ss)))
+            if shaded:
+                n = snrm[i]
+                a = math.radians(45 * kdir)
+                f_scr = np.array([math.sin(a), 0, math.cos(a)]); r_scr = np.array([-f_scr[2], 0, f_scr[0]])
+                nl = np.c_[n @ right, n @ up, n @ fwd]
+                nw_ = nl[:, :1] * r_scr + nl[:, 1:2] * up + nl[:, 2:3] * f_scr
+                if zbuf is None:
+                    zbuf = np.full((H * SS, W * SS), -np.inf); nbuf = np.zeros((H * SS, W * SS, 3))
+                    mbuf = np.zeros((H * SS, W * SS), np.int64)
+                f_ = SS / ss
+                raster(X * f_, Y * f_, dep - np.median(dep), nw_, rig.tri, rig.tri_mat, zbuf, nbuf, mbuf)
+                continue
             tri = rig.tri
             p0, p1, p2 = w[tri[:, 0]], w[tri[:, 1]], w[tri[:, 2]]
             nrm = np.cross(p1 - p0, p2 - p0)
@@ -291,6 +392,11 @@ def main():
                 rr = 0.11 * scale * 0.35
                 dr.ellipse([nx - rr, ny - rr, nx + rr, ny + rr], fill=RED)
         print(f"  {dname}: head top / lowest point, px from the ground line:", ext)
+    if shaded:
+        im = clay(zbuf, nbuf, mbuf, cam)
+        im.resize((W, H), Image.LANCZOS).save(out)
+        print(f"guide (mocap, shaded) {clip} {','.join(dirs)} {frames} frames {W}x{H} -> {out}")
+        return
     im.resize((W, H), Image.LANCZOS).save(out)
     print(f"guide (mocap) {clip} {','.join(dirs)} {frames} frames {W}x{H} -> {out}")
 
