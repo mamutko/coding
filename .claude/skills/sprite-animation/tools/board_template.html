@@ -57,6 +57,8 @@ output { font-family: var(--mono); font-variant-numeric: tabular-nums; color: va
 .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: grid;
   grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; min-width: 0 }
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--line) }
+.pair.trio { grid-template-columns: 1fr 1fr 1fr }
+.cards.wide { grid-template-columns: repeat(auto-fill, minmax(min(100%, 380px), 1fr)) }
 .stage { position: relative; background: var(--stage); aspect-ratio: 3 / 4 }
 .stage canvas { width: 100%; height: 100%; display: block }
 .stage .tag { position: absolute; left: 8px; top: 6px; font: 500 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--stage-ink); opacity: .8 }
@@ -111,7 +113,7 @@ td.num { font-family: var(--mono); text-align: right; white-space: nowrap }
 
   <section aria-labelledby="dir-h">
     <h2 id="dir-h">Walk, by direction</h2>
-    <p class="sub">Mannequin guide on the left, painting on the right, all on one clock. Bars compare foot spread per frame (guide grey, painting green, orange when off); a frame number in orange has a faded limb. Colour is the match with the approved reference (1 = identical; below 0.70 check it, below 0.55 it has drifted).</p>
+    <p class="sub">Mannequin guide on the left, painting in the middle<span id="origNote">, the animation now in the game on the right (its own frame count, same stride; scaled to the same height)</span>, all on one clock. Bars compare foot spread per frame (guide grey, painting green, orange when off); a frame number in orange has a faded limb. Colour is the match with the approved reference (1 = identical; below 0.70 check it, below 0.55 it has drifted).</p>
     <div class="legend"><span style="--c: var(--guide)">guide foot spread</span><span style="--c: var(--moss)">painted foot spread</span><span style="--c: var(--warn)">off the guide</span></div>
     <div class="cards" id="cards"></div>
   </section>
@@ -168,18 +170,20 @@ window.BOARD = __DATA__;
   }
 
   const cards = [];
+  if (D.original) $("cards").classList.add("wide"); else $("origNote").remove();
   D.dirs.forEach((e) => {
     const el = document.createElement("article"); el.className = "card";
     const chip = e.paint ? `<span class="pill ${e.match === e.n ? "good" : "warn"}">${e.match} of ${e.n} match</span>` : "";
     const col = e.colour !== undefined ? `<span class="pill ${e.colour >= 0.7 ? "good" : "warn"}">colour ${e.colour.toFixed(2)}</span>` : "";
     const empty = !e.guide ? `<div class="empty">no guide</div>` : "";
     const emptyP = !e.paint ? `<div class="empty">${e.mirrored ? "mirror of " + e.of + "<br>(not painted yet)" : "not painted yet"}</div>` : "";
-    el.innerHTML = `<div class="pair"><div class="stage"><canvas width="240" height="320" aria-label="${e.d} guide"></canvas><span class="tag">guide</span>${empty}</div>
-      <div class="stage"><canvas width="240" height="320" aria-label="${e.d} painted"></canvas><span class="tag">${e.mirrored ? "mirrored " + e.of : "painted"}</span>${emptyP}</div></div>
+    const third = D.original ? `<div class="stage"><canvas width="240" height="320" aria-label="${e.d} in the game now"></canvas><span class="tag">in game</span>${e.orig ? "" : `<div class="empty">no row</div>`}</div>` : "";
+    el.innerHTML = `<div class="pair${D.original ? " trio" : ""}"><div class="stage"><canvas width="240" height="320" aria-label="${e.d} guide"></canvas><span class="tag">guide</span>${empty}</div>
+      <div class="stage"><canvas width="240" height="320" aria-label="${e.d} painted"></canvas><span class="tag">${e.mirrored ? "mirrored " + e.of : "painted"}</span>${emptyP}</div>${third}</div>
       <div class="meta"><div class="row"><span class="name">${e.d} &middot; ${esc(e.view)}</span><span class="pill ${PILL[e.status] || "info"}">${esc(e.status)}</span></div>
       <div class="row">${chip}${col}</div><div class="frames"></div></div>`;
     $("cards").appendChild(el);
-    const [cg, cp] = el.querySelectorAll("canvas");
+    const [cg, cp, co] = el.querySelectorAll("canvas");
     const fr = el.querySelector(".frames");
     if (e.paint) for (let i = 0; i < e.n; i++) {
       const b = document.createElement("button"); b.type = "button";
@@ -190,7 +194,7 @@ window.BOARD = __DATA__;
       b.onclick = () => { playing = false; $("play").textContent = "Play"; t = (i + 0.5) / e.n * dur; };
       fr.appendChild(b);
     }
-    cards.push({ e, cg, cp, fr });
+    cards.push({ e, cg, cp, co, fr });
   });
 
   const tb = $("spend").querySelector("tbody");
@@ -199,9 +203,10 @@ window.BOARD = __DATA__;
 
   const frameOf = (n) => Math.floor(((t / dur) % 1) * n) % n;
   function render() {
-    cards.forEach(({ e, cg, cp, fr }) => {
+    cards.forEach(({ e, cg, cp, co, fr }) => {
       const f = frameOf(e.n);
-      [cg, cp].forEach((cv) => cv.getContext("2d").clearRect(0, 0, cv.width, cv.height));
+      [cg, cp, co].forEach((cv) => cv && cv.getContext("2d").clearRect(0, 0, cv.width, cv.height));
+      if (co && e.orig) draw(co, e.orig, e.on, frameOf(e.on), 1, false);
       if (e.guide) draw(cg, e.guide, e.n, f, 1, e.mirrored);
       if (e.paint) { draw(cp, e.paint, e.n, f, 1, e.mirrored); if ($("ov").checked && e.guide) draw(cp, e.guide, e.n, f, 0.35, e.mirrored); }
       [...fr.children].forEach((b, i) => b.classList.toggle("on", i === f));

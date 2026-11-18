@@ -40,5 +40,11 @@
       "usd": 0.06
     }
   ],
-  "artifact": "https://claude.ai/artifact/N4tikGyTBrktPKfH1pyDN4"
+  "artifact": "https://claude.ai/artifact/N4tikGyTBrktPKfH1pyDN4",
+  "original": {
+    "sheet": "../../../assets/hero.webp",
+    "frames": 8,
+    "fw": 144,
+    "fh": 152
+  }
 }

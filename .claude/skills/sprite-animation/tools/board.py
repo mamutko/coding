@@ -19,8 +19,12 @@ character.json (in the character's folder; paths are relative to it). Only "name
     "directions": {"NW": {"file": "paint/NW.png", "status": "approved"}},              # review / redo
     "next": "Paint SW",                                # shown at the top
     "spend": [{"what": "3 references", "usd": 0.13}],
-    "artifact": "https://claude.ai/artifact/..."
+    "artifact": "https://claude.ai/artifact/...",
+    "original": {"sheet": "../../../assets/hero.webp", "frames": 8, "fw": 144, "fh": 152}
   }
+"original" (optional, when repainting a character already in a game): its current sprite sheet (build_sheet.py
+layout: one row per direction S SW W NW N NE E SE, "frames" cells of fw x fh) is shown as a third "in game" panel
+on every card, on the same stride clock, scaled so both characters stand the same height.
 """
 import base64, io, json, pathlib, sys
 import numpy as np
@@ -90,6 +94,26 @@ def layout(path, n):
     return (4, 2) if n == 8 else (6, 2)
 
 
+def original_rows(o, base):
+    """The game sheet's frames per direction, each row cropped to the union of its figures' boxes (so the
+    character fills the panel like the painting does), padded to the panel's 3:4 and bottom-aligned."""
+    sheet = Image.open(base / o["sheet"]).convert("RGBA")
+    n, fw, fh = o.get("frames", 8), o["fw"], o["fh"]
+    rows = {}
+    for r, d in enumerate(DIRS):
+        fr = [sheet.crop((c * fw, r * fh, (c + 1) * fw, (r + 1) * fh)) for c in range(n)]
+        boxes = [f.getbbox() for f in fr if f.getbbox()]
+        if not boxes:
+            continue
+        x0, y0 = min(b[0] for b in boxes), min(b[1] for b in boxes)
+        x1, y1 = max(b[2] for b in boxes), max(b[3] for b in boxes)
+        h = round((y1 - y0) * 1.06); w = max(x1 - x0, round(h * FW / FH))
+        cx = (x0 + x1) / 2
+        box = (round(cx - w / 2), y1 - h, round(cx - w / 2) + w, y1)
+        rows[d] = dict(strip=strip([fit(f.crop(box)) for f in fr]), n=n)
+    return rows
+
+
 def main():
     src, out = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2])
     ch = json.loads(src.read_text(encoding="utf-8")); base = src.parent
@@ -106,6 +130,7 @@ def main():
             approved_ref = p
     dirs = []
     dmeta = ch.get("directions", {})
+    orig = original_rows(ch["original"], base) if ch.get("original") else {}
     for d in DIRS:
         mirrored = bool(ch.get("mirror")) and d in MIRROR
         src_d = MIRROR[d] if mirrored else d
@@ -114,6 +139,8 @@ def main():
         pp = base / info["file"] if info.get("file") else None
         e = dict(d=d, view=VIEW[d], mirrored=mirrored, of=src_d if mirrored else None, n=n,
                  status=("mirror" if mirrored else info.get("status", "not painted" if not pp else "review")))
+        if d in orig:
+            e["orig"], e["on"] = orig[d]["strip"], orig[d]["n"]
         if gp:
             cols, rows = layout(gp, n)
             e["guide"] = strip([fit(c) for c in cells(gp, cols, rows)][:n])
@@ -132,7 +159,7 @@ def main():
     spend = ch.get("spend", [])
     data = dict(name=ch.get("name", "Character"), description=ch.get("description", ""), frames=ch.get("frames"),
                 mirror=ch.get("mirror"), guide=ch.get("guide") or "walk", body=ch.get("body", "adult 1.82 m, EU 43"),
-                next=ch.get("next", ""), refs=refs, dirs=dirs, spend=spend,
+                next=ch.get("next", ""), refs=refs, dirs=dirs, spend=spend, original=bool(orig),
                 total=round(sum(s.get("usd", 0) for s in spend), 3))
     html = (HERE / "board_template.html").read_text(encoding="utf-8")
     html = html.replace("__TITLE__", f"{data['name']} Sprite Board").replace("__DATA__", json.dumps(data))
