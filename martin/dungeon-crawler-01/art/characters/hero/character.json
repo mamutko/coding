@@ -36,10 +36,10 @@
     "NW": {
       "file": "paint/NW.png",
       "status": "review",
-      "note": "attempt 3, simple reference + consistent-shading prompt: detail at game scale 24 (attempt 2: 45, in game: 31). Stride 12/12, colour 0.80. View again rather side-on (visor visible)."
+      "note": "attempt 4: Google gemini-nano-banana-2.1 (2K, 21:9, on magenta, keyed out; raw in attempts/), same prompt as OpenAI attempt 3 except magenta background. Three-quarter back view. Stride 12/12, detail 25.7, colour 0.67 (darker maroon cape than the reference, close to the in-game knight). OpenAI attempt 3 kept as attempts/NW-3-openai-simple.png."
     }
   },
-  "next": "Approve NW (less shimmer, but rather side-on) or repaint it toward the back view",
+  "next": "Compare the cape hem in motion: approve Gemini NW, or go back to OpenAI",
   "spend": [
     {
       "what": "3 reference candidates (edit from the current knight sprite)",
@@ -56,6 +56,10 @@
     {
       "what": "NW attempt 3 (+1 call lost to a network error)",
       "usd": 0.03
+    },
+    {
+      "what": "NW attempt 4 (Gemini nano-banana-2.1, 2K)",
+      "usd": 0.054
     }
   ],
   "artifact": "https://claude.ai/artifact/N4tikGyTBrktPKfH1pyDN4",
