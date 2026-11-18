@@ -1,0 +1,27 @@
+{
+ "cols": 6,
+ "rows": 2,
+ "frames": 12,
+ "dirs": [
+  "SW"
+ ],
+ "cell": [
+  384,
+  512
+ ],
+ "clip": "Jog_Fwd_Loop",
+ "ground_y": 430.55,
+ "fig_px": 323.63,
+ "fit": 0.7726,
+ "shaded": true,
+ "foot_cm": 27.2,
+ "proportions": {
+  "head": 1,
+  "legs": 1,
+  "arms": 1,
+  "torso": 1,
+  "shoulders": 1,
+  "neck": 1
+ },
+ "note": "ground_y: ground line, px from the cell top; fig_px: a standing figure's height in px"
+}

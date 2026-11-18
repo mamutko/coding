@@ -1,215 +1,151 @@
 ---
 name: sprite-animation
-description: How to make and animate walking characters for an isometric (or any top-down 3/4) browser game with AI-generated art — an 8-direction × 8-frame walk-cycle sprite sheet built from a 3D stick-figure pose guide that an image model paints over, robust slicing (no cut-off heads, feet on the ground), mirroring, cleanup of AI mistakes, and distance-driven animation in the game loop. Use when generating or fixing character / monster sprite sheets, walk cycles, facing directions, or sprites that float, slide, stutter or face the wrong way. Worked example: martin/dungeon-crawler-01 (tools/walk_cycle.py, README "Walk cycles").
+description: Make walking characters for an isometric (or any top-down 3/4) browser game with AI-painted art — an approved character reference, a mannequin pose guide rendered from motion capture (or an algorithmic stick figure for monsters), one direction at a time painted over the guide by an image model, automatic stride / faded-limb / colour-drift checks, a review board kept as an Artifact, and a sprite sheet built for the game (8 or 12 frames, 8 directions, mirrored or not). Use when creating a new character or monster sprite, a walk / jog cycle, a custom pose guide (other clip, child proportions, foot size), or fixing sprites that float, slide, stutter or face the wrong way. Worked example: martin/dungeon-crawler-01.
 ---
 
 # Sprite animation: AI walk cycles for 8-direction characters
 
-Worked example: `martin/dungeon-crawler-01`. The tool is `tools/walk_cycle.py` (copy it into a new project),
-the raw AI images are in `tools/raw/`, and the README sections **Walk cycles (hero, skeleton, ghoul)** and
-**Characters** document every number. This skill is the *why* and the recipe; read the README for the exact
-parameters.
+Everything reusable lives in this folder; read `learnings.md` for why each step is the way it is.
 
-Image generation goes through the `ai-media-generation` skill in Martin's **notes** repo (Google
-`gemini-3.1-flash-image` `edit`, ~$0.07 per image; OpenAI `gpt-image-2` `edit` at medium quality, 1536 × 1024,
-~$0.075, works just as well: the four Keepers of the Crypt were made with it when Google's prepaid credit ran out. Newer models tested on 2026-11-16 with the colour guide: OpenAI `gpt-image-2.6-flare` (now the script's default,
-~$0.034 per direction at medium, transparent output) and Google `gemini-nano-banana-2.1` (~$0.04 at 1K); both
-followed the guide in 7 of 8 frames. Pick models with the ai-media-generation skill's `models` command, not from this list.
-With OpenAI, say which input is which: "the first image is the 8-mannequin guide to paint over (keep its 4 x 2
-layout and its magenta background); the second is the design reference; the third is the same character already
-painted in another direction: match its look exactly"). That skill holds API keys: never copy it, its scripts or
-its key files into this public repo. Only call it by path from the notes repo.
+```
+SKILL.md        this workflow
+learnings.md    what works and what doesn't (evidence, dated)
+datasets.md     motion-capture sources and their licences (Quaternius, CC0)
+datasets/quaternius-ual1/   UAL1_Standard.glb (in place, use this), UAL1_Standard_RM.glb (root motion), License.txt
+guides/         pre-rendered guides, see guides/README.md: walk, formal-walk, jog (8f / 12f, all 8 directions,
+                shaded clay, adult 1.82 m, EU 43 feet) and stick-walk (algorithmic stick figure)
+tools/
+  render_guide.py    mocap mannequin guide: --clip, --frames, --shaded, --shoe, --preset child-8 / child-12, ...
+  walk_cycle.py      the algorithmic stick-figure guide (per-character gaits in CHARS) and the projection
+  default_guides.py  regenerates guides/
+  guide_prompt.py    the painting prompt: --plain (shaded guide), --character, --ref, --match
+  grid_check.py      checks a painting against its guide: stride, faded limbs, colour drift (--ref)
+  board.py + board_template.html   the character board (review page, published as an Artifact)
+  build_sheet.py     painted directions -> game sprite sheet + meta.json entry
+```
 
-## What doesn't work (learned the hard way)
+Images are painted with the **ai-media-generation** skill in Martin's **notes** repo
+(`notes/.claude/skills/ai-media-generation/openai_media.py`, OpenAI, transparent output). It holds API keys: call
+it by path, never copy it, its scripts or keys into this public repo. Follow its cost rules: ask before a call over
+$0.20 or a turn over $3.00, and report the spend at the end of every turn. Run the tools with the Python that has
+numpy, Pillow, scipy (and numba, which makes the shaded render fast).
 
-- **Asking for a whole sprite sheet** ("8 rows of directions × 4 walk frames") gives the same pose in every
-  frame (always left foot forward). Several rows also face the wrong way (an "E" row facing SE, an "NW" row
-  facing NE). And figures cross the grid lines, so cutting by grid slices heads into the cell above, leaving
-  a sprite with its head missing and floating.
-- **The character as the main image and a pose guide as a reference:** the model copies the reference pose
-  and you get 8 nearly identical frames.
-- **The second half of the stride painted like the first (the most common failure, easy to miss).** The models
-  follow the guide's *silhouette* well (how far apart the feet are, which foot is lifted), but not *which* leg is
-  in front: the dark grey / light grey shading is too weak a cue. So frames 4–7 come out as copies of frames 0–3,
-  the same leg (usually the one nearer the camera) leads all the time, and in the game the character glides with
-  one leg always forward instead of striding. Front (S) and back (N) views suffer least; the side and three-quarter
-  views (SW, W, NW) most. Seen clearly with OpenAI `gpt-image-2` (the keepers and the villagers of
-  martin/dungeon-crawler-01); the Gemini-made knight's SW row looks affected too, less visibly. A per-frame
-  "left leg forward / right leg forward" description in the prompt was **not** enough. Untested remedies, in the
-  order to try: describe the legs as **near** (nearer the viewer) and **far** instead of left and right, and say
-  outright that frame 5 is the opposite of frame 1 ("the near leg is BEHIND, the far leg in front, partly hidden
-  by the near one") and must not be a copy; then reject the image if it fails the check below and try again.
-  Always check this before building (see Verifying).
-  **Result (the hunter, redone with Gemini):** the near/far wording worked for W and NW at once, and for SW except
-  one frame. The front view (S) did not alternate with any wording (left/right, or "the foot on the RIGHT side of
-  the image is clearly LOWER"); the back view (N) did with the image-side wording. What fixed S was assembling the
-  row from two attempts' frames, choosing each frame by which foot is lower. A single wrong frame can also be
-  replaced by its neighbour with the same leg arrangement. Repainting with Gemini a character first made with
-  OpenAI changes its look a little: redo all five directions, not just the broken ones.
-- **The look reference must be in the same view.** It sets the body angle more strongly than the prompt or the
-  guide: a side-view (W) frame as the reference for a three-quarter (SW) sheet put some figures in profile (and
-  dropped the bow); a front-view (S) frame made every SW figure face the viewer. For a redo, give a frame of the
-  same direction from an earlier attempt (even a flawed one) and add a body-angle line ("turned about 45 degrees to
-  the LEFT … NOT facing the viewer straight on, and NOT in full profile").
-- **Picture cues beat leg names for three-quarter views.** What fixed the hunter's SW: "1: … its boot is planted
-  directly BELOW the other boot in the image (nearly in one vertical line) … 5: … its boot far to the lower LEFT,
-  the near boot far to the upper RIGHT: the boots WIDE apart left-right, the widest stance of all 8 frames". The
-  models follow positions in the picture far better than which leg is which. A row that passes `stride_check` can
-  still look wrong (the same boot leading): watch it walk slowly in the game too.
-- **No pose guide at all** (tested 2026-11-16 with `gpt-image-2.6-flare` and `gemini-nano-banana-2.1`, a
-  ranger made from scratch): the stride was bad in every direction for both models, whatever the per-frame
-  wording. A whole 8 × 8 sheet in one image failed in both (wrong rows; Google even drew 6 × 10). Google
-  without a guide could not draw a figure facing LEFT at all. Always use a guide.
-- **"The other leg leads in frames 5–8" read as "turn around".** Without a guide, OpenAI turned frames 5–8 the
-  other way in several directions. Say outright: "all 8 figures face exactly the same direction; the body
-  NEVER turns around between figures".
-- **Coloured guide limbs once leaked** (blue left, orange right became blue and orange armour). With one colour
-  per limb and the explicit "colours are ONLY a pose guide" sentence below, nothing leaked in the 2026-11-16
-  test, so the colour guide is now the default.
-- **"Make the arms swing"** without per-frame detail gives stiff, hanging arms even if the guide swings them.
-- **A long shared design reference is not enough** to keep the design: without an explicit design paragraph
-  the model drifted (flat-topped helm, light-grey armour) in one direction.
+## The workflow for a new character
 
-## The recipe that works
+Make characters **one at a time**. Each has a folder in its project, e.g. `<project>/art/characters/<id>/`, holding
+`character.json` (see `tools/board.py` for the fields: description, decisions, references, directions, spend,
+artifact URL), the reference images, any custom guide, and `paint/<DIR>.png` (plus `attempts/`).
 
-1. **3D pose model** (`pose(t)` in `walk_cycle.py`): a 1.75 m stick figure with hips, knees, ankles, toes,
-   shoulders, elbows, wrists and fists. 8 phases cover one full stride (two steps):
-   0 left foot forward, 1 down, 2 passing, 3 up, 4 right foot forward, 5 down, 6 passing, 7 up.
-   - Legs: hip swing ±24° (cosine); knee bends up to ~52° in the swing phase.
-   - Upper body (this is what makes it not look stiff): pelvis yaw ±6°, shoulders counter-rotate ±8°, the
-     torso sways 3.5 cm over the stance leg (hips half as much), leans a few degrees forward (a rotation
-     about the hip axis), and the head follows at 60 %.
-   - Arms swing ±20° opposite to the same-side leg; the elbow bends more when the arm is forward.
-   - Lower the figure so its lowest point touches the ground; that gives the natural bob.
-   - Per-character settings (`CHARS`): lean, constant knee bend (crouch), stride, per-arm swing, arm
-     offset and elbow. Skeleton: shield forearm held bent in front and barely moving, short sword swing.
-     Ghoul: 25° hunch, 24° knee bend, shorter stride, dangling arms.
-2. **Projection:** rotate to the facing angle k × 45° and project with a 30° camera elevation (the 2:1
-   dimetric view): `screen_x = X`, `screen_y = −Y·cos30° + Z·sin30°`. Draw parts far to near.
-3. **Placeholders first.** Render the stick figures at game scale into the real sheet layout, so the game
-   animates correctly before any art exists, and so you can check the gait and facing in the game itself.
-4. **Guide image per direction** (`guide <CHAR> <DIR> out.png --magenta --limbs`): the 8 poses in a 4 × 2
-   grid on flat magenta, drawn as a mannequin with thick limbs and **one colour per limb**: blue = left leg,
-   orange = right leg, teal = left arm, yellow = right arm, grey = torso and head. The colours let the model
-   follow each limb from figure to figure. In the 2026-11-16 NW test both guides gave 7 of 8 frames matching in
-   `stride_check`, and with Google the colour guide's frames 1–2 matched almost exactly where the grey one's
-   were borderline. `--mannequin` still draws the older grey version (dark grey = left, light grey = right).
-   One image per direction; generate only the 5 base directions S, SW, W, NW, N.
-5. **Generate with `edit`** at aspect 4:3 and 1K. Inputs, in order:
-   1. the guide, as the image being edited;
-   2. a crop of the character in the same view, as a design reference (from an older sheet or concept art;
-      mirror it if that source faced the wrong way);
-   3. after the first finished direction: a close-up crop of one finished frame, so all directions match.
+**Keep the board current.** After every step below, rebuild it and republish it to the same Artifact URL
+(`python tools/board.py <character.json> board.html`, then publish `board.html`; the first publish stores the URL in
+character.json). It shows the reference candidates, the guide and the painted walk for every direction on one clock,
+the checks, the decisions and the spend, so the user can look before each approval.
 
-   Prompt checklist (see the README for full text):
-   - "Paint over EVERY mannequin, keeping each one's exact position, size and pose of legs, arms and torso."
-   - The limb key, word for word: "Each limb of the mannequin has its own colour so you can follow it from figure
-     to figure: BLUE = his LEFT leg, ORANGE = his RIGHT leg, TEAL = his LEFT arm, YELLOW = his RIGHT arm, grey =
-     torso and head." Name what each hand holds per side ("the YELLOW arm's hand holds …").
-   - Per-frame legs, by guide colour: "1: the BLUE leg reaches forward, the ORANGE leg stretched far back.
-     3: the BLUE leg under the body; the ORANGE leg bent at the knee, foot lifted, swinging forward. 5: the
-     OPPOSITE of 1: now the ORANGE leg reaches forward and the BLUE leg is stretched far back. Figure 5 is NOT a
-     copy of figure 1. 7: the ORANGE leg under the body; the BLUE leg bent, foot lifted, swinging forward.
-     Figures 2, 4, 6, 8 are the in-between poses: copy them from the guide."
-   - Per-frame arms: which arm is forward in frames 1 and 5, both arms close to the body in frames 3 and 7,
-     "hands at clearly different positions from frame to frame".
-   - Torso: shoulders twist against the hips, slight lean and shift over the supporting leg, "not stiff".
-   - **An explicit design paragraph** (shapes, colours, materials, held items), plus "copy only the design,
-     not the pose".
-   - **An explicit view sentence**, e.g. W: "strict side profile, walks to the LEFT; we see only its LEFT
-     side, NOT turned toward the viewer". Side visibility: facing SW/W/NW (screen left) shows the character's
-     *left* side; facing S shows the front; N the back. End it with "The body NEVER turns around between
-     figures."
-   - "The colours are ONLY a pose guide: NONE of blue, orange, teal or yellow may appear anywhere in the
-     painting; paint every limb in the character's own clothing colours." (With `--mannequin`: "The grey
-     shades are only a guide, not colours; no grey mannequin parts may remain.")
-   - With OpenAI, ask for "Transparent background (remove the magenta)" and pass `--background transparent`:
-     `gpt-image-2.6-flare` (the ai-media-generation default) returns real alpha, so no chroma key is needed.
-   - "Flat solid pure magenta #FF00FF background, no floor, no shadows, no text."
-6. **Review every image** (Read it) before building. Typical faults and fixes:
-   - **Leftover flat grey mannequin limbs** (common in the S view): run a second `edit` on the result:
-     "remove every flat grey mannequin shape; where it is in the place of a leg, repaint it as <leg
-     description>; change nothing else". To find them automatically, look for large flat, unsaturated regions
-     with values 150–240.
-   - **Duplicate props** (two shields in profile): a cleanup edit that removes the extra one.
-   - **A limb lost in cleanup:** paste it from the neighbouring frame with the same pose, aligned on the head,
-     filling only empty pixels.
-   - **Wrong view** (three-quarter instead of profile): regenerate with a stronger view sentence.
-   - **Hunch invisible from behind:** the model draws back views upright. Accept it and give the character
-     a taller frame, or don't rely on the back view to show the hunch.
-   Do one direction first (SW), review it with the user, then generate the rest in parallel.
-7. **Build** (`build <CHAR> tools/raw assets`):
-   - **Chroma key** magenta with colour un-mixing and despill.
-   - **Find figures as connected components** of the whole image (on a 3× downsampled mask; drop specks
-     under 2 % of the largest) and assign each to the grid cell holding its **centroid**. Never cut by grid
-     lines. If a component spans more than about 1.4 cells (two figures touching), split it along the grid.
-   - **Scale:** one per direction, the median of (pose-model bbox height ÷ AI figure height).
-   - **Anchor:** horizontally centre the head-and-shoulders (top 45 % of the alpha centroid), so swinging legs
-     don't shift the body. Vertically put the figure's **lowest pixel** where the pose model's lowest foot is
-     for that frame. Anchoring by the head top left figures floating.
-   - **Ground point below the frame bottom:** `footY` is 128 in a 152 px frame, because the foot nearer the
-     camera hangs below the ground point in this view. Give a character a taller frame (`fh`, `foot_y`) if
-     any frame clips, rather than shrinking it.
-   - **Mirror** SW, W and NW into SE, E and NE. Mirroring swaps the legs, which in a walk cycle is just a
-     half-stride phase shift, so it's free. Held items change hands (a sword in the left hand); usually
-     acceptable at game size.
-   - Write the sheet (WebP) and its `meta.json` entry `{fw, fh, frames, idle, footY, fpt}`, then copy it into
-     the inlined `META` in `index.html`.
-8. **Older 4-frame sheets** that won't be regenerated: re-cut them the same way (components, foot anchor,
-   mirrored base rows) at no AI cost. That alone fixes cut heads, floating and wrong-way rows.
+**Approvals.** Stop for the user's approval where marked. The user may waive approvals ("go ahead without asking");
+then run straight through, still running every check and updating the board, and report at the end.
+
+### 1. Reference picture (approval)
+
+Paint 2-3 candidates of a **turnaround**: the same character three times side by side (front, side facing left,
+back), full body, standing relaxed with the arms a little away from the body, on a transparent background.
+
+```
+python <notes>/.claude/skills/ai-media-generation/openai_media.py image "<prompt>" --size 1536x1024 \
+    --quality medium --background transparent -o <char>/reference-1.png
+```
+
+Prompt: "Character turnaround sheet for a hand-drawn 2D isometric RPG: the same character three times side by side,
+FRONT view, SIDE view facing left, BACK view; full body, standing relaxed, arms slightly away from the body, feet
+visible. CHARACTER: <design paragraph: build, face, hair, every garment with its colour and length, what each hand
+holds>. STYLE: hand-drawn 2D game sprite art, clean dark ink outlines, painterly watercolour-and-gouache shading,
+light from the upper left. NOT pixel art, NOT 3D. Transparent background. No text."
+
+- **Style consistency across characters** (the user may ask for several references at once): use `edit` with
+  approved references of other characters as inputs and add "in exactly the style of the attached characters (line
+  weight, shading, palette, proportions), but this new design". Prefer this whenever approved references exist.
+- The user approves one (mark it `"approved"` in character.json). The design paragraph becomes `"description"`.
+
+### 2. Decisions (ask, record in character.json)
+
+- **Frames per direction: 8 or 12.** 12 looks more natural (shoulder and hip rotation), 8 is lighter. The 12-frame
+  guides are 2304 × 1024 (~$0.046 per direction, estimated) against 1536 × 1024 for 8 ($0.034).
+- **Mirror SE / E / NE from SW / W / NW, or paint all 8?** Mirroring costs 5 images instead of 8 but swaps held items
+  and asymmetric clothing to the other side.
+- **Guide:** the default `walk` unless the character calls for another (next step).
+
+### 3. Guide (approval only for a custom one)
+
+- **Default:** `guides/walk/<8|12>f/<DIR>.png`: adult 1.82 m, EU 43 feet, normal walk. Also committed:
+  `formal-walk` (upright, measured: nobles, guards), `jog`, and `stick-walk` (algorithmic, 8 frames, 5 directions).
+- **Custom** (render it into `<char>/guide/`, show it on the board, wait for approval before painting):
+  - another clip: `--clip Jog_Fwd_Loop | Sprint_Loop | Walk_Formal_Loop | ...` (all 43 in datasets.md);
+  - other body: `--preset child-12 | child-8`, `--shoe <EU size>`, or `--head --legs --arms --torso --shoulders --neck`;
+  - a monster with a made-up gait: `walk_cycle.py guide <CHAR> <DIR> out.png --magenta --limbs` (add the gait to
+    `CHARS`: lean, crouch, stride, arm swing; then use `guide_prompt.py` without `--plain`).
+
+```
+python tools/render_guide.py datasets/quaternius-ual1/UAL1_Standard.glb <DIR> <char>/guide/<DIR>.png --shaded \
+    --frames 12 --cols 6 --cell 384x512 [--clip ...] [--preset ...] [--shoe ...]      # 8 frames: --cols 4
+```
+
+### 4. Paint, one direction at a time (approval after the first)
+
+Start with a three-quarter view (SW or NW: the hardest and most telling). For each direction:
+
+```
+python tools/guide_prompt.py <DIR> --plain --frames 12 --cols 6 --character <char>/character.json --ref \
+    [--match <first approved DIR>] > prompt.txt
+python <notes>/.../openai_media.py edit "$(cat prompt.txt)" -i <guide>.png <char>/reference.png [<char>/paint/<first>.png] \
+    --size 2304x1024 --quality medium --background transparent -o <char>/paint/<DIR>.png      # 8 frames: 1536x1024
+python tools/grid_check.py <guide>.png <char>/paint/<DIR>.png 6 2 --dir <DIR> --ref <char>/reference.png
+```
+
+- Input order matters: **guide first** (the image being edited), the **reference** second, from the second direction
+  on a frame sheet of the **first approved direction** third (`--match`).
+- **Check every image** (Read it, and look at it on the board's dark floor): every stride frame matches, no faded
+  limbs, colour ≥ 0.70, right view, no leftover grey mannequin, items in the right hands. On a failed check, paint that
+  direction once more (prompt fixes in learnings.md); after a second failure, ask.
+- **After the first direction: stop for approval.** After that, continue direction by direction, updating the board
+  after each; approvals for the rest are optional unless the user wants them.
+
+### 5. Build the sheet
+
+```
+python tools/build_sheet.py <char>/character.json <project>/assets/<id>.webp --meta <project>/assets/meta.json \
+    [--height 118 --fw 144 --fh 152 --foot-y 128]
+```
+
+Then copy the meta entry wherever the game inlines it, run the game, and watch the character walk in every
+direction at its real speed (feet on the ground, no sliding, legs alternating).
 
 ## Animating in the game
 
-- **Row order** S, SW, W, NW, N, NE, E, SE. Pick the row from the movement (or attack) direction *projected
-  to screen space* and rounded to 45° sectors.
-- **Advance frames by distance walked, not time:** `anim += distance × fpt / scale`. For the hero `fpt = 5`
-  (8 frames = one stride per 1.6 tiles). Then feet never slide, whatever the move speed or slow-downs, and
-  bigger monsters take longer strides. Compute the distance from the position before and after the update.
-- **Idle frame:** pick a feet-together pose (frame 3, "up"), not frame 0.
-- **Draw:** `dx = sx − fw·s/2`, `dy = sy − footY·s` (scale `s` per monster), plus a shadow ellipse at the
-  ground point.
-- **Glows / tiers:** use a canvas `filter` such as `drop-shadow(0 0 7px rgba(...))` on the sprite draw:
-  red for champions, green for bosses.
+- **Row order** S, SW, W, NW, N, NE, E, SE. Pick the row from the movement direction *projected to screen space*
+  and rounded to 45° sectors.
+- **Advance frames by distance walked, not time:** `anim += distance × fpt / scale`, frame = `floor(anim) % frames`.
+  `fpt` = 5 for 8 frames (one stride per 1.6 tiles), 7.5 for 12. Feet never slide, whatever the speed.
+- **Idle frame:** a feet-together pose (build_sheet picks the guide frame with the feet closest).
+- **Draw:** `dx = sx − fw·s/2`, `dy = sy − footY·s`, plus a shadow ellipse at the ground point (the painted ground
+  shadow is removed in the build).
 
-## Verifying
+## Cost per character (OpenAI medium, guides render free)
 
-- Preview each sheet on a dark background with the ground point marked in every cell, and look at it.
-  Check feet on the marker, no clipping, consistent size between directions, and correct facing per row.
-- Check the raw images for leftover flat-grey guide pieces before building.
-- **Check the stride in every direction:** `python tools/stride_check.py <CHAR> <DIR> <raw.png>` (in
-  martin/dungeon-crawler-01) compares each painted frame with the guide: the feet's spread in the three-quarter
-  and side views, which foot is lower in the front and back views, and marks frames that copy the other half.
-  A profile (W) has the same silhouette in both halves, so also look: frames 0–3 above 4–7 at 3× size, legs only,
-  and confirm that the leg in front in frame 0 (the near one, by which boot overlaps the other) is behind in
-  frame 4, and so on. If a direction fails, make it again (see "What doesn't work").
-- Rebuild an existing sheet after refactoring the tool and diff it against the old one (expect only
-  sub-pixel differences).
-- Run the game headless (Playwright with `channel: 'msedge'`, served by `python -m http.server`), make
-  characters walk in several directions, take screenshots, and confirm `anim` advances only while moving
-  and that there are no page errors.
+| Item | Cost |
+|---|---|
+| Reference, 2-3 candidates | ~$0.10-0.15 |
+| Walk, 5 painted directions (mirrored), 8 frames / 12 frames | ~$0.17 / ~$0.23 |
+| Walk, all 8 painted, 8 frames / 12 frames | ~$0.27 / ~$0.37 |
+| Retries, about 1 direction in 5 | ~$0.03-0.07 |
+| **Walk only** | **~$0.30-0.60** |
+| Each further animation (jog, attack, death), per set of directions | as the walk |
 
-## Cost and planning
+A batch of characters easily passes the $3.00 turn cap: get a budget approved first.
 
-- One `edit` image is one direction: about $0.07, and 8 frames cost the same as 4. A character is 5 images
-  (~$0.37) plus 1–3 retries or cleanup passes, so budget about $0.40–0.75 per character.
-- Add ~$0.05–0.07 for a design image if the character has none yet (it becomes the design reference), and
-  count each extra animation (attack, death) as another walk-cycle-sized job (~$0.35–0.50).
-- Actual spend in martin/dungeon-crawler-01: the hero $0.83 (the first one, while the method was worked out:
-  redone directions, cleanup passes, a row that faced the wrong way), the skeleton and ghoul $0.88 together
-  (~$0.44 each, with the method settled). Armour, capes and odd shapes drift more between directions and need
-  more retries; plain figures land near the low end.
-- The four keepers (cloaks, a dress, held items, one character per keeper): 21 images, $1.58 (~$0.40 each); one
-  redo, for a held basket that came and went between frames.
-- Eight more characters with no art yet (2 design sheets of 4 front views each, made with an existing sheet as
-  the style reference, then cut by columns): 45 images, about $3.45 (~$0.43 each); one redo pair for a hammer
-  that vanished in the front and back views. A whole set like that is over a $3.00 turn cap: get the budget
-  approved first, and do SW for all of them before the other 32 directions.
-- Children: paint them over the same adult guide with "CHILD proportions (a big head, short limbs, small hands)"
-  in the design; the build scales every figure to the pose model's height, so draw them smaller in the game.
-- Held items and long clothes: name which hand holds what ("her RIGHT forearm (light grey) … carries a basket"), and
-  when an item is hidden in one view, say how it must look in every frame, or it appears in some frames only.
-- The ai-media-generation skill asks before any call over $0.20 or a turn total over $3.00, and the user may
-  set a project budget. Keep a spend ledger and report the spend at the end of the turn.
-- Non-walking characters (floating wraiths, ghosts): skip the walk cycle; use one pose per direction plus
-  a code-driven bob or sway. Many-legged creatures (spiders) need a different pose model (alternating
-  tetrapod gait); the humanoid mannequin doesn't fit them.
+## Verifying the tools
+
+- After changing `render_guide.py`, re-render one committed guide and diff it (`default_guides.py --only walk`
+  rewrites all; `git diff --stat guides/` should show only what you meant to change).
+- `grid_check.py` on a known pair: `../../../martin/dungeon-crawler-01/tools/ranger_test/openai-mocap-NW.png` has a
+  real faded boot in frame 4 (1 cell flagged).
+- Build a sheet, preview it on a dark background with the ground point marked in every cell; then run the game
+  headless (Playwright, `python -m http.server`), walk in several directions, and confirm no page errors.

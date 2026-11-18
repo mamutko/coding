@@ -1,0 +1,218 @@
+<title>__TITLE__</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Character board (sprite-animation skill, tools/board.py): reference candidates, then every direction's guide and
+   painted walk side by side on one shared clock, with its checks and status. Data comes from window.BOARD. */
+:root {
+  --bg: #f1efe8; --panel: #fbfaf6; --ink: #22261f; --muted: #646a5d; --line: #d9d6ca;
+  --moss: #3f6b3a; --leather: #8a5a2b; --good: #2f7d4a; --warn: #b4542f; --info: #4d6a8a;
+  --stage: #2a2d27; --stage-ink: #cfd3c7; --guide: #9aa391;
+  --display: "Fraunces", Georgia, serif; --body: "Public Sans", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #181a16; --panel: #21241e; --ink: #e7e8df; --muted: #a2a796; --line: #363a31;
+  --moss: #86b77c; --leather: #d29a63; --good: #6cc38a; --warn: #ec8a66; --info: #8fb0d6;
+  --stage: #10120f; --stage-ink: #c9cec0; --guide: #7d8676; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #181a16; --panel: #21241e; --ink: #e7e8df; --muted: #a2a796; --line: #363a31;
+  --moss: #86b77c; --leather: #d29a63; --good: #6cc38a; --warn: #ec8a66; --info: #8fb0d6;
+  --stage: #10120f; --stage-ink: #c9cec0; --guide: #7d8676; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--body); }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 28px 56px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 28px; }
+h1, h2 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -.01em }
+h1 { font-size: clamp(28px, 4vw, 40px); line-height: 1.1 }
+h2 { font-size: 24px }
+.eyebrow { font: 500 12px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--leather) }
+.lede { color: var(--muted); max-width: 75ch; margin: 6px 0 0 }
+header, section { display: grid; gap: 12px; min-width: 0 }
+.sub { color: var(--muted); max-width: 72ch; margin: 0 }
+.facts { display: flex; flex-wrap: wrap; gap: 8px }
+.fact { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px }
+.fact b { font: 500 11px var(--mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-right: 6px }
+.next { border-left: 3px solid var(--leather); padding: 4px 0 4px 12px; font-weight: 500 }
+.pill { display: inline-block; font: 500 11px var(--mono); padding: 2px 7px; border-radius: 99px; border: 1px solid currentColor; white-space: nowrap }
+.pill.good { color: var(--good) } .pill.warn { color: var(--warn) } .pill.info { color: var(--info) } .pill.muted { color: var(--muted) }
+
+.refs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px }
+.ref { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: grid }
+.ref.approved { border-color: var(--good); box-shadow: 0 0 0 1px var(--good) }
+.ref .stage img { width: 100%; height: 100%; object-fit: contain; display: block }
+.ref .meta { padding: 8px 12px 10px; display: grid; gap: 4px; font-size: 13px }
+
+.bar { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; padding: 10px 12px; border: 1px solid var(--line);
+  border-radius: 8px; background: var(--panel); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5 }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg) }
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted) }
+.btn, select { font: 500 13px var(--body); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer }
+.btn[aria-pressed="true"] { background: var(--moss); color: var(--panel); border-color: var(--moss) }
+.btn:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--leather); outline-offset: 2px }
+.seg { display: inline-flex; gap: 4px; flex-wrap: wrap }
+output { font-family: var(--mono); font-variant-numeric: tabular-nums; color: var(--ink) }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: grid;
+  grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; min-width: 0 }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--line) }
+.stage { position: relative; background: var(--stage); aspect-ratio: 3 / 4 }
+.stage canvas { width: 100%; height: 100%; display: block }
+.stage .tag { position: absolute; left: 8px; top: 6px; font: 500 10px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--stage-ink); opacity: .8 }
+.stage .empty { position: absolute; inset: 0; display: grid; place-items: center; font: 12px var(--mono); color: var(--stage-ink); opacity: .7; text-align: center; padding: 8px }
+.bg-light .stage { background: #ecebe4 } .bg-light .stage .tag, .bg-light .stage .empty { color: #4b4f45 }
+.bg-checker .stage { background: repeating-conic-gradient(#c9c9c2 0 25%, #eeeeea 0 50%) 0 0 / 18px 18px } .bg-checker .stage .tag, .bg-checker .stage .empty { color: #4b4f45 }
+.meta { padding: 10px 12px 12px; display: grid; gap: 8px; min-width: 0 }
+.row { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap }
+.name { font-weight: 600 }
+.small { font: 12px var(--mono); color: var(--muted) }
+.frames { display: flex; gap: 2px; align-items: flex-end }
+.frames button { flex: 1; min-width: 0; border: 0; background: none; padding: 0; cursor: pointer; display: grid; gap: 2px; color: var(--muted) }
+.bars { display: flex; gap: 1px; align-items: flex-end; height: 30px; justify-content: center }
+.bars i { width: 40%; max-width: 7px; display: block; border-radius: 1px 1px 0 0 }
+.bars .g { background: var(--guide) } .bars .p { background: var(--moss) } .bars.off .p { background: var(--warn) }
+.frames .n { font: 10px var(--mono); text-align: center; border-top: 2px solid transparent }
+.frames button.ghost .n { color: var(--warn); font-weight: 600 }
+.frames button.on .n { border-top-color: var(--leather); color: var(--ink) }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted) }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; background: var(--c) }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); max-width: 560px }
+table { border-collapse: collapse; width: 100%; font-size: 14px }
+td { padding: 7px 12px; border-bottom: 1px solid var(--line) } tr:last-child td { border-bottom: 0; font-weight: 600 }
+td.num { font-family: var(--mono); text-align: right; white-space: nowrap }
+</style>
+
+<div class="wrap" id="app">
+  <header>
+    <span class="eyebrow">sprite-animation · character board</span>
+    <h1 id="title"></h1>
+    <p class="lede" id="desc"></p>
+    <div class="facts" id="facts"></div>
+    <div class="next" id="next"></div>
+  </header>
+
+  <section aria-labelledby="ref-h">
+    <h2 id="ref-h">Reference</h2>
+    <p class="sub">Candidates for the character's look. The approved one is sent with every direction as the design reference.</p>
+    <div class="refs" id="refs"></div>
+  </section>
+
+  <div class="bar" role="toolbar" aria-label="Playback">
+    <span class="ctl">Pace <span class="seg" id="pace"></span></span>
+    <label class="ctl" for="dur">Stride <input id="dur" type="range" min="0.4" max="3" step="0.05" value="1"><output id="durOut">1.00 s</output></label>
+    <button class="btn" id="play" type="button">Pause</button>
+    <button class="btn" id="step" type="button">Step</button>
+    <label class="ctl" for="ov"><input id="ov" type="checkbox"> Guide over painting</label>
+    <label class="ctl" for="bgSel">Floor
+      <select id="bgSel"><option value="dark">Dark</option><option value="light">Light</option><option value="checker">Checker</option></select>
+    </label>
+  </div>
+
+  <section aria-labelledby="dir-h">
+    <h2 id="dir-h">Walk, by direction</h2>
+    <p class="sub">Mannequin guide on the left, painting on the right, all on one clock. Bars compare foot spread per frame (guide grey, painting green, orange when off); a frame number in orange has a faded limb. Colour is the match with the approved reference (1 = identical; below 0.70 check it, below 0.55 it has drifted).</p>
+    <div class="legend"><span style="--c: var(--guide)">guide foot spread</span><span style="--c: var(--moss)">painted foot spread</span><span style="--c: var(--warn)">off the guide</span></div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section aria-labelledby="spend-h">
+    <h2 id="spend-h">Spend</h2>
+    <div class="tablewrap"><table id="spend"><tbody></tbody></table></div>
+  </section>
+</div>
+
+<script>
+window.BOARD = __DATA__;
+</script>
+<script>
+(() => {
+  const D = window.BOARD, $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const PACES = [["Villager", 1.0], ["Monster", 0.7], ["Hero", 0.38], ["Slow-mo", 2.6]];
+  let dur = 1.0, playing = true, t = 0, last = 0;
+  const imgs = new Map();
+  const img = (src) => { if (!imgs.has(src)) { const i = new Image(); i.src = src; imgs.set(src, i); } return imgs.get(src); };
+
+  $("title").textContent = D.name;
+  $("desc").textContent = D.description;
+  const dec = (v, yes, no) => v === null || v === undefined ? "not decided" : (v ? yes : no);
+  [["Frames", D.frames ?? "not decided"], ["Mirror", dec(D.mirror, "SW W NW mirrored to SE E NE", "all 8 painted")],
+   ["Guide", D.guide], ["Body", D.body], ["Spend", "$" + D.total.toFixed(2)]]
+    .forEach(([k, v]) => { const s = document.createElement("span"); s.className = "fact"; s.innerHTML = `<b>${k}</b>${esc(v)}`; $("facts").appendChild(s); });
+  if (D.next) $("next").textContent = "Next: " + D.next; else $("next").remove();
+
+  const PILL = { approved: "good", review: "info", candidate: "info", redo: "warn", rejected: "muted", mirror: "muted", "not painted": "muted" };
+  if (!D.refs.length) $("refs").innerHTML = `<p class="sub">No reference yet.</p>`;
+  D.refs.forEach((r) => {
+    const el = document.createElement("article"); el.className = "ref" + (r.status === "approved" ? " approved" : "");
+    el.innerHTML = `<div class="stage" style="aspect-ratio:3/2"><img alt="${esc(r.file)}" src="${r.src}"></div>
+      <div class="meta"><div class="row"><span class="small">${esc(r.file)}</span><span class="pill ${PILL[r.status] || "info"}">${esc(r.status)}</span></div>${r.note ? `<span>${esc(r.note)}</span>` : ""}</div>`;
+    $("refs").appendChild(el);
+  });
+
+  const pace = $("pace");
+  PACES.forEach(([n, d]) => { const b = document.createElement("button"); b.className = "btn"; b.type = "button"; b.textContent = n;
+    b.title = `${d.toFixed(2)} s per stride`; b.onclick = () => setDur(d); pace.appendChild(b); });
+  function setDur(d) { dur = d; $("dur").value = d; $("durOut").textContent = d.toFixed(2) + " s";
+    [...pace.children].forEach((b, i) => b.setAttribute("aria-pressed", Math.abs(PACES[i][1] - d) < 1e-3 ? "true" : "false")); }
+  $("dur").oninput = (e) => setDur(+e.target.value);
+
+  function draw(cv, strip, n, f, alpha, flip) {
+    const ctx = cv.getContext("2d"), im = img(strip);
+    if (!im.complete || !im.naturalWidth) return;
+    const fw = im.naturalWidth / n, fh = im.naturalHeight;
+    ctx.save(); ctx.globalAlpha = alpha;
+    if (flip) { ctx.translate(cv.width, 0); ctx.scale(-1, 1); }
+    ctx.drawImage(im, f * fw, 0, fw, fh, 0, 0, cv.width, cv.height); ctx.restore();
+  }
+
+  const cards = [];
+  D.dirs.forEach((e) => {
+    const el = document.createElement("article"); el.className = "card";
+    const chip = e.paint ? `<span class="pill ${e.match === e.n ? "good" : "warn"}">${e.match} of ${e.n} match</span>` : "";
+    const col = e.colour !== undefined ? `<span class="pill ${e.colour >= 0.7 ? "good" : "warn"}">colour ${e.colour.toFixed(2)}</span>` : "";
+    const empty = !e.guide ? `<div class="empty">no guide</div>` : "";
+    const emptyP = !e.paint ? `<div class="empty">${e.mirrored ? "mirror of " + e.of + "<br>(not painted yet)" : "not painted yet"}</div>` : "";
+    el.innerHTML = `<div class="pair"><div class="stage"><canvas width="240" height="320" aria-label="${e.d} guide"></canvas><span class="tag">guide</span>${empty}</div>
+      <div class="stage"><canvas width="240" height="320" aria-label="${e.d} painted"></canvas><span class="tag">${e.mirrored ? "mirrored " + e.of : "painted"}</span>${emptyP}</div></div>
+      <div class="meta"><div class="row"><span class="name">${e.d} &middot; ${esc(e.view)}</span><span class="pill ${PILL[e.status] || "info"}">${esc(e.status)}</span></div>
+      <div class="row">${chip}${col}</div><div class="frames"></div></div>`;
+    $("cards").appendChild(el);
+    const [cg, cp] = el.querySelectorAll("canvas");
+    const fr = el.querySelector(".frames");
+    if (e.paint) for (let i = 0; i < e.n; i++) {
+      const b = document.createElement("button"); b.type = "button";
+      const g = e.gs[i], p = e.ps[i];
+      b.className = e.ghost[i] ? "ghost" : "";
+      b.innerHTML = `<span class="bars${e.off[i] ? " off" : ""}"><i class="g" style="height:${Math.round(g / 0.65 * 28) + 2}px"></i><i class="p" style="height:${Math.round(p / 0.65 * 28) + 2}px"></i></span><span class="n">${i + 1}</span>`;
+      b.setAttribute("aria-label", `Frame ${i + 1}: guide spread ${g.toFixed(2)}, painted ${p.toFixed(2)}${e.off[i] ? ", off" : ""}${e.ghost[i] ? ", faded limb" : ""}`);
+      b.onclick = () => { playing = false; $("play").textContent = "Play"; t = (i + 0.5) / e.n * dur; };
+      fr.appendChild(b);
+    }
+    cards.push({ e, cg, cp, fr });
+  });
+
+  const tb = $("spend").querySelector("tbody");
+  D.spend.forEach((s) => { const tr = document.createElement("tr"); tr.innerHTML = `<td>${esc(s.what)}</td><td class="num">$${(+s.usd).toFixed(3)}</td>`; tb.appendChild(tr); });
+  const tr = document.createElement("tr"); tr.innerHTML = `<td>Total</td><td class="num">$${D.total.toFixed(3)}</td>`; tb.appendChild(tr);
+
+  const frameOf = (n) => Math.floor(((t / dur) % 1) * n) % n;
+  function render() {
+    cards.forEach(({ e, cg, cp, fr }) => {
+      const f = frameOf(e.n);
+      [cg, cp].forEach((cv) => cv.getContext("2d").clearRect(0, 0, cv.width, cv.height));
+      if (e.guide) draw(cg, e.guide, e.n, f, 1, e.mirrored);
+      if (e.paint) { draw(cp, e.paint, e.n, f, 1, e.mirrored); if ($("ov").checked && e.guide) draw(cp, e.guide, e.n, f, 0.35, e.mirrored); }
+      [...fr.children].forEach((b, i) => b.classList.toggle("on", i === f));
+    });
+  }
+  function loop(now) { if (playing) t += Math.min(0.1, (now - (last || now)) / 1000); last = now; render(); requestAnimationFrame(loop); }
+  $("play").onclick = () => { playing = !playing; $("play").textContent = playing ? "Pause" : "Play"; };
+  $("step").onclick = () => { playing = false; $("play").textContent = "Play"; const n = D.frames || 8; t = (Math.floor((t / dur) * n) + 1) / n * dur + 1e-6; };
+  $("bgSel").onchange = (ev) => { $("app").classList.remove("bg-light", "bg-checker"); if (ev.target.value !== "dark") $("app").classList.add("bg-" + ev.target.value); };
+  setDur(1.0);
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { playing = false; $("play").textContent = "Play"; }
+  requestAnimationFrame(loop);
+})();
+</script>
