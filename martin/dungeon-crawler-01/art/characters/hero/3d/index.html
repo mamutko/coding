@@ -1,0 +1,480 @@
+<meta charset="utf-8">
+<title>Hero Knight 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alegreya+SC:wght@500;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: one dark stage filling the window; a control rail on the right (below the stage on phones);
+     the in-game-size preview sits in the stage's lower-left corner. Single dark look by design (a lit stage). */
+  :root {
+    --bg: #121012;
+    --stage: #1b1719;
+    --rail: #19161a;
+    --line: #2f292d;
+    --fg: #e9e2dc;
+    --muted: #9b8f88;
+    --accent: #b8433c;          /* the cape's crimson, lifted for UI */
+    --accent-ink: #fff4ef;
+    --steel: #8f8580;
+    --display: "Alegreya SC", "Palatino Linotype", Georgia, serif;
+    --ui: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; }
+  [hidden] { display: none !important; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--ui); font-size: 14px; margin: 0; }
+  .app { display: grid; grid-template-columns: minmax(0, 1fr) 300px; height: 100%; }
+  .stage { position: relative; min-width: 0; min-height: 0; background: radial-gradient(ellipse at 50% 40%, #2a2225 0%, var(--stage) 55%, var(--bg) 100%); }
+  #view { display: block; width: 100%; height: 100%; touch-action: none; outline: none; }
+  .status { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-family: var(--mono); font-size: 13px; pointer-events: none; }
+  .sprite { position: absolute; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+            background: rgba(18, 16, 18, 0.82); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px 6px; }
+  .sprite canvas { display: block; width: 144px; height: 152px; image-rendering: pixelated; background: #2a2622; border-radius: 3px; }
+  .sprite .cap { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; margin-top: 5px; text-align: center; }
+  .rail { background: var(--rail); border-left: 1px solid var(--line); overflow-y: auto;
+          padding-block: 20px 24px; padding-left: 18px; padding-right: max(18px, env(safe-area-inset-right, 0px));
+          display: flex; flex-direction: column; gap: 22px; }
+  h1 { font-family: var(--display); font-weight: 700; font-size: 26px; line-height: 1.05; margin: 0; letter-spacing: 0.01em; text-wrap: balance; }
+  .sub { color: var(--muted); font-size: 12.5px; line-height: 1.5; margin: 6px 0 0; }
+  .group { display: flex; flex-direction: column; gap: 9px; }
+  .label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.11em; color: var(--muted); font-weight: 600; display: flex; justify-content: space-between; }
+  .label output { font-family: var(--mono); letter-spacing: 0; text-transform: none; color: var(--fg); font-weight: 400; }
+  select, button { font: inherit; color: var(--fg); background: #241f23; border: 1px solid var(--line); border-radius: 5px; }
+  select { padding: 8px 10px; width: 100%; }
+  button { padding: 7px 10px; cursor: pointer; }
+  button:hover { border-color: #4a4045; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .row { display: flex; gap: 8px; align-items: center; }
+  .row > * { flex: 1; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .compass { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .compass button { font-family: var(--mono); font-size: 13px; padding: 9px 0; }
+  .compass .hub { display: grid; place-items: center; font-size: 10.5px; color: var(--muted); text-align: center; line-height: 1.25; border: 1px dashed var(--line); border-radius: 5px; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+  .seg button { flex: 1; border: 0; border-radius: 0; background: transparent; }
+  .seg button + button { border-left: 1px solid var(--line); }
+  .seg button[aria-pressed="true"] { background: var(--accent); }
+  .note { font-size: 12px; color: var(--muted); line-height: 1.55; margin: 0; }
+  .note b { color: var(--fg); font-weight: 500; }
+  kbd { font-family: var(--mono); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; color: var(--fg); }
+  @media (max-width: 760px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: 62vh auto; height: auto; }
+    .rail { border-left: 0; border-top: 1px solid var(--line); overflow: visible; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+    .sprite canvas { width: 108px; height: 114px; }
+  }
+</style>
+
+<div class="app">
+  <div class="stage">
+    <canvas id="view" tabindex="0" aria-label="3D view of the knight. Drag to orbit, scroll to zoom."></canvas>
+    <div class="status" id="status">Loading the knight (7 MB)…</div>
+    <div class="sprite" title="The current game direction rendered at sprite size: 118 px tall in a 144 × 152 frame">
+      <canvas id="sprite" width="144" height="152"></canvas>
+      <div class="cap">in-game size · <span id="spriteDir">SW</span></div>
+    </div>
+  </div>
+
+  <aside class="rail">
+    <div>
+      <h1>Hero Knight</h1>
+      <p class="sub">Generated plate armour on the Quaternius UAL1 skeleton, driven by its motion capture. Dark steel, red-brown leather, crimson cape.</p>
+    </div>
+
+    <div class="group">
+      <div class="label"><label for="clip">Animation</label><output id="clipLen">–</output></div>
+      <select id="clip"></select>
+      <div class="row">
+        <button id="play" aria-pressed="true" type="button">Pause</button>
+        <button id="step" type="button" title="Next of 12 frames (pauses)">Step ⅟₁₂</button>
+      </div>
+      <div class="label"><label for="speed">Speed</label><output id="speedOut">1.00×</output></div>
+      <input id="speed" type="range" min="0.1" max="1.5" step="0.05" value="1">
+      <div class="label"><label for="scrub">Loop position</label><output id="scrubOut">0 %</output></div>
+      <input id="scrub" type="range" min="0" max="1" step="0.001" value="0">
+    </div>
+
+    <div class="group">
+      <div class="label">Game direction</div>
+      <div class="compass" id="compass">
+        <button type="button" data-dir="NW">NW</button>
+        <button type="button" data-dir="N">N</button>
+        <button type="button" data-dir="NE">NE</button>
+        <button type="button" data-dir="W">W</button>
+        <div class="hub">30°<br>camera</div>
+        <button type="button" data-dir="E">E</button>
+        <button type="button" data-dir="SW">SW</button>
+        <button type="button" data-dir="S">S</button>
+        <button type="button" data-dir="SE">SE</button>
+      </div>
+      <p class="note">Each button puts the camera where the game's sprite row for that heading is drawn: orthographic, 30° above the ground, the knight walking toward that compass point on screen.</p>
+    </div>
+
+    <div class="group">
+      <div class="label">Projection</div>
+      <div class="seg">
+        <button type="button" id="ortho" aria-pressed="true">Game (ortho)</button>
+        <button type="button" id="persp" aria-pressed="false">Perspective</button>
+      </div>
+      <div class="row">
+        <button type="button" id="capeBtn" aria-pressed="true" title="Cape swing (walk drag, legs and arms push the cloth)">Cape motion</button>
+        <button type="button" id="floorBtn" aria-pressed="true">Floor</button>
+      </div>
+    </div>
+
+    <p class="note"><b>Drag</b> to orbit, <b>scroll</b> or pinch to zoom, <b>right-drag</b> to pan. Keys <kbd>1</kbd>–<kbd>8</kbd> pick a direction (S, SW, W, NW, N, NE, E, SE), <kbd>Space</kbd> pauses.</p>
+  </aside>
+</div>
+
+<script type="importmap">
+{ "imports": {
+    "three": "https://cdnjs.cloudflare.com/ajax/libs/three.js/0.170.0/three.module.min.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+const $ = (id) => document.getElementById(id);
+const canvas = $("view"), statusEl = $("status");
+
+// ------------------------------------------------------------------ renderer, scene
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.1;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+const scene = new THREE.Scene();
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+let spriteEnv = null;          // the sprite renderer needs its own copy (textures belong to one WebGL context)
+scene.environmentIntensity = 0.75;
+
+// lights travel with the camera: key from the upper left of the screen (as the painted sprites), fill, rim
+const rig = new THREE.Group(); scene.add(rig);
+const key = new THREE.DirectionalLight(0xfff1e6, 2.1);
+key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -1.4, right: 1.4, top: 1.4, bottom: -1.4, near: 0.1, far: 12 });
+key.shadow.bias = -0.0004; key.shadow.normalBias = 0.02;
+const fill = new THREE.DirectionalLight(0xc8d4ff, 0.55);
+const rim = new THREE.DirectionalLight(0xff9a80, 1.2);
+scene.add(key, key.target, fill, rim, new THREE.HemisphereLight(0x8a7c84, 0x221618, 0.9));
+
+// floor: a soft disc that catches the shadow
+const floor = new THREE.Mesh(new THREE.CircleGeometry(1.6, 64),
+  new THREE.MeshStandardMaterial({ color: 0x3a332f, roughness: 0.95, metalness: 0 }));
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true;
+{ // radial fade via a canvas alpha map
+  const c = document.createElement("canvas"); c.width = c.height = 256;
+  const g = c.getContext("2d"), gr = g.createRadialGradient(128, 128, 10, 128, 128, 128);
+  gr.addColorStop(0, "#fff"); gr.addColorStop(0.55, "#bbb"); gr.addColorStop(1, "#000");
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 256);
+  floor.material.alphaMap = new THREE.CanvasTexture(c); floor.material.transparent = true;
+}
+scene.add(floor);
+
+// ------------------------------------------------------------------ cameras
+const TARGET = new THREE.Vector3(0, 0.92, 0);
+const ELEV = THREE.MathUtils.degToRad(30);
+const persp = new THREE.PerspectiveCamera(30, 1, 0.05, 50);
+const ortho = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.05, 50);
+let cam = ortho;
+const controls = { ortho: new OrbitControls(ortho, canvas), persp: new OrbitControls(persp, canvas) };
+for (const c of Object.values(controls)) {
+  c.target.copy(TARGET); c.enableDamping = true; c.dampingFactor = 0.12;
+  c.minDistance = 1.2; c.maxDistance = 12; c.maxPolarAngle = THREE.MathUtils.degToRad(88);
+  c.minZoom = 0.4; c.maxZoom = 6;
+}
+controls.persp.enabled = false;
+
+// game direction -> camera direction. Rows S SW W NW N NE E SE; the figure faces ground angle k*45deg,
+// k = (8 - row) % 8 (k: 0 = S toward the viewer, 2 = E screen right). The model faces +Z and its right is -X,
+// so the camera sits at (-sin a, ., cos a) around it (render_guide.py / walk_cycle.project()).
+const ROWS = ["S", "SW", "W", "NW", "N", "NE", "E", "SE"];
+function dirVector(name) {
+  const k = (8 - ROWS.indexOf(name)) % 8, a = THREE.MathUtils.degToRad(45 * k);
+  return new THREE.Vector3(-Math.sin(a) * Math.cos(ELEV), Math.sin(ELEV), Math.cos(a) * Math.cos(ELEV));
+}
+let currentDir = "SW";
+let tween = null;
+function setDir(name, instant = false) {
+  currentDir = name;
+  $("spriteDir").textContent = name;
+  for (const b of document.querySelectorAll("#compass button")) b.setAttribute("aria-pressed", String(b.dataset.dir === name));
+  const ctl = cam === ortho ? controls.ortho : controls.persp;
+  const dist = cam === ortho ? 6 : 5.2;
+  const to = dirVector(name).multiplyScalar(dist).add(TARGET);
+  if (cam === ortho) { ortho.zoom = 1; ortho.updateProjectionMatrix(); }
+  if (instant) { cam.position.copy(to); ctl.target.copy(TARGET); ctl.update(); return; }
+  // spherical tween around the target (keeps the camera on its orbit instead of cutting through the figure)
+  const s0 = new THREE.Spherical().setFromVector3(cam.position.clone().sub(ctl.target));
+  const s1 = new THREE.Spherical().setFromVector3(to.clone().sub(TARGET));
+  let dth = s1.theta - s0.theta; dth = Math.atan2(Math.sin(dth), Math.cos(dth));
+  tween = { t: 0, s0, s1, dth, t0: ctl.target.clone(), ctl };
+}
+function stepTween(dt) {
+  if (!tween) return;
+  tween.t = Math.min(1, tween.t + dt / 0.45);
+  const e = 1 - Math.pow(1 - tween.t, 3);
+  const s = new THREE.Spherical(
+    THREE.MathUtils.lerp(tween.s0.radius, tween.s1.radius, e),
+    THREE.MathUtils.lerp(tween.s0.phi, tween.s1.phi, e),
+    tween.s0.theta + tween.dth * e);
+  tween.ctl.target.lerpVectors(tween.t0, TARGET, e);
+  cam.position.setFromSpherical(s).add(tween.ctl.target);
+  if (tween.t >= 1) tween = null;
+}
+function setProjection(p) {
+  const from = cam, ctlFrom = cam === ortho ? controls.ortho : controls.persp;
+  cam = p === "ortho" ? ortho : persp;
+  const ctl = cam === ortho ? controls.ortho : controls.persp;
+  const d = from.position.clone().sub(ctlFrom.target).normalize();
+  ctl.target.copy(ctlFrom.target);
+  cam.position.copy(ctl.target).addScaledVector(d, cam === ortho ? 6 : 5.2);
+  controls.ortho.enabled = cam === ortho; controls.persp.enabled = cam === persp;
+  ctl.update();
+  $("ortho").setAttribute("aria-pressed", String(cam === ortho));
+  $("persp").setAttribute("aria-pressed", String(cam === persp));
+  resize();
+}
+$("ortho").onclick = () => setProjection("ortho");
+$("persp").onclick = () => setProjection("persp");
+for (const b of document.querySelectorAll("#compass button")) b.onclick = () => setDir(b.dataset.dir);
+
+function resize() {
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (!w || !h) return;
+  renderer.setSize(w, h, false);
+  const aspect = w / h, half = 1.15;
+  Object.assign(ortho, { left: -half * aspect, right: half * aspect, top: half, bottom: -half });
+  ortho.updateProjectionMatrix();
+  persp.aspect = aspect; persp.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(canvas);
+
+// ------------------------------------------------------------------ sprite-size preview
+// 144 x 152 frame, figure 118 px tall, ground point 128 px from the top (build_sheet defaults)
+// a second small renderer on its own canvas (same scene), so tone mapping and colour match the main view
+const spriteR = new THREE.WebGLRenderer({ canvas: $("sprite"), antialias: true });
+spriteR.setPixelRatio(1); spriteR.setSize(144, 152, false);
+spriteR.toneMapping = renderer.toneMapping; spriteR.toneMappingExposure = renderer.toneMappingExposure;
+spriteR.shadowMap.enabled = true; spriteR.shadowMap.type = THREE.PCFSoftShadowMap;
+const spriteCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0.05, 50);
+spriteEnv = new THREE.PMREMGenerator(spriteR).fromScene(new RoomEnvironment(), 0.04).texture;
+function renderSprite() {
+  // world metres per pixel: a 1.75 m upright figure spans 1.75*cos(30deg) on screen = 118 px
+  const mpp = 1.75 * Math.cos(ELEV) / 118;
+  const d = dirVector(currentDir);
+  // put the ground point (origin) 128 px from the top, centred
+  spriteCam.left = -72 * mpp; spriteCam.right = 72 * mpp;
+  spriteCam.top = 128 * mpp; spriteCam.bottom = -24 * mpp;
+  spriteCam.position.copy(d).multiplyScalar(6);
+  spriteCam.up.set(0, 1, 0); spriteCam.lookAt(0, 0, 0);
+  spriteCam.updateProjectionMatrix();
+  rig.position.copy(spriteCam.position); rig.quaternion.copy(spriteCam.quaternion);
+  rig.updateMatrixWorld(true); placeLights();
+  const floorVis = floor.visible; floor.visible = false;
+  const bg = scene.background, env = scene.environment;
+  scene.background = new THREE.Color(0x2a2622); scene.environment = spriteEnv;
+  spriteR.render(scene, spriteCam);
+  scene.background = bg; scene.environment = env; floor.visible = floorVis;
+}
+
+function placeLights() {
+  // light directions in camera space: key from upper left and in front, fill from the right, rim from behind
+  const toW = (x, y, z) => new THREE.Vector3(x, y, z).applyQuaternion(rig.quaternion).multiplyScalar(5);
+  key.position.copy(toW(-0.55, 0.75, 0.55)); key.target.position.set(0, 0.9, 0);
+  fill.position.copy(toW(0.8, 0.0, 0.6));
+  rim.position.copy(toW(0.3, 0.5, -1));
+  key.target.updateMatrixWorld();
+}
+
+// ------------------------------------------------------------------ the knight
+const CLIP_GROUPS = [
+  ["Locomotion", ["Walk_Loop", "Walk_Formal_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Crouch_Fwd_Loop", "Swim_Fwd_Loop", "Roll"]],
+  ["Idles", ["Idle_Loop", "Idle_Talking_Loop", "Idle_Torch_Loop", "Crouch_Idle_Loop", "Swim_Idle_Loop", "Dance_Loop"]],
+  ["Jumping", ["Jump_Start", "Jump_Loop", "Jump_Land"]],
+  ["Melee", ["Sword_Idle", "Sword_Attack", "Punch_Jab", "Punch_Cross"]],
+  ["Magic", ["Spell_Simple_Enter", "Spell_Simple_Idle_Loop", "Spell_Simple_Shoot", "Spell_Simple_Exit"]],
+  ["Pistol", ["Pistol_Idle_Loop", "Pistol_Aim_Up", "Pistol_Aim_Neutral", "Pistol_Aim_Down", "Pistol_Shoot", "Pistol_Reload"]],
+  ["Hit and death", ["Hit_Chest", "Hit_Head", "Death01"]],
+  ["Sitting", ["Sitting_Enter", "Sitting_Idle_Loop", "Sitting_Talking_Loop", "Sitting_Exit"]],
+  ["Interaction", ["Interact", "PickUp_Table", "Push_Loop", "Fixing_Kneeling", "Driving_Loop"]],
+  ["Reference", ["A_TPose"]],
+];
+// cape drag per clip (radians the cloth trails back while moving)
+const DRAG = { Walk_Loop: 0.10, Walk_Formal_Loop: 0.08, Jog_Fwd_Loop: 0.30, Sprint_Loop: 0.55, Crouch_Fwd_Loop: 0.08, Roll: 0.2 };
+
+let mixer, action, model, clips = {}, playing = true;
+const bones = {};
+const cape = { c: { a: 0, v: 0 }, l: { a: 0, v: 0 }, r: { a: 0, v: 0 }, on: true, rest: {} };
+
+// knight.txt = knight.glb, gzip + base64 (Artifacts don't serve .glb); build_knight.py writes both
+async function loadKnight() {
+  const res = await fetch("knight.txt");
+  if (!res.ok) throw new Error(`knight.txt: HTTP ${res.status}`);
+  statusEl.textContent = "Unpacking the model…";
+  const bin = Uint8Array.from(atob((await res.text()).trim()), (c) => c.charCodeAt(0));
+  const buf = await new Response(new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"))).arrayBuffer();
+  return new Promise((ok, fail) => new GLTFLoader().parse(buf, "", ok, fail));
+}
+loadKnight().then((gltf) => {
+  model = gltf.scene;
+  model.traverse((o) => {
+    if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; o.frustumCulled = false; }
+    if (o.isBone) bones[o.name] = o;
+  });
+  for (const n of ["cape_c", "cape_l", "cape_r"]) cape.rest[n] = bones[n].quaternion.clone();
+  const hide = new URLSearchParams(location.search).get("hide");
+  if (hide) model.traverse((o) => { if (o.isMesh && hide.split(",").includes(o.material.name)) o.visible = false; });
+  scene.add(model);
+  mixer = new THREE.AnimationMixer(model);
+  for (const c of gltf.animations) clips[c.name] = c;
+  const sel = $("clip");
+  const listed = new Set();
+  for (const [g, names] of CLIP_GROUPS) {
+    const og = document.createElement("optgroup"); og.label = g;
+    for (const n of names) if (clips[n]) { og.append(new Option(n.replaceAll("_", " "), n)); listed.add(n); }
+    sel.append(og);
+  }
+  const rest = Object.keys(clips).filter((n) => !listed.has(n));
+  if (rest.length) { const og = document.createElement("optgroup"); og.label = "Other"; rest.forEach((n) => og.append(new Option(n, n))); sel.append(og); }
+  sel.value = "Walk_Loop";
+  sel.onchange = () => playClip(sel.value);
+  playClip(Q.get("clip") || "Walk_Loop");
+  if (Q.has("clip")) sel.value = Q.get("clip");
+  if (Q.has("t")) { action.time = +Q.get("t") * action.getClip().duration; setPlaying(false); mixer.update(0);
+    for (let i = 0; i < 90; i++) updateCape(1 / 60); }
+  statusEl.hidden = true;
+}).catch((err) => { statusEl.textContent = "Could not load the knight: " + (err.message || err); });
+
+function playClip(name) {
+  if (action) action.stop();
+  action = mixer.clipAction(clips[name]);
+  action.reset().play();
+  action.paused = !playing;
+  $("clipLen").textContent = clips[name].duration.toFixed(2) + " s";
+}
+
+// ------------------------------------------------------------------ cape motion
+// Three cape bones hang the cloth from the shoulders. Positive rotation about local X swings the hem back.
+// Target per bone: the clip's drag, raised just enough to keep the cloth behind the knees, shins and hands.
+// Everything is measured in the T-pose model frame carried along by spine_03 (the cape bones' parent), where the
+// cape bones are world-aligned and their pivots are known (build_knight.py).
+const _v = new THREE.Vector3(), _w = new THREE.Vector3(), _toBind = new THREE.Matrix4();
+const PIVOT = { cape_c: [0, 1.45, -0.17], cape_l: [0.24, 1.45, -0.12], cape_r: [-0.24, 1.45, -0.12] };
+const HEM = 0.47;
+let sp3Bind = null;
+function capeZ(y, side) {        // the cloth's resting z at height y (centre / side columns), as build_knight.py
+  const t = Math.min(Math.max((1.44 - y) / 0.94, 0), 1);
+  return -0.02 - (0.185 + 0.11 * Math.pow(t, 1.2)) * (side ? 0.55 : 1);
+}
+function jointBind(name, out) { return bones[name].getWorldPosition(out).applyMatrix4(_toBind); }
+function needAngle(boneName, pts, side) {
+  const [px, py, pz] = PIVOT[boneName];
+  let need = -1;
+  for (const [a, b, f, back, margin] of pts) {      // a point f of the way from joint a to joint b
+    jointBind(a, _v); if (b) { jointBind(b, _w); _v.lerp(_w, f); }
+    if (_v.y < HEM) continue;
+    const drop = py - _v.y; if (drop < 0.12) continue;
+    const s = (capeZ(_v.y, side) - (_v.z - back) + margin) / drop;
+    need = Math.max(need, Math.asin(Math.max(-0.95, Math.min(s, 0.95))));
+  }
+  return need;
+}
+function updateCape(dt) {
+  if (!model) return;
+  const on = cape.on;
+  model.updateMatrixWorld(true);
+  if (!sp3Bind) {
+    let sk; model.traverse((o) => { if (o.isSkinnedMesh) sk = o.skeleton; });
+    sp3Bind = sk.boneInverses[sk.bones.indexOf(bones.spine_03)].clone().invert();
+  }
+  _toBind.copy(bones.spine_03.matrixWorld).invert().premultiply(sp3Bind);
+  const drag = on ? (DRAG[action?.getClip().name] ?? 0.0) : 0;
+  const legs = [];
+  for (const s of ["l", "r"]) legs.push(["calf_" + s, null, 0, 0.065, 0.03], ["calf_" + s, "foot_" + s, 0.2, 0.06, 0.03],
+                                        ["thigh_" + s, "calf_" + s, 0.6, 0.075, 0.03]);
+  const arm = (s) => [["hand_" + s, null, 0, 0.05, 0.03], ["lowerarm_" + s, "hand_" + s, 0.5, 0.05, 0.03],
+                      ["calf_" + s, null, 0, 0.065, 0.02]];
+  const tgt = {
+    c: on ? Math.max(drag, needAngle("cape_c", legs, false)) : 0,
+    l: on ? Math.max(drag * 0.8, needAngle("cape_l", arm("l"), true)) : 0,
+    r: on ? Math.max(drag * 0.8, needAngle("cape_r", arm("r"), true)) : 0,
+  };
+  for (const k of ["c", "l", "r"]) {
+    const s = cape[k];
+    if (!on) { s.a = 0; s.v = 0; }
+    else {
+      const stiff = tgt[k] > s.a ? 260 : 60, damp = tgt[k] > s.a ? 30 : 9;      // pushed fast, falls back slowly
+      const h = Math.min(dt, 1 / 30);
+      s.v += ((tgt[k] - s.a) * stiff - s.v * damp) * h;
+      s.a += s.v * h;
+      s.a = Math.max(-0.15, Math.min(1.2, s.a));
+    }
+    const b = bones["cape_" + k];
+    b.quaternion.copy(cape.rest["cape_" + k]).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), s.a));
+  }
+}
+$("capeBtn").onclick = (e) => { cape.on = !cape.on; e.currentTarget.setAttribute("aria-pressed", String(cape.on)); };
+$("floorBtn").onclick = (e) => { floor.visible = !floor.visible; e.currentTarget.setAttribute("aria-pressed", String(floor.visible)); };
+
+// ------------------------------------------------------------------ playback controls
+function setPlaying(p) {
+  playing = p; if (action) action.paused = !p;
+  $("play").textContent = p ? "Pause" : "Play"; $("play").setAttribute("aria-pressed", String(p));
+}
+$("play").onclick = () => setPlaying(!playing);
+$("step").onclick = () => {
+  if (!action) return;
+  setPlaying(false);
+  const d = action.getClip().duration, f = Math.round(action.time / d * 12) + 1;
+  action.time = (f % 12) / 12 * d; mixer.update(0);
+};
+$("speed").oninput = (e) => { $("speedOut").textContent = (+e.target.value).toFixed(2) + "×"; };
+$("scrub").oninput = (e) => {
+  if (!action) return;
+  setPlaying(false);
+  action.time = +e.target.value * action.getClip().duration; mixer.update(0);
+};
+addEventListener("keydown", (e) => {
+  if (e.target.tagName === "SELECT" || e.target.tagName === "INPUT") return;
+  if (e.key >= "1" && e.key <= "8") setDir(ROWS[+e.key - 1]);
+  else if (e.key === " ") { e.preventDefault(); setPlaying(!playing); }
+});
+
+// ------------------------------------------------------------------ loop
+resize();
+// local test shots: ?dir=N&t=0.25 (loop position, paused)&persp&nocape
+const Q = new URLSearchParams(location.search);
+setDir(Q.get("dir") || (ROWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "SW"), true);
+if (Q.has("persp")) setProjection("persp");
+if (Q.has("nocape")) cape.on = false;
+if (Q.has("zoom")) { const z = +Q.get("zoom"), ty = +(Q.get("ty") || 0.92), c = controls.ortho;
+  const d = cam.position.clone().sub(c.target); c.target.y = ty; cam.position.copy(c.target).add(d); ortho.zoom = z; ortho.updateProjectionMatrix(); }
+const clock = new THREE.Clock();
+let spriteTick = 0;
+function frame() {
+  const dt = clock.getDelta();
+  if (mixer) {
+    mixer.update(playing ? dt * +$("speed").value : 0);
+    if (playing) $("scrub").value = (action.time / action.getClip().duration).toFixed(3);
+    $("scrubOut").textContent = Math.round(100 * action.time / action.getClip().duration) + " %";
+  }
+  updateCape(playing ? dt * +$("speed").value : 0.0001);
+  stepTween(dt);
+  (cam === ortho ? controls.ortho : controls.persp).update();
+  if (model && (spriteTick++ % 2 === 0)) renderSprite();
+  rig.position.copy(cam.position); rig.quaternion.copy(cam.quaternion); placeLights();
+  renderer.render(scene, cam);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.__knight = { setDir, setPlaying, playClip, get action() { return action; }, get mixer() { return mixer; }, setProjection, cape, bones };
+</script>
