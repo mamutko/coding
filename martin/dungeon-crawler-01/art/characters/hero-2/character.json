@@ -1,6 +1,6 @@
 {
   "name": "Hero 2 (stocky knight)",
-  "description": "a stocky, broad-shouldered knight, a little shorter than average with a thick torso, short sturdy legs and big gauntleted hands; full plate armour of dark gunmetal steel with a slight warm sheen; a rounded dome great helm with a single horizontal visor slit and a raised central ridge, no face visible; large rounded pauldrons, a barrel-shaped breastplate, plate gauntlets, greaves and broad sabatons; a wide red-brown leather belt with a dark iron buckle; a short dark-grey chainmail skirt to mid-thigh with a plain crimson cloth tabard panel hanging front and back to just above the knees; a short crimson cloth half-cape over both shoulders, ending at the middle of the back with a clean, slightly worn hem; both hands empty, no weapon, no shield",
+  "description": "a stocky, broad-shouldered veteran knight, a little shorter than average with a thick torso, short sturdy legs and big gauntleted hands; full plate armour of polished dark steel with a strong metallic sheen: bright, crisp specular highlights and reflected rim light along every plate edge; the armour is battle-worn: a few dents, worn bright edges where the dark finish has rubbed off, some patches of rust-brown at the joints and the lower greaves; a rounded dome great helm with a single horizontal visor slit and a raised central ridge, no face visible; rounded pauldrons, a barrel-shaped breastplate, plate gauntlets, greaves and broad sabatons; a wide red-brown leather belt with a dark iron buckle; a dark-grey chainmail skirt to mid-thigh; a full-length deep crimson wool cape fastened at both shoulders, hanging in a few heavy folds down to the calves, faded and mud-stained toward the bottom with a frayed, slightly torn hem; both hands empty, no weapon, no shield",
   "frames": 12,
   "mirror": false,
   "guide": "walk",
@@ -9,17 +9,17 @@
     {
       "file": "reference-1.png",
       "status": "candidate",
-      "note": "rounded pauldrons under a short cape, crimson front panel"
+      "note": "deep jagged hem with heavy mud staining; most weathered"
     },
     {
       "file": "reference-2.png",
       "status": "candidate",
-      "note": "stockiest: big round pauldrons over the cape, clenched fists"
+      "note": "shiniest plate, cleanest hem (shallow fray, broad stain): least likely to jump when walking"
     },
     {
       "file": "reference-3.png",
       "status": "candidate",
-      "note": "pointed pauldrons, high gorget collar, red belt"
+      "note": "pointed visor ridge, star rondels, speckled stains on the hem"
     }
   ],
   "directions": {},
@@ -27,6 +27,10 @@
   "spend": [
     {
       "what": "3 reference candidates, from scratch (simple style)",
+      "usd": 0.1
+    },
+    {
+      "what": "3 more reference candidates (full cape, sheen, weathering)",
       "usd": 0.1
     }
   ],
