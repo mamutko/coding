@@ -25,11 +25,16 @@
   "directions": {
     "NW": {
       "file": "paint/NW.png",
-      "status": "review",
+      "status": "approved",
       "note": "attempt 3: wide cape + 'same width, never flares' (paint/NW.prompt.txt). Cape 46% of the figure, overlap frame to frame 0.86 (worst 0.81): steadiest yet. Three-quarter back view, visor hidden. Stride 12/12, colour 0.80. Watch: lumpy chainmail texture."
+    },
+    "SW": {
+      "file": "paint/SW.png",
+      "status": "review",
+      "note": "stocky guide, reference + NW match, wide-cape line (paint/SW.prompt.txt). Stride 12/12, colour 0.85, cape overlap 0.68 (worst 0.63), cape 23% of the figure, opaque."
     }
   },
-  "next": "Approve NW, then paint the other 7 (stocky guides first)",
+  "next": "Approve SW, then the remaining 6 directions",
   "spend": [
     {
       "what": "3 reference candidates, from scratch (simple style)",
@@ -49,6 +54,10 @@
     },
     {
       "what": "NW attempt 3 (steady cape width)",
+      "usd": 0.03
+    },
+    {
+      "what": "SW walk (OpenAI, 12 frames)",
       "usd": 0.03
     }
   ],
