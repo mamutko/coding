@@ -30,11 +30,41 @@
     },
     "SW": {
       "file": "paint/SW.png",
-      "status": "review",
+      "status": "approved",
       "note": "stocky guide, reference + NW match, wide-cape line (paint/SW.prompt.txt). Stride 12/12, colour 0.85, cape overlap 0.68 (worst 0.63), cape 23% of the figure, opaque."
+    },
+    "S": {
+      "file": "paint/S.png",
+      "status": "review",
+      "note": "stocky guide, reference + NW match (paint/S.prompt.txt). front view, cape behind both shoulders and legs. Stride 12/12, colour 0.82."
+    },
+    "W": {
+      "file": "paint/W.png",
+      "status": "review",
+      "note": "stocky guide, reference + NW match (paint/W.prompt.txt). profile left, cape down the back. Stride 12/12, colour 0.88."
+    },
+    "N": {
+      "file": "paint/N.png",
+      "status": "review",
+      "note": "stocky guide, reference + NW match (paint/N.prompt.txt). back view, wide cape covers the whole back. Stride 12/12, colour 0.80."
+    },
+    "NE": {
+      "file": "paint/NE.png",
+      "status": "review",
+      "note": "stocky guide, reference + NW match (paint/NE.prompt.txt). three-quarter back right, wide cape. Stride 12/12, colour 0.88."
+    },
+    "E": {
+      "file": "paint/E.png",
+      "status": "review",
+      "note": "stocky guide, reference + NW match (paint/E.prompt.txt). profile right. Stride 12/12, colour 0.89."
+    },
+    "SE": {
+      "file": "paint/SE.png",
+      "status": "review",
+      "note": "stocky guide, reference + NW match (paint/SE.prompt.txt). attempt 2 (attempt 1: frame 3 stride off, faint thin cape, chainmail missing; in attempts/). Prompt adds 'same opaque crimson, chainmail shows'. Stride 12/12, colour 0.80."
     }
   },
-  "next": "Approve SW, then the remaining 6 directions",
+  "next": "Review all 8 directions on the board, then build the game sheet",
   "spend": [
     {
       "what": "3 reference candidates, from scratch (simple style)",
@@ -58,6 +88,14 @@
     },
     {
       "what": "SW walk (OpenAI, 12 frames)",
+      "usd": 0.03
+    },
+    {
+      "what": "S, W, N, NE, E, SE walks (OpenAI, 12 frames)",
+      "usd": 0.18
+    },
+    {
+      "what": "SE repaint (+1 call that failed before returning an image)",
       "usd": 0.03
     }
   ],
