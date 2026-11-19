@@ -80,7 +80,10 @@ light from the upper left. NOT pixel art, NOT 3D. Transparent background. No tex
   `formal-walk` (upright, measured: nobles, guards), `jog`, and `stick-walk` (algorithmic, 8 frames, 5 directions).
 - **Custom** (render it into `<char>/guide/`, show it on the board, wait for approval before painting):
   - another clip: `--clip Jog_Fwd_Loop | Sprint_Loop | Walk_Formal_Loop | ...` (all 43 in datasets.md);
-  - other body: `--preset child-12 | child-8`, `--shoe <EU size>`, or `--head --legs --arms --torso --shoulders --neck`;
+  - other body: `--preset child-12 | child-8`, `--shoe <EU size>`, or `--head --legs --arms --torso --shoulders --neck`
+    (lengths; each also scales that part's thickness with it), and `--girth` (+ `--legs-girth --arms-girth
+    --torso-girth`) for thickness alone. Stocky: `--legs 0.88 --shoulders 1.15 --neck 0.6 --head 1.05 --girth 1.35
+    --torso-girth 1.25`;
   - a monster with a made-up gait: `walk_cycle.py guide <CHAR> <DIR> out.png --magenta --limbs` (add the gait to
     `CHARS`: lean, crouch, stride, arm swing; then use `guide_prompt.py` without `--plain`).
 

@@ -3,8 +3,8 @@
   "description": "a stocky, broad-shouldered veteran knight, a little shorter than average with a thick torso, short sturdy legs and big gauntleted hands; full plate armour of polished dark steel with a strong metallic sheen: bright, crisp specular highlights and reflected rim light along every plate edge; the armour is battle-worn: a few dents, worn bright edges where the dark finish has rubbed off, some patches of rust-brown at the joints and the lower greaves; a rounded dome great helm with a single horizontal visor slit and a raised central ridge, no face visible; rounded pauldrons, a barrel-shaped breastplate, plate gauntlets, greaves and broad sabatons; a wide red-brown leather belt with a dark iron buckle; a dark-grey chainmail skirt to mid-thigh; a full-length deep crimson wool cape fastened at both shoulders, hanging in a few heavy folds down to the calves, faded and mud-stained toward the bottom with a frayed, slightly torn hem; both hands empty, no weapon, no shield",
   "frames": 12,
   "mirror": false,
-  "guide": "walk",
-  "body": "adult 1.82 m, EU 43",
+  "guide": "guide",
+  "body": "stocky: legs 0.88, shoulders 1.15, neck 0.6, head 1.05, girth 1.35 (torso 1.25), EU 43",
   "references": [
     {
       "file": "reference-1.png",
@@ -23,7 +23,7 @@
     }
   ],
   "directions": {},
-  "next": "Pick a reference, then paint NW",
+  "next": "Approve the stocky guide and pick a reference, then paint NW",
   "spend": [
     {
       "what": "3 reference candidates, from scratch (simple style)",

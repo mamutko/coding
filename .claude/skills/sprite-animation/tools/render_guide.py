@@ -25,6 +25,9 @@ cells of 300 x 440, the body centred in each cell, standing on a ground line 70 
                      proportions by hand (bone-length and thickness factors; override the preset's values).
                      Head scales the head about the neck joint; legs / arms / torso scale those bones' lengths and
                      the mesh around them; the pelvis height follows the legs; shoulders = shoulder width, neck = neck length.
+    --girth G        thicken the body around its bones without changing their lengths (1 = as modelled; the head is
+                     left alone). --legs-girth / --arms-girth / --torso-girth override it per group. A stocky build:
+                     --legs 0.88 --shoulders 1.15 --neck 0.6 --head 1.05 --girth 1.35 --torso-girth 1.25.
     --balanced       darker orange / yellow with about the lightness of the blue / teal partner. OpenAI keeps some
                      of a guide colour's lightness: with the bright default orange, the 8 x 8 sheets came out with
                      the RIGHT trouser leg ~30 % lighter and warmer than the left.
@@ -159,6 +162,31 @@ class Rig:
             elif i in self.parent:
                 self.tscale[i] = f[self.group(self.nodes[self.parent[i]].get("name", ""))]
         self.vscale = np.array([f[self.group(self.nodes[ji].get("name", ""))] for ji in self.joints], float)
+
+    def scale_girth(self, girth=1.0, legs=None, arms=None, torso=None):
+        """Thicken (or thin) the body around its bones without changing bone lengths (bind pose): each vertex's
+        offset from its bone's axis, perpendicular to the bone, is scaled, blended over its skin weights. The head
+        is left alone (use --head). legs / arms / torso override the overall girth for that group."""
+        fac = dict(legs=legs or girth, arms=arms or girth, torso=torso or girth, head=1.0)
+        jpos = np.array([np.linalg.inv(m)[:3, 3] for m in self.ibm])                  # bind-pose joint positions
+        kid = {}                                                                       # joint -> first child joint
+        jidx = {ji: k for k, ji in enumerate(self.joints)}
+        for i, p in self.parent.items():
+            if i in jidx and p in jidx:
+                kid.setdefault(jidx[p], jidx[i])
+        par = {jidx[i]: jidx[p] for i, p in self.parent.items() if i in jidx and p in jidx}
+        axis = np.zeros_like(jpos)
+        for k in range(len(jpos)):
+            d = jpos[kid[k]] - jpos[k] if k in kid else (jpos[k] - jpos[par[k]] if k in par else np.array([0, 1.0, 0]))
+            axis[k] = d / max(np.linalg.norm(d), 1e-9)
+        f = np.array([fac[self.group(self.nodes[ji].get("name", ""))] for ji in self.joints])
+        out = np.zeros_like(self.pos)
+        for c in range(4):
+            k = self.jnt[:, c]
+            off = self.pos - jpos[k]
+            along = (off * axis[k]).sum(1, keepdims=True) * axis[k]
+            out += self.wt[:, c:c + 1] * (jpos[k] + along + (off - along) * f[k][:, None])
+        self.pos = out
 
     FOOT_CM = 30.3                                   # bind-pose heel-to-toe length of the mannequin's foot
 
@@ -344,6 +372,10 @@ def main():
     rig.set_proportions(**prop)
     if prop != Rig.PRESETS["adult"]:
         print("proportions", prop)
+    girth = {k: float(opt(f"--{k}-girth", 0)) or None for k in ("legs", "arms", "torso")}
+    if "--girth" in sys.argv or any(girth.values()):
+        rig.scale_girth(float(opt("--girth", 1)), **girth)
+        print("girth", opt("--girth", 1), {k: v for k, v in girth.items() if v})
     if fs != 1.0:
         rig.scale_feet(fs)
         print(f"feet x{fs:.3f}: {Rig.FOOT_CM * fs:.1f} cm (~EU {(Rig.FOOT_CM * fs + 1.5) * 1.5:.0f})")
