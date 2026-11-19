@@ -509,8 +509,11 @@ work.
   doesn't jump the game) is split into update steps of at most 50 ms. A slow device therefore shows fewer
   frames, but the hero and the monsters keep their real speed. (Before, `dt` was simply capped at 50 ms, so
   under 20 fps the whole game ran in slow motion.)
-- **Automatic render scale** (`adaptRes`): the frame time is averaged over 2 s windows (stalls over 0.25 s
-  and hidden tabs are skipped). While a level is being played, the debug switch **Auto resolution** is on (the default), and the average is
+- **Frame timing** (`adaptRes`, `PERF`): over 2 s windows, the average frame time, the slowest frame, and how long
+  the frame's own work took (the update steps; render + HUD). Every frame counts, however slow; only a hidden
+  tab and gaps over 5 s (a sleeping tab, a debugger pause) are skipped. (Before v83 frames over 0.25 s were
+  skipped, so at 1-2 fps the readout froze at its last good value and the render scale never dropped.)
+- **Automatic render scale** (`adaptRes`): from the 2 s average frame time. While a level is being played, the debug switch **Auto resolution** is on (the default), and the average is
   under 25 fps (`SLOW_FRAME`; 20 fps is still playable, so the picture stays sharp as long as it can), the render scale (canvas pixels per CSS pixel, normally `min(2, devicePixelRatio)`) drops
   by 0.25 (`DPR_CAP`), down to 1, and the canvas is resized. It never goes back up during the session. On a
   phone with a 3× screen, 1.5 is still sharp, and each step cuts the pixels drawn a lot (2 → 1.75 is 23 %
@@ -1309,9 +1312,13 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 
 - **Music** (always shown, under the frame rate) — the current mood, file and play number, e.g.
   `music: explore · explore (play 2) · demon level` (see [Music](#music)).
-- **Frame rate** (always shown under the switches) — the average frames per second over the last 2 s and the
-  current render scale, e.g. `58 fps · scale 2`, plus `· refraction off` once the lakes' ripple refraction has
-  been switched off (see [Main loop](#main-loop)).
+- **Frame rate** (always shown under the switches) — over the last 2 s: the average frames per second, the
+  slowest frame, the average time per frame of the update steps and of render + HUD (main-thread time), and the
+  current render scale, e.g. `58 fps · worst 21 ms · update 0.4 · render 3.2 ms · scale 2`, plus
+  `· refraction off` once the lakes' ripple refraction has been switched off (see [Main loop](#main-loop)).
+  Reading it when the game is slow: a large **render** time means drawing itself is slow (e.g. the browser fell
+  back to drawing the canvas without the GPU); low update and render times at a low fps mean the time goes
+  outside the game's code (the browser's compositing or GPU, or another tab).
 - **Look** — the hero's look (see [Hero looks](#hero-looks)): on the title screen the selected hero's, in the game the
   played hero's. Saved with that hero, not in `dc01-debug`.
 - **Pursuit indicator** — a red dot (5 px, black outline) above every monster that is pursuing the hero

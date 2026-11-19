@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v83 — a frame-rate readout that sees slow frames (2026-11-19)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 83`)*
+
+- The debug overlay's frame rate now counts every frame, however slow. Before, frames over 0.25 s were skipped,
+  so at 1-2 fps it kept showing its last good value (e.g. 22 fps) and the automatic render scale never stepped in.
+- It also shows the slowest frame of the last 2 s and the time per frame of the update steps and of render + HUD,
+  to tell slow drawing from slow game logic.
+
 ## v81–v82 — the stocky knight drawn a little smaller (2026-11-19)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 82`)*
+Commit: 7c9cf1c
 
 - The **stocky knight** look is drawn at 0.96 of its sheet (`CAST_SCALE.hero2`; v81 had 0.93). Its mocap guide was normalised
   to full height, so his short legs had made his torso, head and shoulders larger than the original knight's;
