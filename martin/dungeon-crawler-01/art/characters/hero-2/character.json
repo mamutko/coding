@@ -26,10 +26,10 @@
     "NW": {
       "file": "paint/NW.png",
       "status": "review",
-      "note": "attempt 2: WIDE cape line added (paint/NW.prompt.txt). Cape 48% of the figure (attempt 1: 38%), covers the whole back; view closer to three-quarter back. Stride 12/12, colour 0.85. Cape overlap frame to frame 0.73 (attempt 1: 0.78): frames 10-11 flare wider (0.56). Attempt 1 in attempts/."
+      "note": "attempt 3: wide cape + 'same width, never flares' (paint/NW.prompt.txt). Cape 46% of the figure, overlap frame to frame 0.86 (worst 0.81): steadiest yet. Three-quarter back view, visor hidden. Stride 12/12, colour 0.80. Watch: lumpy chainmail texture."
     }
   },
-  "next": "Approve NW (wide cape), then paint the other 7",
+  "next": "Approve NW, then paint the other 7 (stocky guides first)",
   "spend": [
     {
       "what": "3 reference candidates, from scratch (simple style)",
@@ -45,6 +45,10 @@
     },
     {
       "what": "NW attempt 2 (wide cape)",
+      "usd": 0.03
+    },
+    {
+      "what": "NW attempt 3 (steady cape width)",
       "usd": 0.03
     }
   ],

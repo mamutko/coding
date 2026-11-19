@@ -125,3 +125,8 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
 - **Stocky bodies:** `render_guide.py --preset stocky` (shorter legs, broad shoulders, short neck, `--girth`
   1.35). Girth thickens around the bones without changing lengths; the old length factors alone made a stocky
   build thinner (shorter legs came out thinner too).
+- **"Never flares" for wide cloth** (2026-11-18, hero-2 NW): asking for a WIDE cape (as wide as the shoulders,
+  covering the back) made it puff out in two frames (overlap 0.56 there, 0.73 mean). Adding "keeps the SAME width and
+  outline in ALL figures ... never flares, billows, puffs out or swings wide; heavy, hangs close to the body; only its
+  bottom edge moves a little" gave 0.86 mean, 0.81 worst pair: the steadiest cape so far. Now in guide_prompt.py.
+  Asking for the cape's full width also turned the figure further toward the three-quarter back view.
