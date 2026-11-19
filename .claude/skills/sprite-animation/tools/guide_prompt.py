@@ -9,6 +9,8 @@ OpenAI wording (transparent background). Generalises nwprompt.py.
   --ref         the 2nd input image is the approved character reference (turnaround): paint exactly that character
   --match DIR   the 3rd input image is this character already painted (and approved) walking DIR: match its look
 Input images go to the edit call in this order: guide, reference, matched direction.
+Every prompt includes the STEADY FROM FRAME TO FRAME paragraph (same highlights, markings, cloth folds and hem
+outline in every figure), which stopped shading shimmer and a jumping cape hem (learnings.md, "Shimmer").
 """
 import json, pathlib, sys
 
@@ -85,6 +87,13 @@ Arms swing opposite to the legs, following the TEAL and YELLOW arms exactly; the
                        "match its look exactly (colours, shading, line weight, level of detail), but not its view.")
     loose = (" Clothing that hangs beyond the body (cloak, cape, skirt, long coat, sleeves) is painted at its FULL "
              "length and width, even where the mannequin has no shape there; it moves with the stride.")
+    # Steadiness (learnings.md, "Shimmer"): without it the model redraws texture, cloth folds and ragged hems
+    # differently in every figure, which flickers when the frames play.
+    steady = f"""STEADY FROM FRAME TO FRAME (critical: these {n} figures play one after another as an animation, and anything that is redrawn differently in each figure will flicker):
+- Paint the character as if it were ONE 3D model rendered {n} times: the SAME light from the upper left, the SAME highlight and shadow shapes in the SAME places on each surface, the SAME markings (dents, scuffs, stains, patches, patterns, trim) in the SAME spots, the SAME colours.
+- Loose cloth (cloak, cape, skirt, coat tails) keeps the SAME few broad folds in every figure. It hangs from the same points and only sways gently with the stride (its lower edge swings a little opposite to the forward leg); folds never appear, vanish or rearrange between figures.
+- Hems and edges keep the SAME outline in every figure (the same frayed or torn edge, the same stains), simply moving with the cloth. Never redraw new tears, new jagged points or new stain blotches in each figure.
+- Show shine, wear and texture with a few BOLD shapes, never with fine noise, speckles or scratch texture."""
     return f"""This image is a POSE GUIDE: {layout} Paint over EVERY mannequin, keeping each one's EXACT position, size and pose of legs, arms, torso and head. Do not move, add or remove any figure, and do not change any pose.{inputs}
 
 {key}
@@ -94,6 +103,8 @@ Arms swing opposite to the legs, following the TEAL and YELLOW arms exactly; the
 {legs}
 
 CHARACTER (identical in all {n} figures): {character} Copy only the pose from the mannequins, not their shapes: give him natural human proportions and clothing.{loose}
+
+{steady}
 
 STYLE: hand-drawn 2D game sprite art for an isometric RPG, clean dark ink outlines, painterly watercolour-and-gouache shading, light from the upper left. NOT pixel art, NOT 3D.
 

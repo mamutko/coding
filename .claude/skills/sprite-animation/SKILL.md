@@ -60,7 +60,12 @@ Prompt: "Character turnaround sheet for a hand-drawn 2D isometric RPG: the same 
 FRONT view, SIDE view facing left, BACK view; full body, standing relaxed, arms slightly away from the body, feet
 visible. CHARACTER: <design paragraph: build, face, hair, every garment with its colour and length, what each hand
 holds>. STYLE: hand-drawn 2D game sprite art, clean dark ink outlines, painterly watercolour-and-gouache shading,
-light from the upper left. NOT pixel art, NOT 3D. Transparent background. No text."
+light from the upper left. Show shine, wear and texture with a FEW BOLD shapes (clear highlight shapes, a handful of
+dents, worn edges or stains), never with fine noise, speckles or scratch texture, so it animates cleanly and reads at
+120 px tall. NOT pixel art, NOT 3D. Transparent background. No text."
+
+- **Keep the reference free of fine texture.** Whatever fine speckle, mottling or ragged detail the reference has,
+  the walk repaints differently in every frame and it shimmers (learnings.md, "Shimmer"). Bold marks are fine.
 
 - **Style consistency across characters** (the user may ask for several references at once): use `edit` with
   approved references of other characters as inputs and add "in exactly the style of the attached characters (line
@@ -109,8 +114,13 @@ python tools/grid_check.py <guide>.png <char>/paint/<DIR>.png 6 2 --dir <DIR> --
 
 - Input order matters: **guide first** (the image being edited), the **reference** second, from the second direction
   on a frame sheet of the **first approved direction** third (`--match`).
+- `guide_prompt.py` always adds a **STEADY FROM FRAME TO FRAME** paragraph: paint the character as one 3D model
+  rendered N times (same highlights, markings and colours in the same places), loose cloth keeps the same few folds
+  and only sways, hems keep the same outline. It made the cape and the shading steady (learnings.md); keep it when
+  adding your own lines to the prompt. Save the exact prompt next to the painting (`paint/<DIR>.prompt.txt`).
 - **Check every image** (Read it, and look at it on the board's dark floor): every stride frame matches, no faded
-  limbs, colour ≥ 0.70, right view, no leftover grey mannequin, items in the right hands. On a failed check, paint that
+  limbs, colour ≥ 0.70, right view, no leftover grey mannequin, items in the right hands, and no shimmer: play it
+  on the board at the character's pace and watch the shading and any cloth hem. On a failed check, paint that
   direction once more (prompt fixes in learnings.md); after a second failure, ask.
 - **After the first direction: stop for approval.** After that, continue direction by direction, updating the board
   after each; approvals for the rest are optional unless the user wants them.

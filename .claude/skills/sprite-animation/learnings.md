@@ -121,7 +121,7 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
   were ONE 3D model rendered 12 times: the SAME highlight shapes in the SAME places, the SAME dents and rust ...; the
   cape has the SAME few broad folds ... only sways gently; the hem keeps the SAME outline ... do not redraw new tears
   or stain blotches in each figure". Cape outline overlap between neighbouring frames: 0.78, against 0.70 for the
-  old in-game sprite and 0.74-0.75 for earlier attempts without it. The prompt is kept in hero-2/paint/NW.prompt.txt.
+  old in-game sprite and 0.74-0.75 for earlier attempts without it. The prompt is kept in hero-2/paint/NW.prompt.txt. Confirmed by eye (Martin: "the animation is steadier"); now built into guide_prompt.py for every prompt.
 - **Stocky bodies:** `render_guide.py --preset stocky` (shorter legs, broad shoulders, short neck, `--girth`
   1.35). Girth thickens around the bones without changing lengths; the old length factors alone made a stocky
   build thinner (shorter legs came out thinner too).
