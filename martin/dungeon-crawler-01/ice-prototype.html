@@ -309,7 +309,7 @@ function drawChar(c, e, mir) {
   }
   if (mir) return mirSprite(c, IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, dx, dy, dw, dh, sy);
   if (!e.float && (!inWater(e.x, e.y) || iceAt(e.x, e.y))) softShadow(c, sx, sy + sink + 2 * s, 32 * s, 15 * s, 0.55, 0.55);
-  if (held) return drawFrozen(c, e, IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, sx, sy + sink - lift, dx, dy, dw, dh);
+  if (held) return drawFrozen(c, e, IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, sx, sy + sink + (e.float && inWater(e.x, e.y) ? D : 0), dx, dy, dw, dh);
   if (e.thaw > 0) c.drawImage(tinted(IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, e.thaw / 0.7), dx, dy, dw, dh);
   else c.drawImage(IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, dx, dy, dw, dh);
 }
@@ -556,25 +556,28 @@ function makeFloorTex(p, rnd) {
 }
 
 // ---------- frozen monsters ----------
-// A monster caught in the blast is encased: ice creeps up from its feet over 0.45 s, tinting it pale blue and
-// building a faceted, translucent shell around it; it stops dead mid-step (a wraith stops mid-air). For its last
-// 1.5 s the shell shudders and cracks; then it bursts off in shards and the monster thaws out.
+// A monster caught in the blast freezes: the whole body fades to pale icy blue over 0.3 s, rime and ice spikes
+// build up under it and cold mist pours off it; it stops dead mid-step (a wraith stops mid-air). For its last
+// 1.5 s it shudders; then the ice underfoot breaks up and the blue fades as it thaws out.
 function freezeMonster(m, delay, dur) {
-  const rnd = mulberry(Math.floor(Math.random() * 1e9)), base = [[-0.5, 0.04], [-0.58, -0.22], [-0.5, -0.5], [-0.36, -0.78], [-0.12, -0.96], [0.1, -0.92], [0.32, -0.8], [0.52, -0.52], [0.58, -0.2], [0.48, 0.05]];
-  const shell = base.map(([x, y]) => [x * (0.9 + rnd() * 0.2), y * (0.92 + rnd() * 0.16)]);
-  const facets = Array.from({ length: 5 }, () => [Math.floor(rnd() * shell.length), (rnd() - 0.5) * 0.3, -0.3 - rnd() * 0.4]);
-  const cracks = Array.from({ length: 5 }, () => { let x = (rnd() - 0.5) * 0.7, y = -0.1 - rnd() * 0.75; const pts = [[x, y]]; for (let i = 0; i < 4; i++) { x += (rnd() - 0.5) * 0.25; y += (rnd() - 0.5) * 0.2; pts.push([x, y]); } return pts; });
-  const spikes = Array.from({ length: 5 }, (_, i) => [(i / 4 - 0.5) * 1.05 + (rnd() - 0.5) * 0.14, 0.05 + rnd() ** 2 * 0.2, (rnd() - 0.5) * 0.7, 2 + rnd() * 4]);
-  m.frozen = { t: 0, delay, dur, shell, facets, cracks, spikes, lift: m.float ? 8 + Math.sin(time * 3 + m.x) * 4 : 0, sounded: false };
+  const rnd = mulberry(Math.floor(Math.random() * 1e9));
+  const spikes = Array.from({ length: 6 }, (_, i) => [(i / 5 - 0.5) * 1.6 + (rnd() - 0.5) * 0.2, 0.08 + rnd() ** 2 * 0.3, (rnd() - 0.5) * 0.7, 2 + rnd() * 3.5]);
+  m.frozen = { t: 0, delay, dur, spikes, lift: m.float ? 8 + Math.sin(time * 3 + m.x) * 4 : 0, sounded: false };
 }
 function updateFrozen(m, dt) {   // true while the monster is held fast
   const f = m.frozen; if (!f) return false;
   f.t += dt;
   if (f.t < f.delay) return false;
   if (!f.sounded) { f.sounded = true; sndEncase(); }
+  const since = f.t - f.delay;   // cold mist pours off the body as it freezes, then thins out
+  if (O.mist && since < 2.5) {
+    const rate = (since < 0.6 ? 40 : 10 * (1 - since / 2.5)) * dt, h = m.float ? 120 : 100;
+    for (let i = 0; i < rate || Math.random() < rate - i; i++)
+      mist.push({ x: m.x + (Math.random() - 0.5) * 0.5, y: m.y + (Math.random() - 0.5) * 0.5, z: (m.float ? f.lift : 0) + Math.random() * h - (m.sink || 0) + D, vz: 6 + Math.random() * 12, t: 0, dur: 1.2 + Math.random() * 1.4, s: 10 + Math.random() * 14, vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25 });
+  }
   if (f.t >= f.delay + f.dur) {   // the shell bursts off
     m.frozen = null; m.thaw = 0.7;
-    for (let i = 0; i < 16; i++) { const a = Math.random() * 7, v = 30 + Math.random() * 60; splashes.push({ x: m.x, y: m.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.5, vz: 60 + Math.random() * 120, z: 20 + Math.random() * 60 - (m.sink || 0), t: 0, col: '215,238,252' }); }
+    for (let i = 0; i < 10; i++) { const a = Math.random() * 7, v = 25 + Math.random() * 40; splashes.push({ x: m.x, y: m.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.5, vz: 50 + Math.random() * 80, z: 2, t: 0, col: '215,238,252' }); }   // the ice underfoot breaks up
     sndShellBreak(); return false;
   }
   return true;
@@ -585,39 +588,18 @@ function tinted(img, sx, sy, sw, sh, a) {   // the sprite frame washed pale icy 
   tctx.globalCompositeOperation = 'source-atop'; tctx.globalAlpha = a; tctx.fillStyle = ICE_TINT; tctx.fillRect(0, 0, sw, sh);
   tctx.globalAlpha = 1; tctx.globalCompositeOperation = 'source-over'; return tmp;
 }
-function drawFrozen(c, e, img, sx, sy, sw, sh, fx, footY, dx, dy, dw, dh) {
-  const f = e.frozen, g = clamp((f.t - f.delay) / 0.45), left = f.delay + f.dur - f.t, shake = left < 1.5 ? Math.sin(time * 70) * (1.5 - left) * 0.9 : 0;
-  const HS = 118 * (e.scale || 1) * (e.sheet === 'wraith' ? 1.05 : 1), WS = 70 * (e.scale || 1), top = footY - HS * 1.08 * g;   // the frost line, creeping up
-  c.save(); c.translate(shake, 0);
-  // the tinted, frozen body below the frost line
-  c.save(); c.beginPath(); c.rect(-4000, top, 8000, 8000); c.clip();
-  c.drawImage(tinted(img, sx, sy, sw, sh, 1), dx, dy, dw, dh);
-  // the shell: faceted, translucent, brighter at its edges
-  const P2 = ([x, y]) => [fx + x * WS, footY + y * HS];
-  c.beginPath(); f.shell.forEach((q, i) => { const [X, Y] = P2(q); i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); c.closePath();
-  const gr = c.createLinearGradient(fx - WS * 0.6, footY - HS, fx + WS * 0.6, footY);
-  gr.addColorStop(0, 'rgba(220,242,255,0.38)'); gr.addColorStop(0.45, 'rgba(160,210,240,0.16)'); gr.addColorStop(1, 'rgba(200,232,252,0.3)');
-  c.fillStyle = gr; c.fill(); c.lineJoin = 'round'; c.strokeStyle = 'rgba(235,248,255,0.55)'; c.lineWidth = 1.3; c.stroke();
-  c.strokeStyle = 'rgba(235,248,255,0.28)'; c.lineWidth = 1; c.beginPath();
-  for (const [i, x, y] of f.facets) { const [X0, Y0] = P2(f.shell[i]), [X1, Y1] = P2([x, y]); c.moveTo(X0, Y0); c.lineTo(X1, Y1); }
-  c.stroke();
-  // a glint down the front face
-  c.strokeStyle = 'rgba(255,255,255,0.45)'; c.lineWidth = 2.5; c.lineCap = 'round'; c.beginPath(); { const [X0, Y0] = P2([-0.32, -0.7]), [X1, Y1] = P2([-0.22, -0.25]); c.moveTo(X0, Y0); c.lineTo(X1, Y1); } c.stroke();
-  // ice spikes around the feet
-  c.fillStyle = 'rgba(215,240,255,0.55)';
-  for (const [x, h, lean, w] of f.spikes) { const [X, Y] = P2([x, 0.03]); c.beginPath(); c.moveTo(X - w, Y); c.lineTo(X + lean * 10, Y - h * HS); c.lineTo(X + w, Y); c.closePath(); c.fill(); }
-  // cracks, as the shell is about to give
-  if (left < 1.5) {
-    const k = 1 - left / 1.5; c.strokeStyle = `rgba(245,252,255,${0.4 + 0.5 * k})`; c.lineWidth = 1.1; c.beginPath();
-    f.cracks.forEach((pts, j) => { const n = Math.max(0, Math.min(pts.length, Math.ceil(k * 6 - j * 0.6) + 1)); pts.slice(0, n).forEach((q, i) => { const [X, Y] = P2(q); i ? c.lineTo(X, Y) : c.moveTo(X, Y); }); });
-    c.stroke();
-  }
-  c.restore();
-  // above the frost line (while it creeps up): the monster as it was, with a bright creeping edge
-  if (g < 1) {
-    c.save(); c.beginPath(); c.rect(-4000, -4000, 8000, top + 4000); c.clip(); c.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh); c.restore();
-    c.strokeStyle = 'rgba(235,248,255,0.8)'; c.lineWidth = 2; c.beginPath(); c.moveTo(fx - WS * 0.55, top); c.lineTo(fx + WS * 0.55, top); c.stroke();
-  }
+function drawFrozen(c, e, img, sx, sy, sw, sh, fx, groundY, dx, dy, dw, dh) {
+  // the whole body turns pale icy blue at once (a 0.3 s fade), on a patch of rime and ice spikes built up under it
+  const f = e.frozen, g = clamp((f.t - f.delay) / 0.3), left = f.delay + f.dur - f.t, shake = left < 1.5 ? Math.sin(time * 70) * (1.5 - left) * 0.9 : 0;
+  const s = e.scale || 1, rx = 40 * s * (0.4 + 0.6 * g), ry = rx / 2;
+  c.save();
+  const gr = c.createRadialGradient(fx, groundY, 0, fx, groundY, rx); gr.addColorStop(0, `rgba(232,246,255,${0.75 * g})`); gr.addColorStop(0.6, `rgba(205,235,252,${0.45 * g})`); gr.addColorStop(1, 'rgba(205,235,252,0)');
+  c.save(); c.translate(fx, groundY); c.scale(1, ry / rx); c.translate(-fx, -groundY); c.fillStyle = gr; c.beginPath(); c.arc(fx, groundY, rx, 0, 7); c.fill(); c.restore();
+  c.fillStyle = `rgba(220,242,255,${0.6 * g})`;
+  for (const [x, h, lean, w] of f.spikes) { const X = fx + x * rx * 0.9, Y = groundY + Math.abs(x) * 2; c.beginPath(); c.moveTo(X - w, Y); c.lineTo(X + lean * 8, Y - h * 70 * s * g); c.lineTo(X + w, Y); c.closePath(); c.fill(); }
+  c.translate(shake, 0);
+  c.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
+  c.drawImage(tinted(img, sx, sy, sw, sh, g), dx, dy, dw, dh);
   c.restore();
 }
 
