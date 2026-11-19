@@ -27,12 +27,31 @@
     "candidate-2": "a lean, wiry young man about 25, a scout and ranger: short-cropped black hair, clean-shaven, a sharp face; NO cloak; a sleeveless dark-brown leather vest with a few bold rivets over a rust-red long-sleeved tunic to mid-thigh; a dark-green scarf loosely wrapped once around the neck; brown leather bracers; a wide belt with a pouch at his right hip and a sheathed knife at his left hip; dark-green trousers; brown boots to mid-calf wrapped with leather straps. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried.",
     "candidate-3": "a tall, rangy man about 45, a veteran ranger: grey-streaked dark hair tied back in a short tail at the nape, short grey stubble, a lined, calm face; a long deep forest-green wool cloak (ONE simple layer, no fur, no shoulder cape) fastened at both shoulders, hanging in a few heavy folds to mid-calf, the hood DOWN; a brown leather jerkin to the hips over a dark-grey shirt; dark leather bracers; a wide brown belt with a pouch and a sheathed hunting knife; brown trousers; knee-high brown boots. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried."
   },
-  "directions": {},
-  "next": "Pick a reference (or trial NW walks for two, as for hero-3)",
+  "directions": {
+    "NW (cand. 1)": {
+      "dir": "NW",
+      "file": "paint/NW-c1.png",
+      "ref": "reference/round-1/candidate-1.png",
+      "status": "review",
+      "note": "candidate 1, --cloth 'dark-brown hooded half-cloak' (paint/NW-c1.prompt.txt). Stride 12/12, no faded limbs, colour 0.90. Half-cloak the same size and shape in every frame. The knife and pouch at the hip change shape a little (frames 10-12)."
+    },
+    "NW (cand. 2)": {
+      "dir": "NW",
+      "file": "paint/NW-c2.png",
+      "ref": "reference/round-1/candidate-2.png",
+      "status": "review",
+      "note": "candidate 2, no cloth (paint/NW-c2.prompt.txt). Stride 12/12, no faded limbs, colour 0.89. Vest, tunic and cowl steady. The pouch at the hip varies a little; the boot straps were left out; the red sleeves keep a light mottled texture."
+    }
+  },
+  "next": "Pick candidate 1 or 2 from the two NW walks; then paint the other 7 directions with --match NW",
   "spend": [
     {
       "what": "3 reference candidates (edit, hero-3 + hero-2 references as style input)",
       "usd": 0.1
+    },
+    {
+      "what": "NW walk for candidates 1 and 2 (OpenAI, 12 frames)",
+      "usd": 0.06
     }
   ],
   "artifact": "https://claude.ai/artifact/TFKfCAtYZJJvj7rUdCgLSw"
