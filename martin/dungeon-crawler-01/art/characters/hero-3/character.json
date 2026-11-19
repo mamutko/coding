@@ -1,0 +1,39 @@
+{
+  "name": "Hero 3 (huntress)",
+  "description": null,
+  "frames": null,
+  "mirror": null,
+  "guide": null,
+  "body": null,
+  "references": [
+    {
+      "file": "reference/round-1/candidate-1.png",
+      "status": "candidate",
+      "note": "round 1, style from hero-2: moss-green hooded half-cloak, chestnut braid, leather jerkin, rolled cream sleeves, tall boots. Fine mottled texture on cloth and leather (shimmer risk)."
+    },
+    {
+      "file": "reference/round-1/candidate-2.png",
+      "status": "candidate",
+      "note": "round 1: northern ranger, short ash-blonde hair, scar, charcoal hooded half-cloak with a wolf-fur collar, fur-topped boots. The fur is fine detail (shimmer risk)."
+    },
+    {
+      "file": "reference/round-1/candidate-3.png",
+      "status": "candidate",
+      "note": "round 1: copper-red ponytail, freckles, short green hooded shoulder mantle (asked for none: came with a hood) with an antler clasp, riveted leather cuirass, green tunic, laced boots. No long cloth: the easiest to animate."
+    }
+  ],
+  "designs": {
+    "candidate-1": "a lean, athletic adult woman about 30, a huntress and ranger: a long chestnut-brown braid over her right shoulder, a calm weathered face; a deep moss-green hooded half-cloak to the hips with the hood DOWN on her shoulders, fastened with a bronze leaf clasp; a fitted brown leather jerkin with a few bold stitched seams over a cream linen shirt with the sleeves rolled to the elbow; dark leather bracers; a wide tan belt with a small pouch and a sheathed skinning knife at the hip; slim dark-olive trousers; knee-high scuffed brown leather boots. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried.",
+    "candidate-2": "a lean, athletic adult woman about 30, a huntress and ranger of the northern woods: short-cropped ash-blonde hair and a sharp, weathered face with a pale scar across one cheek; a charcoal-grey wool hooded half-cloak to mid-thigh with the hood DOWN, a thick grey wolf-fur collar over the shoulders; a dark-brown leather jerkin with bold leather straps across the chest; long dark leather gloves and bracers; a wide black belt with a pouch and a sheathed knife; grey-brown trousers; tall dark boots with fur at the tops. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried.",
+    "candidate-3": "a lean, athletic adult woman about 25, a huntress and ranger: wild copper-red hair tied back in a high ponytail, freckles; NO cloak: a short dark-green leather shoulder mantle with a stag-antler toggle; a rust-brown hardened leather cuirass with a few bold rivets over a forest-green tunic reaching mid-thigh; brown leather bracers and fingerless gloves; a wide belt with crossed straps, a pouch and a sheathed hunting knife; snug brown leggings; soft knee-high boots wrapped with leather laces. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried."
+  },
+  "directions": {},
+  "next": "Pick a reference (or ask for changes); then decide frames (12 like hero-2?) and mirroring",
+  "spend": [
+    {
+      "what": "3 reference candidates (edit, hero-2 reference as style input)",
+      "usd": 0.1
+    }
+  ],
+  "artifact": "https://claude.ai/artifact/P8Q2JZXfrDRoL8QFL9kPH8"
+}
