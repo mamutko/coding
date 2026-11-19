@@ -309,8 +309,8 @@ function drawChar(c, e, mir) {
   }
   if (mir) return mirSprite(c, IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, dx, dy, dw, dh, sy);
   if (!e.float && (!inWater(e.x, e.y) || iceAt(e.x, e.y))) softShadow(c, sx, sy + sink + 2 * s, 32 * s, 15 * s, 0.55, 0.55);
-  if (held) return drawFrozen(c, e, IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, sx, sy + sink + (e.float && inWater(e.x, e.y) ? D : 0), dx, dy, dw, dh);
-  if (e.thaw > 0) c.drawImage(tinted(IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, e.thaw / 0.7), dx, dy, dw, dh);
+  if (held) return drawFrozen(c, e, IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, dx, dy, dw, dh);
+  if (e.thaw > 0) c.drawImage(tinted(IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, e.thaw / 0.35), dx, dy, dw, dh);
   else c.drawImage(IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, dx, dy, dw, dh);
 }
 function drawBanks(c, mir) {
@@ -556,13 +556,11 @@ function makeFloorTex(p, rnd) {
 }
 
 // ---------- frozen monsters ----------
-// A monster caught in the blast freezes: the whole body fades to pale icy blue over 0.3 s, rime and ice spikes
-// build up under it and cold mist pours off it; it stops dead mid-step (a wraith stops mid-air). For its last
-// 1.5 s it shudders; then the ice underfoot breaks up and the blue fades as it thaws out.
+// A monster caught in the blast freezes: the whole body fades to pale icy blue over 0.15 s and cold mist pours
+// off it; it stops dead mid-step (a wraith stops mid-air). For its last 0.75 s it shudders; then the blue fades
+// over 0.35 s as it thaws out.
 function freezeMonster(m, delay, dur) {
-  const rnd = mulberry(Math.floor(Math.random() * 1e9));
-  const spikes = Array.from({ length: 6 }, (_, i) => [(i / 5 - 0.5) * 1.6 + (rnd() - 0.5) * 0.2, 0.08 + rnd() ** 2 * 0.3, (rnd() - 0.5) * 0.7, 2 + rnd() * 3.5]);
-  m.frozen = { t: 0, delay, dur, spikes, lift: m.float ? 8 + Math.sin(time * 3 + m.x) * 4 : 0, sounded: false };
+  m.frozen = { t: 0, delay, dur, lift: m.float ? 8 + Math.sin(time * 3 + m.x) * 4 : 0, sounded: false };
 }
 function updateFrozen(m, dt) {   // true while the monster is held fast
   const f = m.frozen; if (!f) return false;
@@ -576,8 +574,7 @@ function updateFrozen(m, dt) {   // true while the monster is held fast
       mist.push({ x: m.x + (Math.random() - 0.5) * 0.5, y: m.y + (Math.random() - 0.5) * 0.5, z: (m.float ? f.lift : 0) + Math.random() * h - (m.sink || 0) + D, vz: 6 + Math.random() * 12, t: 0, dur: 1.2 + Math.random() * 1.4, s: 10 + Math.random() * 14, vx: (Math.random() - 0.5) * 0.25, vy: (Math.random() - 0.5) * 0.25 });
   }
   if (f.t >= f.delay + f.dur) {   // the shell bursts off
-    m.frozen = null; m.thaw = 0.7;
-    for (let i = 0; i < 10; i++) { const a = Math.random() * 7, v = 25 + Math.random() * 40; splashes.push({ x: m.x, y: m.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.5, vz: 50 + Math.random() * 80, z: 2, t: 0, col: '215,238,252' }); }   // the ice underfoot breaks up
+    m.frozen = null; m.thaw = 0.35;
     sndShellBreak(); return false;
   }
   return true;
@@ -588,16 +585,10 @@ function tinted(img, sx, sy, sw, sh, a) {   // the sprite frame washed pale icy 
   tctx.globalCompositeOperation = 'source-atop'; tctx.globalAlpha = a; tctx.fillStyle = ICE_TINT; tctx.fillRect(0, 0, sw, sh);
   tctx.globalAlpha = 1; tctx.globalCompositeOperation = 'source-over'; return tmp;
 }
-function drawFrozen(c, e, img, sx, sy, sw, sh, fx, groundY, dx, dy, dw, dh) {
-  // the whole body turns pale icy blue at once (a 0.3 s fade), on a patch of rime and ice spikes built up under it
-  const f = e.frozen, g = clamp((f.t - f.delay) / 0.3), left = f.delay + f.dur - f.t, shake = left < 1.5 ? Math.sin(time * 70) * (1.5 - left) * 0.9 : 0;
-  const s = e.scale || 1, rx = 40 * s * (0.4 + 0.6 * g), ry = rx / 2;
-  c.save();
-  const gr = c.createRadialGradient(fx, groundY, 0, fx, groundY, rx); gr.addColorStop(0, `rgba(232,246,255,${0.75 * g})`); gr.addColorStop(0.6, `rgba(205,235,252,${0.45 * g})`); gr.addColorStop(1, 'rgba(205,235,252,0)');
-  c.save(); c.translate(fx, groundY); c.scale(1, ry / rx); c.translate(-fx, -groundY); c.fillStyle = gr; c.beginPath(); c.arc(fx, groundY, rx, 0, 7); c.fill(); c.restore();
-  c.fillStyle = `rgba(220,242,255,${0.6 * g})`;
-  for (const [x, h, lean, w] of f.spikes) { const X = fx + x * rx * 0.9, Y = groundY + Math.abs(x) * 2; c.beginPath(); c.moveTo(X - w, Y); c.lineTo(X + lean * 8, Y - h * 70 * s * g); c.lineTo(X + w, Y); c.closePath(); c.fill(); }
-  c.translate(shake, 0);
+function drawFrozen(c, e, img, sx, sy, sw, sh, dx, dy, dw, dh) {
+  // the whole body turns pale icy blue at once (a 0.15 s fade); it shudders for its last 0.75 s
+  const f = e.frozen, g = clamp((f.t - f.delay) / 0.15), left = f.delay + f.dur - f.t, shake = left < 0.75 ? Math.sin(time * 70) * (0.75 - left) * 1.8 : 0;
+  c.save(); c.translate(shake, 0);
   c.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh);
   c.drawImage(tinted(img, sx, sy, sw, sh, g), dx, dy, dw, dh);
   c.restore();
