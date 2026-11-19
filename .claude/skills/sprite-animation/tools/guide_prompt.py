@@ -3,7 +3,7 @@ for any layout: one direction in a C x R grid of N frames, or several directions
 OpenAI wording (transparent background). Generalises nwprompt.py.
 
   python guide_prompt.py <DIR|DIR,DIR,...|all> [--frames N] [--cols C] [--plain] [--character FILE]
-                         [--ref] [--match DIR] [--cloth "wide crimson cape"]
+                         [--ref] [--match DIR] [--cloth "wide crimson cape"] [--she]
   --plain       for the shaded grey mannequin (render_guide.py --shaded, the default guides): no limb-colour key
   --character   the character's description: a .txt file, or a .json with a "description" key (character.json)
   --ref         the 2nd input image is the approved character reference (turnaround): paint exactly that character
@@ -12,6 +12,7 @@ OpenAI wording (transparent background). Generalises nwprompt.py.
                 shows and how wide, and that it keeps the same width, colour and opacity in every figure and as in
                 the matched direction (learnings.md, "Stable directions": without it the cape came out narrow,
                 faint or missing in some directions)
+  --she         a woman: the prompt says she / her instead of he / his / him
 Input images go to the edit call in this order: guide, reference, matched direction.
 Every prompt includes the STEADY FROM FRAME TO FRAME paragraph (same highlights, markings, cloth folds and hem
 outline in every figure), which stopped shading shimmer and a jumping cape hem (learnings.md, "Shimmer").
@@ -146,5 +147,10 @@ if __name__ == "__main__":
         character = json.loads(cf.read_text(encoding="utf-8"))["description"] if cf.suffix == ".json" else cf.read_text(encoding="utf-8").strip()
     match = sys.argv[sys.argv.index("--match") + 1] if "--match" in sys.argv else None
     cloth = sys.argv[sys.argv.index("--cloth") + 1] if "--cloth" in sys.argv else None
-    print(prompt(dirs, f, c, character, plain="--plain" in sys.argv, ref="--ref" in sys.argv or bool(match),
-                 match=match, cloth=cloth))
+    out = prompt(dirs, f, c, character, plain="--plain" in sys.argv, ref="--ref" in sys.argv or bool(match),
+                 match=match, cloth=cloth)
+    if "--she" in sys.argv:
+        import re
+        out = re.sub(r"\b(himself|him|his|His|he|He)\b",
+                     lambda m: {"he": "she", "He": "She", "his": "her", "His": "Her", "him": "her", "himself": "herself"}[m.group(1)], out)
+    print(out)

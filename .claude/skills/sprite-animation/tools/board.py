@@ -17,6 +17,7 @@ character.json (in the character's folder; paths are relative to it). Only "name
     "body": "adult 1.82 m, EU 43",                     # how the guide was rendered (shown only)
     "references": [{"file": "reference-1.png", "status": "approved", "note": "..."}],   # candidate / rejected
     "directions": {"NW": {"file": "paint/NW.png", "status": "approved"}},              # review / redo
+                   # variants: "NW (cand. 2)": {"dir": "NW", "file": ..., "ref": "reference/.../candidate-2.png"}
     "next": "Paint SW",                                # shown at the top
     "spend": [{"what": "3 references", "usd": 0.13}],
     "artifact": "https://claude.ai/artifact/...",
@@ -131,13 +132,19 @@ def main():
     dirs = []
     dmeta = ch.get("directions", {})
     orig = original_rows(ch["original"], base) if ch.get("original") else {}
-    for d in DIRS:
-        mirrored = bool(ch.get("mirror")) and d in MIRROR
-        src_d = MIRROR[d] if mirrored else d
+    # a direction painted in more than one variant (e.g. one per reference candidate, to compare): an extra entry
+    # keyed by any label, with "dir" (its direction) and optionally "ref" (the reference its colour is checked
+    # against); it is shown after the 8 directions
+    extra = [(k, v) for k, v in dmeta.items() if k not in DIRS and v.get("dir") in DIRS]
+    for d in DIRS + [k for k, _ in extra]:
+        xinfo = dmeta[d] if d not in DIRS else None
+        mirrored = xinfo is None and bool(ch.get("mirror")) and d in MIRROR
+        src_d = xinfo["dir"] if xinfo else MIRROR[d] if mirrored else d
         gp = guide_path(ch, base, src_d)
-        info = dmeta.get(src_d, {})
+        info = xinfo or dmeta.get(src_d, {})
         pp = base / info["file"] if info.get("file") else None
-        e = dict(d=d, view=VIEW[d], mirrored=mirrored, of=src_d if mirrored else None, n=n,
+        ref_d = base / info["ref"] if info.get("ref") else approved_ref
+        e = dict(d=d, view=VIEW[src_d], mirrored=mirrored, of=src_d if mirrored else None, n=n,
                  status=("mirror" if mirrored else info.get("status", "not painted" if not pp else "review")))
         if d in orig:
             e["orig"], e["on"] = orig[d]["strip"], orig[d]["n"]
@@ -153,8 +160,8 @@ def main():
                        else bool(abs(g[0] - p[0]) > 0.2) for g, p in zip(G, P)][:n]
                 e.update(gs=[round(float(g[0]), 3) for g in G][:n], ps=[round(float(p[0]), 3) for p in P][:n],
                          off=off, ghost=[bool(p[2] > gmax) for p in P][:n], match=n - sum(off))
-                if approved_ref:
-                    e["colour"] = round(gc.drift(str(pp), str(approved_ref)), 2)
+                if ref_d:
+                    e["colour"] = round(gc.drift(str(pp), str(ref_d)), 2)
         dirs.append(e)
     spend = ch.get("spend", [])
     data = dict(name=ch.get("name", "Character"), description=ch.get("description", ""), frames=ch.get("frames"),

@@ -1,10 +1,10 @@
 {
   "name": "Hero 3 (huntress)",
   "description": null,
-  "frames": null,
-  "mirror": null,
-  "guide": null,
-  "body": null,
+  "frames": 12,
+  "mirror": false,
+  "guide": "walk",
+  "body": "standard walk guide (adult 1.82 m, EU 43), not a custom female body yet",
   "references": [
     {
       "file": "reference/round-1/candidate-1.png",
@@ -27,12 +27,31 @@
     "candidate-2": "a lean, athletic adult woman about 30, a huntress and ranger of the northern woods: short-cropped ash-blonde hair and a sharp, weathered face with a pale scar across one cheek; a charcoal-grey wool hooded half-cloak to mid-thigh with the hood DOWN, a thick grey wolf-fur collar over the shoulders; a dark-brown leather jerkin with bold leather straps across the chest; long dark leather gloves and bracers; a wide black belt with a pouch and a sheathed knife; grey-brown trousers; tall dark boots with fur at the tops. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried.",
     "candidate-3": "a lean, athletic adult woman about 25, a huntress and ranger: wild copper-red hair tied back in a high ponytail, freckles; NO cloak: a short dark-green leather shoulder mantle with a stag-antler toggle; a rust-brown hardened leather cuirass with a few bold rivets over a forest-green tunic reaching mid-thigh; brown leather bracers and fingerless gloves; a wide belt with crossed straps, a pouch and a sheathed hunting knife; snug brown leggings; soft knee-high boots wrapped with leather laces. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried."
   },
-  "directions": {},
-  "next": "Pick a reference (or ask for changes); then decide frames (12 like hero-2?) and mirroring",
+  "directions": {
+    "NW (cand. 1)": {
+      "dir": "NW",
+      "file": "paint/NW-c1.png",
+      "ref": "reference/round-1/candidate-1.png",
+      "status": "review",
+      "note": "candidate 1, --cloth --she (paint/NW-c1.prompt.txt). Stride 12/12, no faded limbs, colour 0.91. Cloak, braid and bracers the same in every frame."
+    },
+    "NW (cand. 2)": {
+      "dir": "NW",
+      "file": "paint/NW-c2.png",
+      "ref": "reference/round-1/candidate-2.png",
+      "status": "review",
+      "note": "candidate 2, --cloth --she (paint/NW-c2.prompt.txt). Stride 11/12 and 12 faded-limb flags, all false alarms (her grey-brown trousers fool the test; frame 1 is a clean stride). Colour 0.94. Real fault: in frames 5-6 the cloak's long back vanishes (a short shoulder cape). The fur collar is fine-grained texture."
+    }
+  },
+  "next": "Pick candidate 1 or 2 from the two NW walks (or ask for changes); then paint the other 7 directions with --match NW",
   "spend": [
     {
       "what": "3 reference candidates (edit, hero-2 reference as style input)",
       "usd": 0.1
+    },
+    {
+      "what": "NW walk for candidates 1 and 2 (OpenAI, 12 frames)",
+      "usd": 0.06
     }
   ],
   "artifact": "https://claude.ai/artifact/P8Q2JZXfrDRoL8QFL9kPH8"

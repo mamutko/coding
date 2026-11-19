@@ -19,9 +19,10 @@ tools/
                      --girth (body thickness), ...
   walk_cycle.py      the algorithmic stick-figure guide (per-character gaits in CHARS) and the projection
   default_guides.py  regenerates guides/
-  guide_prompt.py    the painting prompt: --plain (shaded guide), --character, --ref, --match, --cloth
+  guide_prompt.py    the painting prompt: --plain (shaded guide), --character, --ref, --match, --cloth, --she (a woman)
   grid_check.py      checks a painting against its guide: stride, faded limbs, colour drift (--ref)
-  board.py + board_template.html   the character board (review page, published as an Artifact)
+  board.py + board_template.html   the character board (review page, published as an Artifact);
+                     a direction can show several variants (e.g. one per reference candidate) side by side
   build_sheet.py     painted directions -> game sprite sheet + meta.json entry (aligned on the guide, fpt from
                      the stride, --plant-check feet image; "from_guide": a mannequin sheet)
 tests/          a known guide + painting pair for grid_check (a real faded boot), see Verifying the tools
