@@ -58,6 +58,7 @@
     <button class="sc" id="sbLooks2"><b>Character viewer</b>Walk around an empty big room as any character that has a sprite sheet: the hero, the monsters and the Keepers of the Crypt. Pick the look in the bar; click to walk, and watch every direction.</button>
     <h2>Lakes</h2>
     <button class="sc" id="sbLake"><b>The underground lake</b>Depth 8, on the shore of the huge lake room. The lake reaches out of sight; its far shores are the room's walls. Wraiths hover over the water in a loose group (only they can cross it). You carry 15 fire bombs (key 4): one that lands in the water sinks, but fire on the shore spreads its burning oil over the water. Drops fall from the ceiling now and then; watch the reflections ripple.</button>
+    <button class="sc" id="sbFrost"><b>The scroll of frost</b>Depth 8, on the lake's shore with 6 scrolls of frost (key 4) and 15 fire bombs (key 5). Two skeletons, a ghoul and a champion skeleton stand within 4 tiles; the lake's wraiths hover beyond. Press 4: you read the incantation (1.6 s), then the frost blast freezes the monsters near you (champions for less time) and the lake within 10 tiles. Walk out on the ice, throw a bomb onto it (it shatters and burns there), and get off before it cracks and melts: whoever is on it then drowns.</button>
     <h2>Music</h2>
     <button class="sc" id="sbPack"><b>Pack fight</b>Five skeletons rush you at depth 3. Four or more pursuers start the combat track. Kill them all and it switches back at once; run until they lose interest and it holds 6 s.</button>
     <button class="sc" id="sbDemon"><b>Pit Demon level</b>Depth 8 with a Pit Demon boss, next to its boss room. The 2nd, 5th and 9th play of each track is the choir version (use Next loop to skip ahead); stepping into the boss room plays the choir combat track.</button>
@@ -200,6 +201,19 @@
     G.monsters = G.monsters.filter(mo => mo.lake || Math.hypot(mo.x - h.x, mo.y - h.y) > 14);
     start('lake'); log('Test: the underground lake. Wraiths hover over the water.', '#9fb6c8');
   };
+  $('sbFrost').onclick = () => {
+    $('sbLake').onclick();   // the lake scenario's shore spot, wraiths and bombs
+    const h = G.hero, m = G.map;
+    h.inv[h.inv.indexOf(null)] = makePotion('frost', 6); h.hotkeys[3] = { type: 'use', pot: 'frost' }; h.hotkeys[4] = { type: 'bomb' };
+    const spots = [];   // four monsters on dry floor 2-3.8 tiles from the hero, standing still until hit
+    for (let y = Math.floor(h.y) - 4; y <= h.y + 4; y++) for (let x = Math.floor(h.x) - 4; x <= h.x + 4; x++) {
+      const dd = Math.hypot(x + 0.5 - h.x, y + 0.5 - h.y); if (dd >= 2 && dd <= 3.8 && floorAt(x, y) && !m.block[y * m.w + x]) spots.push([x, y]); }
+    ['skeleton', 'skeleton', 'ghoul', 'skeleton'].forEach((t, i) => { if (!spots.length) return;
+      const [x, y] = spots.splice(Math.floor(Math.random() * spots.length), 1)[0], mo = makeMonster(t, x + 0.5, y + 0.5, 8, false, i === 3, i !== 3);
+      mo.calm = { walked: -1e9, t: 1e9 }; G.monsters.push(mo); });
+    refreshUI(); mode = 'frost';
+    log('Test: the scroll of frost. Press 4 to read it.', POTIONS.frost.color);
+  };
   // Character viewer: every sheet in META.characters, named; the hero takes the picked look (G.hero.look, see
   // heroLook in the game), in an empty big room
   const lookName = k => HERO_LOOKS[k] ? 'The hero: ' + HERO_LOOKS[k].toLowerCase() : MON[k] ? MON[k].name : /^keeper\d$/.test(k) ? KEEPERS[+k.slice(6)].name : CAST_NAMES[k] || k;
@@ -274,6 +288,14 @@
         + ` · ${(h.st.speed * (h.speedMul || 1)).toFixed(2)} tiles/s`;
       return;
     }
+    if (mode === 'frost') {
+      const h = G.hero, st = h.inv.find(it => it && it.pot === 'frost'), S = G.map.iceS, p = S && S.patches[S.patches.length - 1];
+      const fz = G.monsters.filter(mo => !mo.dead && mo.frozen && mo.frozen.on).map(mo => `${mo.champ ? 'champion ' : ''}${mo.type} ${(mo.frozen.delay + mo.frozen.dur - mo.frozen.t).toFixed(1)} s`);
+      $('sbInfo').innerHTML = `<span class="mood">Scrolls ${st ? st.count : 0}</span>` + (h.using && h.using.cast ? ' · <span class="burn">reading…</span>' : '')
+        + (p ? ` · ice: ${p.phase === 'freeze' ? 'freezing' : p.phase === 'melt' ? 'melting' : (p.phase === 'warn' ? 'cracking, ' : '') + 'melts in ' + Math.max(0, p.life - p.t).toFixed(1) + ' s'}` : ' · no ice')
+        + (fz.length ? ' · frozen: ' + fz.join(', ') : '') + (iceAt(h.x, h.y) ? ' · <span class="burn">you are on the ice</span>' : '') + (PERF.fps ? ` · ${PERF.fps} fps` : '');
+      return;
+    }
     if (mode === 'lake') {
       const h = G.hero, w = G.monsters.filter(mo => mo.lake && !mo.dead), pur = w.filter(mo => mo.state === 'chase').length;
       const near = w.length ? Math.min(...w.map(mo => Math.hypot(mo.x - h.x, mo.y - h.y))).toFixed(1) : '–';
@@ -293,7 +315,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbLooks2', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbLake', 'sbPack', 'sbDemon'];
+  const SC = ['sbLooks2', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
   // the same, but the picker covers it); errors thrown later are listed there too

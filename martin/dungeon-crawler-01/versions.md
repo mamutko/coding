@@ -9,9 +9,21 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v87 — scrolls, and the scroll of frost (2026-11-19)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 87`)*
+
+- **Scrolls**: use items like potions (they stack, bind to quick keys, show as equipped while used) that are read
+  aloud; the spell goes off when the reading ends. Found only in a new chest on the lake room's shore (4 scrolls).
+- **The scroll of frost**: a 1.6 s Latin incantation ("Gelu, cuncta liga!", an AI voice), then a frost blast
+  around the hero. Monsters within 4 tiles freeze solid (5 s; less for stronger ones, champions, guardians), and
+  the lake within 10 tiles freezes for 18 s: walkable, scarred with frost on the side of the blast, cracking for
+  its last 5 s (from under whoever stands on it), then thawing; anyone still on it drowns. Drops tick on the ice,
+  fire bombs shatter and burn on it. New sounds, a sandbox scenario, and the frost scroll icon.
+
 ## v86 — the woodsman and scout looks (2026-11-19)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 86`)*
+Commit: 1d86a1e
 
 - Two more hero looks, **Woodsman** (`assets/hero4.webp`: short beard, brown hooded half-cloak, olive jerkin) and
   **Scout** (`assets/hero5.webp`: young, black hair, leather vest over a rust-red tunic, green cowl), painted with

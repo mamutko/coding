@@ -13,6 +13,10 @@ Raw sheets (tools/raw):
   items3.png  OpenAI gpt-image-2 (medium), 3 x 2 cells on magenta (cell 6, a belt pouch, is unused).
   firebombs.png  OpenAI gpt-image-2 (medium), 3 x 2 cells on magenta: six fire bomb designs (firebomb1-6),
               the look options for the fire bomb (see README, Fire bombs).
+  scrolls.png, scrolls2.png  Google gemini-3.1-flash-image, 3 x 2 cells on magenta: twelve frost scroll designs
+              (scrolls.png from a prompt, scrolls2.png an edit with the item icons as a style reference); the
+              one picked is frostscroll: scrolls.png cell 0, A1; the other eleven are in assets/unused/scrolls
+              (see README, Scrolls).
 Then it rewrites assets/meta.json and the inline `const META = ...` line in index.html.
 """
 import ast, json, pathlib, re, sys
@@ -43,6 +47,7 @@ SHEETS = [
                           (4, "heavygreaves")]),
     ("firebombs.png", 3, 2, [(0, "firebomb1"), (1, "firebomb2"), (2, "firebomb3"), (3, "firebomb4"),
                              (4, "firebomb5"), (5, "firebomb6")]),
+    ("scrolls.png", 3, 2, [(0, "frostscroll")]),
 ]
 
 

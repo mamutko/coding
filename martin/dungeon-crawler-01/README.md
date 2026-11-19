@@ -29,21 +29,21 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `assets/grass_a.jpg`, `assets/grass_b.jpg` | 512 px seamless grass textures of the surface (lush dark green; patchy olive meadow). See [The surface](#the-surface-depth-0). |
 | `assets/surface.webp` | The surface's sprites: four trees (oak, fir, dead tree, birch; each with its crown cut), four bushes, four ground details (flowers, rocks, mushrooms, a grass tuft) and the crypt. Coordinates in `META.surface`. |
 | `tools/add_surface.py`, `tools/raw/grass_a.png`, `grass_b.png`, `trees.png`, `bushes.png`, `crypt.png` | Builds the two grass textures and `assets/surface.webp` from the raw AI images, and writes `META.surface` into `assets/meta.json` and the inline `META`. |
-| `assets/unused/` | AI images made but not used by the game, kept for later: `keepers-creepy.png` (the first, rejected Keepers of the Crypt). The five unused fire bomb designs are in `assets/items.webp` (`firebomb2`–`firebomb6`) and `tools/raw/firebombs.png`. Not loaded, and left out of the sandbox artifact. |
+| `assets/unused/` | AI images and sounds made but not used by the game, kept for later: `keepers-creepy.png` (the first, rejected Keepers of the Crypt); `scrolls/frostscroll-A2`–`A6`, `B1`–`B6` (the eleven scroll of frost designs not picked, keyed, 192 px); `incantations/` (the incantation in six Google voices: Algenib, the one in use, Charon, Enceladus, Fenrir, Gacrux, Orus). The five unused fire bomb designs are in `assets/items.webp` (`firebomb2`–`firebomb6`) and `tools/raw/firebombs.png`. Not loaded, and left out of the sandbox artifact. |
 | `assets/dirt.jpg` | 512 px seamless dirt texture for wall tops and wall faces toward solid ground (from `add_props.py`). |
 | `assets/meta.json` | Frame sizes and atlas coordinates written by the processing script (copied into `META` in `index.html`). |
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
 | `tools/stride_check.py` | Checks an AI walk-cycle image against its pose guide, frame by frame (foot spread in the side views, which foot is lower in the front and back views), and marks frames that copy the other half of the stride. See [Walk cycles](#walk-cycles-hero-skeleton-ghoul). |
 | `tools/walk_cycle.py` | Walk-cycle pipeline (hero, skeleton, ghoul): renders the 3D stick-figure pose guides and placeholders, and builds the 8-frame sheets. |
-| `tools/add_items.py`, `tools/raw/items2.png`, `items3.png`, `firebombs.png` | Appends the icons of the newer item types (and a quiver), and the six fire bomb designs, to `assets/items.webp` from the three raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
+| `tools/add_items.py`, `tools/raw/items2.png`, `items3.png`, `firebombs.png`, `scrolls.png`, `scrolls2.png` | Appends the icons of the newer item types (and a quiver), the six fire bomb designs and the scroll of frost (`frostscroll`, cell 1 of `scrolls.png`), to `assets/items.webp` from the three raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
 | `tools/add_market.py`, `tools/raw/keepers.png`, `keeper_decor.png` | Adds the Keepers of the Crypt and their furnishings to `assets/props.webp` (the rows after row 2) and updates `assets/meta.json` and the inline `META`. See [Keepers of the Crypt](#keepers-of-the-crypt-the-market). |
 | `tools/add_props.py`, `tools/raw/bones_searched.png`, `doors.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones, door leaves) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
-| `assets/sfx/` | Ghoul moans and grunts (MP3). |
+| `assets/sfx/` | Ghoul moans and grunts, and the scroll of frost's incantation (`incant1.mp3`) (MP3). |
 | `assets/music/explore-instrumental.mp3`, `combat-instrumental.mp3`, `explore.mp3`, `combat.mp3`, `surface-1.mp3`, `surface-2.mp3` | The music: exploration and combat loops, each instrumental and with a Latin choir, and two cheerful instrumental surface tracks. See [Music](#music). |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul`, `keeper1`–`keeper4` and the cast × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 | `lake-prototype.html` | A standalone prototype of underground lakes (not loaded by the game, which now has lakes: see [Lakes](#lakes)): still water set a few pixels below the floor, a mirrored reflection of the walls, props and characters, rock banks on the far shores, and ripples from drips. A panel compares the options (tile or rounded shore, ripple rings or refraction, water colour, depth, reflection strength). Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page lake-prototype.html --skip 'assets/*' --inline` (the seven images it uses). |
-| `ice-prototype.html` | A standalone prototype of lake water freezing under an ice blast (not loaded by the game yet; the freeze spell comes later). The blast comes either from a target spot on the water (a scar of white rime, frost streaks, broken pressure rings and fractures at the centre of the ice) or from the hero on the shore (heavy rime along the water's edge nearest the hero, streaks and fractures fanning out across the ice, frost on the stones around their feet). It freezes the lake in a radius; the ice lasts a set time and cracks for its last 5 s, the cracks branching out from under whoever stands on it (the hero or a monster; not the wraith, which floats), else from the scar or the edge nearest the hero. Anyone still on the ice when it melts falls through and drowns. Monsters inside the radius (not the caster) freeze too, as the front reaches them, for a shorter time than the water (8 s by default): the whole body fades to pale icy blue over 0.15 s and cold mist pours off them, and they stop mid-step (the wraith mid-air); for the last 0.75 s they shudder, then the blue fades over 0.35 s. Burning oil does not melt the ice. The chosen looks are the frost front (freezing) and thaw (melting; at most 3 ripples per melt, as refraction is costly); shard burst, flash, break up and recede stay in the panel. On the ice drops only tick, with no ripples, and fire bombs shatter and burn instead of sinking. Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page ice-prototype.html --skip 'assets/*' --inline` (the same seven images as the lake prototype): https://claude.ai/artifact/ECmt2MkwcVn97V4E9iGib5 |
+| `ice-prototype.html` | A standalone prototype of lake water freezing under an ice blast (not loaded by the game, which now has ice from the scroll of frost: see [Scrolls](#scrolls)). The blast comes either from a target spot on the water (a scar of white rime, frost streaks, broken pressure rings and fractures at the centre of the ice) or from the hero on the shore (heavy rime along the water's edge nearest the hero, streaks and fractures fanning out across the ice, frost on the stones around their feet). It freezes the lake in a radius; the ice lasts a set time and cracks for its last 5 s, the cracks branching out from under whoever stands on it (the hero or a monster; not the wraith, which floats), else from the scar or the edge nearest the hero. Anyone still on the ice when it melts falls through and drowns. Monsters inside the radius (not the caster) freeze too, as the front reaches them, for a shorter time than the water (8 s by default): the whole body fades to pale icy blue over 0.15 s and cold mist pours off them, and they stop mid-step (the wraith mid-air); for the last 0.75 s they shudder, then the blue fades over 0.35 s. Burning oil does not melt the ice. The chosen looks are the frost front (freezing) and thaw (melting; at most 3 ripples per melt, as refraction is costly); shard burst, flash, break up and recede stay in the panel. On the ice drops only tick, with no ripples, and fire bombs shatter and burn instead of sinking. Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page ice-prototype.html --skip 'assets/*' --inline` (the same seven images as the lake prototype): https://claude.ai/artifact/ECmt2MkwcVn97V4E9iGib5 |
 | `sandbox.js` | Test scenarios, loaded with `?sandbox` and inlined into the Claude artifact: see [Sandbox](#sandbox). |
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
 | `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
@@ -135,6 +135,11 @@ The picker (*Crypt Sandbox*) groups the scenarios:
       asleep: their calm never ends, so only a hit wakes one. Until then they wander slowly.
     - Shows the draw time and the charge, with room to run.
 - **Lakes:**
+  - **The scroll of frost** (`sbFrost`): the underground lake scenario below, plus 6 scrolls of frost on key 4 and the
+    15 fire bombs on key 5, and four monsters on dry floor 2–3.8 tiles from the hero, standing still until hit:
+    two skeletons, a ghoul and a champion skeleton (depth 8). The bar shows the scrolls left, "reading…" while the
+    incantation runs, the ice's phase and time to the melt, each frozen monster's time left, and whether the hero
+    is on the ice.
   - **The underground lake** (depth 8, `LAKE_AT`, which always has the lake room): the hero stands on the dry
     shore where it faces the middle of the lake (the dry tile one step back from the water nearest the room's
     diagonal), facing the water, with 15 fire bombs in the pack on key 4 (the longsword stays equipped). Monsters
@@ -431,7 +436,9 @@ and the picker shows no saved heroes.
 - **Effects.** Melee swings draw a sweeping crescent arc in the attack direction. Arrows are drawn as shafts with
   a tip, and wraith bolts as glowing green orbs. Hits spray blood-coloured sparks (green for wraiths), urns
   burst into shards, and level-ups emit an expanding golden ring. While a potion is being used, its icon (30 px, tinted
-  like its stack) rises 18 px above the hero's head and fades out over the 0.4 s; iron skin gives the hero a
+  like its stack) rises 18 px above the hero's head and fades out over the 0.4 s; a scroll being read does the same
+  over its 1.6 s (fading only at the very end, alpha `1 − k⁶`) while 14 pale blue frost motes spiral in toward the
+  hero, faster and brighter as the words end; iron skin gives the hero a
   steel-blue glow (`drop-shadow`).
 - **Sprite effects without canvas filters.** The effects above (hit flash, hover brightening, champion / boss /
   iron skin / guardian's chest glows, potion tints, the green brazier, grey banners) are canvas filters (`ctx.filter`), which
@@ -510,6 +517,8 @@ reflects at 70 % (`refl`), and a reflection fades by 45 % (`fade`) over 120 px o
 - **Loot over water.** A drop where a wraith dies over the lake washes ashore: `dropSpot` keeps searching, ring by
   ring up to 40 tiles, until it finds a free dry tile (the nearest ring with one, picked at random on it).
 - **The minimap** shows explored water dark blue.
+- **Ice.** A scroll of frost freezes the lake within 10 tiles of the hero for 18 s; while it lasts it can be walked
+  on, and it cracks and thaws. See [Scrolls](#scrolls).
 
 ## Main loop
 
@@ -649,6 +658,10 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
     lead, and what the connectivity checks use) is on its dry shore, 3 tiles in from its south-east corner. With
     nothing north or west of it, every corridor reaches it through its east or south wall. Like the boss and big
     rooms it is entered only through doors. It is never the stairs', boss, big, keeper or lone monster's room.
+  - **The scroll chest.** On the dry shore, among the braziers and bones (a shore tile next to the water, at least
+    3 tiles from the other things placed there), a chest that holds **4 scrolls of frost and nothing else**
+    (`scrolls: 4`; no gold, no item, no potion). It is the only place in the game where scrolls are found. The
+    lake room's other chest (50 %, a big room's chest) is unchanged.
   - **The lake.** After the walls are built, its tiles become water (`T_WATER`) except a dry shore 4 tiles wide
     (`LAKE_SHORE`) along the east and south walls. The shoreline is a quarter superellipse around the north-west
     corner (`((lx + 0.5) / A)^2.4 + ((ly + 0.5) / B)^2.4 < 1 + n`, with `A`, `B` the room's sides minus 4.5 and `n` a
@@ -751,6 +764,7 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
   | Descending stairs | 10 × the new depth |
 - **Potions** (see [Potions](#potions)): the health potion restores 44 % of max life (`HEAL`); the iron skin potion hardens
   the hero's armor to armor × 3 + 60 for 20 s (`IRON`). Using one takes 0.4 s of the hero's action time (see [Actions](#actions)).
+- **Scrolls** (see [Scrolls](#scrolls)): the scroll of frost, read aloud for 1.6 s, then a blast of frost around the hero.
 - **Death** returns to the title screen with the fallen hero selected; the hero resumes from its last save
   (see [Saving](#saving)).
 
@@ -839,6 +853,7 @@ and item uses:
 | Equipping or unequipping a weapon (`SWAP_T`) | 0.2 s |
 | Equipping or unequipping other gear (armor, rings, amulet) | none (it still waits its turn) |
 | Potion use (`USE_T`) | 0.4 s |
+| Reading a scroll (`POTIONS[k].time`) | 1.6 s (the scroll of frost) |
 
 - **The action queue.** Quick-key presses (weapon swaps and potions), `Q`, the life orb, and every equip,
   unequip and use in the equipment overlay (its buttons and double-clicks) add an action to `h.queue`
@@ -852,6 +867,8 @@ and item uses:
   the pack ("No health potions left."), an equip of an item no longer in the pack, or an unequip of an item no longer equipped (or with
   a full pack: "Your pack is full.").
   Pressing a potion key with no potions of that type at all logs the same message and queues nothing.
+- **A scroll is read the same way** (`{ kind: 'use', pot: 'frost' }`): the scroll is used up when the reading
+  starts, and its spell goes off when the reading ends (`h.using.cast`, see [Scrolls](#scrolls)).
 - **A potion in use shows as equipped:** for its 0.4 s its quick key lights up instead of the weapon's, the
   attack button shows the potion, and the potion's icon rises above the hero's head and fades. Then the weapon
   comes back.
@@ -1180,6 +1197,70 @@ stronger fire bombs later:
 
 See [Assets](#assets).
 
+### Scrolls
+
+Spells written on scrolls, read aloud. A scroll is a use item like a potion (it is an entry of `POTIONS` with
+`scroll: true`, slot `use`, and its own icon, `icon`): it stacks by kind in one pack cell, binds to a quick key, and
+is used from the pack, the equipment overlay or its key (see [Actions](#actions)). Using one is **reading it**:
+the scroll is used up, the hero speaks its incantation (`time` s, the weapon hand busy: no attacks; walking goes on),
+it shows as the equipped item meanwhile (its quick key lit, the attack button showing it) and above the hero's head,
+then its spell goes off and the weapon comes back. Keepers buy and sell it like a potion (value 150 a scroll).
+
+Scrolls are found in one place only: the chest on the lake room's shore holds 4 scrolls of frost (see
+[Dungeon generation](#dungeon-generation)). Nothing else drops them.
+
+**The scroll of frost** (`POTIONS.frost`, icon `frostscroll`: a frosted rolled parchment tied with a pale blue
+ribbon and a snowflake wax seal). Reading takes 1.6 s; the incantation is *"Gelu, cuncta liga!"* (Latin, "Frost,
+bind all things!": *gelu* frost, *cuncta* all things, *liga* bind), an AI voice, `assets/sfx/incant1.mp3` (see
+[Sound](#sound)). When the words end, a **blast of frost** goes off centred on the hero (`castFrost`; `FROST`):
+
+- **The frost front** runs out from the hero over `0.9 + 0.07 × 10` = 1.6 s, easing (`1 − (1 − u)³`): the radius
+  is reached at `fd · (1 − ∛(1 − u))`. A white flash at the hero (a light and an additive glow, fading in 0.5 s),
+  the `frostcast` sound, frost on the stones around the hero (rime, 70 streaks, powder, 3.5 tiles, spreading with
+  the front and fading as the ice melts; `floorFrostTex`), and cold mist rising along the front over the water.
+- **Monsters within 4 tiles** (plus their radius) freeze when the front reaches them (`freezeMonster`): the whole
+  body fades to a pale icy blue over 0.15 s (a `color`-blend tint, `ICE_TINT` `#a9dcf7`, at 90 %, plus 22 % of it
+  added for a frosty brightness), cold mist pours off it for 2.5 s, and it stops dead mid-step (a wraith mid-air,
+  its reflection too): no moving, no attacking (a wind-up is cancelled), no sound. Hits still land. For its last
+  0.75 s it shudders, then it thaws: the tint fades over 0.35 s. **How long** (`frostDur`): 5 s up to one level
+  above the hero (a monster's level is its depth), 12 % less for each level beyond that (at least half); a
+  champion 60 % of that (3 s), a guardian 40 % (2 s). The hero is never frozen.
+- **Water within 10 tiles** freezes over for 18 s (`FROST.iceDur`). The ice is a patch (`map.iceS.patches`, at most
+  3): a disc of radius 10 around where the hero stood, with a slightly wavy edge (sines of 5, 8, 13 and 29 cycles),
+  clipped to the lake, at the water's level. It was worked out in `ice-prototype.html` (see Files), whose
+  *frost front* freeze and *thaw* melt were picked.
+  - **The look** (`iceTex`, drawn once): a pale blue tint (46 % to 30 % from the middle out), clouds of white rime
+    and darker clear ice, frost ferns, strings of trapped bubbles; and the **blast scar** where the ice meets the
+    shore nearest the hero (the blast came from the stones, so its centre is off the ice): heavy white rime along
+    that edge, 110 frost streaks fanning out from the hero, frost powder, two broken pressure rings, 16 fractures
+    running away from the hero. Each frame (`drawIce`, on its own layer over the water, clipped like the water):
+    the deep water colour, the reflection at 42 % (smooth ice still mirrors), the texture; fresh ice white with
+    rime that clears within about 2 s of the front passing (by how long ago it passed each radius); the running
+    front as a bright rim with crystals feathering out ahead; and the rim of the ice, a thin light edge with a
+    dark contact line on the water.
+  - **Walking on it.** A water tile whose middle is on solid ice holds weight (`map.iceS.solid`, refreshed every
+    frame; `blocked`): the hero and monsters walk and path across it. Someone on the ice stands at the water's
+    level, 8 px lower (eased), with a shadow. Drops that land on the ice make no splash and no ripple: a tiny
+    tick (`icetick`) and four beads skittering off. A fire bomb that lands on the ice shatters and its oil burns
+    there (it sinks only in open water); fire does not melt the ice.
+  - **Cracks** (the last 5 s, `FROST.warn`). They start under whoever stands on the ice (the hero or a monster that
+    walks; not a wraith, which floats), else at the edge nearest the hero, with a loud crack. The network
+    (`buildCracks`) is a Voronoi diagram of seeds set in rings around the start (about 0.75 tiles apart, jittered;
+    only seeds near water), each cell clipped from its neighbours' half-planes; its edges are jagged polylines. The
+    cracks run out along it as a branching tree (the shortest-path tree from the start, `crackTimes`: Dijkstra at
+    a speed that cracks the far edge 0.9 s before the melt; the spokes from the start pop at once); 30 % of the
+    other edges crack 0.6–2.4 s later, the rest open only in the thaw. Someone stepping onto the cracking ice more
+    than 1.1 tiles from every start starts new cracks under their feet (up to 12 starts). Each crack is a light
+    line with a dark one beside it, thickening toward the melt, while the ice darkens (wetter) by up to 28 %.
+    Clicks sound as cracks open (on 20 % of the frames that open any), now and then a deep ringing ping.
+  - **The thaw** (2.4 s, `meltIce`): whoever is still on the ice **drowns**: the hero dies ("The ice gave way
+    beneath you. You drowned at depth 8."), a monster dies with a splash, gives its experience and drops nothing
+    (what it carried sinks); items and gold lying on the ice sink. The ice darkens, its cracks widen into channels
+    of open water, up to 140 holes open and join (each a jagged circle growing from a random moment), the rim melts
+    back, and the last 30 % fades it out. At most 3 ripples rise from the holes (ripple refraction is costly).
+  - **Light.** The ice glows faintly (a light hole of up to 6 tiles at 22 %, at the edge nearest the hero, fading
+    with the thaw).
+
 ## Keepers of the Crypt (the market)
 
 On every third depth (3, 6, 9, …) a **Keeper of the Crypt**, a living human merchant, keeps a stall in a quiet room of
@@ -1242,7 +1323,7 @@ to it and opens the **market** (`openMarket`). The constants are `KEEPER` in the
   - an item type unlocking at depth L is worth `12 × L² + 50` (a Short Sword 62, a Broadsword 350, a War Bow 2750);
   - rings and amulets count as L = 3 + 3 × their affix tier;
   - magic items are worth × 2.5 and rare ones × 5, plus 15 % per affix tier above 1;
-  - potions and fire bombs have fixed prices per piece: health 40, iron skin 60, fire bomb 50.
+  - potions, scrolls and fire bombs have fixed prices per piece: health 40, iron skin 60, scroll of frost 150, fire bomb 50.
 
   For comparison, a level holds about 250 × depth gold (100 at depth 1, 370 at 3, 1300 at 6, 2400 at 9), so a hero
   reaches the first keeper with about 500 gold.
@@ -1510,6 +1591,19 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
   - It also roars: a looping low-passed noise per fire (`updateFireSound`), with its gain following the fire's
     strength and its distance from the hero. It is silent when sound is off or the game isn't running, and stops
     when the fire goes out or the level changes.
+- **The scroll of frost.**
+  - *Reading* (`incant`): the incantation, "Gelu, cuncta liga!", a clip (`assets/sfx/incant1.mp3`, 1.55 s): Google
+    `gemini-3.8-flash-tts`, voice Algenib, styled "a sorcerer snapping out a three-word Latin spell, classical Latin
+    pronunciation (GEH-loo, KOONK-tah, LEE-gah), fast and clipped, low and forceful, like a command, the whole phrase
+    in about one and a half seconds"; trimmed of silence (10 ms fades), peak-normalised, 96 kbit/s MP3. The other
+    five voices are in `assets/unused/incantations`.
+  - *The blast* (`frostcast`): a cold whump (140 → 40 Hz), a short noise burst, a high-passed hiss of frost
+    sweeping down over 1.8 s as the front runs out, six high pings of ice setting and two crystalline clicks.
+  - *A monster freezing* (`encase`): a short crackling hiss sweeping down, a low creak, a click.
+  - *Cracks* (`icecrack`): a sharp band-passed click; 8 % of them (and every loud one: the first, and someone
+    stepping on) add a deep ringing ping (900–1400 → 160–240 Hz) and a low rumble.
+  - *A drop on the ice* (`icetick`): a tiny high sine tick and a hiss, no splash.
+  - *Drowning*: the bomb splash (`plunge`) and a short run of rising bubbles (`bubbles`).
 - **Ghoul clips** (`assets/sfx/moan1–5.mp3`, `grunt1–2.mp3`): Google `gemini-3.8-flash-lite-tts` (fractions of
   a cent) with wordless text and a style prompt, e.g. "Uuuuurrrrhhhhhh... hhhuuuurrrrgh." in the voice Algenib,
   styled "a rotting undead ghoul: a long, low, wet guttural moan, raspy and breathy, no words, slow" (raw takes in
@@ -1547,6 +1641,13 @@ walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycle
 - **Item icons** (1536 × 1024): a 6 × 4 grid listing the 24 icons in the order of the `META.items` keys
   (weapons, bows, helms, armor, gloves, boots, rings, amulets, potion), on magenta. These are the first 4 rows of
   `items.webp` (6 × 7 cells of 96 px).
+- **The scroll of frost** (row 9 of `items.webp`, `frostscroll`): two 3 × 2 sheets of frost scroll designs on
+  magenta, Google `gemini-3.1-flash-image` (1K, 3:2, ~$0.07 each): `tools/raw/scrolls.png` from a prompt ("painted
+  dark-fantasy RPG inventory icon style … every icon is a magic spell scroll of Frost / Ice Blast, each a different
+  design: 1) a rolled parchment scroll tied with a pale blue ribbon and a blue wax seal stamped with a snowflake,
+  frost on its edges; …"), and `tools/raw/scrolls2.png`, an `edit` with item icons from the atlas as the style
+  reference. The picked design is cell 1 of `scrolls.png` (A1); the other eleven are keyed in
+  `assets/unused/scrolls`. (OpenAI had no credits left at the time.)
 - **Fire bombs** (row 8 of `items.webp`, `firebomb1`–`firebomb6`; `tools/raw/firebombs.png`, OpenAI `gpt-image-2`
   medium 1536 × 1024, ~$0.08): a 3 × 2 sheet on magenta of six designs of a hand-thrown fire bomb, "a small
   ceramic container filled with lamp oil, meant to shatter on impact … All unlit: no fire, no flames, no glow".
