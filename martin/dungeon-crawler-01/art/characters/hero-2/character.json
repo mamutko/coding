@@ -1,0 +1,40 @@
+{
+  "name": "Hero 2 (stocky knight)",
+  "description": "a stocky, broad-shouldered knight, a little shorter than average with a thick torso, short sturdy legs and big gauntleted hands; full plate armour of dark gunmetal steel with a slight warm sheen; a rounded dome great helm with a single horizontal visor slit and a raised central ridge, no face visible; large rounded pauldrons, a barrel-shaped breastplate, plate gauntlets, greaves and broad sabatons; a wide red-brown leather belt with a dark iron buckle; a short dark-grey chainmail skirt to mid-thigh with a plain crimson cloth tabard panel hanging front and back to just above the knees; a short crimson cloth half-cape over both shoulders, ending at the middle of the back with a clean, slightly worn hem; both hands empty, no weapon, no shield",
+  "frames": 12,
+  "mirror": false,
+  "guide": "walk",
+  "body": "adult 1.82 m, EU 43",
+  "references": [
+    {
+      "file": "reference-1.png",
+      "status": "candidate",
+      "note": "rounded pauldrons under a short cape, crimson front panel"
+    },
+    {
+      "file": "reference-2.png",
+      "status": "candidate",
+      "note": "stockiest: big round pauldrons over the cape, clenched fists"
+    },
+    {
+      "file": "reference-3.png",
+      "status": "candidate",
+      "note": "pointed pauldrons, high gorget collar, red belt"
+    }
+  ],
+  "directions": {},
+  "next": "Pick a reference, then paint NW",
+  "spend": [
+    {
+      "what": "3 reference candidates, from scratch (simple style)",
+      "usd": 0.1
+    }
+  ],
+  "original": {
+    "sheet": "../../../assets/hero.webp",
+    "frames": 8,
+    "fw": 144,
+    "fh": 152
+  },
+  "artifact": "https://claude.ai/artifact/Tb2291p5DBxLtAhroRwHk5"
+}
