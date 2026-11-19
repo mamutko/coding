@@ -417,6 +417,11 @@ and the picker shows no saved heroes.
   side. Static (no animation): a very faint green radial glow out to 1.45 × the radius, then two thin
   concentric rings, 24 rune ticks between them (every third one longer) and three arcs inside, in a muted green
   (40 % opacity), heavily blurred (`blur(3px)` plus a 26 px green shadow blur), all additive (`lighter`).
+  **Drawn once, then pasted:** `bakeRuneCircle` draws it into an offscreen canvas per boss room and screen scale
+  (zoom × render scale, rounded to 0.25; `RUNE_CACHE`), and each frame `drawRuneCircle` pastes that image only
+  while it is on screen. Until v83 it was drawn live every frame, on screen or not; when the browser draws
+  without the GPU (Chrome can fall back to that until it is restarted), the blur and shadow cost ~800 ms a frame:
+  1 fps on every level with a boss room (from depth 5), while levels without one ran normally.
 - **Effects.** Melee swings draw a sweeping crescent arc in the attack direction. Arrows are drawn as shafts with
   a tip, and wraith bolts as glowing green orbs. Hits spray blood-coloured sparks (green for wraiths), urns
   burst into shards, and level-ups emit an expanding golden ring. While a potion is being used, its icon (30 px, tinted

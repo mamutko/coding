@@ -393,7 +393,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 83;
+const VERSION = 84;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -3675,26 +3675,45 @@ function drawSprite(img, sx, sy, sw, sh, dx, dy, dw, dh, fx) {
 }
 // The boss room's rune circle: two thin concentric rings with rune ticks between them and three arcs inside, in
 // a muted green, static, heavily blurred, with a very faint green glow around it.
-function drawRuneCircle(r) {
-  const cx = r.cx + 0.5, cy = r.cy + 0.5, [sx, sy] = iso(cx, cy), R = Math.min(r.w, r.h) * 0.24;
-  const rx = R * HW * Math.SQRT2, ry = R * HH * Math.SQRT2;
-  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.translate(sx, sy); ctx.scale(1, ry / rx);
-  const glow = ctx.createRadialGradient(0, 0, rx * 0.4, 0, 0, rx * 1.45);
+// Drawn once into an offscreen canvas per room and screen scale (zoom x render scale, in 0.25 steps; RUNE_CACHE),
+// then pasted ('lighter') only while on screen. Drawing it live every frame (a blur filter plus a 26 px shadow)
+// cost ~800 ms a frame when the browser draws without the GPU: 1 fps on every boss level (v84).
+const RUNE_CACHE = { room: null, by: new Map() };
+const RUNE_PAD = 64;   // baked px around the glow for the blur and the shadow
+function bakeRuneCircle(rx, ry, S) {
+  const ex = rx * 1.45 * S, ey = ry * 1.45 * S, c = document.createElement('canvas');
+  c.width = Math.ceil(2 * (ex + RUNE_PAD)); c.height = Math.ceil(2 * (ey + RUNE_PAD));
+  const g = c.getContext('2d');
+  g.globalCompositeOperation = 'lighter'; g.translate(c.width / 2, c.height / 2); g.scale(S, S * ry / rx);
+  const glow = g.createRadialGradient(0, 0, rx * 0.4, 0, 0, rx * 1.45);
   glow.addColorStop(0, 'rgba(60,150,90,0.055)'); glow.addColorStop(0.7, 'rgba(60,150,90,0.04)'); glow.addColorStop(1, 'rgba(60,150,90,0)');
-  ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(0, 0, rx * 1.45, 0, 7); ctx.fill();
-  ctx.filter = 'blur(3px)';
-  ctx.strokeStyle = 'rgba(110,170,120,0.4)'; ctx.shadowColor = 'rgba(80,170,110,0.5)'; ctx.shadowBlur = 26;
-  ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(0, 0, rx, 0, 7); ctx.stroke();
-  ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(0, 0, rx * 0.82, 0, 7); ctx.stroke();
+  g.fillStyle = glow; g.beginPath(); g.arc(0, 0, rx * 1.45, 0, 7); g.fill();
+  g.filter = 'blur(3px)';
+  g.strokeStyle = 'rgba(110,170,120,0.4)'; g.shadowColor = 'rgba(80,170,110,0.5)'; g.shadowBlur = 26;
+  g.lineWidth = 2.5; g.beginPath(); g.arc(0, 0, rx, 0, 7); g.stroke();
+  g.lineWidth = 2; g.beginPath(); g.arc(0, 0, rx * 0.82, 0, 7); g.stroke();
   for (let i = 0; i < 24; i++) {   // rune ticks between the rings
     const a = i / 24 * Math.PI * 2, l = i % 3 === 0 ? 0.12 : 0.06;
-    ctx.beginPath(); ctx.moveTo(Math.cos(a) * rx * 0.84, Math.sin(a) * rx * 0.84);
-    ctx.lineTo(Math.cos(a) * rx * (0.84 + l), Math.sin(a) * rx * (0.84 + l)); ctx.stroke();
+    g.beginPath(); g.moveTo(Math.cos(a) * rx * 0.84, Math.sin(a) * rx * 0.84);
+    g.lineTo(Math.cos(a) * rx * (0.84 + l), Math.sin(a) * rx * (0.84 + l)); g.stroke();
   }
   for (let i = 0; i < 3; i++) {   // three arcs inside
     const a = i / 3 * Math.PI * 2 - Math.PI / 2;
-    ctx.beginPath(); ctx.arc(0, 0, rx * 0.5, a, a + 1.4); ctx.stroke();
+    g.beginPath(); g.arc(0, 0, rx * 0.5, a, a + 1.4); g.stroke();
   }
+  return c;
+}
+function drawRuneCircle(r) {
+  const cx = r.cx + 0.5, cy = r.cy + 0.5, [sx, sy] = iso(cx, cy), R = Math.min(r.w, r.h) * 0.24;
+  const rx = R * HW * Math.SQRT2, ry = R * HH * Math.SQRT2;
+  const T = ctx.getTransform(), S = Math.max(0.25, Math.round(T.a * 4) / 4);   // world -> device scale (no rotation)
+  const w = 2 * (rx * 1.45 + RUNE_PAD / S), h = 2 * (ry * 1.45 + RUNE_PAD / S);
+  const X = T.a * (sx - w / 2) + T.e, Y = T.d * (sy - h / 2) + T.f;   // device-space box: skip it when off screen
+  if (X > cv.width || Y > cv.height || X + T.a * w < 0 || Y + T.d * h < 0) return;
+  if (RUNE_CACHE.room !== r) { RUNE_CACHE.room = r; RUNE_CACHE.by.clear(); }
+  let c = RUNE_CACHE.by.get(S); if (!c) RUNE_CACHE.by.set(S, c = bakeRuneCircle(rx, ry, S));
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  ctx.drawImage(c, sx - c.width / 2 / S, sy - c.height / 2 / S, c.width / S, c.height / S);
   ctx.restore();
 }
 function drawProp(o) {

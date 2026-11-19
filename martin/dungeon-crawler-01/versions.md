@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v84 — boss levels no longer crawl without the GPU (2026-11-19)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 84`)*
+
+- The boss room's **rune circle** is drawn once into an offscreen image (per room and screen scale) and pasted
+  each frame, only while on screen. Drawn live every frame (a blur filter and a 26 px shadow), it cost ~800 ms a
+  frame whenever the browser was drawing without the GPU: 1 fps on every boss level (seen at depth 11), until
+  the browser was restarted. Measured without the GPU: ~880 ms → ~22 ms a frame; it looks the same.
+
 ## v83 — a frame-rate readout that sees slow frames (2026-11-19)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 83`)*
+Commit: 7a46936
 
 - The debug overlay's frame rate now counts every frame, however slow. Before, frames over 0.25 s were skipped,
   so at 1-2 fps it kept showing its last good value (e.g. 22 fps) and the automatic render scale never stepped in.
