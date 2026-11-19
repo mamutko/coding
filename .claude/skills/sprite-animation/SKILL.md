@@ -54,8 +54,11 @@ back), full body, standing relaxed with the arms a little away from the body, on
 
 ```
 python <notes>/.claude/skills/ai-media-generation/openai_media.py image "<prompt>" --size 1536x1024 \
-    --quality medium --background transparent -o <char>/reference-1.png
+    --quality medium --background transparent -o <char>/reference/round-1/candidate-1.png
 ```
+
+Keep every candidate, in rounds (`reference/round-1/`, `round-2/` ...; a round = one set of candidates after a
+round of feedback), and copy the approved one to `reference/reference.png`: that is the file every later step uses.
 
 Prompt: "Character turnaround sheet for a hand-drawn 2D isometric RPG: the same character three times side by side,
 FRONT view, SIDE view facing left, BACK view; full body, standing relaxed, arms slightly away from the body, feet
@@ -76,7 +79,7 @@ dents, worn edges or stains), never with fine noise, speckles or scratch texture
 ### 2. Decisions (ask, record in character.json)
 
 - **Frames per direction: 8 or 12.** 12 looks more natural (shoulder and hip rotation), 8 is lighter. The 12-frame
-  guides are 2304 × 1024 (~$0.046 per direction, estimated) against 1536 × 1024 for 8 ($0.034).
+  guides are 2304 × 1024 (~$0.03 per direction, measured on hero-2) against 1536 × 1024 for 8 ($0.034).
 - **Mirror SE / E / NE from SW / W / NW, or paint all 8?** Mirroring costs 5 images instead of 8 but swaps held items
   and asymmetric clothing to the other side.
 - **Guide:** the default `walk` unless the character calls for another (next step).
@@ -92,7 +95,10 @@ dents, worn edges or stains), never with fine noise, speckles or scratch texture
     `--girth` (+ `--legs-girth --arms-girth --torso-girth`) sets thickness alone, without changing bone lengths.
     `stocky` = legs 0.88, shoulders 1.15, neck 0.6, head 1.05, girth 1.35, torso girth 1.25 (a heavier build:
     `--preset stocky --girth 1.5`). The joint angles stay as captured, so shorter legs take shorter steps;
-    record the body in character.json `"body"`;
+    record the body in character.json `"body"`. **Presets are rescaled to full height:** a stocky guide is as
+    tall as the standard one, so short legs come out as a bigger torso, head and shoulders. Make a short build
+    short where it is drawn (the game's per-character draw scale; hero-2: 0.96), see learnings.md "Body presets
+    and height";
   - a monster with a made-up gait: `walk_cycle.py guide <CHAR> <DIR> out.png --magenta --limbs` (add the gait to
     `CHARS`: lean, crouch, stride, arm swing; then use `guide_prompt.py` without `--plain`).
 
@@ -169,6 +175,10 @@ direction at its real speed (feet on the ground, no sliding, legs alternating).
 - **Advance frames by distance walked, not time:** `anim += distance × fpt / scale`, frame = `floor(anim) % frames`.
   `fpt` from build_sheet (the guide's own stride; the old stick-figure sheets used 5 for 8 frames, one stride per
   1.6 tiles). Feet never slide, whatever the speed.
+- **Draw scale per character:** every sheet is built to the same height (`--height`); a character that should be
+  shorter or taller (a child, a stocky build) gets a draw scale in the game (dungeon-crawler: `CAST_SCALE`), and
+  the frames advance by `fpt / scale` so its feet stay planted. The game resamples every sprite anyway (zoom,
+  device pixel ratio), so this looks the same as building a smaller sheet.
 - **Idle frame:** a feet-together pose (build_sheet picks the guide frame with the feet closest).
 - **Draw:** `dx = sx − fw·s/2`, `dy = sy − footY·s`, plus a shadow ellipse at the ground point (the painted ground
   shadow is removed in the build).
@@ -178,8 +188,8 @@ direction at its real speed (feet on the ground, no sliding, legs alternating).
 | Item | Cost |
 |---|---|
 | Reference, 2-3 candidates | ~$0.10-0.15 |
-| Walk, 5 painted directions (mirrored), 8 frames / 12 frames | ~$0.17 / ~$0.23 |
-| Walk, all 8 painted, 8 frames / 12 frames | ~$0.27 / ~$0.37 |
+| Walk, 5 painted directions (mirrored), 8 frames / 12 frames | ~$0.17 / ~$0.15 |
+| Walk, all 8 painted, 8 frames / 12 frames | ~$0.27 / ~$0.24 |
 | Retries, about 1 direction in 5 | ~$0.03-0.07 |
 | **Walk only** | **~$0.30-0.60** |
 | Each further animation (jog, attack, death), per set of directions | as the walk |

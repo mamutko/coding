@@ -108,6 +108,9 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
 - 2026-11 tests with `gpt-image-2.6-flare` medium: one direction 8 frames 1536 × 1024 $0.034; 12 frames 1536 × 960
   $0.031; 8 × 8 sheet 1536 × 2048 $0.055, 2400 × 3200 $0.104. Cost follows the image size, not the frame count
   (roughly $0.02 + $0.011 per megapixel).
+- hero-2 (2026-11-18, `gpt-image-2.6-flare` medium, 12 frames, all 8 painted): $0.53 in all. References $0.20
+  (two rounds of 3), walks $0.33: 8 directions at ~$0.03 each (2304 × 1024), plus 3 retries (NW twice for the
+  cape, SE once).
 
 ## Shimmer (2026-11-18, dungeon-crawler hero)
 
