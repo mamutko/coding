@@ -26,10 +26,10 @@
     "NW": {
       "file": "paint/NW.png",
       "status": "review",
-      "note": "OpenAI, reference 2, stocky guide, STEADY prompt (paint/NW.prompt.txt). Stride 12/12, colour 0.89, cape overlap frame to frame 0.78 (in game 0.70), detail 34. View rather side-on (visor visible)."
+      "note": "attempt 2: WIDE cape line added (paint/NW.prompt.txt). Cape 48% of the figure (attempt 1: 38%), covers the whole back; view closer to three-quarter back. Stride 12/12, colour 0.85. Cape overlap frame to frame 0.73 (attempt 1: 0.78): frames 10-11 flare wider (0.56). Attempt 1 in attempts/."
     }
   },
-  "next": "Approve NW, then paint the other 7 (render their stocky guides first)",
+  "next": "Approve NW (wide cape), then paint the other 7",
   "spend": [
     {
       "what": "3 reference candidates, from scratch (simple style)",
@@ -41,6 +41,10 @@
     },
     {
       "what": "NW walk (OpenAI, 12 frames)",
+      "usd": 0.03
+    },
+    {
+      "what": "NW attempt 2 (wide cape)",
       "usd": 0.03
     }
   ],
