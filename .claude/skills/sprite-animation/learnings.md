@@ -191,3 +191,15 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
 - **All 8 directions passed first time** with the hero-2 recipe (reference + `--match NW` + `--cloth` + STEADY):
   colour 0.88-0.95, stride 12/12 except one false alarm (SW frame 9, pose correct). The feet check was clean.
 - **Cost:** $0.37 in all: references $0.10 (one round of 3), two trial NW walks $0.06, 7 more directions $0.21.
+
+## Two heroes from one reference round (2026-11-19, dungeon-crawler hero-4 woodsman, hero-5 scout)
+
+- **Trial NW walks again picked well:** both candidates (one-layer half-cloak; no cloak) passed 12/12 with steady
+  cloth, so both were kept, the second as its own character folder (hero-5, its reference copied in, the round
+  left in hero-4). 14 directions in one batch: 12 of 12 first try, apart from 2 calls that dropped their
+  connection (no charge; retried).
+- **SW frame 9 of the standard 12-frame walk guide is a recurring stride false alarm** (hero-3 and hero-4): the
+  painted pose matches; the guide's feet spread is unusually wide there for the checker. Look before repainting.
+- **Hair in "a few large, smooth locks, never fine strands or curls"** and "no fur, ONE simple layer" in the
+  reference prompt gave references that walk without shimmer. Cost per hero: ~$0.27 (references shared, trial NW
+  + 7 directions).

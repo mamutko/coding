@@ -164,6 +164,22 @@
    "idle": 10,
    "footY": 128,
    "fpt": 8.02
+  },
+  "hero4": {
+   "fw": 144,
+   "fh": 152,
+   "frames": 12,
+   "idle": 10,
+   "footY": 128,
+   "fpt": 8.02
+  },
+  "hero5": {
+   "fw": 144,
+   "fh": 152,
+   "frames": 12,
+   "idle": 10,
+   "footY": 128,
+   "fpt": 8.02
   }
  },
  "items": {

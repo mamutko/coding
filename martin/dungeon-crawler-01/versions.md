@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v86 — the woodsman and scout looks (2026-11-19)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 86`)*
+
+- Two more hero looks, **Woodsman** (`assets/hero4.webp`: short beard, brown hooded half-cloak, olive jerkin) and
+  **Scout** (`assets/hero5.webp`: young, black hair, leather vest over a rust-red tunic, green cowl), painted with
+  the `sprite-animation` skill (12 frames, all 8 directions). Six looks now, two per row in the cogwheel box.
+
 ## v85 — the huntress look (2026-11-19)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 85`)*
+Commit: 1058842
 
 - A fourth hero look, **Huntress** (`assets/hero3.webp`): a ranger with a chestnut braid and a moss-green
   half-cloak, painted with the `sprite-animation` skill (12 frames, all 8 directions). Picked like the others, in

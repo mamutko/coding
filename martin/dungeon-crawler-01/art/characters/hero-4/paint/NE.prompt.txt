@@ -1,0 +1,28 @@
+This image is a POSE GUIDE: 12 mannequins in a 6 x 2 grid showing one complete walk cycle, read left to right and top to bottom (figures 1-6 in the top row). Paint over EVERY mannequin, keeping each one's EXACT position, size and pose of legs, arms, torso and head. Do not move, add or remove any figure, and do not change any pose.
+
+THE OTHER INPUT IMAGES: the FIRST image is the pose guide described above, the one to paint over (keep its layout). The SECOND image is the CHARACTER REFERENCE: paint exactly this character in every figure: the same face, hair, body build, clothes, colours, materials and accessories, and the same length of cloak and other loose clothing. Copy only the design from it, never its pose or view. The THIRD image is this same character already painted walking away to the upper left: match its look exactly (colours, shading, line weight, level of detail), but not its view.
+
+The mannequins are smooth light-grey shaded figures; the darker side of the body is the side turned away from the viewer, and dark lines mark where a limb passes in front of the body.
+
+DIRECTION: every figure walks diagonally AWAY toward the UPPER RIGHT: we see his BACK and his RIGHT side; the face is hidden, exactly as the mannequins are turned. The body NEVER turns around between figures.
+
+FOLLOW THE LEGS EXACTLY, they alternate. Counting the figures in reading order:
+figure 1: one leg reaches forward, the other is stretched far back.
+figure 7: the OPPOSITE: the leg that was back in figure 1 now reaches forward. It is NOT a copy of figure 1.
+All other figures are in-between poses (a leg passing under the body, the other bent with its foot lifted): copy them exactly from the guide.
+Arms swing opposite to the legs, following the mannequin's arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY.
+
+CHARACTER (identical in all 12 figures): a lean, broad-shouldered man about 35, a woodsman and ranger: short dark-brown hair and a neatly trimmed short beard, a weathered face; a dark-brown wool hooded half-cloak (ONE simple layer, no fur) over both shoulders, reaching the elbows at the sides and in a point to the waist at the back, the hood DOWN, fastened at the throat with a large iron ring clasp; an olive-green padded jerkin to mid-thigh with two bold leather straps crossing the chest, over a cream shirt whose sleeves show at the upper arms; long dark-brown leather bracers; a wide brown belt with a square iron buckle, a leather pouch at his right hip and a sheathed hunting knife at his left hip; tan trousers; knee-high dark-brown boots with turned-down cuffs. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried. Copy only the pose from the mannequins, not their shapes: give him natural human proportions and clothing. Clothing that hangs beyond the body (cloak, cape, skirt, long coat, sleeves) is painted at its FULL length and width, even where the mannequin has no shape there; it moves with the stride.
+
+THE DARK-BROWN HOODED HALF-CLOAK is exactly as in the reference: fastened at BOTH shoulders and draped over both shoulders, wider than the torso, at its full length. In this three-quarter back view it covers the whole back: we see its near edge over his RIGHT shoulder and arm, and its far edge beyond his LEFT shoulder. It keeps the SAME width, the SAME rich colour and is fully OPAQUE in every figure and exactly as in the third image: never thin, faded, see-through or missing.
+
+STEADY FROM FRAME TO FRAME (critical: these 12 figures play one after another as an animation, and anything that is redrawn differently in each figure will flicker):
+- Paint the character as if it were ONE 3D model rendered 12 times: the SAME light from the upper left, the SAME highlight and shadow shapes in the SAME places on each surface, the SAME markings (dents, scuffs, stains, patches, patterns, trim) in the SAME spots, the SAME colours.
+- Loose cloth (cloak, cape, skirt, coat tails) keeps the SAME width, the SAME outline and the SAME few broad folds in ALL 12 figures. It is heavy and hangs close to the body from the same points; only its bottom edge moves a little with the stride (swinging slightly opposite to the forward leg). It never flares, billows, puffs out or swings wide to one side, and folds never appear, vanish or rearrange between figures.
+- Hems and edges keep the SAME outline in every figure (the same frayed or torn edge, the same stains), simply moving with the cloth. Never redraw new tears, new jagged points or new stain blotches in each figure.
+- Show shine, wear and texture with a few BOLD shapes, never with fine noise, speckles or scratch texture.
+
+STYLE: hand-drawn 2D game sprite art for an isometric RPG, clean dark ink outlines, painterly watercolour-and-gouache shading, light from the upper left. NOT pixel art, NOT 3D.
+
+The grey mannequin is ONLY a pose guide: paint the character's own clothing, skin and hair colours over it, with no grey mannequin showing. Every part of the character is fully OPAQUE: no faded, ghostly or see-through limbs, even a leg or arm partly behind the body.
+Transparent background (remove the magenta). No text, numbers or grid lines.

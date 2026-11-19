@@ -1,6 +1,6 @@
 {
-  "name": "Hero 4 (hunter)",
-  "description": null,
+  "name": "Hero 4 (woodsman)",
+  "description": "a lean, broad-shouldered man about 35, a woodsman and ranger: short dark-brown hair and a neatly trimmed short beard, a weathered face; a dark-brown wool hooded half-cloak (ONE simple layer, no fur) over both shoulders, reaching the elbows at the sides and in a point to the waist at the back, the hood DOWN, fastened at the throat with a large iron ring clasp; an olive-green padded jerkin to mid-thigh with two bold leather straps crossing the chest, over a cream shirt whose sleeves show at the upper arms; long dark-brown leather bracers; a wide brown belt with a square iron buckle, a leather pouch at his right hip and a sheathed hunting knife at his left hip; tan trousers; knee-high dark-brown boots with turned-down cuffs. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried.",
   "frames": 12,
   "mirror": false,
   "guide": "walk",
@@ -8,18 +8,18 @@
   "references": [
     {
       "file": "reference/round-1/candidate-1.png",
-      "status": "candidate",
-      "note": "round 1, style from hero-3 + hero-2: woodsman ~35, short dark hair and beard, brown hooded half-cloak with an iron ring clasp (one layer, to the hips), olive jerkin with crossed straps, tan trousers, tall boots."
+      "status": "approved",
+      "note": "round 1, style from hero-3 + hero-2: woodsman ~35, short dark hair and beard, brown hooded half-cloak with an iron ring clasp (one layer, to the hips), olive jerkin with crossed straps, tan trousers, tall boots. APPROVED (copied to reference/reference.png)."
     },
     {
       "file": "reference/round-1/candidate-2.png",
-      "status": "candidate",
-      "note": "round 1: young scout ~25, short black hair, no cloak: riveted leather vest over a rust-red tunic, green scarf (came out as a thick cowl), green trousers, strapped boots. No cloth to animate; the vest's leather texture is a bit mottled."
+      "status": "approved",
+      "note": "round 1: young scout ~25, short black hair, no cloak: riveted leather vest over a rust-red tunic, green scarf (came out as a thick cowl), green trousers, strapped boots. No cloth to animate; the vest's leather texture is a bit mottled. APPROVED as a separate character: hero-5 (the scout)."
     },
     {
       "file": "reference/round-1/candidate-3.png",
-      "status": "candidate",
-      "note": "round 1: veteran ~45, grey-streaked hair in a short tail, stubble, long forest-green cloak to mid-calf (one layer, two disc clasps), leather jerkin over a grey shirt, brown trousers, tall boots. The long cloak is the most work to keep steady (needs --cloth, as hero-2's cape)."
+      "status": "rejected",
+      "note": "round 1: veteran ~45, grey-streaked hair in a short tail, stubble, long forest-green cloak to mid-calf (one layer, two disc clasps), leather jerkin over a grey shirt, brown trousers, tall boots. The long cloak is the most work to keep steady (needs --cloth, as hero-2's cape). Not taken forward."
     }
   ],
   "designs": {
@@ -28,22 +28,48 @@
     "candidate-3": "a tall, rangy man about 45, a veteran ranger: grey-streaked dark hair tied back in a short tail at the nape, short grey stubble, a lined, calm face; a long deep forest-green wool cloak (ONE simple layer, no fur, no shoulder cape) fastened at both shoulders, hanging in a few heavy folds to mid-calf, the hood DOWN; a brown leather jerkin to the hips over a dark-grey shirt; dark leather bracers; a wide brown belt with a pouch and a sheathed hunting knife; brown trousers; knee-high brown boots. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried."
   },
   "directions": {
-    "NW (cand. 1)": {
-      "dir": "NW",
-      "file": "paint/NW-c1.png",
-      "ref": "reference/round-1/candidate-1.png",
-      "status": "review",
-      "note": "candidate 1, --cloth 'dark-brown hooded half-cloak' (paint/NW-c1.prompt.txt). Stride 12/12, no faded limbs, colour 0.90. Half-cloak the same size and shape in every frame. The knife and pouch at the hip change shape a little (frames 10-12)."
+    "NW": {
+      "file": "paint/NW.png",
+      "status": "approved",
+      "note": "--cloth 'dark-brown hooded half-cloak' (paint/NW.prompt.txt). Stride 12/12, no faded limbs, colour 0.90."
     },
-    "NW (cand. 2)": {
-      "dir": "NW",
-      "file": "paint/NW-c2.png",
-      "ref": "reference/round-1/candidate-2.png",
-      "status": "review",
-      "note": "candidate 2, no cloth (paint/NW-c2.prompt.txt). Stride 12/12, no faded limbs, colour 0.89. Vest, tunic and cowl steady. The pouch at the hip varies a little; the boot straps were left out; the red sleeves keep a light mottled texture."
+    "S": {
+      "file": "paint/S.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth 'dark-brown hooded half-cloak' (paint/S.prompt.txt). Stride, colour: 12/12, 0.91."
+    },
+    "SW": {
+      "file": "paint/SW.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth 'dark-brown hooded half-cloak' (paint/SW.prompt.txt). Stride, colour: 11/12 (frame 9 flagged, a false alarm: the pose matches the guide), 0.90."
+    },
+    "W": {
+      "file": "paint/W.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth 'dark-brown hooded half-cloak' (paint/W.prompt.txt). Stride, colour: 12/12, 0.90."
+    },
+    "N": {
+      "file": "paint/N.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth 'dark-brown hooded half-cloak' (paint/N.prompt.txt). Stride, colour: 12/12, 0.90."
+    },
+    "NE": {
+      "file": "paint/NE.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth 'dark-brown hooded half-cloak' (paint/NE.prompt.txt). Stride, colour: 12/12, 0.94."
+    },
+    "E": {
+      "file": "paint/E.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth 'dark-brown hooded half-cloak' (paint/E.prompt.txt). Stride, colour: 12/12, 0.87."
+    },
+    "SE": {
+      "file": "paint/SE.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth 'dark-brown hooded half-cloak' (paint/SE.prompt.txt). Stride, colour: 12/12, 0.91."
     }
   },
-  "next": "Pick candidate 1 or 2 from the two NW walks; then paint the other 7 directions with --match NW",
+  "next": "Done: in the game as the look \"Woodsman\" (v86), assets/hero4.webp (12 frames, fpt 8.02, idle 10).",
   "spend": [
     {
       "what": "3 reference candidates (edit, hero-3 + hero-2 references as style input)",
@@ -52,7 +78,16 @@
     {
       "what": "NW walk for candidates 1 and 2 (OpenAI, 12 frames)",
       "usd": 0.06
+    },
+    {
+      "what": "S, SW, W, N, NE, E, SE walks (OpenAI, 12 frames)",
+      "usd": 0.21
     }
   ],
-  "artifact": "https://claude.ai/artifact/TFKfCAtYZJJvj7rUdCgLSw"
+  "artifact": "https://claude.ai/artifact/TFKfCAtYZJJvj7rUdCgLSw",
+  "reference": "reference/reference.png",
+  "sheet": {
+    "file": "../../../assets/hero4.webp",
+    "key": "hero4"
+  }
 }

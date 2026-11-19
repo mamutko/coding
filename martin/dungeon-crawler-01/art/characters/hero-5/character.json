@@ -1,0 +1,77 @@
+{
+  "name": "Hero 5 (scout)",
+  "description": "a lean, wiry young man about 25, a scout and ranger: short-cropped black hair, clean-shaven, a sharp face; NO cloak; a thick dark-green wool scarf wrapped as a loose cowl around the neck; a sleeveless dark-brown leather vest with a few bold rivets over a rust-red long-sleeved tunic to mid-thigh; brown leather bracers; a wide brown belt with an iron buckle, a leather pouch at his right hip and a sheathed knife at his left hip; dark-green trousers; knee-high brown boots with turned-down cuffs, criss-crossed with leather straps. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried.",
+  "frames": 12,
+  "mirror": false,
+  "guide": "walk",
+  "body": "standard walk guide (adult 1.82 m, EU 43)",
+  "references": [
+    {
+      "file": "../hero-4/reference/round-1/candidate-2.png",
+      "status": "approved",
+      "note": "Painted as hero-4's candidate 2 (round 1, all candidates and prompts are in hero-4/reference/round-1/); approved as its own character and copied to reference/reference.png."
+    }
+  ],
+  "reference": "reference/reference.png",
+  "directions": {
+    "NW": {
+      "file": "paint/NW.png",
+      "status": "approved",
+      "note": "painted as hero-4's trial NW walk for candidate 2, no cloth (paint/NW.prompt.txt). Stride 12/12, no faded limbs, colour 0.89."
+    },
+    "S": {
+      "file": "paint/S.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, no cloth (paint/S.prompt.txt). Stride, colour: 12/12, 0.90 (second call: the first dropped its connection)."
+    },
+    "SW": {
+      "file": "paint/SW.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, no cloth (paint/SW.prompt.txt). Stride, colour: 12/12, 0.93."
+    },
+    "W": {
+      "file": "paint/W.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, no cloth (paint/W.prompt.txt). Stride, colour: 12/12, 0.88."
+    },
+    "N": {
+      "file": "paint/N.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, no cloth (paint/N.prompt.txt). Stride, colour: 12/12, 0.93."
+    },
+    "NE": {
+      "file": "paint/NE.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, no cloth (paint/NE.prompt.txt). Stride, colour: 12/12, 0.90."
+    },
+    "E": {
+      "file": "paint/E.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, no cloth (paint/E.prompt.txt). Stride, colour: 12/12, 0.87."
+    },
+    "SE": {
+      "file": "paint/SE.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, no cloth (paint/SE.prompt.txt). Stride, colour: 12/12, 0.86."
+    }
+  },
+  "next": "Done: in the game as the look \"Scout\" (v86), assets/hero5.webp (12 frames, fpt 8.02, idle 10).",
+  "spend": [
+    {
+      "what": "share of hero-4's reference round (1 of 3 candidates)",
+      "usd": 0.03
+    },
+    {
+      "what": "NW walk (trial for hero-4 candidate 2)",
+      "usd": 0.03
+    },
+    {
+      "what": "S, SW, W, N, NE, E, SE walks (OpenAI, 12 frames)",
+      "usd": 0.21
+    }
+  ],
+  "sheet": {
+    "file": "../../../assets/hero5.webp",
+    "key": "hero5"
+  }
+}
