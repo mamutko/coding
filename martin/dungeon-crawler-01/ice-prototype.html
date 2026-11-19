@@ -59,9 +59,12 @@
 <div id="status">Loading…</div>
 <div id="panel" class="closed">
   <header><h1>Crypt Ice</h1><button class="btn" id="toggle" aria-expanded="false">Options</button></header>
-  <p class="hint">Tap open water to cast (or throw), tap the floor or the ice to walk. Cracks appear 5 s before the ice melts, starting under the hero if they stand on it.</p>
+  <p class="hint">Tap open water to cast (or throw), tap the floor or the ice to walk. Cracks appear 5 s before the ice melts, starting under whoever stands on it. Anyone still on it when it melts drowns.</p>
   <div class="row"><div class="lab">Tapping the water</div>
     <div class="seg" data-opt="tap"><button data-v="cast">Ice blast</button><button data-v="bomb">Fire bomb</button></div></div>
+  <div class="row"><div class="lab">The blast comes from</div>
+    <div class="seg" data-opt="origin"><button data-v="spot">A target spot</button><button data-v="hero">The hero</button></div>
+    <p class="desc" id="originD"></p></div>
   <div class="row"><div class="lab">Freezing</div>
     <div class="seg" data-opt="freeze"><button data-v="front">Frost front</button><button data-v="shard">Shard burst</button><button data-v="flash">Flash</button></div>
     <p class="desc" id="freezeD"></p></div>
@@ -80,6 +83,7 @@
   </div>
   <div class="btns">
     <button class="btn" id="castMid">Cast at the lake</button>
+    <button class="btn" id="skelIce">Skeleton onto the ice</button>
     <button class="btn" id="onIce">Hero onto the ice</button>
     <button class="btn" id="crackNow">Start cracking now</button>
     <button class="btn" id="dripNow">Drip</button>
@@ -144,7 +148,7 @@ const objects = [
   { k: 'urn', x: 1, y: 8 }, { k: 'brazier', x: 15, y: 10, light: [4.2, 40, 0.95], flame: 52 }];
 
 // options (the panel); the water itself is the lake the game settled on (rounded shores, rings + refraction)
-const O = { tap: 'cast', freeze: 'front', melt: 'break', radius: 3, life: 16, tint: 'ink', scar: true, mist: true, light: true, sound: true };
+const O = { tap: 'cast', origin: 'spot', freeze: 'front', melt: 'thaw', radius: 3, life: 16, tint: 'ink', scar: true, mist: true, light: true, sound: true };
 const D = 8, REFL = 0.7, FADE = 0.45, DRIPS = 10;
 const TINTS = {
   teal: { deep: '#061419', deepRGB: '6,20,25', tint: 'rgba(12,52,62,0.36)', ring: '190,226,240' },
@@ -159,6 +163,8 @@ const DESC = {
   flash: 'The whole radius turns white at once behind a shock ring that runs out across the open water, then clears.',
   break: 'The cracks open, the sheet breaks into floes along them, and the floes drift apart, darken and sink one by one.',
   thaw: 'The cracks widen into channels of open water and dark melt holes open and join until the lake is back.',
+  spot: 'Cast at a spot on the water: the scar is a crater of white rime at the centre of the ice, with a starburst of frost around it.',
+  hero: 'Cast from the hero standing on the shore: the ice starts at the water\'s edge, with heavy rime and frost streaks fanning out across the ice from the hero, and frost on the stones around their feet.',
   recede: 'The ice melts back from its rim toward the blast scar, which goes last, with a wet dark edge.' };
 
 const $ = id => document.getElementById(id);
@@ -294,6 +300,11 @@ function drawChar(c, e, mir) {
   const md = CHARS[e.sheet], s = e.scale || 1, [sx, sy] = iso(e.x, e.y), sink = e.sink || 0;   // sink: standing on the ice, D px lower
   const lift = e.float ? 8 + Math.sin(time * 3 + e.x) * 4 : 0;
   const frame = e.moving ? Math.floor(e.anim) % md.frames : md.idle, dw = md.fw * s, dh = md.fh * s, dx = sx - dw / 2, dy = sy + sink - lift - md.footY * s;
+  if (e.dead) {   // sinking: lower and fading, cut off at the water line
+    if (mir) return; const k = clamp(e.dead.t / 1.3); if (k >= 1) return;
+    c.save(); c.beginPath(); c.rect(-4000, -4000, 8000, sy + D + 4000); c.clip(); c.globalAlpha = 1 - 0.6 * k;
+    c.drawImage(IMG[e.sheet], md.idle * md.fw, e.dir * md.fh, md.fw, md.fh, dx, dy + 6 + 70 * k * k, dw, dh); c.restore(); return;
+  }
   if (mir) return mirSprite(c, IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, dx, dy, dw, dh, sy);
   if (!e.float && (!inWater(e.x, e.y) || iceAt(e.x, e.y))) softShadow(c, sx, sy + sink + 2 * s, 32 * s, 15 * s, 0.55, 0.55);
   c.drawImage(IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, dx, dy, dw, dh);
@@ -311,7 +322,7 @@ function drawBanks(c, mir) {
 
 // ---------- the scene ----------
 const hero = { sheet: 'hero', x: 3.2, y: 7.6, dir: 4, anim: 0, moving: false, tx: null, ty: null, sink: 0 };
-const skel = { sheet: 'skeleton', x: 11.4, y: 1.6, dir: 6, anim: 0, moving: false, leg: 0, wait: 1 };
+const skel = { sheet: 'skeleton', x: 11.4, y: 1.6, dir: 6, anim: 0, moving: false, leg: 0, wait: 1, sink: 0, mode: 'patrol' };
 const wraith = { sheet: 'wraith', x: 8.6, y: 4.4, dir: 0, anim: 0, moving: true, float: true, a: 0 };
 const PATROL = [[11.4, 1.6], [13.3, 1.6]];
 function dirOf(dx, dy) {
@@ -366,11 +377,22 @@ function maskPath(c, p, k) {
   c.closePath();
 }
 
-function cast(x, y) {
-  const rnd = mulberry(seedN * 9973 + 17), p = { ox: x, oy: y, R: O.radius, t: 0, style: O.freeze, meltStyle: O.melt, fd: FREEZE_DUR[O.freeze],
+function cast(x, y, fromHero = false) {
+  const rnd = mulberry(seedN * 9973 + 17), p = { fromHero, ripLeft: 3, ox: x, oy: y, R: O.radius, t: 0, style: O.freeze, meltStyle: O.melt, fd: FREEZE_DUR[O.freeze],
     life: O.life, md: MELT_DUR[O.melt], phase: 'freeze', k: 0, seed: seedN++, ph: [0, 0, 0, 0, 0].map(() => rnd() * 7),
     ticks: Array.from({ length: 120 }, () => 0.04 + rnd() * 0.12), needles: Array.from({ length: 26 }, (_, i) => i / 26 * Math.PI * 2 + (rnd() - 0.5) * 0.2),
     net: null, floes: null, holes: null, scar: O.scar, sounded: 0 };
+  // the nearest water to the blast (from the hero: where the ice starts; the cracks start there if no one is on it)
+  p.d0 = 0; p.crackFrom = [x, y];
+  if (fromHero) {
+    let bd = Infinity;
+    for (let gy = -p.R; gy <= p.R; gy += 0.08) for (let gx = -p.R; gx <= p.R; gx += 0.08) {
+      const d = Math.hypot(gx, gy); if (d < bd && d < p.R * 0.9 && inWater(x + gx, y + gy)) { bd = d; p.crackFrom = [x + gx * (d + 0.35) / d, y + gy * (d + 0.35) / d]; }
+    }
+    p.d0 = bd === Infinity ? p.R : bd;
+    if (bd === Infinity) note = { text: 'The water is out of the blast\'s reach: walk to the shore first.', t: 3 };
+    p.ftex = makeFloorTex(p, rnd);
+  }
   p.tex = makeTex(p, rnd);
   patches.push(p); while (patches.length > 4) patches.shift();
   // the blast: a shock wave across the open water, the flash, the sound
@@ -424,6 +446,7 @@ function makeTex(p, rnd) {
 // The blast scar at the centre: a white crater of rime, a starburst of frost streaks, broken pressure rings and
 // radial fractures; frost powder thinning outward. Sizes in tiles, scaled a little with the radius.
 function drawScar(g, p, rnd) {
+  if (p.fromHero) return drawShoreScar(g, p, rnd);
   const sc = Math.sqrt(p.R / 3);
   // starburst streaks
   for (let i = 0; i < 48; i++) {
@@ -464,6 +487,61 @@ function drawScar(g, p, rnd) {
     const a = rnd() * 7, r = rnd() * P * 0.18 * sc, s = 2 + rnd() * 4;
     g.fillStyle = 'rgba(70,120,150,0.3)'; g.beginPath(); g.ellipse(Math.cos(a) * r, Math.sin(a) * r, s, s * 0.8, a, 0, 7); g.fill();
   }
+}
+
+// The scar of a blast cast from the hero on the shore: the centre is on the stone, so on the ice it shows as heavy
+// rime along the edge nearest the hero, frost streaks fanning out from the hero, broken pressure rings around them
+// and fractures running away from them.
+function drawShoreScar(g, p, rnd) {
+  const d0 = p.d0, Rg = (d0 + 1.6) * P;
+  let gr = g.createRadialGradient(0, 0, 0, 0, 0, Rg);
+  gr.addColorStop(0, 'rgba(240,250,255,0)'); gr.addColorStop(Math.max(0, d0 - 0.2) * P / Rg, 'rgba(240,250,255,0)');
+  gr.addColorStop((d0 + 0.12) * P / Rg, 'rgba(242,251,255,0.85)'); gr.addColorStop((d0 + 0.55) * P / Rg, 'rgba(225,242,252,0.4)'); gr.addColorStop(1, 'rgba(225,242,252,0)');
+  g.fillStyle = gr; g.beginPath(); g.arc(0, 0, Rg, 0, 7); g.fill();
+  for (let i = 0; i < 90; i++) {
+    const a = rnd() * Math.PI * 2, r0 = Math.max(0.2, d0 - 0.25) * P, L = P * (d0 + 0.3 + rnd() ** 1.5 * 2.2), w0 = 1.5 + rnd() * 5;
+    g.save(); g.rotate(a);
+    gr = g.createLinearGradient(r0, 0, L, 0); gr.addColorStop(0, `rgba(240,250,255,${0.35 + rnd() * 0.35})`); gr.addColorStop(1, 'rgba(240,250,255,0)');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(r0, -w0); g.lineTo(L, 0); g.lineTo(r0, w0); g.closePath(); g.fill(); g.restore();
+  }
+  for (let i = 0; i < 700; i++) {
+    const a = rnd() * Math.PI * 2, r = P * (d0 - 0.05 + Math.abs(rnd() + rnd() + rnd() - 1.5) * 0.7);
+    g.fillStyle = `rgba(240,250,255,${0.15 + rnd() * 0.45})`; g.beginPath(); g.arc(Math.cos(a) * r, Math.sin(a) * r, 0.5 + rnd() * 1.2, 0, 7); g.fill();
+  }
+  for (const rr of [d0 + 0.5, d0 + 1.15]) {
+    let a = rnd() * 7; const end = a + Math.PI * 2, r = rr * P;
+    while (a < end) { const l = 0.15 + rnd() * 0.4, r2 = r * (1 + (rnd() - 0.5) * 0.05);
+      g.strokeStyle = 'rgba(0,10,20,0.28)'; g.lineWidth = 2.2; g.beginPath(); g.arc(0, 0, r2 + 2, a, a + l); g.stroke();
+      g.strokeStyle = `rgba(230,245,255,${0.25 + rnd() * 0.2})`; g.lineWidth = 1.3; g.beginPath(); g.arc(0, 0, r2, a, a + l); g.stroke();
+      a += l + 0.08 + rnd() * 0.3; }
+  }
+  for (let i = 0; i < 14; i++) {
+    let a = rnd() * Math.PI * 2, r = d0 * P; const end = P * (d0 + p.R * (0.3 + rnd() * 0.4));
+    const pts = [[Math.cos(a) * r, Math.sin(a) * r]];
+    while (r < end) { r += 6 + rnd() * 10; a += (rnd() - 0.5) * 0.1; pts.push([Math.cos(a) * r, Math.sin(a) * r]); }
+    for (const [col, lw, oy] of [['rgba(0,10,20,0.4)', 2, 1.5], ['rgba(235,248,255,0.55)', 1, 0]]) {
+      g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); pts.forEach(([x, y], j) => j ? g.lineTo(x, y + oy) : g.moveTo(x, y + oy)); g.stroke();
+    }
+  }
+}
+// Frost on the stones around the hero's feet (a blast cast from the hero): rime, streaks and powder, no ice tint.
+function makeFloorTex(p, rnd) {
+  const S = 2, Rp = p.R * P * 1.1, w = Math.ceil(2 * Rp + 40), h = Math.ceil(w / 2);
+  const c = document.createElement('canvas'); c.width = w * S; c.height = h * S; const g = c.getContext('2d');
+  g.scale(S, S); g.translate(w / 2, h / 2); g.scale(1, 0.5);
+  let gr = g.createRadialGradient(0, 0, 0, 0, 0, P * 1.1);
+  gr.addColorStop(0, 'rgba(225,242,252,0.1)'); gr.addColorStop(0.35, 'rgba(230,245,255,0.55)'); gr.addColorStop(0.6, 'rgba(225,242,252,0.25)'); gr.addColorStop(1, 'rgba(225,242,252,0)');
+  g.fillStyle = gr; g.beginPath(); g.arc(0, 0, P * 1.1, 0, 7); g.fill();
+  for (let i = 0; i < 70; i++) {
+    const a = rnd() * Math.PI * 2, L = P * (0.5 + rnd() ** 1.6 * (p.R * 0.6)), w0 = 1 + rnd() * 3.5;
+    g.save(); g.rotate(a); gr = g.createLinearGradient(P * 0.25, 0, L, 0); gr.addColorStop(0, `rgba(235,248,255,${0.3 + rnd() * 0.3})`); gr.addColorStop(1, 'rgba(235,248,255,0)');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(P * 0.25, -w0); g.lineTo(L, 0); g.lineTo(P * 0.25, w0); g.closePath(); g.fill(); g.restore();
+  }
+  for (let i = 0; i < 600; i++) {
+    const a = rnd() * Math.PI * 2, r = P * (0.15 - Math.log(1 - rnd() * 0.97) * 0.45);
+    g.fillStyle = `rgba(240,250,255,${0.15 + rnd() * 0.4})`; g.beginPath(); g.arc(Math.cos(a) * r, Math.sin(a) * r, 0.5 + rnd() * 1.1, 0, 7); g.fill();
+  }
+  return { c, w, h };
 }
 
 // ---------- the crack network ----------
@@ -575,8 +653,9 @@ function crackPath(p, now, all = false) {   // the cracks open so far, as one pa
 
 // ---------- the melt ----------
 function startMelt(p) {
-  // anyone on this ice goes through it
-  if (inWater(hero.x, hero.y) && inPatch(p, hero.x, hero.y, 1)) plunge(hero);
+  // anyone still on this ice goes through it and drowns (the wraith floats)
+  for (const e of WALKERS()) if (inWater(e.x, e.y) && inPatch(p, e.x, e.y, 1)) die(e);
+  p.ripLeft = 3;
   const rnd = mulberry(p.seed * 13 + 3), net = p.net;
   if (p.meltStyle === 'break' && net) {
     // floes: the crack cells (the start's cell split into wedges along the spokes), each with jagged edges
@@ -607,14 +686,24 @@ function startMelt(p) {
     }
   }
 }
-function plunge(e) {   // through the ice: a big splash, then climbing out on the nearest floor
-  ripples.push({ x: e.x, y: e.y, t: 0, a: 1.4 }); ripples.push({ x: e.x, y: e.y, t: -0.2, a: 0.8 });
+function meltRipple(p, x, y, a) { if (p.ripLeft > 0) { p.ripLeft--; ripples.push({ x, y, t: 0, a }); } }   // at most 3 per melt (refraction is costly)
+const WALKERS = () => [hero, skel].filter(e => !e.dead);
+function die(e) {   // through the ice: a splash, the body sinks; in this prototype they come back after a moment
+  e.dead = { t: 0 }; e.tx = null; e.moving = false;
+  ripples.push({ x: e.x, y: e.y, t: 0, a: 1.4 });
   for (let i = 0; i < 18; i++) { const a = Math.random() * 7, v = 30 + Math.random() * 50; splashes.push({ x: e.x, y: e.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.5, vz: 90 + Math.random() * 110, z: 0, t: 0 }); }
   sndPlunge();
-  let best = null, bd = Infinity;
-  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (isFloor(x, y) && !inWater(x + 0.5, y + 0.5)) { const d = Math.hypot(x + 0.5 - e.x, y + 0.5 - e.y); if (d < bd) { bd = d; best = [x + 0.5, y + 0.5]; } }
-  if (best) { e.x = best[0]; e.y = best[1]; } e.tx = null; e.moving = false;
-  note = { text: 'The ice gave way: the hero fell through and climbed out on the shore.', t: 3.5 };
+  note = { text: e === hero ? 'The ice gave way: the hero fell through and drowned. (They come back in a moment.)' : 'The ice gave way under the skeleton: it sank and is gone.', t: 4 };
+}
+function updateDead(e, dt) {
+  if (!e.dead) return false;
+  e.dead.t += dt;
+  if (e.dead.t > 0.5 && !e.dead.bub) { e.dead.bub = true; ripples.push({ x: e.x, y: e.y, t: 0, a: 0.5 }); sndBubbles(); }
+  if (e.dead.t > 4) {   // back for the next try
+    e.dead = null; e.sink = 0;
+    if (e === hero) { e.x = 3.2; e.y = 7.6; e.dir = 4; } else { e.x = PATROL[0][0]; e.y = PATROL[0][1]; e.mode = 'patrol'; e.wait = 1; }
+  }
+  return true;
 }
 
 // ---------- drawing the ice ----------
@@ -713,7 +802,7 @@ function floePath(c, f, s) {   // a floe's outline, scaled by s about its centre
 function drawFloes(c, p, m) {
   const tm = m * p.md, spread = easeOut(clamp(tm / 0.6));
   for (const f of p.floes) {
-    const q = clamp((tm - 0.35 - f.d) / 0.8); if (q >= 1) { if (!f.sunk) { f.sunk = true; ripples.push({ x: f.cx + f.ux, y: f.cy + f.uy, t: 0, a: 0.6 }); } continue; }
+    const q = clamp((tm - 0.35 - f.d) / 0.8); if (q >= 1) { if (!f.sunk) { f.sunk = true; meltRipple(p, f.cx + f.ux, f.cy + f.uy, 0.6); } continue; }
     const [dx, dy] = iso(f.ux * spread, f.uy * spread), s = 0.97 - 0.18 * q;
     c.save(); c.translate(dx, dy + q * 2.5);
     floePath(c, f, s); c.save(); c.clip(); maskPath(c, p, 1); c.clip(); paintIce(c, p, 1 - q * 0.85);
@@ -876,6 +965,7 @@ function sndCrack(v = 1, big = false) {   // a sharp click; sometimes the deep p
 function sndBreak() { if (!ok()) return; const t = AC.currentTime; for (let i = 0; i < 6; i++) { const d = Math.random() * 0.4; noise(t + d, 0.08, 1200 + Math.random() * 2000, 1.2, 0.2); } tone(t, 400, 90, 0.6, 0.1); noise(t + 0.2, 1.2, 500, 0.6, 0.12, 0.2, 'lowpass'); }
 function sndTick(d) { if (!ok()) return; const t = AC.currentTime, v = 0.1 * Math.max(0.2, 1 - Math.hypot(d.x - hero.x, d.y - hero.y) / 14); tone(t, 3800 + Math.random() * 1500, 3000, 0.04, v, 'sine', 0.001); noise(t, 0.03, 5000, 2, v * 0.8, 0.001); }
 function sndPlunge() { if (!ok()) return; const t = AC.currentTime; noise(t, 0.6, 700, 0.6, 0.4, 0.005, 'lowpass', 200); tone(t + 0.02, 300, 90, 0.3, 0.12); }
+function sndBubbles() { if (!ok()) return; const t = AC.currentTime; for (let i = 0; i < 7; i++) { const d = i * 0.09 + Math.random() * 0.06, f = 250 + Math.random() * 300; tone(t + d, f, f * 1.8, 0.07, 0.08); } }
 function sndThrow() { if (!ok()) return; noise(AC.currentTime, 0.28, 700, 1.1, 0.07, 0.15); }
 function sndShatter() { if (!ok()) return; const t = AC.currentTime; tone(t, 170, 60, 0.12, 0.35); for (let i = 0; i < 8; i++) noise(t + 0.01 + Math.random() ** 1.5 * 0.25, 0.05, 1800 + Math.random() * 2400, 2, 0.12); noise(t + 0.04, 0.75, 600, 0.7, 0.18, 0.06, 'lowpass'); }
 function plink(d) {
@@ -897,13 +987,14 @@ function updateIce(dt) {
   for (const p of patches) {
     const prev = p.phase; p.t += dt;
     p.phase = p.t < p.fd ? 'freeze' : p.t < p.life - WARN ? 'solid' : p.t < p.life ? 'warn' : p.t < p.life + p.md ? 'melt' : 'gone';
-    if (p.phase === 'warn' && !p.net) {   // cracks start under the hero if they are on this ice, else at the blast scar
-      const onIt = inWater(hero.x, hero.y) && inPatch(p, hero.x, hero.y, 1);
-      p.net = buildNet(p, onIt ? [hero.x, hero.y] : [p.ox, p.oy]); p.sounded = p.t; sndCrack(1, true);
+    const onIt = e => inWater(e.x, e.y) && inPatch(p, e.x, e.y, 1);
+    if (p.phase === 'warn' && !p.net) {   // cracks start under whoever stands on this ice, else at the scar (or the edge nearest the hero)
+      const e = WALKERS().find(onIt);
+      p.net = buildNet(p, e ? [e.x, e.y] : p.crackFrom); p.sounded = p.t; sndCrack(1, true);
     }
     if (p.phase === 'warn' && p.net) {
-      if (inWater(hero.x, hero.y) && inPatch(p, hero.x, hero.y, 1) && p.t < p.life - 0.8 &&
-          p.net.srcs.every(s => Math.hypot(p.net.verts[s.v][0] - hero.x, p.net.verts[s.v][1] - hero.y) > 1.1)) addCrackStart(p, hero.x, hero.y);
+      for (const e of WALKERS()) if (onIt(e) && p.t < p.life - 0.8 &&
+          p.net.srcs.every(s => Math.hypot(p.net.verts[s.v][0] - e.x, p.net.verts[s.v][1] - e.y) > 1.1)) addCrackStart(p, e.x, e.y);
       // a click for the cracks that opened this frame (a few at most)
       let n = 0; for (const t of p.net.vt) if (t > p.sounded && t <= p.t) n++;
       if (n && Math.random() < 0.6) sndCrack(Math.min(1, 0.4 + n * 0.15)); p.sounded = p.t;
@@ -912,8 +1003,8 @@ function updateIce(dt) {
     p.k = patchK(p);
     if (p.phase === 'melt') {
       const m = (p.t - p.life) / p.md;
-      if (p.holes) for (const h of p.holes) if (!h.rip && m > h.d + 0.15) { h.rip = true; ripples.push({ x: h.x, y: h.y, t: 0, a: 0.3 }); }
-      if (p.meltStyle === 'recede' && Math.random() < dt * 8) { const a = Math.random() * 7, r = rho(p, a) * p.R * p.k, x = p.ox + Math.cos(a) * r, y = p.oy + Math.sin(a) * r; if (inWater(x, y)) ripples.push({ x, y, t: 0, a: 0.35 }); }
+      if (p.holes) for (const h of p.holes) if (!h.rip && m > h.d + 0.15) { h.rip = true; meltRipple(p, h.x, h.y, 0.45); }
+      if (p.meltStyle === 'recede' && Math.random() < dt * 8) { const a = Math.random() * 7, r = rho(p, a) * p.R * p.k, x = p.ox + Math.cos(a) * r, y = p.oy + Math.sin(a) * r; if (inWater(x, y)) meltRipple(p, x, y, 0.35); }
     }
     // cold mist off the fresh ice
     if (O.mist && p.t < p.fd + 1.6) {
@@ -928,12 +1019,25 @@ function updateIce(dt) {
   for (const m of mist) { m.t += dt; m.z += m.vz * dt; m.x += m.vx * dt; m.y += m.vy * dt; }
   for (let i = mist.length - 1; i >= 0; i--) if (mist[i].t > mist[i].dur) mist.splice(i, 1);
 }
+function randomIcePoint() {
+  const p = [...patches].reverse().find(solid); if (!p) return null;
+  for (let i = 0; i < 60; i++) { const a = Math.random() * 7, r = Math.sqrt(Math.random()) * p.R, x = p.ox + Math.cos(a) * r, y = p.oy + Math.sin(a) * r; if (iceAt(x, y) && iceAt(x, y) === p) return [x, y]; }
+  return null;
+}
 function update(dt) {
   time += dt;
-  if (hero.tx !== null && walkTo(hero, hero.tx, hero.ty, 3.2, dt)) hero.tx = null;
-  hero.sink += ((inWater(hero.x, hero.y) ? D : 0) - hero.sink) * Math.min(1, dt * 14);
-  if (skel.wait > 0) { skel.wait -= dt; skel.moving = false; }
-  else if (walkTo(skel, ...PATROL[skel.leg], 1.1, dt)) { skel.leg ^= 1; skel.wait = 1.6; }
+  if (!updateDead(hero, dt)) {
+    if (hero.tx !== null && walkTo(hero, hero.tx, hero.ty, 3.2, dt)) hero.tx = null;
+    hero.sink += ((inWater(hero.x, hero.y) ? D : 0) - hero.sink) * Math.min(1, dt * 14);
+  }
+  if (!updateDead(skel, dt)) {
+    if (skel.mode === 'ice') {   // wandering about on the ice
+      if (skel.wait > 0) { skel.wait -= dt; skel.moving = false; }
+      else if (!skel.tgt || walkTo(skel, ...skel.tgt, 0.9, dt)) { skel.tgt = randomIcePoint(); skel.wait = 0.6 + Math.random(); if (!skel.tgt) skel.mode = 'patrol'; }
+    } else if (skel.wait > 0) { skel.wait -= dt; skel.moving = false; }
+    else if (walkTo(skel, ...PATROL[skel.leg], 1.1, dt)) { skel.leg ^= 1; skel.wait = 1.6; }
+    skel.sink += ((inWater(skel.x, skel.y) ? D : 0) - skel.sink) * Math.min(1, dt * 14);
+  }
   const pa = wraith.a; wraith.a += dt * 0.22;
   const pw = a => [8.6 + Math.cos(a) * 1.7, 4.3 + Math.sin(a) * 1.0];
   const [x0, y0] = pw(pa), [x1, y1] = pw(wraith.a); wraith.x = x1; wraith.y = y1; wraith.dir = dirOf(x1 - x0, y1 - y0); wraith.anim = time * 3;
@@ -1018,6 +1122,12 @@ function render() {
   ctx.fillStyle = pats(ctx).floor; ctx.fill(); ctx.lineWidth = 0.012; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.stroke(); ctx.restore();
   ctx.lineJoin = 'round';
   ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 12; waterPath(ctx, 0); ctx.stroke(); ctx.lineWidth = 5; ctx.stroke();
+  for (const p of patches) if (p.ftex) {   // frost on the stones around the hero, spreading with the front, gone with the ice
+    const [X, Y] = iso(p.ox, p.oy), r = P * p.R * Math.max(0.25, p.phase === 'freeze' ? easeOut(clamp(p.t / 0.9)) : 1);
+    ctx.save(); ctx.beginPath(); ctx.ellipse(X, Y, r, r / 2, 0, 0, 7); ctx.clip();
+    ctx.globalAlpha = p.phase === 'melt' ? 1 - clamp((p.t - p.life) / p.md) : 1;
+    ctx.drawImage(p.ftex.c, X - p.ftex.w / 2, Y - p.ftex.h / 2, p.ftex.w, p.ftex.h); ctx.restore();
+  }
   ctx.restore();
   ctx.lineCap = 'round';
   for (const g of SEGS) if (g.near) {
@@ -1044,7 +1154,7 @@ function render() {
     for (const L of lights) hole(L[0], L[1], L[2], L[4], L[3]);
     for (const p of patches) {
       const glow = p.phase === 'melt' ? 0.3 * (1 - (p.t - p.life) / p.md) : 0.3;
-      hole(p.ox, p.oy, p.R * 1.15 * Math.max(0.3, p.k), glow, -D);
+      hole(p.crackFrom[0], p.crackFrom[1], p.R * (p.fromHero ? 0.9 : 1.15) * Math.max(0.3, p.k), glow, -D);
       if (p.t < 1.6) hole(p.ox, p.oy, p.R * 1.8, 0.95 * Math.exp(-p.t / 0.5), -D);
     }
     lctx.save(); lctx.setTransform(...TF); waterPath(lctx, D); lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clip();
@@ -1149,11 +1259,13 @@ cv.addEventListener('pointerdown', ev => {
   const [wx, wy] = screenToWorld(ev.clientX, ev.clientY, D);
   if (inWater(wx, wy)) {
     if (O.tap === 'bomb') { throwBomb(wx, wy); return; }
+    if (hero.dead) return;
     if (iceAt(wx, wy)) { hero.tx = wx; hero.ty = wy; return; }
+    if (O.origin === 'hero') { hero.dir = dirOf(wx - hero.x, wy - hero.y); hero.tx = null; cast(hero.x, hero.y, true); return; }
     cast(wx, wy); return;
   }
   const [fx, fy] = screenToWorld(ev.clientX, ev.clientY);
-  if (isFloor(Math.floor(fx), Math.floor(fy))) {
+  if (isFloor(Math.floor(fx), Math.floor(fy)) && !hero.dead) {
     if (O.tap === 'bomb' && Math.hypot(fx - hero.x, fy - hero.y) > 1.2) { throwBomb(fx, fy); return; }
     hero.tx = fx; hero.ty = fy;
   }
@@ -1162,6 +1274,7 @@ function syncUI() {
   for (const seg of document.querySelectorAll('.seg')) for (const b of seg.children) b.setAttribute('aria-pressed', String(O[seg.dataset.opt] === b.dataset.v));
   $('radius').value = O.radius; $('radiusV').textContent = O.radius + ' tiles';
   $('life').value = O.life; $('lifeV').textContent = O.life + ' s (the last 5 cracking)';
+  $('originD').textContent = DESC[O.origin]; $('castMid').textContent = O.origin === 'hero' ? 'Cast from the shore' : 'Cast at the lake';
   $('freezeD').textContent = DESC[O.freeze]; $('meltD').textContent = DESC[O.melt];
   for (const k of ['scar', 'mist', 'light', 'sound']) $(k).checked = O[k];
 }
@@ -1170,15 +1283,25 @@ for (const seg of document.querySelectorAll('.seg')) seg.addEventListener('click
   O[seg.dataset.opt] = b.dataset.v; syncUI();
   if (seg.dataset.opt === 'melt') for (const p of patches) if (p.phase !== 'melt') { p.meltStyle = O.melt; p.md = MELT_DUR[O.melt]; }
   if (seg.dataset.opt === 'freeze') { wake(); recast(); }
+  if (seg.dataset.opt === 'origin') { wake(); patches.length = 0; $('castMid').onclick(); }
 });
 $('radius').oninput = e => { O.radius = +e.target.value; syncUI(); };
 $('life').oninput = e => { O.life = +e.target.value; syncUI(); };
 for (const k of ['scar', 'mist', 'light', 'sound']) $(k).onchange = e => { O[k] = e.target.checked; if (k === 'sound' && O[k]) wake(); if (k === 'scar') recast(); };
 function recast() {   // cast again where the newest ice is (or at the lake), to compare looks
   const p = patches[patches.length - 1], x = p ? p.ox : 8.3, y = p ? p.oy : 4.2;
-  patches.length = 0; cast(x, y);
+  patches.length = 0; cast(x, y, p ? p.fromHero : false);
 }
-$('castMid').onclick = () => { wake(); cast(8.3 + (Math.random() - 0.5) * 2, 4.2 + (Math.random() - 0.5) * 1.2); };
+$('castMid').onclick = () => {
+  wake();
+  if (O.origin === 'hero') {   // the hero steps to the south shore of the lake, faces it and casts
+    if (hero.dead) return; hero.x = 8.6; hero.y = 8.45; hero.tx = null; hero.dir = 4; hero.sink = 0; cast(hero.x, hero.y, true);
+  } else cast(8.3 + (Math.random() - 0.5) * 2, 4.2 + (Math.random() - 0.5) * 1.2);
+};
+$('skelIce').onclick = () => {
+  if (skel.dead) return; const q = randomIcePoint(); if (!q) { note = { text: 'There is no ice yet: cast first.', t: 2.5 }; return; }
+  skel.x = q[0]; skel.y = q[1]; skel.mode = 'ice'; skel.tgt = null; skel.wait = 0.5;
+};
 $('onIce').onclick = () => {
   const p = [...patches].reverse().find(solid); if (!p) { note = { text: 'There is no ice yet: tap the water to cast.', t: 2.5 }; return; }
   for (let i = 0; i < 40; i++) { const a = Math.random() * 7, r = (0.4 + Math.random() * 0.5) * p.R, x = p.ox + Math.cos(a) * r, y = p.oy + Math.sin(a) * r; if (iceAt(x, y)) { hero.x = x; hero.y = y; hero.tx = null; return; } }
