@@ -1,0 +1,38 @@
+{
+  "name": "Hero 4 (hunter)",
+  "description": null,
+  "frames": 12,
+  "mirror": false,
+  "guide": "walk",
+  "body": "standard walk guide (adult 1.82 m, EU 43)",
+  "references": [
+    {
+      "file": "reference/round-1/candidate-1.png",
+      "status": "candidate",
+      "note": "round 1, style from hero-3 + hero-2: woodsman ~35, short dark hair and beard, brown hooded half-cloak with an iron ring clasp (one layer, to the hips), olive jerkin with crossed straps, tan trousers, tall boots."
+    },
+    {
+      "file": "reference/round-1/candidate-2.png",
+      "status": "candidate",
+      "note": "round 1: young scout ~25, short black hair, no cloak: riveted leather vest over a rust-red tunic, green scarf (came out as a thick cowl), green trousers, strapped boots. No cloth to animate; the vest's leather texture is a bit mottled."
+    },
+    {
+      "file": "reference/round-1/candidate-3.png",
+      "status": "candidate",
+      "note": "round 1: veteran ~45, grey-streaked hair in a short tail, stubble, long forest-green cloak to mid-calf (one layer, two disc clasps), leather jerkin over a grey shirt, brown trousers, tall boots. The long cloak is the most work to keep steady (needs --cloth, as hero-2's cape)."
+    }
+  ],
+  "designs": {
+    "candidate-1": "a lean, broad-shouldered man about 35, a woodsman and ranger: short dark-brown hair and a neatly trimmed short beard, a weathered face; a dark-brown wool hooded half-cloak (ONE simple layer, no fur) reaching the hips, the hood DOWN, fastened at the throat with an iron ring clasp; an olive-green padded jerkin to mid-thigh with two bold leather straps crossing the chest; long dark-brown leather bracers; a wide brown belt with a square iron buckle, a pouch at his right hip and a sheathed hunting knife at his left hip; tan trousers; knee-high dark-brown boots. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried.",
+    "candidate-2": "a lean, wiry young man about 25, a scout and ranger: short-cropped black hair, clean-shaven, a sharp face; NO cloak; a sleeveless dark-brown leather vest with a few bold rivets over a rust-red long-sleeved tunic to mid-thigh; a dark-green scarf loosely wrapped once around the neck; brown leather bracers; a wide belt with a pouch at his right hip and a sheathed knife at his left hip; dark-green trousers; brown boots to mid-calf wrapped with leather straps. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried.",
+    "candidate-3": "a tall, rangy man about 45, a veteran ranger: grey-streaked dark hair tied back in a short tail at the nape, short grey stubble, a lined, calm face; a long deep forest-green wool cloak (ONE simple layer, no fur, no shoulder cape) fastened at both shoulders, hanging in a few heavy folds to mid-calf, the hood DOWN; a brown leather jerkin to the hips over a dark-grey shirt; dark leather bracers; a wide brown belt with a pouch and a sheathed hunting knife; brown trousers; knee-high brown boots. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried."
+  },
+  "directions": {},
+  "next": "Pick a reference (or trial NW walks for two, as for hero-3)",
+  "spend": [
+    {
+      "what": "3 reference candidates (edit, hero-3 + hero-2 references as style input)",
+      "usd": 0.1
+    }
+  ]
+}
