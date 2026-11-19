@@ -747,7 +747,7 @@ Each hero is drawn with one of three walk sheets (`HERO_LOOKS`), its **look**, s
 | Look | Key | Sheet | Frames | `fpt` | Drawn at |
 |---|---|---|---|---|---|
 | Knight (the original) | `hero` (or none) | `assets/hero.webp` | 8 | 5 | 1 |
-| Stocky knight | `hero2` | `assets/hero2.webp` | 12 | 8.54 | 0.93 |
+| Stocky knight | `hero2` | `assets/hero2.webp` | 12 | 8.54 | 0.96 |
 | Mannequin | `mannequin` | `assets/mannequin.webp` | 12 | 8.02 | 1 |
 
 - **Picking it:** in the hero's cogwheel box on the title screen, or with **Look** in the debug overlay (the selected
@@ -756,9 +756,9 @@ Each hero is drawn with one of three walk sheets (`HERO_LOOKS`), its **look**, s
 - **Loading:** only `hero.webp` loads at start-up; the other two load on first use (`LOOK_SRC`, `loadCast`, also on
   entering the game with a hero that has one). Until a sheet has loaded the hero is drawn as the knight.
 - **Drawing:** `heroLook(h)` picks the sheet in `drawChar` and in the equipment screen's turning portrait; every sheet
-  is 118 px tall at scale 1 and uses the knight's shadow. The stocky knight is drawn at 0.93 (`CAST_SCALE.hero2`):
+  is 118 px tall at scale 1 and uses the knight's shadow. The stocky knight is drawn at 0.96 (`CAST_SCALE.hero2`):
   the stocky mocap guide is normalised to full height, so at scale 1 his short legs made his torso, head and
-  shoulders bigger than the knight's; at 0.93 he is a little shorter, as designed. The walk frames advance by
+  shoulders bigger than the knight's; at 0.96 he is a little shorter. The walk frames advance by
   distance walked with the look's own `fpt` (frames per tile) divided by its scale, so the feet stay planted.
 - **The sandbox's character viewer** sets `G.hero.look` to any sheet; its list names these three "The hero: …".
 - **How the two new sheets were made** (the `sprite-animation` skill, `art/characters/hero-2/`): the stocky knight

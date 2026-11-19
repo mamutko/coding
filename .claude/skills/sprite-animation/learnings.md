@@ -173,6 +173,6 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
 - **`render_guide.py --preset stocky` is normalised to full height** (the stocky guide figure is as tall as the
   standard one), and build_sheet sizes every sheet to `--height`. Short legs at full height mean a bigger torso,
   head and shoulders: hero-2 looked larger than the original knight in the game. A short build has to be made
-  short where it is drawn: the game's per-character draw scale (dungeon-crawler `CAST_SCALE.hero2 = 0.93`, about
-  the height lost to legs 0.88 and neck 0.6), or `--height` in the build. The game's draw scale is simpler: the
+  short where it is drawn: the game's per-character draw scale (dungeon-crawler `CAST_SCALE.hero2`: 0.93, about
+  the height lost to legs 0.88 and neck 0.6, looked too small; the user settled on 0.96), or `--height` in the build. The game's draw scale is simpler: the
   game resamples every sprite anyway (zoom, device pixel ratio), and the walk divides `fpt` by the scale.

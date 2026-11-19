@@ -393,7 +393,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 81;
+const VERSION = 82;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -458,7 +458,7 @@ const CAST_SRC = { hunter: 'assets/hunter.webp', huntress: 'assets/huntress.webp
 const CAST_NAMES = { hunter: 'Hunter', huntress: 'Huntress', girl: 'Village girl', boy: 'Village boy', duke: 'Duke', princess: 'Princess',
   smithess: 'Blacksmith (female)', sorcerer: 'Sorcerer' };
 const CAST_SCALE = { girl: 0.7, boy: 0.74, huntress: 0.97, princess: 0.95,
-  hero2: 0.93 };   // the stocky knight: its sheet is drawn at full height (the guide normalises it), but short legs make him ~7% shorter
+  hero2: 0.96 };   // the stocky knight: its sheet is drawn at full height (the guide normalises it); a little smaller here
 // The hero's looks (see README, Hero looks): the sheet the hero is drawn with, picked per hero (the title screen's
 // cogwheel, or the debug overlay) and saved with it as h.look (none: 'hero'). The other sheets load on demand.
 const HERO_LOOKS = { hero: 'Knight', hero2: 'Stocky knight', mannequin: 'Mannequin' };
