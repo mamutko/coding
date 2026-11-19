@@ -1,0 +1,1214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crypt Ice Prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  /* Layout: the scene fills the screen; a floating options panel (a collapsible bottom sheet on phones). One dark look, like the game. */
+  :root {
+    --bg: #040205; --panel: rgba(14, 12, 12, 0.9); --line: #39302a; --fg: #e8dcc4; --muted: #a49378; --gold: #d8b45a;
+    --on: #2a4858; --onfg: #dcf2fb; --frost: #bfe3f2;
+    --display: Cinzel, Georgia, serif; --body: "IM Fell English", Georgia, serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; }
+  body { font-family: var(--body); font-size: 15px; }
+  #cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #panel { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: calc(12px + env(safe-area-inset-right, 0px));
+    width: 320px; max-height: calc(100% - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow: auto;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 14px; box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(3px); }
+  #panel header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  h1 { font-family: var(--display); font-size: 17px; letter-spacing: 0.06em; margin: 0; color: var(--frost); font-weight: 700; }
+  .hint { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.35; }
+  .desc { margin: 0; color: var(--fg); font-size: 13.5px; line-height: 1.35; font-style: italic; opacity: 0.85; }
+  .row { display: flex; flex-direction: column; gap: 4px; }
+  .lab { font-family: var(--display); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+  .lab output { font-family: var(--body); letter-spacing: 0; text-transform: none; color: var(--fg); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { flex: 1; background: transparent; color: var(--fg); border: 0; border-left: 1px solid var(--line); padding: 6px 4px;
+    font: 14px var(--body); cursor: pointer; }
+  .seg button:first-child { border-left: 0; }
+  .seg button[aria-pressed="true"] { background: var(--on); color: var(--onfg); }
+  input[type=range] { width: 100%; accent-color: var(--frost); margin: 0; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+  .checks label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  input[type=checkbox] { accent-color: var(--frost); }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btn { background: #1c1a19; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: 14px var(--body); cursor: pointer; }
+  .btn:hover, .seg button:hover { filter: brightness(1.25); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--frost); outline-offset: 1px; }
+  #toggle { display: none; }
+  #status { position: fixed; left: calc(12px + env(safe-area-inset-left, 0px)); top: calc(10px + env(safe-area-inset-top, 0px));
+    font: 15px var(--body); color: var(--frost); text-shadow: 0 0 4px #000, 0 0 2px #000; pointer-events: none; max-width: calc(100% - 360px); }
+  #status small { display: block; color: var(--muted); font-size: 13px; }
+  @media (max-width: 640px) {
+    #status { max-width: calc(100% - 24px); }
+    #panel { left: 0; right: 0; top: auto; bottom: 0; width: auto; max-height: 58%; border-radius: 12px 12px 0 0; border-bottom: 0;
+      padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+    #panel.closed > :not(header) { display: none; }
+    #toggle { display: inline-block; }
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="status">Loading…</div>
+<div id="panel" class="closed">
+  <header><h1>Crypt Ice</h1><button class="btn" id="toggle" aria-expanded="false">Options</button></header>
+  <p class="hint">Tap open water to cast (or throw), tap the floor or the ice to walk. Cracks appear 5 s before the ice melts, starting under the hero if they stand on it.</p>
+  <div class="row"><div class="lab">Tapping the water</div>
+    <div class="seg" data-opt="tap"><button data-v="cast">Ice blast</button><button data-v="bomb">Fire bomb</button></div></div>
+  <div class="row"><div class="lab">Freezing</div>
+    <div class="seg" data-opt="freeze"><button data-v="front">Frost front</button><button data-v="shard">Shard burst</button><button data-v="flash">Flash</button></div>
+    <p class="desc" id="freezeD"></p></div>
+  <div class="row"><div class="lab">Melting</div>
+    <div class="seg" data-opt="melt"><button data-v="break">Break up</button><button data-v="thaw">Thaw</button><button data-v="recede">Recede</button></div>
+    <p class="desc" id="meltD"></p></div>
+  <div class="row"><label class="lab" for="radius">Blast radius <output id="radiusV"></output></label><input type="range" id="radius" min="1.5" max="5" step="0.25"></div>
+  <div class="row"><label class="lab" for="life">Ice lasts <output id="lifeV"></output></label><input type="range" id="life" min="8" max="40" step="1"></div>
+  <div class="row"><div class="lab">Water</div>
+    <div class="seg" data-opt="tint"><button data-v="ink">Ink</button><button data-v="teal">Teal</button><button data-v="moss">Moss</button></div></div>
+  <div class="checks">
+    <label><input type="checkbox" id="scar"> Blast scar</label>
+    <label><input type="checkbox" id="mist"> Cold mist</label>
+    <label><input type="checkbox" id="light"> Lighting</label>
+    <label><input type="checkbox" id="sound"> Sound</label>
+  </div>
+  <div class="btns">
+    <button class="btn" id="castMid">Cast at the lake</button>
+    <button class="btn" id="onIce">Hero onto the ice</button>
+    <button class="btn" id="crackNow">Start cracking now</button>
+    <button class="btn" id="dripNow">Drip</button>
+    <button class="btn" id="zout" aria-label="Zoom out">−</button>
+    <button class="btn" id="zin" aria-label="Zoom in">+</button>
+  </div>
+</div>
+<script>
+'use strict';
+// =====================================================================================
+//  Ice prototype for the crypt's lakes (dungeon-crawler-01): an ice blast freezes the still water in a radius
+//  around where it lands; the ice lasts a while, cracks for its last 5 s and melts. Built on lake-prototype.html
+//  (the same projection, walls, props, characters, reflection and ripples).
+//  How the ice is drawn:
+//   - A patch of ice is a noisy disc (world coordinates) clipped to the lake, at the water's level. Its look is
+//     pre-drawn once into a texture (in the ground plane, so it is foreshortened like the floor): a pale tint
+//     over the reflection, cloudy rime, frost ferns, trapped bubbles and the blast scar at the centre (a white
+//     crater, a starburst of streaks, broken pressure rings and radial fractures).
+//   - The patch is drawn on its own layer over the water each frame: the deep colour, a dim reflection (smooth
+//     ice still mirrors a little), the texture, the freezing whiteness, the cracks, and the rim.
+//   - Cracks: 5 s before the melt a crack network is made from a Voronoi diagram of seeds set in rings around
+//     the crack's start (under the hero if they are on the ice, else the blast scar): spokes from the start, then
+//     the cells' edges, revealed outward from the start by their distance along the network (Dijkstra). If the
+//     hero walks onto the ice while it cracks, new cracks start under their feet too. The melt uses the same
+//     cells: floes for Break up, channels for Thaw.
+//   - On the ice nothing ripples: drops tick and bounce, fire bombs shatter and burn. Open water as before.
+// =====================================================================================
+const TW = 96, TH = 48, HW = TW / 2, HH = TH / 2, WALLH = 72, SHADE_Y = 0.42, SHADE_X = 0.18;
+const P = HW * Math.SQRT2;       // px per tile in the ground plane (a world circle is an ellipse P by P/2 on screen)
+const iso = (x, y) => [(x - y) * HW, (x + y) * HH];
+const MAP = [
+  '#################',
+  '#....~~~~~......#',
+  '#...~~~~~~~~~~..#',
+  '#..~~~~~~~~~~~..#',
+  '#..~~~~~~~~~~~~.#',
+  '#...~~~~~~~~~~~.#',
+  '#....~~~~~~~~...#',
+  '#......~~~~.....#',
+  '#...............#',
+  '#...........~~..#',
+  '#...........~~..#',
+  '#...............#',
+  '#################'];
+const MW = MAP[0].length, MH = MAP.length;
+const T = (x, y) => x < 0 || y < 0 || x >= MW || y >= MH ? '#' : MAP[y][x];
+const isWall = (x, y) => T(x, y) === '#', isWater = (x, y) => T(x, y) === '~', isFloor = (x, y) => T(x, y) === '.';
+
+const SRC = { floor: 'assets/floor.jpg', wall: 'assets/wall.jpg', dirt: 'assets/dirt.jpg', props: 'assets/props.webp',
+  hero: 'assets/hero.webp', skeleton: 'assets/skeleton.webp', wraith: 'assets/wraith.webp' };
+const CHARS = { hero: { fw: 144, fh: 152, frames: 8, idle: 3, footY: 128, fpt: 5 }, skeleton: { fw: 176, fh: 152, frames: 8, idle: 3, footY: 128, fpt: 5 },
+  wraith: { fw: 102, fh: 152, frames: 4, idle: 0, footY: 128, fpt: 2 } };
+const PROPS = { brazier: [571, 0, 104, 167], banner: [1593, 0, 84, 206], pillar: [1679, 0, 98, 191], candelabrum: [1339, 0, 84, 196],
+  sarcophagus: [1779, 0, 154, 144], skullpile: [1425, 0, 166, 136], urn: [827, 0, 95, 151] };
+const PROP_STYLE = { brazier: [0.62, 10], banner: [0.66, 6], pillar: [0.72, 8], candelabrum: [0.62, 6], sarcophagus: [0.64, 10], skullpile: [0.42, 8], urn: [0.52, 8] };
+const POST = [0.08, 0.46, 0.21, 0.5, 0.55];
+const PROP_SHADOW = { brazier: [0.2, 0.44, 0.2, 0.75, 0.7], banner: POST, pillar: POST, candelabrum: POST, urn: POST,
+  sarcophagus: [0.25, 0.62, 0.32, 0.5, 0.55], skullpile: [0.2, 0.58, 0.28, 0.5, 0.55] };
+const objects = [
+  { k: 'brazier', x: 2, y: 2, light: [4.2, 40, 0.95], flame: 52 }, { k: 'banner', x: 4, y: 1 }, { k: 'pillar', x: 10, y: 1 },
+  { k: 'candelabrum', x: 14, y: 1, light: [2.6, 60, 0.8], flame: 108 }, { k: 'sarcophagus', x: 6, y: 9 }, { k: 'skullpile', x: 14, y: 7 },
+  { k: 'urn', x: 1, y: 8 }, { k: 'brazier', x: 15, y: 10, light: [4.2, 40, 0.95], flame: 52 }];
+
+// options (the panel); the water itself is the lake the game settled on (rounded shores, rings + refraction)
+const O = { tap: 'cast', freeze: 'front', melt: 'break', radius: 3, life: 16, tint: 'ink', scar: true, mist: true, light: true, sound: true };
+const D = 8, REFL = 0.7, FADE = 0.45, DRIPS = 10;
+const TINTS = {
+  teal: { deep: '#061419', deepRGB: '6,20,25', tint: 'rgba(12,52,62,0.36)', ring: '190,226,240' },
+  ink:  { deep: '#030407', deepRGB: '3,4,7', tint: 'rgba(4,8,14,0.42)', ring: '205,212,228' },
+  moss: { deep: '#0a1309', deepRGB: '10,19,9', tint: 'rgba(32,54,26,0.38)', ring: '205,230,190' } };
+const FADEH = 120, RSPEED = 24, RLIFE = 3.8, LAMBDA = 7.5;
+const WARN = 5;                                                       // s of cracking before the melt
+const FREEZE_DUR = { front: 0.9, shard: 1.45, flash: 0.05 }, MELT_DUR = { break: 2.2, thaw: 2.4, recede: 2.6 };
+const DESC = {
+  front: 'A frost front races out from the blast and slows as it spreads, feathered at its edge. The fresh ice is white with rime, then clears to glassy ice.',
+  shard: 'Needles of ice shoot out to the full radius first, then the sheet fills in between them.',
+  flash: 'The whole radius turns white at once behind a shock ring that runs out across the open water, then clears.',
+  break: 'The cracks open, the sheet breaks into floes along them, and the floes drift apart, darken and sink one by one.',
+  thaw: 'The cracks widen into channels of open water and dark melt holes open and join until the lake is back.',
+  recede: 'The ice melts back from its rim toward the blast scar, which goes last, with a wet dark edge.' };
+
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const wc = document.createElement('canvas'), wctx = wc.getContext('2d', { willReadFrequently: true });   // the water layer
+const ic = document.createElement('canvas'), ictx = ic.getContext('2d');   // the ice layer
+const rc = document.createElement('canvas'), rctx = rc.getContext('2d');   // the mirrored scene
+const lc = document.createElement('canvas'), lctx = lc.getContext('2d');   // lighting
+const tmp = document.createElement('canvas'), tctx = tmp.getContext('2d');
+let W = 0, H = 0, DPR = 1, Z = 1, camX = 0, camY = 0, time = 0, TF = [1, 0, 0, 1, 0, 0];
+const IMG = {};
+const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
+const easeOut = u => 1 - (1 - u) ** 3, easeInOut = u => u < 0.5 ? 4 * u * u * u : 1 - (-2 * u + 2) ** 3 / 2;
+function mulberry(a) { return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+// ---------- the lake outline (as in lake-prototype.html) ----------
+function traceLoops() {
+  const edges = [];
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) {
+    if (!isWater(x, y)) continue;
+    if (!isWater(x, y - 1)) edges.push({ a: [x, y], b: [x + 1, y], w: isWall(x, y - 1) });
+    if (!isWater(x + 1, y)) edges.push({ a: [x + 1, y], b: [x + 1, y + 1], w: isWall(x + 1, y) });
+    if (!isWater(x, y + 1)) edges.push({ a: [x + 1, y + 1], b: [x, y + 1], w: isWall(x, y + 1) });
+    if (!isWater(x - 1, y)) edges.push({ a: [x, y + 1], b: [x, y], w: isWall(x - 1, y) });
+  }
+  const from = new Map(), key = p => p[0] + ',' + p[1];
+  for (const e of edges) { const k = key(e.a); if (!from.has(k)) from.set(k, []); from.get(k).push(e); }
+  const used = new Set(), loops = [];
+  for (const e0 of edges) {
+    if (used.has(e0)) continue;
+    const pts = [], w = []; let e = e0;
+    while (e && !used.has(e)) { used.add(e); pts.push(e.a); w.push(e.w); e = (from.get(key(e.b)) || []).find(f => !used.has(f)); }
+    loops.push({ pts, w });
+  }
+  return loops;
+}
+function chaikin(L, n) {
+  let { pts, w } = L;
+  for (let it = 0; it < n; it++) {
+    const Pp = [], F = [], m = pts.length;
+    for (let i = 0; i < m; i++) {
+      const a = pts[i], b = pts[(i + 1) % m], wi = w[i], wn = w[(i + 1) % m];
+      const s = wi ? a : [a[0] * 0.75 + b[0] * 0.25, a[1] * 0.75 + b[1] * 0.25], e = wi ? b : [a[0] * 0.25 + b[0] * 0.75, a[1] * 0.25 + b[1] * 0.75];
+      Pp.push(s); F.push(wi); Pp.push(e); F.push(wi && wn);
+    }
+    pts = []; w = [];
+    for (let i = 0; i < Pp.length; i++) { const q = Pp[(i + 1) % Pp.length]; if (Math.abs(Pp[i][0] - q[0]) + Math.abs(Pp[i][1] - q[1]) < 1e-9) continue; pts.push(Pp[i]); w.push(F[i]); }
+  }
+  return { pts, w };
+}
+let LOOPS = [], SEGS = [], WATER2D = null;
+function buildLake() {
+  LOOPS = traceLoops().map(L => chaikin(L, 3));
+  SEGS = []; WATER2D = new Path2D();
+  for (const L of LOOPS) {
+    const m = L.pts.length;
+    L.pts.forEach((p, i) => i ? WATER2D.lineTo(p[0], p[1]) : WATER2D.moveTo(p[0], p[1])); WATER2D.closePath();
+    for (let i = 0; i < m; i++) {
+      const a = L.pts[i], b = L.pts[(i + 1) % m], dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy);
+      const n = [dy / l, -dx / l];
+      SEGS.push({ a, b, wall: L.w[i], n, far: n[0] + n[1] < -0.02, near: n[0] + n[1] > 0.02 });
+    }
+  }
+}
+const hit = document.createElement('canvas').getContext('2d');
+const inWater = (x, y) => hit.isPointInPath(WATER2D, x, y);
+function waterPath(c, dy) {
+  c.beginPath();
+  for (const L of LOOPS) { L.pts.forEach((p, i) => { const [X, Y] = iso(p[0], p[1]); i ? c.lineTo(X, Y + dy) : c.moveTo(X, Y + dy); }); c.closePath(); }
+}
+const PATS = new Map();
+function pats(c) {
+  if (PATS.has(c)) return PATS.get(c);
+  const floor = c.createPattern(IMG.floor, 'repeat'); floor.setTransform(new DOMMatrix([HW, HH, -HW, HH, 0, 0]).scale(3 / 512));
+  const dirt = c.createPattern(IMG.dirt, 'repeat'); dirt.setTransform(new DOMMatrix().scale(1.5 / 512));
+  const rock = c.createPattern(IMG.wall, 'repeat'); rock.setTransform(new DOMMatrix().scale(0.75));
+  const p = { floor, dirt, rock }; PATS.set(c, p); return p;
+}
+
+// ---------- drawing the scene (as in lake-prototype.html; mir = the mirror image about the water plane) ----------
+function face(c, img, sx, sy, sw, sh, A, B, h0, h1, shade, mir) {
+  const ux = B[0] - A[0], uy = B[1] - A[1], hh = h1 - h0;
+  c.save();
+  if (mir) c.transform(ux / sw, uy / sw, 0, -hh / sh, A[0], A[1] + 2 * D + h1);
+  else c.transform(ux / sw, uy / sw, 0, hh / sh, A[0], A[1] - h1);
+  c.drawImage(img, sx, sy, sw, sh, 0, 0, sw * 1.02, sh * 1.01);
+  if (shade) { c.fillStyle = `rgba(0,0,0,${shade})`; c.fillRect(0, 0, sw * 1.02, sh * 1.01); }
+  if (!mir && h0 < 0) { const yb = sh * h1 / hh; c.fillStyle = 'rgba(0,8,12,0.5)'; c.fillRect(0, yb, sw * 1.02, sh * 1.01 - yb); }
+  if (mir) {
+    const g = c.createLinearGradient(0, sh, 0, sh - FADEH / hh * sh), d = TINTS[O.tint].deepRGB;
+    g.addColorStop(0, `rgba(${d},0)`); g.addColorStop(1, `rgba(${d},${FADE})`); c.fillStyle = g; c.fillRect(0, 0, sw * 1.02, sh * 1.01);
+  }
+  c.restore();
+}
+function wallTop(c, x, y) {
+  c.save(); c.translate(0, -WALLH); c.transform(HW, HH, -HW, HH, 0, 0);
+  c.beginPath(); c.rect(x, y, 1, 1); c.fillStyle = pats(c).dirt; c.fill(); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fill();
+  c.lineWidth = 0.012; c.strokeStyle = 'rgba(255,240,220,0.05)'; c.stroke(); c.restore();
+}
+function drawWall(c, x, y, mir) {
+  const L = iso(x, y + 1), B = iso(x + 1, y + 1), R = iso(x + 1, y);
+  const tsx = ((x * 131 + y * 71) % 4) * 128, tsy = ((x * 37 + y * 113) % 4) * 100;
+  if (!isWall(x, y + 1)) face(c, IMG.wall, tsx, tsy, 128, 75, L, B, isWater(x, y + 1) ? -D : 0, WALLH, SHADE_Y, mir);
+  if (!isWall(x + 1, y)) face(c, IMG.wall, (tsx + 256) % 512, tsy, 128, 75, B, R, isWater(x + 1, y) ? -D : 0, WALLH, SHADE_X, mir);
+  if (!mir) wallTop(c, x, y);
+}
+function softShadow(c, x, y, rx, ry, a, mid) {
+  c.save(); c.translate(x, y); c.scale(1, ry / rx);
+  const g = c.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(mid, `rgba(0,0,0,${a * 0.7})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(0, 0, rx, 0, 7); c.fill(); c.restore();
+}
+function mirSprite(c, img, sx, sy, sw, sh, dx, dy, dw, dh, gy) {
+  tmp.width = sw; tmp.height = sh; tctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+  const s = dh / sh, y0 = (gy - dy) / s, y1 = y0 - FADEH / s;
+  const g = tctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, `rgba(0,0,0,${FADE})`);
+  tctx.globalCompositeOperation = 'destination-out'; tctx.fillStyle = g; tctx.fillRect(0, 0, sw, sh); tctx.globalCompositeOperation = 'source-over';
+  c.save(); c.translate(0, 2 * (gy + D)); c.scale(1, -1); c.drawImage(tmp, dx, dy, dw, dh); c.restore();
+}
+function drawProp(c, o, mir) {
+  const [px, py, pw, ph] = PROPS[o.k], [s, off] = PROP_STYLE[o.k], [sx, sy] = iso(o.x + 0.5, o.y + 0.5);
+  const w = pw * s, hh = ph * s, top = sy - hh + off;
+  if (mir) return mirSprite(c, IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh, sy);
+  const sh = PROP_SHADOW[o.k];
+  if (sh) softShadow(c, sx, top + hh - w * sh[0], w * sh[1], w * sh[2], sh[3], sh[4]);
+  c.drawImage(IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh);
+  if (o.k === 'brazier') for (let i = 0; i < 2; i++) {
+    const t = (time * 0.9 + i * 0.5 + o.x * 0.13) % 1;
+    c.fillStyle = `rgba(255,${150 + i * 40},60,${1 - t})`; c.fillRect(sx - 6 + Math.sin(t * 9 + i) * 8, top + 10 - t * 40, 2, 2);
+  }
+}
+function drawChar(c, e, mir) {
+  const md = CHARS[e.sheet], s = e.scale || 1, [sx, sy] = iso(e.x, e.y), sink = e.sink || 0;   // sink: standing on the ice, D px lower
+  const lift = e.float ? 8 + Math.sin(time * 3 + e.x) * 4 : 0;
+  const frame = e.moving ? Math.floor(e.anim) % md.frames : md.idle, dw = md.fw * s, dh = md.fh * s, dx = sx - dw / 2, dy = sy + sink - lift - md.footY * s;
+  if (mir) return mirSprite(c, IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, dx, dy, dw, dh, sy);
+  if (!e.float && (!inWater(e.x, e.y) || iceAt(e.x, e.y))) softShadow(c, sx, sy + sink + 2 * s, 32 * s, 15 * s, 0.55, 0.55);
+  c.drawImage(IMG[e.sheet], frame * md.fw, e.dir * md.fh, md.fw, md.fh, dx, dy, dw, dh);
+}
+function drawBanks(c, mir) {
+  for (const g of SEGS) {
+    if (!g.far || g.wall) continue;
+    const A = iso(g.a[0], g.a[1]), B = iso(g.b[0], g.b[1]), f = [-g.n[0], -g.n[1]];
+    const shade = 0.25 + (f[1] > 0 ? f[1] * f[1] * SHADE_Y : 0) + (f[0] > 0 ? f[0] * f[0] * SHADE_X : 0) + (mir ? 0.25 : 0);
+    const y0 = mir ? D : 0, y1 = mir ? 2 * D : D, ex = (B[0] - A[0]) * 0.04, ey = (B[1] - A[1]) * 0.04;
+    c.beginPath(); c.moveTo(A[0] - ex, A[1] - ey + y0); c.lineTo(B[0] + ex, B[1] + ey + y0); c.lineTo(B[0] + ex, B[1] + ey + y1); c.lineTo(A[0] - ex, A[1] - ey + y1); c.closePath();
+    c.fillStyle = pats(c).rock; c.fill(); c.fillStyle = `rgba(0,0,0,${Math.min(0.85, shade)})`; c.fill();
+  }
+}
+
+// ---------- the scene ----------
+const hero = { sheet: 'hero', x: 3.2, y: 7.6, dir: 4, anim: 0, moving: false, tx: null, ty: null, sink: 0 };
+const skel = { sheet: 'skeleton', x: 11.4, y: 1.6, dir: 6, anim: 0, moving: false, leg: 0, wait: 1 };
+const wraith = { sheet: 'wraith', x: 8.6, y: 4.4, dir: 0, anim: 0, moving: true, float: true, a: 0 };
+const PATROL = [[11.4, 1.6], [13.3, 1.6]];
+function dirOf(dx, dy) {
+  const X = (dx - dy) * HW, Y = (dx + dy) * HH, a = Math.atan2(X, Y);
+  return ((Math.round(-a / (Math.PI / 4)) % 8) + 8) % 8;
+}
+function drawables() {
+  const dl = [];
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (isWall(x, y)) dl.push({ k: x + y + 1, f: (c, m) => drawWall(c, x, y, m) });
+  for (const o of objects) dl.push({ k: o.x + o.y + 1, f: (c, m) => drawProp(c, o, m) });
+  for (const e of [hero, skel, wraith]) dl.push({ k: e.x + e.y, f: (c, m) => drawChar(c, e, m) });
+  for (const b of bombs) dl.push({ k: b.x + b.y, f: (c, m) => drawBomb(c, b, m) });
+  for (const f of fires) dl.push({ k: f.x + f.y + 0.01, f: (c, m) => drawFlames(c, f, m) });
+  return dl.sort((a, b) => a.k - b.k);
+}
+
+// =====================================================================================
+//  ICE
+// =====================================================================================
+const patches = [];
+let seedN = 1;
+// the patch's outline: a disc of radius R (tiles) with a slightly wavy edge; k scales it (growing, receding)
+function rho(p, a) {
+  const h = p.ph, g = p.phase === 'freeze' ? 1 - p.t / p.fd : 0;
+  return 1 + 0.06 * Math.sin(5 * a + h[0]) + 0.045 * Math.sin(8 * a + h[1]) + 0.025 * Math.sin(13 * a + h[2]) + 0.014 * Math.sin(29 * a + h[3])
+    + 0.05 * g * Math.sin(41 * a + h[4]);   // fingers on a growing front
+}
+function patchK(p) {
+  if (p.phase === 'freeze') {
+    if (p.style === 'front') return easeOut(clamp(p.t / 0.9));
+    if (p.style === 'shard') return easeOut(clamp((p.t - 0.15) / 1.3));
+    return 1;
+  }
+  if (p.phase === 'melt' && p.meltStyle === 'recede') return 1 - easeInOut(clamp((p.t - p.life) / p.md));
+  return 1;
+}
+const solid = p => p.phase === 'freeze' || p.phase === 'solid' || p.phase === 'warn';
+function inPatch(p, x, y, k = p.k) {
+  const dx = x - p.ox, dy = y - p.oy, d = Math.hypot(dx, dy);
+  return d < rho(p, Math.atan2(dy, dx)) * p.R * k;
+}
+function iceAt(x, y) {   // the patch of solid ice at a point, or null
+  if (!inWater(x, y)) return null;
+  for (const p of patches) if (solid(p) && p.k > 0.02 && inPatch(p, x, y)) return p;
+  return null;
+}
+const plane = (p, a, r) => { const [X, Y] = iso(p.ox + Math.cos(a) * r, p.oy + Math.sin(a) * r); return [X, Y + D]; };   // a point on the ice, on screen
+function maskPath(c, p, k) {
+  c.beginPath();
+  const N = 120;
+  for (let i = 0; i < N; i++) { const a = i / N * Math.PI * 2, [X, Y] = plane(p, a, rho(p, a) * p.R * k); i ? c.lineTo(X, Y) : c.moveTo(X, Y); }
+  c.closePath();
+}
+
+function cast(x, y) {
+  const rnd = mulberry(seedN * 9973 + 17), p = { ox: x, oy: y, R: O.radius, t: 0, style: O.freeze, meltStyle: O.melt, fd: FREEZE_DUR[O.freeze],
+    life: O.life, md: MELT_DUR[O.melt], phase: 'freeze', k: 0, seed: seedN++, ph: [0, 0, 0, 0, 0].map(() => rnd() * 7),
+    ticks: Array.from({ length: 120 }, () => 0.04 + rnd() * 0.12), needles: Array.from({ length: 26 }, (_, i) => i / 26 * Math.PI * 2 + (rnd() - 0.5) * 0.2),
+    net: null, floes: null, holes: null, scar: O.scar, sounded: 0 };
+  p.tex = makeTex(p, rnd);
+  patches.push(p); while (patches.length > 4) patches.shift();
+  // the blast: a shock wave across the open water, the flash, the sound
+  ripples.push({ x, y, t: 0, a: 1.6, spd: 150, life: 2.2, r0: p.R * P * 0.9 });
+  ripples.push({ x, y, t: -0.15, a: 0.9, spd: 110, life: 2.4, r0: p.R * P * 0.9 });
+  sndFreeze(p);
+}
+
+// The ice's look, drawn once in the ground plane (x right, y down, P px per tile, foreshortened by scale(1, 0.5)).
+function makeTex(p, rnd) {
+  const S = 2, Rp = p.R * P * 1.25, w = Math.ceil(2 * Rp + 40), h = Math.ceil(w / 2);
+  const c = document.createElement('canvas'); c.width = w * S; c.height = h * S; const g = c.getContext('2d');
+  g.scale(S, S); g.translate(w / 2, h / 2); g.scale(1, 0.5);
+  const inDisc = () => { for (;;) { const x = (rnd() * 2 - 1) * Rp, y = (rnd() * 2 - 1) * Rp; if (x * x + y * y < Rp * Rp) return [x, y]; } };
+  // base: pale ice over the dark water, a little whiter toward the blast
+  let gr = g.createRadialGradient(0, 0, 0, 0, 0, Rp);
+  gr.addColorStop(0, 'rgba(178,212,230,0.46)'); gr.addColorStop(0.55, 'rgba(140,184,208,0.34)'); gr.addColorStop(1, 'rgba(118,166,196,0.3)');
+  g.fillStyle = gr; g.fillRect(-Rp, -Rp, 2 * Rp, 2 * Rp);
+  // clouds of rime, and darker clear "black ice" where you see deeper
+  for (let i = 0; i < 46; i++) {
+    const [x, y] = inDisc(), r = 18 + rnd() * 60, dark = rnd() < 0.35;
+    gr = g.createRadialGradient(x, y, 0, x, y, r);
+    gr.addColorStop(0, dark ? `rgba(0,8,16,${0.1 + rnd() * 0.12})` : `rgba(225,240,250,${0.05 + rnd() * 0.08})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+    g.fillStyle = gr; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill();
+  }
+  // frost ferns: feathery branching crystals, pointing away from the blast
+  g.lineCap = 'round';
+  const fern = (x, y, a, len, d, al) => {
+    a += (rnd() - 0.5) * 0.25; const x2 = x + Math.cos(a) * len, y2 = y + Math.sin(a) * len;
+    g.strokeStyle = `rgba(230,245,255,${al})`; g.lineWidth = 0.5 + d * 0.3; g.beginPath(); g.moveTo(x, y); g.lineTo(x2, y2); g.stroke();
+    if (d <= 0) return;
+    for (let k = 1; k <= 3; k++) { const q = k / 4, bx = x + (x2 - x) * q, by = y + (y2 - y) * q;
+      if (rnd() < 0.8) fern(bx, by, a + 0.5 + rnd() * 0.7, len * (0.25 + rnd() * 0.3), d - 1, al * 0.8);
+      if (rnd() < 0.8) fern(bx, by, a - 0.5 - rnd() * 0.7, len * (0.25 + rnd() * 0.3), d - 1, al * 0.8); }
+  };
+  for (let i = 0; i < 60; i++) {
+    const a = rnd() * Math.PI * 2, r = (0.2 + rnd() * 0.95) * Rp;
+    fern(Math.cos(a) * r, Math.sin(a) * r, a + (rnd() - 0.5) * 1.2, 10 + rnd() * 26, 2, 0.06 + rnd() * 0.1);
+  }
+  // trapped bubbles: tiny bright rings in short strings
+  for (let i = 0; i < 40; i++) {
+    let [x, y] = inDisc(); const a = rnd() * 7, n = 2 + Math.floor(rnd() * 5);
+    for (let j = 0; j < n; j++) {
+      const r = 0.7 + rnd() * 1.8; g.strokeStyle = `rgba(235,248,255,${0.22 + rnd() * 0.25})`; g.lineWidth = 0.6;
+      g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke(); x += Math.cos(a) * (3 + rnd() * 4); y += Math.sin(a) * (3 + rnd() * 4);
+    }
+  }
+  if (p.scar) drawScar(g, p, rnd);
+  return { c, w, h };
+}
+// The blast scar at the centre: a white crater of rime, a starburst of frost streaks, broken pressure rings and
+// radial fractures; frost powder thinning outward. Sizes in tiles, scaled a little with the radius.
+function drawScar(g, p, rnd) {
+  const sc = Math.sqrt(p.R / 3);
+  // starburst streaks
+  for (let i = 0; i < 48; i++) {
+    const a = rnd() * Math.PI * 2, L = P * sc * (0.35 + rnd() ** 2 * 1.4), w0 = 1.5 + rnd() * 4.5;
+    g.save(); g.rotate(a);
+    const gr = g.createLinearGradient(0, 0, L, 0); gr.addColorStop(0, `rgba(240,250,255,${0.35 + rnd() * 0.3})`); gr.addColorStop(1, 'rgba(240,250,255,0)');
+    g.fillStyle = gr; g.beginPath(); g.moveTo(5, -w0); g.lineTo(L, 0); g.lineTo(5, w0); g.closePath(); g.fill(); g.restore();
+  }
+  // frost powder
+  for (let i = 0; i < 520; i++) {
+    const a = rnd() * Math.PI * 2, r = -Math.log(1 - rnd() * 0.98) * P * 0.38 * sc;
+    g.fillStyle = `rgba(240,250,255,${0.15 + rnd() * 0.45})`; g.beginPath(); g.arc(Math.cos(a) * r, Math.sin(a) * r, 0.5 + rnd() * 1.2, 0, 7); g.fill();
+  }
+  // broken pressure rings
+  for (const rr of [0.62, 1.05]) {
+    let a = rnd() * 7; const end = a + Math.PI * 2, r = rr * P * sc;
+    while (a < end) { const l = 0.2 + rnd() * 0.6, r2 = r * (1 + (rnd() - 0.5) * 0.06);
+      g.strokeStyle = 'rgba(0,10,20,0.28)'; g.lineWidth = 2.2; g.beginPath(); g.arc(0, 0, r2 + 2, a, a + l); g.stroke();
+      g.strokeStyle = `rgba(230,245,255,${0.25 + rnd() * 0.2})`; g.lineWidth = 1.3; g.beginPath(); g.arc(0, 0, r2, a, a + l); g.stroke();
+      a += l + 0.1 + rnd() * 0.45; }
+  }
+  // radial fractures from the crater
+  for (let i = 0; i < 8; i++) {
+    let a = i / 8 * Math.PI * 2 + rnd() * 0.6, r = P * 0.28 * sc; const end = P * p.R * (0.35 + rnd() * 0.45);
+    const pts = [[Math.cos(a) * r, Math.sin(a) * r]];
+    while (r < end) { r += 6 + rnd() * 10; a += (rnd() - 0.5) * 0.12; pts.push([Math.cos(a) * r, Math.sin(a) * r]); }
+    for (const [col, lw, oy] of [['rgba(0,10,20,0.4)', 2, 1.5], ['rgba(235,248,255,0.55)', 1, 0]]) {
+      g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); pts.forEach(([x, y], j) => j ? g.lineTo(x, y + oy) : g.moveTo(x, y + oy)); g.stroke();
+    }
+  }
+  // the crater: dense white rime with a rough edge and a few blue pits
+  g.beginPath();
+  for (let i = 0; i < 30; i++) { const a = i / 30 * Math.PI * 2, r = P * 0.3 * sc * (0.72 + rnd() * 0.4); i ? g.lineTo(Math.cos(a) * r, Math.sin(a) * r) : g.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+  g.closePath();
+  const gr = g.createRadialGradient(0, 0, 0, 0, 0, P * 0.34 * sc); gr.addColorStop(0, 'rgba(248,253,255,0.92)'); gr.addColorStop(0.7, 'rgba(215,236,248,0.8)'); gr.addColorStop(1, 'rgba(180,215,235,0.55)');
+  g.fillStyle = gr; g.fill(); g.strokeStyle = 'rgba(40,80,110,0.35)'; g.lineWidth = 1.5; g.stroke();
+  for (let i = 0; i < 7; i++) {
+    const a = rnd() * 7, r = rnd() * P * 0.18 * sc, s = 2 + rnd() * 4;
+    g.fillStyle = 'rgba(70,120,150,0.3)'; g.beginPath(); g.ellipse(Math.cos(a) * r, Math.sin(a) * r, s, s * 0.8, a, 0, 7); g.fill();
+  }
+}
+
+// ---------- the crack network ----------
+// Voronoi cells of seeds in rings around the start (half-plane clipping: few seeds, so O(n^2) is fine)
+function clipPoly(poly, si, sj) {
+  const nx = sj[0] - si[0], ny = sj[1] - si[1], mx = (si[0] + sj[0]) / 2, my = (si[1] + sj[1]) / 2, out = [];
+  const f = q => (q[0] - mx) * nx + (q[1] - my) * ny;
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length], fa = f(a), fb = f(b);
+    if (fa <= 0) out.push(a);
+    if ((fa < 0) !== (fb < 0) && fa !== fb) { const t = fa / (fa - fb); out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]); }
+  }
+  return out;
+}
+function buildNet(p, o) {
+  const rnd = mulberry(p.seed * 31 + 5), ext = p.R * 1.15, cx = p.ox, cy = p.oy;
+  const seeds = [o], maxr = Math.hypot(o[0] - cx, o[1] - cy) + ext + 0.4;
+  for (let k = 1; ; k++) {
+    const r = 0.5 * k ** 1.2; if (r > maxr) break;
+    const n = Math.max(4, Math.round(2 * Math.PI * r / (0.75 + rnd() * 0.4))), off = rnd() * 7;
+    for (let j = 0; j < n; j++) {
+      const a = off + j / n * Math.PI * 2 + (rnd() - 0.5) * 0.8 * Math.PI * 2 / n, rr = r * (1 + (rnd() - 0.5) * 0.45), s = [o[0] + Math.cos(a) * rr, o[1] + Math.sin(a) * rr];
+      if (Math.hypot(s[0] - cx, s[1] - cy) < ext * 1.2) seeds.push(s);
+    }
+  }
+  const B = ext * 1.5, box = [[cx - B, cy - B], [cx + B, cy - B], [cx + B, cy + B], [cx - B, cy + B]];
+  const verts = [], vkey = new Map(), vid = q => { const k = Math.round(q[0] * 1e4) + ',' + Math.round(q[1] * 1e4); if (!vkey.has(k)) { vkey.set(k, verts.length); verts.push(q); } return vkey.get(k); };
+  const cells = seeds.map((s, i) => { let poly = box; for (let j = 0; j < seeds.length && poly.length; j++) if (j !== i) poly = clipPoly(poly, s, seeds[j]); return poly.map(vid); });
+  const edges = new Map(), ekey = (a, b) => a < b ? a + '_' + b : b + '_' + a;
+  const addEdge = (a, b, spoke) => {
+    const k = ekey(a, b); if (edges.has(k) || a === b) return;
+    const A = verts[a], Bv = verts[b], len = Math.hypot(Bv[0] - A[0], Bv[1] - A[1]);
+    const mid = [(A[0] + Bv[0]) / 2, (A[1] + Bv[1]) / 2]; if (Math.hypot(mid[0] - cx, mid[1] - cy) > ext * 1.12) return;
+    // a jagged polyline between the two ends (the ends stay put so the network stays joined)
+    const m = Math.max(2, Math.round(len / 0.16)), nx = -(Bv[1] - A[1]) / len, ny = (Bv[0] - A[0]) / len, pts = [A];
+    for (let i = 1; i < m; i++) { const q = i / m, j = (rnd() - 0.5) * len * 0.16 * Math.sin(q * Math.PI) * 1.6; pts.push([A[0] + (Bv[0] - A[0]) * q + nx * j, A[1] + (Bv[1] - A[1]) * q + ny * j]); }
+    pts.push(Bv);
+    edges.set(k, { a, b, pts, len, w: spoke ? len * 0.12 : len, spoke });
+  };
+  cells.forEach(c => { for (let i = 0; i < c.length; i++) addEdge(c[i], c[(i + 1) % c.length], false); });
+  const net = { verts, cells, edges, srcs: [], vt: null, V: 1, ekey };
+  // the start: a vertex with spokes to its cell's corners (a star under the feet)
+  const O0 = verts.length; verts.push(o); for (const v of cells[0]) addEdge(O0, v, true);
+  net.srcs.push({ v: O0, t: p.t });
+  // crack speed: the farthest point of the ice cracks just before the melt
+  net.V = 1; dijkstra(net);
+  let dmax = 0; net.vt.forEach((d, i) => { if (Math.hypot(verts[i][0] - cx, verts[i][1] - cy) < p.R && d < Infinity) dmax = Math.max(dmax, d - p.t); });
+  net.V = dmax / (WARN - 0.9); dijkstra(net); markTree(net, rnd);
+  return net;
+}
+function dijkstra(net) {   // the time each vertex cracks: from every start, at net.V tiles per second along the network
+  const n = net.verts.length, vt = new Array(n).fill(Infinity), adj = Array.from({ length: n }, () => []), done = new Uint8Array(n);
+  for (const e of net.edges.values()) { adj[e.a].push([e.b, e.w]); adj[e.b].push([e.a, e.w]); }
+  for (const s of net.srcs) vt[s.v] = Math.min(vt[s.v], s.t + 0.08);
+  for (;;) {
+    let u = -1; for (let i = 0; i < n; i++) if (!done[i] && vt[i] < Infinity && (u < 0 || vt[i] < vt[u])) u = i;
+    if (u < 0) break; done[u] = 1;
+    for (const [v, w] of adj[u]) { const t = vt[u] + w / net.V; if (t < vt[v]) vt[v] = t; }
+  }
+  net.vt = vt;
+}
+// Cracks run as a branching tree (the shortest-path tree from the starts); only some of the other cell edges
+// crack too, later (the sheet weakening toward the melt). The rest open only when the ice breaks up.
+function markTree(net, rnd) {
+  for (const e of net.edges.values()) {
+    const ta = net.vt[e.a], tb = net.vt[e.b], d = e.w / net.V;
+    e.tree = Math.abs(Math.abs(ta - tb) - d) < 1e-6;
+    if (e.delay === undefined) e.delay = e.spoke || e.tree ? 0 : rnd() < 0.3 ? 0.6 + rnd() * 1.8 : 99;
+    if (e.tree || e.spoke) e.delay = 0;
+  }
+}
+function addCrackStart(p, x, y) {   // someone stepped onto cracking ice: new cracks spread from under their feet
+  const net = p.net; let best = 0, bd = Infinity;
+  net.cells.forEach((c, i) => { if (!c.length) return; let sx = 0, sy = 0; for (const v of c) { sx += net.verts[v][0]; sy += net.verts[v][1]; } const d = Math.hypot(sx / c.length - x, sy / c.length - y); if (d < bd) { bd = d; best = i; } });
+  const v = net.verts.length; net.verts.push([x, y]);
+  const rnd = mulberry(v * 7 + 1);
+  for (const c of net.cells[best]) {
+    const A = net.verts[v], Bv = net.verts[c], len = Math.hypot(Bv[0] - A[0], Bv[1] - A[1]); if (len < 1e-6) continue;
+    const m = Math.max(2, Math.round(len / 0.16)), nx = -(Bv[1] - A[1]) / len, ny = (Bv[0] - A[0]) / len, pts = [A];
+    for (let i = 1; i < m; i++) { const q = i / m, j = (rnd() - 0.5) * len * 0.26 * Math.sin(q * Math.PI); pts.push([A[0] + (Bv[0] - A[0]) * q + nx * j, A[1] + (Bv[1] - A[1]) * q + ny * j]); }
+    pts.push(Bv); net.edges.set('s' + v + '_' + c, { a: v, b: c, pts, len, w: len * 0.12, spoke: true });
+  }
+  net.srcs.push({ v, t: p.t }); dijkstra(net); markTree(net, rnd);
+  sndCrack(1, true);
+}
+// part of a polyline: its first f (0..1) of length, from the start or (rev) from the end
+function partial(pts, f, rev) {
+  if (f >= 1) return rev ? pts.slice().reverse() : pts;
+  const q = rev ? pts.slice().reverse() : pts; let tot = 0; const L = [0];
+  for (let i = 1; i < q.length; i++) { tot += Math.hypot(q[i][0] - q[i - 1][0], q[i][1] - q[i - 1][1]); L.push(tot); }
+  const want = tot * f, out = [q[0]];
+  for (let i = 1; i < q.length; i++) {
+    if (L[i] <= want) { out.push(q[i]); continue; }
+    const u = (want - L[i - 1]) / (L[i] - L[i - 1]); out.push([q[i - 1][0] + (q[i][0] - q[i - 1][0]) * u, q[i - 1][1] + (q[i][1] - q[i - 1][1]) * u]); break;
+  }
+  return out;
+}
+function crackPath(p, now, all = false) {   // the cracks open so far, as one path in world->screen coordinates at the ice's level
+  const net = p.net, path = new Path2D(), spokes = new Path2D();
+  for (const e of net.edges.values()) {
+    const dl = all ? 0 : e.delay, tu = net.vt[e.a] + dl, tv = net.vt[e.b] + dl, fa = (now - tu) * net.V / e.w, fb = (now - tv) * net.V / e.w;
+    const tgt = e.spoke ? spokes : path;
+    const add = pl => pl.forEach((q, i) => { const [X, Y] = iso(q[0], q[1]); i ? tgt.lineTo(X, Y + D) : tgt.moveTo(X, Y + D); });
+    if (fa + fb >= 1 && fa > 0 && fb > 0) add(e.pts);
+    else { if (fa > 0) add(partial(e.pts, Math.min(1, fa), false)); if (fb > 0) add(partial(e.pts, Math.min(1, fb), true)); }
+  }
+  return { path, spokes };
+}
+
+// ---------- the melt ----------
+function startMelt(p) {
+  // anyone on this ice goes through it
+  if (inWater(hero.x, hero.y) && inPatch(p, hero.x, hero.y, 1)) plunge(hero);
+  const rnd = mulberry(p.seed * 13 + 3), net = p.net;
+  if (p.meltStyle === 'break' && net) {
+    // floes: the crack cells (the start's cell split into wedges along the spokes), each with jagged edges
+    const seg = (a, b) => { const e = net.edges.get(net.ekey(a, b)); if (!e) return [net.verts[a], net.verts[b]]; return e.a === a ? e.pts : e.pts.slice().reverse(); };
+    const polys = [];
+    net.cells.forEach((c, i) => {
+      if (c.length < 3) return;
+      if (i === 0) { const O0 = net.srcs[0].v;
+        for (let j = 0; j < c.length; j++) { const a = c[j], b = c[(j + 1) % c.length], sp = e => { const k = [...net.edges.values()].find(q => q.spoke && ((q.a === O0 && q.b === e))); return k ? k.pts : [net.verts[O0], net.verts[e]]; };
+          polys.push([...sp(a), ...seg(a, b).slice(1), ...sp(b).slice().reverse().slice(1)]); }
+        return; }
+      const pts = []; for (let j = 0; j < c.length; j++) pts.push(...seg(c[j], c[(j + 1) % c.length]).slice(0, -1)); polys.push(pts);
+    });
+    const o = net.verts[net.srcs[0].v];
+    p.floes = polys.map(pts => {
+      let sx = 0, sy = 0; for (const q of pts) { sx += q[0]; sy += q[1]; } sx /= pts.length; sy /= pts.length;
+      if (Math.hypot(sx - p.ox, sy - p.oy) > p.R * 1.15 || !inWater(sx, sy)) return null;
+      const dx = sx - o[0], dy = sy - o[1], l = Math.hypot(dx, dy) || 1, dr = 0.05 + rnd() * 0.13;
+      return { pts, cx: sx, cy: sy, ux: dx / l * dr, uy: dy / l * dr, d: rnd() * 1.1, sunk: false, spin: (rnd() - 0.5) * 0.08 };
+    }).filter(Boolean);
+    sndBreak();
+  } else if (p.meltStyle === 'thaw') {
+    p.holes = [];
+    for (let i = 0; i < 34; i++) {
+      const a = rnd() * 7, r = Math.sqrt(rnd()) * p.R * 1.05, x = p.ox + Math.cos(a) * r, y = p.oy + Math.sin(a) * r;
+      if (!inWater(x, y)) continue;
+      p.holes.push({ x, y, d: rnd() * 0.55, R: 0.25 + rnd() * 0.6, jit: Array.from({ length: 12 }, () => 0.7 + rnd() * 0.5), rip: false });
+    }
+  }
+}
+function plunge(e) {   // through the ice: a big splash, then climbing out on the nearest floor
+  ripples.push({ x: e.x, y: e.y, t: 0, a: 1.4 }); ripples.push({ x: e.x, y: e.y, t: -0.2, a: 0.8 });
+  for (let i = 0; i < 18; i++) { const a = Math.random() * 7, v = 30 + Math.random() * 50; splashes.push({ x: e.x, y: e.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.5, vz: 90 + Math.random() * 110, z: 0, t: 0 }); }
+  sndPlunge();
+  let best = null, bd = Infinity;
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (isFloor(x, y) && !inWater(x + 0.5, y + 0.5)) { const d = Math.hypot(x + 0.5 - e.x, y + 0.5 - e.y); if (d < bd) { bd = d; best = [x + 0.5, y + 0.5]; } }
+  if (best) { e.x = best[0]; e.y = best[1]; } e.tx = null; e.moving = false;
+  note = { text: 'The ice gave way: the hero fell through and climbed out on the shore.', t: 3.5 };
+}
+
+// ---------- drawing the ice ----------
+function paintIce(c, p, alpha = 1) {
+  const tint = TINTS[O.tint], [X, Y] = iso(p.ox, p.oy);
+  c.globalAlpha = alpha;
+  c.fillStyle = tint.deep; c.fillRect(-4000, -4000, 8000, 8000);
+  c.save(); c.setTransform(1, 0, 0, 1, 0, 0); c.globalAlpha = alpha * 0.42; c.drawImage(rc, 0, 0, ic.width, ic.height); c.restore();   // smooth ice still mirrors a little
+  c.globalAlpha = alpha;
+  c.drawImage(p.tex.c, X - p.tex.w / 2, Y + D - p.tex.h / 2, p.tex.w, p.tex.h);
+  // fresh ice is white with rime and clears in a second or two (by how long ago the front passed each radius)
+  const reach = u => p.style === 'front' ? 0.9 * (1 - Math.cbrt(1 - u)) : p.style === 'shard' ? 0.15 + 1.3 * (1 - Math.cbrt(1 - u)) : 0;
+  if (p.t < 4) {
+    c.save(); c.translate(X, Y + D); c.scale(1, 0.5);
+    const Rp = p.R * P * 1.15, g = c.createRadialGradient(0, 0, 0, 0, 0, Rp);
+    for (let i = 0; i <= 10; i++) { const u = i / 10, age = p.t - reach(Math.min(0.999, u)), wv = age < 0 ? 0.85 : 0.85 * Math.exp(-age / 0.6); g.addColorStop(u, `rgba(228,244,255,${wv})`); }
+    c.fillStyle = g; c.fillRect(-Rp, -Rp, 2 * Rp, 2 * Rp); c.restore();
+  }
+  // wet and darker as it nears the melt
+  const wu = p.phase === 'warn' ? (p.t - (p.life - WARN)) / WARN : p.phase === 'melt' ? 1 : 0;
+  if (wu > 0) { c.fillStyle = `rgba(0,6,12,${0.28 * wu})`; c.fillRect(-4000, -4000, 8000, 8000); }
+  // the needles of a shard burst stay as faint seams
+  if (p.style === 'shard') drawNeedles(c, p, 0.14);
+  if (p.net) drawCracks(c, p, wu);
+  c.globalAlpha = 1;
+}
+function drawCracks(c, p, wu) {
+  const { path, spokes } = crackPath(p, p.t), w = 0.7 + 1.1 * wu;
+  c.lineJoin = 'round'; c.lineCap = 'round';
+  for (const [pp, k] of [[path, 1], [spokes, 1.6]]) {
+    c.save(); c.translate(0.6, 1); c.strokeStyle = 'rgba(0,8,16,0.6)'; c.lineWidth = (w + 1.2) * k; c.stroke(pp); c.restore();
+    c.strokeStyle = 'rgba(226,242,255,0.85)'; c.lineWidth = w * k; c.stroke(pp);
+  }
+}
+function drawNeedles(c, p, base) {
+  const u = easeOut(clamp(p.t / 0.35)), a0 = p.phase === 'freeze' ? 1 - (1 - base) * clamp((p.t - 0.35) / 1.4) : base;
+  c.lineCap = 'round';
+  p.needles.forEach((a, i) => {
+    const r = rho(p, a) * p.R * u * (0.85 + 0.15 * ((i * 7) % 5) / 4);
+    for (const [lw, f0, f1, al] of [[1.8, 0.15, 0.55, 0.8], [1.1, 0.55, 0.85, 0.7], [0.6, 0.85, 1, 0.6]]) {   // tapering
+      const [x0, y0] = plane(p, a, Math.max(0.15, r * f0)), [x1, y1] = plane(p, a + (i % 2 ? 0.01 : -0.01), r * f1);
+      c.strokeStyle = `rgba(235,248,255,${a0 * al})`; c.lineWidth = lw; c.beginPath(); c.moveTo(x0, y0); c.lineTo(x1, y1); c.stroke();
+    }
+    c.lineWidth = 0.7; c.strokeStyle = `rgba(235,248,255,${a0 * 0.5})`; c.beginPath();
+    for (let k = 1; k <= 4; k++) { const rr = r * k / 5, s = k % 2 ? 1 : -1, [x0, y0] = plane(p, a, rr), [x1, y1] = plane(p, a + s * 0.09 / Math.max(0.5, rr), rr + 0.18); c.moveTo(x0, y0); c.lineTo(x1, y1); }
+    c.stroke();
+  });
+}
+function drawIceLayer(cw, ch) {
+  ictx.setTransform(1, 0, 0, 1, 0, 0); ictx.globalCompositeOperation = 'source-over'; ictx.clearRect(0, 0, cw, ch);
+  if (!patches.length) return false;
+  ictx.setTransform(...TF);
+  for (const p of patches) {
+    if (p.phase === 'gone') continue;
+    const k = p.k, m = p.phase === 'melt' ? clamp((p.t - p.life) / p.md) : 0;
+    ictx.save(); waterPath(ictx, D); ictx.clip();
+    if (p.phase === 'melt' && p.meltStyle === 'break' && p.floes) { drawFloes(ictx, p, m); ictx.restore(); continue; }
+    ictx.save(); maskPath(ictx, p, k); ictx.clip(); paintIce(ictx, p); ictx.restore();
+    if (p.phase === 'freeze') {   // the growing front: a bright rim with crystals feathering out ahead
+      const g = clamp(1 - p.t / p.fd);
+      if (p.style !== 'flash') {
+        maskPath(ictx, p, k); ictx.strokeStyle = `rgba(240,250,255,${0.9 * Math.sqrt(g)})`; ictx.lineWidth = 2.6; ictx.stroke();
+        ictx.lineWidth = 1; ictx.strokeStyle = `rgba(235,248,255,${0.75 * g})`; ictx.beginPath();
+        for (let i = 0; i < 120; i++) { const a = i / 120 * Math.PI * 2, r = rho(p, a) * p.R * k, [x0, y0] = plane(p, a, r), [x1, y1] = plane(p, a + (i % 2 ? 0.02 : -0.02), r + p.ticks[i] * (0.6 + g));
+          ictx.moveTo(x0, y0); ictx.lineTo(x1, y1); }
+        ictx.stroke();
+      }
+      if (p.style === 'shard') drawNeedles(ictx, p, 0.14);
+    }
+    // the rim: a dark contact line on the water just outside, a thin bright edge
+    if (k > 0.02) {
+      ictx.save(); ictx.translate(0, 1.4); maskPath(ictx, p, k); ictx.strokeStyle = 'rgba(0,0,0,0.45)'; ictx.lineWidth = 2.2; ictx.stroke(); ictx.restore();
+      maskPath(ictx, p, k); ictx.strokeStyle = p.phase === 'melt' ? 'rgba(10,22,32,0.6)' : 'rgba(215,238,252,0.5)'; ictx.lineWidth = p.phase === 'melt' ? 7 : 1.3; ictx.stroke();
+    }
+    if (p.phase === 'melt' && p.meltStyle === 'thaw') {   // cut channels and holes out of the ice
+      ictx.globalCompositeOperation = 'destination-out';
+      if (p.net) { const { path, spokes } = crackPath(p, p.t + 99, true); ictx.lineCap = 'round'; ictx.lineJoin = 'round'; ictx.strokeStyle = '#000'; ictx.lineWidth = 1 + 16 * m * m; ictx.stroke(path); ictx.stroke(spokes); }
+      for (const h of p.holes) {
+        const q = clamp((m - h.d) / (1 - h.d)); if (q <= 0) continue;
+        ictx.beginPath(); h.jit.forEach((j, i) => { const a = i / 12 * Math.PI * 2, r = h.R * q ** 1.3 * j * 1.6, [X, Y] = iso(h.x + Math.cos(a) * r, h.y + Math.sin(a) * r); i ? ictx.lineTo(X, Y + D) : ictx.moveTo(X, Y + D); });
+        ictx.closePath(); ictx.fill();
+      }
+      maskPath(ictx, p, 1); ictx.lineWidth = 40 * m * m; ictx.stroke();
+      if (m > 0.7) { ictx.fillStyle = `rgba(0,0,0,${(m - 0.7) / 0.3})`; ictx.fillRect(-4000, -4000, 8000, 8000); }
+      ictx.globalCompositeOperation = 'source-over';
+    }
+    ictx.restore();
+  }
+  return true;
+}
+function floePath(c, f, s) {   // a floe's outline, scaled by s about its centre
+  c.beginPath();
+  f.pts.forEach((q, i) => { const [X, Y] = iso(f.cx + (q[0] - f.cx) * s, f.cy + (q[1] - f.cy) * s); i ? c.lineTo(X, Y + D) : c.moveTo(X, Y + D); });
+  c.closePath();
+}
+function drawFloes(c, p, m) {
+  const tm = m * p.md, spread = easeOut(clamp(tm / 0.6));
+  for (const f of p.floes) {
+    const q = clamp((tm - 0.35 - f.d) / 0.8); if (q >= 1) { if (!f.sunk) { f.sunk = true; ripples.push({ x: f.cx + f.ux, y: f.cy + f.uy, t: 0, a: 0.6 }); } continue; }
+    const [dx, dy] = iso(f.ux * spread, f.uy * spread), s = 0.97 - 0.18 * q;
+    c.save(); c.translate(dx, dy + q * 2.5);
+    floePath(c, f, s); c.save(); c.clip(); maskPath(c, p, 1); c.clip(); paintIce(c, p, 1 - q * 0.85);
+    c.fillStyle = `rgba(0,8,14,${0.55 * q})`; c.fillRect(-4000, -4000, 8000, 8000); c.restore();
+    floePath(c, f, s); c.save(); c.clip(); maskPath(c, p, 1); c.clip();
+    floePath(c, f, s); c.strokeStyle = `rgba(225,242,255,${0.5 * (1 - q)})`; c.lineWidth = 2; c.stroke(); c.restore();
+    c.restore();
+  }
+}
+
+// ---------- drips, ripples, splashes ----------
+const drops = [], ripples = [], splashes = [], mist = [];
+let nextDrip = 2, note = null;
+function randomWaterPoint() {
+  const tiles = []; for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (isWater(x, y)) tiles.push([x, y]);
+  for (let i = 0; i < 40; i++) { const [x, y] = tiles[Math.floor(Math.random() * tiles.length)], p = [x + 0.15 + Math.random() * 0.7, y + 0.15 + Math.random() * 0.7]; if (inWater(...p)) return p; }
+  return [8.5, 4.5];
+}
+function drip(x, y) { drops.push({ x, y, t: 0, tf: 0.55 }); }
+function land(d) {
+  if (iceAt(d.x, d.y)) {   // on ice: no ripple, no splash; the drop just bursts into a few beads that skitter
+    for (let i = 0; i < 4; i++) { const a = Math.random() * 6.28, v = 10 + Math.random() * 18; splashes.push({ x: d.x, y: d.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.5, vz: 18 + Math.random() * 22, z: 0, t: 0, small: true }); }
+    sndTick(d); return;
+  }
+  ripples.push({ x: d.x, y: d.y, t: 0, a: 1 });
+  ripples.push({ x: d.x, y: d.y, t: -0.28, a: 0.45 });
+  for (let i = 0; i < 6; i++) { const ang = Math.random() * 6.28, v = 20 + Math.random() * 30; splashes.push({ x: d.x, y: d.y, vx: Math.cos(ang) * v, vy: Math.sin(ang) * v * 0.5, vz: 60 + Math.random() * 70, z: 0, t: 0 }); }
+  plink(d);
+}
+const rLife = r => r.life || RLIFE, rRad = r => (r.r0 || 0) + r.t * (r.spd || RSPEED);
+const rippleAmp = r => r.t < 0 ? 0 : r.a * Math.min(1, r.t / 0.08) * Math.pow(Math.max(0, 1 - r.t / rLife(r)), 1.6);
+
+// ---------- fire bombs: they sink in open water but shatter on ice, and the oil burns there ----------
+const bombs = [], fires = [];
+function throwBomb(tx, ty) {
+  const dx = tx - hero.x, dy = ty - hero.y, d = Math.hypot(dx, dy);
+  hero.dir = dirOf(dx, dy);
+  bombs.push({ x0: hero.x, y0: hero.y, tx, ty, x: hero.x, y: hero.y, z: 44, t: 0, dur: 0.3 + d * 0.065, peak: 30 + d * 9, rot: 0, spin: 9 });
+  sndThrow();
+}
+function updateBombs(dt) {
+  for (const b of bombs) {
+    b.t += dt; b.rot += b.spin * dt; const u = Math.min(1, b.t / b.dur);
+    b.x = b.x0 + (b.tx - b.x0) * u; b.y = b.y0 + (b.ty - b.y0) * u; b.z = 44 * (1 - u) + 4 * b.peak * u * (1 - u);
+    if (u >= 1) {
+      b.done = true;
+      if (iceAt(b.x, b.y) || !inWater(b.x, b.y)) shatter(b.x, b.y);
+      else {   // into open water: a splash, no fire
+        ripples.push({ x: b.x, y: b.y, t: 0, a: 1.6 }); ripples.push({ x: b.x, y: b.y, t: -0.2, a: 0.9 });
+        for (let i = 0; i < 14; i++) { const a = Math.random() * 7, v = 30 + Math.random() * 40; splashes.push({ x: b.x, y: b.y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.5, vz: 90 + Math.random() * 90, z: 0, t: 0 }); }
+        sndPlunge();
+      }
+    }
+  }
+  for (let i = bombs.length - 1; i >= 0; i--) if (bombs[i].done) bombs.splice(i, 1);
+}
+function shatter(x, y) {
+  sndShatter();
+  for (let i = 0; i < 14; i++) { const a = Math.random() * 7, v = 25 + Math.random() * 50; splashes.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v * 0.5, vz: 60 + Math.random() * 90, z: 0, t: 0, col: '150,80,50' }); }
+  const f = { x, y, r: 0.9, t: 0, dur: 7, parts: [], blob: Array.from({ length: 16 }, () => ({ k: 0.82 + Math.random() * 0.22, ph: Math.random() * 7 })), acc: 0 };
+  fires.push(f);
+}
+const fireI = f => f.t >= f.dur ? 0 : Math.min(1, f.t / 0.25, (f.dur - f.t) / 1.2);
+const fireLevel = (x, y) => inWater(x, y) ? D : 0;   // the oil burns on the ice, which is at the water's level
+function updateFires(dt) {
+  for (const f of fires) {
+    f.t += dt; const I = fireI(f);
+    f.acc += dt * 60 * I;
+    while (f.acc >= 1) { f.acc--; const a = Math.random() * 7, r = Math.sqrt(Math.random()) * f.r * 0.9;
+      f.parts.push({ x: f.x + Math.cos(a) * r, y: f.y + Math.sin(a) * r, z: 0, t: 0, dur: 0.45 + Math.random() * 0.5, s: 10 + Math.random() * 14 * (1 - r / f.r * 0.6), ph: Math.random() * 7 }); }
+    for (const q of f.parts) { q.t += dt; q.z += dt * 46; }
+    f.parts = f.parts.filter(q => q.t < q.dur);
+  }
+  for (let i = fires.length - 1; i >= 0; i--) if (fires[i].t > fires[i].dur + 0.5 && !fires[i].parts.length) fires.splice(i, 1);
+}
+const FLAME_COL = ['255,215,110', '255,160,45', '240,95,25', '170,35,10'];
+let FLAME_SPR = null;
+function flameSprites() {
+  if (FLAME_SPR) return FLAME_SPR;
+  FLAME_SPR = FLAME_COL.map(col => {
+    const c2 = document.createElement('canvas'); c2.width = 64; c2.height = 96; const g = c2.getContext('2d');
+    const tongue = (w, top, cc, a) => { const gr = g.createLinearGradient(0, 94, 0, top); gr.addColorStop(0, `rgba(${cc},${a})`);
+      gr.addColorStop(0.45, `rgba(${cc},${a * 0.8})`); gr.addColorStop(1, `rgba(${cc},0)`); g.fillStyle = gr; g.beginPath(); g.moveTo(32, top);
+      g.bezierCurveTo(32 + w * 0.25, top + 30, 32 + w, 50, 32 + w, 72); g.bezierCurveTo(32 + w, 96, 32 - w, 96, 32 - w, 72);
+      g.bezierCurveTo(32 - w, 50, 32 - w * 0.25, top + 30, 32, top); g.fill(); };
+    g.filter = 'blur(1.5px)'; tongue(22, 2, col, 0.95); tongue(11, 34, '255,240,190', col === FLAME_COL[3] ? 0.15 : 0.55);
+    return c2;
+  });
+  return FLAME_SPR;
+}
+function drawFireGround(c, f) {   // the blaze's burning pool of oil (on the ice, at the water's level)
+  const I = fireI(f); if (I <= 0) return;
+  const [sx, sy0] = iso(f.x, f.y), sy = sy0 + fireLevel(f.x, f.y), rx = f.r * P, ry = rx / 2;
+  c.save(); c.beginPath(); f.blob.forEach((b, i) => { const a = i / f.blob.length * Math.PI * 2, rr = b.k * 0.96 * (1 + 0.04 * Math.sin(time * 2 + b.ph)); c.lineTo(sx + Math.cos(a) * rx * rr, sy + Math.sin(a) * ry * rr); }); c.closePath();
+  c.fillStyle = `rgba(22,12,6,${0.45 * I})`; c.fill();
+  c.translate(sx, sy); c.scale(1, 0.5); c.globalCompositeOperation = 'lighter'; const g = c.createRadialGradient(0, 0, 0, 0, 0, rx * 1.05), fl = 0.85 + 0.15 * Math.sin(time * 9 + f.x);
+  g.addColorStop(0, `rgba(255,190,80,${0.45 * I * fl})`); g.addColorStop(0.6, `rgba(255,110,25,${0.3 * I * fl})`); g.addColorStop(1, 'rgba(180,40,10,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(0, 0, rx * 1.05, 0, 7); c.fill(); c.restore();
+}
+function drawFlames(c, f, mir) {
+  const spr = flameSprites(); c.save(); c.globalCompositeOperation = 'lighter';
+  for (const q of f.parts) {
+    const k = q.t / q.dur, [sx, sy0] = iso(q.x, q.y), lvl = fireLevel(q.x, q.y), sy = sy0 + lvl, a = Math.min(1, k * 8) * (1 - k) ** 0.6;
+    const w = q.s * 0.75 * (1 - 0.35 * k), hh = q.s * 1.9 * (1 - 0.25 * k), x = sx + Math.sin(time * 13 + q.ph) * 2;
+    c.globalAlpha = a * (mir ? 0.8 : 1);
+    if (mir) { c.save(); c.translate(0, 2 * (sy0 + D)); c.scale(1, -1); c.drawImage(spr[Math.min(3, Math.floor(k * 4))], x - w / 2, sy - q.z - hh, w, hh); c.restore(); }
+    else c.drawImage(spr[Math.min(3, Math.floor(k * 4))], x - w / 2, sy - q.z - hh, w, hh);
+  }
+  c.restore();
+}
+function drawBomb(c, b, mir) {
+  const [sx, sy] = iso(b.x, b.y);
+  if (mir) { c.save(); c.translate(0, 2 * (sy + D)); c.scale(1, -1); }
+  else { c.fillStyle = 'rgba(0,0,0,0.35)'; c.beginPath(); c.ellipse(sx, sy + (inWater(b.x, b.y) ? D : 0), 9, 4.5, 0, 0, 7); c.fill(); }
+  c.save(); c.translate(sx, sy - b.z); c.rotate(b.rot);
+  c.fillStyle = '#8a4a2c'; c.beginPath(); c.ellipse(0, 2, 8, 9, 0, 0, 7); c.fill(); c.fillStyle = '#5c3020'; c.fillRect(-3, -10, 6, 5);
+  c.globalCompositeOperation = 'lighter'; c.drawImage(flameSprites()[1], -5, -24, 10, 15); c.restore();
+  if (mir) c.restore();
+}
+
+// ---------- sound (Web Audio, synthesized) ----------
+let AC = null, ECHO = null, NOISE = null;
+function audio() {
+  if (AC) return AC;
+  try {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    const dl = AC.createDelay(1), fb = AC.createGain(), lp = AC.createBiquadFilter(), out = AC.createGain();
+    dl.delayTime.value = 0.23; fb.gain.value = 0.38; lp.type = 'lowpass'; lp.frequency.value = 2200; out.gain.value = 0.5;
+    dl.connect(lp); lp.connect(fb); fb.connect(dl); lp.connect(out); out.connect(AC.destination); ECHO = dl;
+    NOISE = AC.createBuffer(1, AC.sampleRate, AC.sampleRate); const d = NOISE.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+  } catch (e) { AC = null; }
+  return AC;
+}
+const ok = () => O.sound && audio() && AC.state !== 'closed';
+function tone(t, f0, f1, dur, vol, type = 'sine', atk = 0.004) {
+  const o = AC.createOscillator(), g = AC.createGain(); o.type = type;
+  o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(g); g.connect(AC.destination); g.connect(ECHO); o.start(t); o.stop(t + dur + 0.05);
+}
+function noise(t, dur, f, q, vol, atk = 0.003, type = 'bandpass', f1) {
+  const s = AC.createBufferSource(), bp = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = NOISE; bp.type = type; bp.frequency.setValueAtTime(f, t); if (f1) bp.frequency.exponentialRampToValueAtTime(f1, t + dur); bp.Q.value = q;
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + atk); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(bp); bp.connect(g); g.connect(AC.destination); g.connect(ECHO); s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
+}
+function sndFreeze(p) {   // a cold whump, a hiss of frost, and the ice singing as it sets
+  if (!ok()) return; const t = AC.currentTime, F = p.fd;
+  tone(t, 140, 40, 0.5, 0.35); noise(t, 0.25, 900, 0.7, 0.25);
+  noise(t + 0.02, Math.max(0.5, F + 0.4), 6000, 0.8, 0.12, 0.05, 'highpass', 2500);
+  for (let i = 0; i < 18; i++) { const dt = Math.random() ** 0.7 * (F + 0.7); tone(t + dt, 2200 + Math.random() * 4500, 1800 + Math.random() * 3000, 0.12, 0.03 + Math.random() * 0.04); }
+  for (let i = 0; i < 6; i++) noise(t + F * Math.random(), 0.04, 2500 + Math.random() * 2500, 2, 0.12);
+}
+function sndCrack(v = 1, big = false) {   // a sharp click; sometimes the deep ping of a long crack running through the sheet
+  if (!ok()) return; const t = AC.currentTime;
+  noise(t, 0.05 + Math.random() * 0.04, 1500 + Math.random() * 2500, 1.4, 0.22 * v);
+  if (big || Math.random() < 0.25) tone(t, 900 + Math.random() * 500, 160 + Math.random() * 80, 0.35, 0.07 * v, 'sine', 0.002);
+  if (big) noise(t + 0.01, 0.5, 300, 0.8, 0.1, 0.01, 'lowpass');
+}
+function sndBreak() { if (!ok()) return; const t = AC.currentTime; for (let i = 0; i < 6; i++) { const d = Math.random() * 0.4; noise(t + d, 0.08, 1200 + Math.random() * 2000, 1.2, 0.2); } tone(t, 400, 90, 0.6, 0.1); noise(t + 0.2, 1.2, 500, 0.6, 0.12, 0.2, 'lowpass'); }
+function sndTick(d) { if (!ok()) return; const t = AC.currentTime, v = 0.1 * Math.max(0.2, 1 - Math.hypot(d.x - hero.x, d.y - hero.y) / 14); tone(t, 3800 + Math.random() * 1500, 3000, 0.04, v, 'sine', 0.001); noise(t, 0.03, 5000, 2, v * 0.8, 0.001); }
+function sndPlunge() { if (!ok()) return; const t = AC.currentTime; noise(t, 0.6, 700, 0.6, 0.4, 0.005, 'lowpass', 200); tone(t + 0.02, 300, 90, 0.3, 0.12); }
+function sndThrow() { if (!ok()) return; noise(AC.currentTime, 0.28, 700, 1.1, 0.07, 0.15); }
+function sndShatter() { if (!ok()) return; const t = AC.currentTime; tone(t, 170, 60, 0.12, 0.35); for (let i = 0; i < 8; i++) noise(t + 0.01 + Math.random() ** 1.5 * 0.25, 0.05, 1800 + Math.random() * 2400, 2, 0.12); noise(t + 0.04, 0.75, 600, 0.7, 0.18, 0.06, 'lowpass'); }
+function plink(d) {
+  if (!ok()) return;
+  const t = AC.currentTime, f = 900 + Math.random() * 700, vol = 0.32 * Math.max(0.15, 1 - Math.hypot(d.x - hero.x, d.y - hero.y) / 14);
+  tone(t, f, f * 1.9, 0.12, vol, 'sine', 0.004);
+}
+
+// ---------- update ----------
+function walkTo(e, tx, ty, speed, dt) {
+  const dx = tx - e.x, dy = ty - e.y, l = Math.hypot(dx, dy);
+  if (l < 0.03) { e.moving = false; return true; }
+  const st = Math.min(l, speed * dt), nx = e.x + dx / l * st, ny = e.y + dy / l * st;
+  const okStep = iceAt(nx, ny) || (isFloor(Math.floor(nx), Math.floor(ny)) && !inWater(nx, ny));
+  if (!okStep) { e.moving = false; return true; }
+  e.x = nx; e.y = ny; e.anim += st * CHARS[e.sheet].fpt; e.dir = dirOf(dx, dy); e.moving = true; return false;
+}
+function updateIce(dt) {
+  for (const p of patches) {
+    const prev = p.phase; p.t += dt;
+    p.phase = p.t < p.fd ? 'freeze' : p.t < p.life - WARN ? 'solid' : p.t < p.life ? 'warn' : p.t < p.life + p.md ? 'melt' : 'gone';
+    if (p.phase === 'warn' && !p.net) {   // cracks start under the hero if they are on this ice, else at the blast scar
+      const onIt = inWater(hero.x, hero.y) && inPatch(p, hero.x, hero.y, 1);
+      p.net = buildNet(p, onIt ? [hero.x, hero.y] : [p.ox, p.oy]); p.sounded = p.t; sndCrack(1, true);
+    }
+    if (p.phase === 'warn' && p.net) {
+      if (inWater(hero.x, hero.y) && inPatch(p, hero.x, hero.y, 1) && p.t < p.life - 0.8 &&
+          p.net.srcs.every(s => Math.hypot(p.net.verts[s.v][0] - hero.x, p.net.verts[s.v][1] - hero.y) > 1.1)) addCrackStart(p, hero.x, hero.y);
+      // a click for the cracks that opened this frame (a few at most)
+      let n = 0; for (const t of p.net.vt) if (t > p.sounded && t <= p.t) n++;
+      if (n && Math.random() < 0.6) sndCrack(Math.min(1, 0.4 + n * 0.15)); p.sounded = p.t;
+    }
+    if (p.phase === 'melt' && prev !== 'melt') startMelt(p);
+    p.k = patchK(p);
+    if (p.phase === 'melt') {
+      const m = (p.t - p.life) / p.md;
+      if (p.holes) for (const h of p.holes) if (!h.rip && m > h.d + 0.15) { h.rip = true; ripples.push({ x: h.x, y: h.y, t: 0, a: 0.3 }); }
+      if (p.meltStyle === 'recede' && Math.random() < dt * 8) { const a = Math.random() * 7, r = rho(p, a) * p.R * p.k, x = p.ox + Math.cos(a) * r, y = p.oy + Math.sin(a) * r; if (inWater(x, y)) ripples.push({ x, y, t: 0, a: 0.35 }); }
+    }
+    // cold mist off the fresh ice
+    if (O.mist && p.t < p.fd + 1.6) {
+      const rate = (p.phase === 'freeze' ? 70 : 25) * dt;
+      for (let i = 0; i < rate || Math.random() < rate - i; i++) {
+        const a = Math.random() * 7, r = p.R * p.k * (p.phase === 'freeze' && p.style !== 'flash' ? 0.75 + Math.random() * 0.3 : Math.sqrt(Math.random())), x = p.ox + Math.cos(a) * r, y = p.oy + Math.sin(a) * r;
+        if (inWater(x, y)) mist.push({ x, y, z: 0, vz: 10 + Math.random() * 18, t: 0, dur: 1.6 + Math.random() * 1.6, s: 12 + Math.random() * 18, vx: (Math.random() - 0.5) * 0.15, vy: (Math.random() - 0.5) * 0.15 });
+      }
+    }
+  }
+  for (let i = patches.length - 1; i >= 0; i--) if (patches[i].phase === 'gone') patches.splice(i, 1);
+  for (const m of mist) { m.t += dt; m.z += m.vz * dt; m.x += m.vx * dt; m.y += m.vy * dt; }
+  for (let i = mist.length - 1; i >= 0; i--) if (mist[i].t > mist[i].dur) mist.splice(i, 1);
+}
+function update(dt) {
+  time += dt;
+  if (hero.tx !== null && walkTo(hero, hero.tx, hero.ty, 3.2, dt)) hero.tx = null;
+  hero.sink += ((inWater(hero.x, hero.y) ? D : 0) - hero.sink) * Math.min(1, dt * 14);
+  if (skel.wait > 0) { skel.wait -= dt; skel.moving = false; }
+  else if (walkTo(skel, ...PATROL[skel.leg], 1.1, dt)) { skel.leg ^= 1; skel.wait = 1.6; }
+  const pa = wraith.a; wraith.a += dt * 0.22;
+  const pw = a => [8.6 + Math.cos(a) * 1.7, 4.3 + Math.sin(a) * 1.0];
+  const [x0, y0] = pw(pa), [x1, y1] = pw(wraith.a); wraith.x = x1; wraith.y = y1; wraith.dir = dirOf(x1 - x0, y1 - y0); wraith.anim = time * 3;
+  updateIce(dt); updateBombs(dt); updateFires(dt);
+  if ((nextDrip -= dt) <= 0) { drip(...randomWaterPoint()); nextDrip = -Math.log(1 - Math.random()) * 60 / DRIPS; }
+  for (const d of drops) { d.t += dt; if (d.t >= d.tf && !d.done) { d.done = true; land(d); } }
+  for (let i = drops.length - 1; i >= 0; i--) if (drops[i].done) drops.splice(i, 1);
+  for (const r of ripples) r.t += dt;
+  for (let i = ripples.length - 1; i >= 0; i--) if (ripples[i].t > rLife(ripples[i])) ripples.splice(i, 1);
+  for (const s of splashes) { s.t += dt; s.vz -= 520 * dt; s.z += s.vz * dt; s.x += s.vx * dt / HW * 0.5; s.y += s.vy * dt / HH * 0.5; }
+  for (let i = splashes.length - 1; i >= 0; i--) if (splashes[i].z < 0 && splashes[i].t > 0.05) splashes.splice(i, 1);
+  if (note && (note.t -= dt) <= 0) note = null;
+  const [hx, hy] = iso(hero.x, hero.y), [lx, ly] = iso(8.5, 4.5), tx = (hx + lx) / 2, ty = (hy + ly) / 2 + 10;
+  camX += (tx - camX) * Math.min(1, dt * 6); camY += (ty - camY) * Math.min(1, dt * 6);
+}
+
+// ---------- render ----------
+function resize() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(2, devicePixelRatio || 1);
+  for (const c of [cv, wc, ic, lc]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+  PATS.clear();
+}
+const toDev = (wx, wy, lift = 0) => { const [X, Y] = iso(wx, wy); return [((X - camX) * Z + W / 2) * DPR, ((Y - lift - camY) * Z + H / 2) * DPR]; };
+function render() {
+  const cw = cv.width, ch = cv.height, tint = TINTS[O.tint];
+  TF = [DPR * Z, 0, 0, DPR * Z, DPR * (W / 2 - camX * Z), DPR * (H / 2 - camY * Z)];
+  const dl = drawables();
+
+  // 1. the mirrored scene, at half resolution (soft)
+  const rw = Math.round(cw * 0.5), rh = Math.round(ch * 0.5);
+  if (rc.width !== rw || rc.height !== rh) { rc.width = rw; rc.height = rh; PATS.delete(rctx); }
+  rctx.setTransform(1, 0, 0, 1, 0, 0); rctx.clearRect(0, 0, rw, rh);
+  rctx.setTransform(TF[0] * 0.5, 0, 0, TF[3] * 0.5, TF[4] * 0.5, TF[5] * 0.5);
+  for (const d of dl) d.f(rctx, true);
+  drawBanks(rctx, true);
+
+  // 2. the water layer
+  wctx.setTransform(1, 0, 0, 1, 0, 0); wctx.clearRect(0, 0, cw, ch);
+  wctx.setTransform(...TF); wctx.save(); waterPath(wctx, D); wctx.clip();
+  wctx.fillStyle = tint.deep; wctx.fillRect(-4000, -4000, 8000, 8000);
+  wctx.save(); wctx.translate(0, D + 5); wctx.lineJoin = 'round'; wctx.strokeStyle = pats(wctx).floor;
+  for (const [lw, a] of [[46, 0.12], [28, 0.16], [12, 0.2]]) { wctx.globalAlpha = a; wctx.lineWidth = lw; waterPath(wctx, 0); wctx.stroke(); }
+  wctx.restore(); wctx.globalAlpha = 1;
+  wctx.save(); wctx.setTransform(1, 0, 0, 1, 0, 0); wctx.globalAlpha = REFL; wctx.drawImage(rc, 0, 0, cw, ch); wctx.restore();
+  wctx.fillStyle = tint.tint; wctx.fillRect(-4000, -4000, 8000, 8000);
+  wctx.lineCap = 'round';
+  for (const g of SEGS) {
+    const A = iso(g.a[0], g.a[1]), B = iso(g.b[0], g.b[1]);
+    if (g.near) { wctx.strokeStyle = 'rgba(0,0,0,0.45)'; wctx.lineWidth = 7; wctx.beginPath(); wctx.moveTo(A[0], A[1]); wctx.lineTo(B[0], B[1]); wctx.stroke(); }
+    else if (g.far) {
+      wctx.strokeStyle = 'rgba(0,0,0,0.5)'; wctx.lineWidth = 3; wctx.beginPath(); wctx.moveTo(A[0], A[1] + D); wctx.lineTo(B[0], B[1] + D); wctx.stroke();
+      wctx.strokeStyle = `rgba(${tint.ring},0.14)`; wctx.lineWidth = 1; wctx.beginPath(); wctx.moveTo(A[0], A[1] + D + 1.5); wctx.lineTo(B[0], B[1] + D + 1.5); wctx.stroke();
+    }
+  }
+  wctx.restore();
+  refract(cw, ch);
+  wctx.save(); wctx.setTransform(...TF); waterPath(wctx, D); wctx.clip();
+  for (const r of ripples) {
+    const a = rippleAmp(r); if (a < 0.01) continue;
+    const [X, Y] = iso(r.x, r.y), R = rRad(r);
+    for (let k = 0; k < 3; k++) {
+      const rr = R - k * LAMBDA; if (rr <= 0.5) continue;
+      const al = Math.min(1, a * (1 - k * 0.3) * 0.5);
+      wctx.lineWidth = 1.2;
+      wctx.strokeStyle = `rgba(${tint.ring},${al})`; wctx.beginPath(); wctx.ellipse(X, Y + D - 0.6, rr, rr / 2, 0, 0, 7); wctx.stroke();
+      wctx.strokeStyle = `rgba(0,0,0,${al * 0.9})`; wctx.beginPath(); wctx.ellipse(X, Y + D + 0.9, rr, rr / 2, 0, 0, 7); wctx.stroke();
+    }
+  }
+  wctx.restore();
+
+  // 3. the main scene: water, ice, floor (minus the lake), banks, the oil burning on the ice, the depth-sorted things
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#040205'; ctx.fillRect(0, 0, cw, ch);
+  ctx.drawImage(wc, 0, 0);
+  if (drawIceLayer(cw, ch)) { ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(ic, 0, 0); }
+  ctx.setTransform(...TF);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(-4000, -4000, 8000, 8000);
+  for (const L of LOOPS) { L.pts.forEach((p, i) => { const [X, Y] = iso(p[0], p[1]); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }); ctx.closePath(); }
+  ctx.clip('evenodd');
+  ctx.save(); ctx.transform(HW, HH, -HW, HH, 0, 0); ctx.beginPath();
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (!isWall(x, y)) ctx.rect(x, y, 1.02, 1.02);
+  ctx.fillStyle = pats(ctx).floor; ctx.fill(); ctx.lineWidth = 0.012; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.stroke(); ctx.restore();
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = 'rgba(0,0,0,0.22)'; ctx.lineWidth = 12; waterPath(ctx, 0); ctx.stroke(); ctx.lineWidth = 5; ctx.stroke();
+  ctx.restore();
+  ctx.lineCap = 'round';
+  for (const g of SEGS) if (g.near) {
+    const A = iso(g.a[0], g.a[1]), B = iso(g.b[0], g.b[1]);
+    ctx.strokeStyle = 'rgba(255,236,210,0.12)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke();
+  }
+  drawBanks(ctx, false);
+  for (const f of fires) drawFireGround(ctx, f);
+  for (const d of dl) d.f(ctx, false);
+
+  // 4. lighting (each light mirrored in the water); the ice glows faintly, the blast flashes, fires light the ice
+  const lights = [[hero.x, hero.y, 7.2, 30, 1]];
+  for (const o of objects) if (o.light) lights.push([o.x + 0.5, o.y + 0.5, o.light[0] + Math.sin(time * 9 + o.x) * 0.15 + Math.sin(time * 13.7 + o.y) * 0.1, o.light[1], o.light[2]]);
+  for (const f of fires) { const I = fireI(f); if (I > 0) lights.push([f.x, f.y, 3.4 + Math.sin(time * 11 + f.x) * 0.2, 20, 0.9 * I]); }
+  if (O.light) {
+    lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-over'; lctx.clearRect(0, 0, cw, ch);
+    lctx.fillStyle = 'rgba(3,1,5,0.93)'; lctx.fillRect(0, 0, cw, ch); lctx.globalCompositeOperation = 'destination-out';
+    const hole = (wx, wy, rad, str, lift) => {
+      const [X, Y] = toDev(wx, wy, lift), r = rad * HW * 1.42 * Z * DPR;
+      lctx.save(); lctx.translate(X, Y); lctx.scale(1, 0.62);
+      const gr = lctx.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(0,0,0,${str})`); gr.addColorStop(0.5, `rgba(0,0,0,${str * 0.8})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      lctx.fillStyle = gr; lctx.beginPath(); lctx.arc(0, 0, r, 0, 7); lctx.fill(); lctx.restore();
+    };
+    for (const L of lights) hole(L[0], L[1], L[2], L[4], L[3]);
+    for (const p of patches) {
+      const glow = p.phase === 'melt' ? 0.3 * (1 - (p.t - p.life) / p.md) : 0.3;
+      hole(p.ox, p.oy, p.R * 1.15 * Math.max(0.3, p.k), glow, -D);
+      if (p.t < 1.6) hole(p.ox, p.oy, p.R * 1.8, 0.95 * Math.exp(-p.t / 0.5), -D);
+    }
+    lctx.save(); lctx.setTransform(...TF); waterPath(lctx, D); lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.clip();
+    for (const L of lights) hole(L[0], L[1], L[2] * 0.85, L[4] * Math.min(1, REFL * 1.2), -(L[3] + 2 * D));
+    lctx.restore();
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(lc, 0, 0);
+  }
+
+  // 5. additive light: braziers, flame reflections, the blast's flash and shock ring, mist, drops and splashes
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'lighter';
+  for (const o of objects) if (o.k === 'brazier') {
+    const [X, Y] = toDev(o.x + 0.5, o.y + 0.5, 50), r = 170 * Z * DPR;
+    const gr = ctx.createRadialGradient(X, Y, 0, X, Y, r); gr.addColorStop(0, 'rgba(255,120,40,0.16)'); gr.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = gr; ctx.fillRect(X - r, Y - r, 2 * r, 2 * r);
+  }
+  ctx.save(); ctx.setTransform(...TF); waterPath(ctx, D); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clip();
+  for (const o of objects) if (o.flame) {
+    const fl = 0.85 + 0.15 * Math.sin(time * 11 + o.x) * Math.sin(time * 7.3 + o.y), [X, Y] = toDev(o.x + 0.5, o.y + 0.5, -(o.flame + 2 * D));
+    const r = (o.k === 'brazier' ? 26 : 13) * Z * DPR;
+    ctx.save(); ctx.translate(X, Y); ctx.scale(0.75, 2.4);
+    const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(255,170,80,${0.5 * REFL * fl})`); gr.addColorStop(0.4, `rgba(255,120,40,${0.22 * REFL * fl})`); gr.addColorStop(1, 'rgba(255,100,30,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.restore();
+  }
+  for (const p of patches) {
+    if (p.t < 0.8) {   // the blast's flash
+      const [X, Y] = toDev(p.ox, p.oy, -D), r = p.R * P * 1.3 * Z * DPR, a = Math.exp(-p.t / 0.22);
+      ctx.save(); ctx.translate(X, Y); ctx.scale(1, 0.5);
+      const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(190,230,255,${0.55 * a})`); gr.addColorStop(0.5, `rgba(120,190,255,${0.22 * a})`); gr.addColorStop(1, 'rgba(100,170,255,0)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(0, 0, r, 0, 7); ctx.fill(); ctx.restore();
+    }
+    if (p.style === 'flash' && p.t < 0.6) {   // the shock ring
+      const [X, Y] = toDev(p.ox, p.oy, -D), u = p.t / 0.6, r = p.R * P * (0.3 + 1.2 * easeOut(u)) * Z * DPR;
+      ctx.strokeStyle = `rgba(210,240,255,${0.8 * (1 - u)})`; ctx.lineWidth = (6 - 4 * u) * Z * DPR; ctx.beginPath(); ctx.ellipse(X, Y, r, r / 2, 0, 0, 7); ctx.stroke();
+    }
+  }
+  ctx.restore();
+  for (const m of mist) {   // cold mist, faintly glowing
+    const k = m.t / m.dur, [X, Y] = toDev(m.x, m.y, m.z - D), s = m.s * (1 + k) * Z * DPR, a = 0.07 * Math.sin(Math.PI * k);
+    const gr = ctx.createRadialGradient(X, Y, 0, X, Y, s); gr.addColorStop(0, `rgba(200,228,245,${a})`); gr.addColorStop(1, 'rgba(200,228,245,0)');
+    ctx.fillStyle = gr; ctx.fillRect(X - s, Y - s, 2 * s, 2 * s);
+  }
+  for (const d of drops) {
+    const k = d.t / d.tf, h = 320 * (1 - k * k), [X, Y] = toDev(d.x, d.y, h - D), len = (4 + 10 * k) * Z * DPR;
+    ctx.strokeStyle = `rgba(200,228,255,${0.35 + 0.5 * k})`; ctx.lineWidth = 1.4 * Z * DPR; ctx.beginPath(); ctx.moveTo(X, Y - len); ctx.lineTo(X, Y); ctx.stroke();
+  }
+  for (const s of splashes) {
+    const [X, Y] = toDev(s.x, s.y, Math.max(0, s.z) - D), r = (s.small ? 0.8 : 1.1) * Z * DPR;
+    ctx.fillStyle = s.col ? `rgba(${s.col},0.9)` : 'rgba(200,228,255,0.7)'; ctx.fillRect(X - r, Y - r, 2 * r, 2 * r);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function refract(cw, ch) {
+  const sc = DPR * Z, lam = LAMBDA * sc;
+  for (const r of ripples) {
+    const amp = rippleAmp(r) * 2.4 * sc; if (amp < 0.05) continue;
+    const [X, Y] = toDev(r.x, r.y, -D), R = rRad(r) * sc, ext = R + lam * 2.6;
+    const x0 = Math.max(0, Math.floor(X - ext)), x1 = Math.min(cw, Math.ceil(X + ext)), y0 = Math.max(0, Math.floor(Y - ext / 2)), y1 = Math.min(ch, Math.ceil(Y + ext / 2));
+    const bw = x1 - x0, bh = y1 - y0; if (bw < 2 || bh < 2) continue;
+    let img; try { img = wctx.getImageData(x0, y0, bw, bh); } catch (e) { return; }
+    const src = img.data, out = new Uint8ClampedArray(src), k2 = 2 * Math.PI / lam, wid = lam * 1.15;
+    for (let py = 0; py < bh; py++) {
+      const ey = (y0 + py - Y) * 2;
+      for (let px = 0; px < bw; px++) {
+        const ex = x0 + px - X, rr = Math.hypot(ex, ey), d = rr - R;
+        if (rr < 0.5 || d > lam * 2.6 || d < -lam * 2.6) continue;
+        const env = Math.exp(-(d / wid) * (d / wid)), ph = d * k2, disp = amp * Math.sin(ph) * env;
+        const ux = ex / rr, uy = ey / rr;
+        let sx = Math.round(px - ux * disp), sy = Math.round(py - uy * disp * 0.5);
+        sx = sx < 0 ? 0 : sx >= bw ? bw - 1 : sx; sy = sy < 0 ? 0 : sy >= bh ? bh - 1 : sy;
+        const si = (sy * bw + sx) * 4, o = (py * bw + px) * 4;
+        if (src[o + 3] === 0 || src[si + 3] === 0) continue;
+        const lit = Math.cos(ph) * env * (-uy) * Math.min(1, amp / sc) * 46;
+        out[o] = src[si] + lit; out[o + 1] = src[si + 1] + lit * 1.08; out[o + 2] = src[si + 2] + lit * 1.15; out[o + 3] = src[si + 3];
+      }
+    }
+    img.data.set(out); wctx.putImageData(img, x0, y0);
+  }
+}
+
+// ---------- status ----------
+function statusText() {
+  const p = patches[patches.length - 1];
+  let s = '';
+  if (p) {
+    const left = Math.max(0, p.life - p.t);
+    s = p.phase === 'freeze' ? 'Freezing…' : p.phase === 'solid' ? `The ice holds · melts in ${left.toFixed(1)} s` :
+      p.phase === 'warn' ? `Cracking · melts in ${left.toFixed(1)} s` : 'Melting';
+  } else s = 'Open water';
+  return s + (note ? `<small>${note.text}</small>` : iceAt(hero.x, hero.y) ? '<small>The hero is standing on the ice.</small>' : '');
+}
+let lastStatus = '';
+
+// ---------- input and the panel ----------
+function screenToWorld(px, py, lift = 0) {
+  const X = (px - W / 2) / Z + camX, Y = (py - H / 2) / Z + camY - lift;
+  return [(X / HW + Y / HH) / 2, (Y / HH - X / HW) / 2];
+}
+function wake() { if (O.sound) { audio(); if (AC && AC.state === 'suspended') AC.resume(); } }
+cv.addEventListener('pointerdown', ev => {
+  wake();
+  const [wx, wy] = screenToWorld(ev.clientX, ev.clientY, D);
+  if (inWater(wx, wy)) {
+    if (O.tap === 'bomb') { throwBomb(wx, wy); return; }
+    if (iceAt(wx, wy)) { hero.tx = wx; hero.ty = wy; return; }
+    cast(wx, wy); return;
+  }
+  const [fx, fy] = screenToWorld(ev.clientX, ev.clientY);
+  if (isFloor(Math.floor(fx), Math.floor(fy))) {
+    if (O.tap === 'bomb' && Math.hypot(fx - hero.x, fy - hero.y) > 1.2) { throwBomb(fx, fy); return; }
+    hero.tx = fx; hero.ty = fy;
+  }
+});
+function syncUI() {
+  for (const seg of document.querySelectorAll('.seg')) for (const b of seg.children) b.setAttribute('aria-pressed', String(O[seg.dataset.opt] === b.dataset.v));
+  $('radius').value = O.radius; $('radiusV').textContent = O.radius + ' tiles';
+  $('life').value = O.life; $('lifeV').textContent = O.life + ' s (the last 5 cracking)';
+  $('freezeD').textContent = DESC[O.freeze]; $('meltD').textContent = DESC[O.melt];
+  for (const k of ['scar', 'mist', 'light', 'sound']) $(k).checked = O[k];
+}
+for (const seg of document.querySelectorAll('.seg')) seg.addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  O[seg.dataset.opt] = b.dataset.v; syncUI();
+  if (seg.dataset.opt === 'melt') for (const p of patches) if (p.phase !== 'melt') { p.meltStyle = O.melt; p.md = MELT_DUR[O.melt]; }
+  if (seg.dataset.opt === 'freeze') { wake(); recast(); }
+});
+$('radius').oninput = e => { O.radius = +e.target.value; syncUI(); };
+$('life').oninput = e => { O.life = +e.target.value; syncUI(); };
+for (const k of ['scar', 'mist', 'light', 'sound']) $(k).onchange = e => { O[k] = e.target.checked; if (k === 'sound' && O[k]) wake(); if (k === 'scar') recast(); };
+function recast() {   // cast again where the newest ice is (or at the lake), to compare looks
+  const p = patches[patches.length - 1], x = p ? p.ox : 8.3, y = p ? p.oy : 4.2;
+  patches.length = 0; cast(x, y);
+}
+$('castMid').onclick = () => { wake(); cast(8.3 + (Math.random() - 0.5) * 2, 4.2 + (Math.random() - 0.5) * 1.2); };
+$('onIce').onclick = () => {
+  const p = [...patches].reverse().find(solid); if (!p) { note = { text: 'There is no ice yet: tap the water to cast.', t: 2.5 }; return; }
+  for (let i = 0; i < 40; i++) { const a = Math.random() * 7, r = (0.4 + Math.random() * 0.5) * p.R, x = p.ox + Math.cos(a) * r, y = p.oy + Math.sin(a) * r; if (iceAt(x, y)) { hero.x = x; hero.y = y; hero.tx = null; return; } }
+};
+$('crackNow').onclick = () => { wake(); const p = [...patches].reverse().find(q => q.phase === 'solid' || q.phase === 'freeze'); if (p) p.life = Math.max(p.fd, p.t) + WARN; };
+$('dripNow').onclick = () => {   // a drip onto the ice if there is some, to hear and see that it does not splash
+  const p = [...patches].reverse().find(solid);
+  if (p) { const a = Math.random() * 7, r = Math.random() * p.R * 0.8, x = p.ox + Math.cos(a) * r, y = p.oy + Math.sin(a) * r; if (iceAt(x, y)) { drip(x, y); return; } }
+  drip(...randomWaterPoint());
+};
+$('zin').onclick = () => { Z = Math.min(2.4, Z * 1.2); };
+$('zout').onclick = () => { Z = Math.max(0.35, Z / 1.2); };
+$('toggle').onclick = () => { const p = $('panel'), open = p.classList.toggle('closed') === false; $('toggle').setAttribute('aria-expanded', String(open)); $('toggle').textContent = open ? 'Close' : 'Options'; };
+addEventListener('resize', resize);
+
+// ---------- start ----------
+function loadImg(src) { return new Promise((res, no) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => no(src); im.src = src; }); }
+Promise.all(Object.entries(SRC).map(([k, s]) => loadImg(s).then(im => { IMG[k] = im; }))).then(() => {
+  resize(); Z = W < 640 ? 0.62 : Math.min(1.2, Math.max(0.7, W / 1200));
+  buildLake(); syncUI();
+  const [hx, hy] = iso(hero.x, hero.y), [lx, ly] = iso(8.5, 4.5); camX = (hx + lx) / 2; camY = (hy + ly) / 2 + 10;
+  cast(8.3, 4.2); patches[0].t = 2.5;   // open on ice that has already set
+  let last = performance.now();
+  const loop = now => {
+    update(Math.min(0.05, (now - last) / 1000)); last = now; render();
+    const s = statusText(); if (s !== lastStatus) { $('status').innerHTML = s; lastStatus = s; }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}).catch(src => { $('status').textContent = 'Could not load ' + src; });
+</script>
+</body>
+</html>
