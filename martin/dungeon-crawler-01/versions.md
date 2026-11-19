@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v81 — the stocky knight drawn a little smaller (2026-11-19)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 81`)*
+
+- The **stocky knight** look is drawn at 0.93 of its sheet (`CAST_SCALE.hero2`). Its mocap guide was normalised
+  to full height, so his short legs had made his torso, head and shoulders larger than the original knight's;
+  now he is a little shorter than the knight, as designed. The walk still advances by the scaled stride, so the
+  feet stay planted.
+
 ## v80 — hero looks: the stocky knight and the mannequin (2026-11-18)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 80`)*
+Commit: e0777d7
 
 - Each hero has a **look**, picked in its settings on the title screen (the cogwheel: Knight, Stocky knight,
   Mannequin) or in the debug overlay, and saved with the hero (and in exported heroes).
