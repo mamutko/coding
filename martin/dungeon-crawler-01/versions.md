@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v85 — the huntress look (2026-11-19)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 85`)*
+
+- A fourth hero look, **Huntress** (`assets/hero3.webp`): a ranger with a chestnut braid and a moss-green
+  half-cloak, painted with the `sprite-animation` skill (12 frames, all 8 directions). Picked like the others, in
+  the hero's cogwheel box on the title screen or in the debug overlay.
+
 ## v84 — boss levels no longer crawl without the GPU (2026-11-19)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 84`)*
+Commit: ae17ba3
 
 - The boss room's **rune circle** is drawn once into an offscreen image (per room and screen scale) and pasted
   each frame, only while on screen. Drawn live every frame (a blur filter and a 26 px shadow), it cost ~800 ms a
