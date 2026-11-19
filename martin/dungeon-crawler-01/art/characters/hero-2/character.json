@@ -4,26 +4,32 @@
   "frames": 12,
   "mirror": false,
   "guide": "guide",
-  "body": "stocky: legs 0.88, shoulders 1.15, neck 0.6, head 1.05, girth 1.35 (torso 1.25), EU 43",
+  "body": "--preset stocky (legs 0.88, shoulders 1.15, neck 0.6, head 1.05, girth 1.35, torso girth 1.25), EU 43",
   "references": [
     {
       "file": "reference-1.png",
-      "status": "candidate",
+      "status": "rejected",
       "note": "deep jagged hem with heavy mud staining; most weathered"
     },
     {
       "file": "reference-2.png",
-      "status": "candidate",
+      "status": "approved",
       "note": "shiniest plate, cleanest hem (shallow fray, broad stain): least likely to jump when walking"
     },
     {
       "file": "reference-3.png",
-      "status": "candidate",
+      "status": "rejected",
       "note": "pointed visor ridge, star rondels, speckled stains on the hem"
     }
   ],
-  "directions": {},
-  "next": "Approve the stocky guide and pick a reference, then paint NW",
+  "directions": {
+    "NW": {
+      "file": "paint/NW.png",
+      "status": "review",
+      "note": "OpenAI, reference 2, stocky guide, STEADY prompt (paint/NW.prompt.txt). Stride 12/12, colour 0.89, cape overlap frame to frame 0.78 (in game 0.70), detail 34. View rather side-on (visor visible)."
+    }
+  },
+  "next": "Approve NW, then paint the other 7 (render their stocky guides first)",
   "spend": [
     {
       "what": "3 reference candidates, from scratch (simple style)",
@@ -32,6 +38,10 @@
     {
       "what": "3 more reference candidates (full cape, sheen, weathering)",
       "usd": 0.1
+    },
+    {
+      "what": "NW walk (OpenAI, 12 frames)",
+      "usd": 0.03
     }
   ],
   "original": {

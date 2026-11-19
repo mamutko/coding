@@ -15,7 +15,8 @@ datasets/quaternius-ual1/   UAL1_Standard.glb (in place, use this), UAL1_Standar
 guides/         pre-rendered guides, see guides/README.md: walk, formal-walk, jog (8f / 12f, all 8 directions,
                 shaded clay, adult 1.82 m, EU 43 feet) and stick-walk (algorithmic stick figure)
 tools/
-  render_guide.py    mocap mannequin guide: --clip, --frames, --shaded, --shoe, --preset child-8 / child-12, ...
+  render_guide.py    mocap mannequin guide: --clip, --frames, --shaded, --shoe, --preset stocky / child-8 / child-12,
+                     --girth (body thickness), ...
   walk_cycle.py      the algorithmic stick-figure guide (per-character gaits in CHARS) and the projection
   default_guides.py  regenerates guides/
   guide_prompt.py    the painting prompt: --plain (shaded guide), --character, --ref, --match
@@ -80,10 +81,12 @@ light from the upper left. NOT pixel art, NOT 3D. Transparent background. No tex
   `formal-walk` (upright, measured: nobles, guards), `jog`, and `stick-walk` (algorithmic, 8 frames, 5 directions).
 - **Custom** (render it into `<char>/guide/`, show it on the board, wait for approval before painting):
   - another clip: `--clip Jog_Fwd_Loop | Sprint_Loop | Walk_Formal_Loop | ...` (all 43 in datasets.md);
-  - other body: `--preset child-12 | child-8`, `--shoe <EU size>`, or `--head --legs --arms --torso --shoulders --neck`
-    (lengths; each also scales that part's thickness with it), and `--girth` (+ `--legs-girth --arms-girth
-    --torso-girth`) for thickness alone. Stocky: `--legs 0.88 --shoulders 1.15 --neck 0.6 --head 1.05 --girth 1.35
-    --torso-girth 1.25`;
+  - other body: `--preset stocky | child-12 | child-8`, `--shoe <EU size>`. Fine-tune any preset by hand:
+    `--head --legs --arms --torso --shoulders --neck` set lengths (each also scales that part's thickness with it);
+    `--girth` (+ `--legs-girth --arms-girth --torso-girth`) sets thickness alone, without changing bone lengths.
+    `stocky` = legs 0.88, shoulders 1.15, neck 0.6, head 1.05, girth 1.35, torso girth 1.25 (a heavier build:
+    `--preset stocky --girth 1.5`). The joint angles stay as captured, so shorter legs take shorter steps;
+    record the body in character.json `"body"`;
   - a monster with a made-up gait: `walk_cycle.py guide <CHAR> <DIR> out.png --magenta --limbs` (add the gait to
     `CHARS`: lean, crouch, stride, arm swing; then use `guide_prompt.py` without `--plain`).
 

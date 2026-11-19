@@ -19,15 +19,16 @@ cells of 300 x 440, the body centred in each cell, standing on a ground line 70 
                      allowance), so 43 -> 27.2 cm = x0.90. The feet are scaled about the ankle in the bind pose,
                      blended by skin weight so the ankle stays joined to the shin.
     --foot-scale S   the same with a raw factor (1 = the mannequin's own 30.3 cm feet)
-    --preset NAME    body proportions: adult (default), child-12 (~1.50 m, ~6.5 heads), child-8 (~1.28 m, ~6 heads).
+    --preset NAME    body proportions: adult (default), child-12 (~1.50 m, ~6.5 heads), child-8 (~1.28 m, ~6 heads),
+                     stocky (broad and thick-set: shorter legs, broad shoulders, short neck, girth 1.35 / torso 1.25).
                      Every guide is drawn at the same on-screen height; the game draws children smaller.
     --head H --legs L --arms A --torso T --shoulders S --neck N
                      proportions by hand (bone-length and thickness factors; override the preset's values).
                      Head scales the head about the neck joint; legs / arms / torso scale those bones' lengths and
                      the mesh around them; the pelvis height follows the legs; shoulders = shoulder width, neck = neck length.
     --girth G        thicken the body around its bones without changing their lengths (1 = as modelled; the head is
-                     left alone). --legs-girth / --arms-girth / --torso-girth override it per group. A stocky build:
-                     --legs 0.88 --shoulders 1.15 --neck 0.6 --head 1.05 --girth 1.35 --torso-girth 1.25.
+                     left alone). --legs-girth / --arms-girth / --torso-girth override it per group. All of these
+                     override the preset's values (e.g. --preset stocky --girth 1.5 for an even heavier build).
     --balanced       darker orange / yellow with about the lightness of the blue / teal partner. OpenAI keeps some
                      of a guide colour's lightness: with the bright default orange, the 8 x 8 sheets came out with
                      the RIGHT trouser leg ~30 % lighter and warmer than the left.
@@ -133,7 +134,9 @@ class Rig:
 
     PRESETS = {"adult": dict(head=1, legs=1, arms=1, torso=1, shoulders=1, neck=1),
                "child-12": dict(head=1.15, legs=0.93, arms=0.94, torso=0.97, shoulders=0.92, neck=0.85),
-               "child-8": dict(head=1.30, legs=0.85, arms=0.88, torso=0.95, shoulders=0.82, neck=0.65)}
+               "child-8": dict(head=1.30, legs=0.85, arms=0.88, torso=0.95, shoulders=0.82, neck=0.65),
+               "stocky": dict(head=1.05, legs=0.88, arms=1, torso=1, shoulders=1.15, neck=0.6)}
+    GIRTH = {"stocky": dict(girth=1.35, torso=1.25)}   # preset thickness (scale_girth), on top of PRESETS
 
     @staticmethod
     def group(name):
@@ -372,10 +375,12 @@ def main():
     rig.set_proportions(**prop)
     if prop != Rig.PRESETS["adult"]:
         print("proportions", prop)
-    girth = {k: float(opt(f"--{k}-girth", 0)) or None for k in ("legs", "arms", "torso")}
-    if "--girth" in sys.argv or any(girth.values()):
-        rig.scale_girth(float(opt("--girth", 1)), **girth)
-        print("girth", opt("--girth", 1), {k: v for k, v in girth.items() if v})
+    pg = dict(Rig.GIRTH.get(opt("--preset", "adult"), {}))
+    g_all = float(opt("--girth", pg.pop("girth", 1)))
+    girth = {k: float(opt(f"--{k}-girth", 0)) or pg.get(k) for k in ("legs", "arms", "torso")}
+    if g_all != 1 or any(girth.values()):
+        rig.scale_girth(g_all, **girth)
+        print("girth", g_all, {k: v for k, v in girth.items() if v})
     if fs != 1.0:
         rig.scale_feet(fs)
         print(f"feet x{fs:.3f}: {Rig.FOOT_CM * fs:.1f} cm (~EU {(Rig.FOOT_CM * fs + 1.5) * 1.5:.0f})")

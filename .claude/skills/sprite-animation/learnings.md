@@ -117,3 +117,11 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
   so its colours were pulled back in Python (colour 0.85 against the original). Add to the prompt: "this is an
   animation ... every figure is shaded IDENTICALLY: the same highlight on the same plate, the same few broad folds".
   Result: 24, flat and steady from frame to frame. Make references simple from the start.
+- **A "STEADY FROM FRAME TO FRAME" paragraph works on cloth** (2026-11-18, hero-2 NW, OpenAI): "paint him as if he
+  were ONE 3D model rendered 12 times: the SAME highlight shapes in the SAME places, the SAME dents and rust ...; the
+  cape has the SAME few broad folds ... only sways gently; the hem keeps the SAME outline ... do not redraw new tears
+  or stain blotches in each figure". Cape outline overlap between neighbouring frames: 0.78, against 0.70 for the
+  old in-game sprite and 0.74-0.75 for earlier attempts without it. The prompt is kept in hero-2/paint/NW.prompt.txt.
+- **Stocky bodies:** `render_guide.py --preset stocky` (shorter legs, broad shoulders, short neck, `--girth`
+  1.35). Girth thickens around the bones without changing lengths; the old length factors alone made a stocky
+  build thinner (shorter legs came out thinner too).
