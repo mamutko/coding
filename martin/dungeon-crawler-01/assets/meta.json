@@ -156,6 +156,14 @@
    "idle": 10,
    "footY": 128,
    "fpt": 8.02
+  },
+  "hero3": {
+   "fw": 144,
+   "fh": 152,
+   "frames": 12,
+   "idle": 10,
+   "footY": 128,
+   "fpt": 8.02
   }
  },
  "items": {

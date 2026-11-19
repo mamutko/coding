@@ -1,6 +1,6 @@
 {
   "name": "Hero 3 (huntress)",
-  "description": null,
+  "description": "a lean, athletic adult woman about 30, a huntress and ranger, with a woman's figure: a long chestnut-brown braid hanging down her back from the nape, a calm weathered face; a deep moss-green hooded half-cloak (a short shoulder cape) reaching the waist at the sides and in a point to the hips at the back, the hood DOWN, fastened at the throat with a bronze leaf clasp; a fitted brown leather jerkin to the hips with a few bold stitched seams, over a cream linen shirt with the sleeves rolled to the elbow; long brown leather fingerless bracers; a wide tan belt with a square buckle, a leather pouch at her right hip and a sheathed knife at her left hip; slim moss-green trousers; knee-high brown leather boots with turned-down cuffs. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried.",
   "frames": 12,
   "mirror": false,
   "guide": "walk",
@@ -8,18 +8,18 @@
   "references": [
     {
       "file": "reference/round-1/candidate-1.png",
-      "status": "candidate",
-      "note": "round 1, style from hero-2: moss-green hooded half-cloak, chestnut braid, leather jerkin, rolled cream sleeves, tall boots. Fine mottled texture on cloth and leather (shimmer risk)."
+      "status": "approved",
+      "note": "round 1, style from hero-2: moss-green hooded half-cloak, chestnut braid, leather jerkin, rolled cream sleeves, tall boots. Fine mottled texture on cloth and leather (shimmer risk). APPROVED (copied to reference/reference.png)."
     },
     {
       "file": "reference/round-1/candidate-2.png",
-      "status": "candidate",
-      "note": "round 1: northern ranger, short ash-blonde hair, scar, charcoal hooded half-cloak with a wolf-fur collar, fur-topped boots. The fur is fine detail (shimmer risk)."
+      "status": "rejected",
+      "note": "round 1: northern ranger, short ash-blonde hair, scar, charcoal hooded half-cloak with a wolf-fur collar, fur-topped boots. The fur is fine detail (shimmer risk). REJECTED after its NW walk: the curly hair and the fur shimmer, and the two-layer cloak changes length (frames 5-6)."
     },
     {
       "file": "reference/round-1/candidate-3.png",
-      "status": "candidate",
-      "note": "round 1: copper-red ponytail, freckles, short green hooded shoulder mantle (asked for none: came with a hood) with an antler clasp, riveted leather cuirass, green tunic, laced boots. No long cloth: the easiest to animate."
+      "status": "rejected",
+      "note": "round 1: copper-red ponytail, freckles, short green hooded shoulder mantle (asked for none: came with a hood) with an antler clasp, riveted leather cuirass, green tunic, laced boots. No long cloth: the easiest to animate. Not taken forward."
     }
   ],
   "designs": {
@@ -28,22 +28,48 @@
     "candidate-3": "a lean, athletic adult woman about 25, a huntress and ranger: wild copper-red hair tied back in a high ponytail, freckles; NO cloak: a short dark-green leather shoulder mantle with a stag-antler toggle; a rust-brown hardened leather cuirass with a few bold rivets over a forest-green tunic reaching mid-thigh; brown leather bracers and fingerless gloves; a wide belt with crossed straps, a pouch and a sheathed hunting knife; snug brown leggings; soft knee-high boots wrapped with leather laces. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried."
   },
   "directions": {
-    "NW (cand. 1)": {
-      "dir": "NW",
-      "file": "paint/NW-c1.png",
-      "ref": "reference/round-1/candidate-1.png",
-      "status": "review",
-      "note": "candidate 1, --cloth --she (paint/NW-c1.prompt.txt). Stride 12/12, no faded limbs, colour 0.91. Cloak, braid and bracers the same in every frame."
+    "NW": {
+      "file": "paint/NW.png",
+      "status": "approved",
+      "note": "--cloth 'moss-green hooded half-cloak' --she (paint/NW.prompt.txt). Stride 12/12, no faded limbs, colour 0.91."
     },
-    "NW (cand. 2)": {
-      "dir": "NW",
-      "file": "paint/NW-c2.png",
-      "ref": "reference/round-1/candidate-2.png",
-      "status": "review",
-      "note": "candidate 2, --cloth --she (paint/NW-c2.prompt.txt). Stride 11/12 and 12 faded-limb flags, all false alarms (her grey-brown trousers fool the test; frame 1 is a clean stride). Colour 0.94. Real fault: in frames 5-6 the cloak's long back vanishes (a short shoulder cape). The fur collar is fine-grained texture."
+    "S": {
+      "file": "paint/S.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth --she (paint/S.prompt.txt). front view. Stride 12/12, colour 0.95."
+    },
+    "SW": {
+      "file": "paint/SW.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth --she (paint/SW.prompt.txt). Stride 11/12: frame 9 flagged, a false alarm (the pose matches the guide). Colour 0.91."
+    },
+    "W": {
+      "file": "paint/W.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth --she (paint/W.prompt.txt). profile left, cloak and braid down the back. Stride 12/12, colour 0.92."
+    },
+    "N": {
+      "file": "paint/N.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth --she (paint/N.prompt.txt). back view, cloak point and braid. Stride 12/12, colour 0.92."
+    },
+    "NE": {
+      "file": "paint/NE.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth --she (paint/NE.prompt.txt). three-quarter back right. Stride 12/12, colour 0.93. The jerkin's ragged hem at the hip varies a little."
+    },
+    "E": {
+      "file": "paint/E.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth --she (paint/E.prompt.txt). profile right. Stride 12/12, colour 0.88."
+    },
+    "SE": {
+      "file": "paint/SE.png",
+      "status": "approved",
+      "note": "walk guide, reference + NW match, --cloth --she (paint/SE.prompt.txt). front three-quarter right. Stride 12/12, colour 0.88."
     }
   },
-  "next": "Pick candidate 1 or 2 from the two NW walks (or ask for changes); then paint the other 7 directions with --match NW",
+  "next": "Done: game sheet assets/hero3.webp (12 frames, fpt 8.02, idle 10) + its assets/meta.json entry. Not yet a look in the game.",
   "spend": [
     {
       "what": "3 reference candidates (edit, hero-2 reference as style input)",
@@ -52,7 +78,22 @@
     {
       "what": "NW walk for candidates 1 and 2 (OpenAI, 12 frames)",
       "usd": 0.06
+    },
+    {
+      "what": "S, SW, W, N, NE, E, SE walks (OpenAI, 12 frames)",
+      "usd": 0.21
     }
   ],
-  "artifact": "https://claude.ai/artifact/P8Q2JZXfrDRoL8QFL9kPH8"
+  "artifact": "https://claude.ai/artifact/P8Q2JZXfrDRoL8QFL9kPH8",
+  "reference": "reference/reference.png",
+  "rejected_walks": [
+    {
+      "file": "paint/attempts/NW-candidate-2.png",
+      "note": "candidate 2's NW: hair and fur shimmer, the cloak's back vanishes in frames 5-6"
+    }
+  ],
+  "sheet": {
+    "file": "../../../assets/hero3.webp",
+    "key": "hero3"
+  }
 }

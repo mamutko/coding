@@ -179,3 +179,15 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
   short where it is drawn: the game's per-character draw scale (dungeon-crawler `CAST_SCALE.hero2`: 0.93, about
   the height lost to legs 0.88 and neck 0.6, looked too small; the user settled on 0.96), or `--height` in the build. The game's draw scale is simpler: the
   game resamples every sprite anyway (zoom, device pixel ratio), and the walk divides `fpt` by the scale.
+
+## A woman hero (2026-11-19, dungeon-crawler hero-3, huntress, OpenAI, 12 frames, all 8 painted)
+
+- **Trial walks on two candidates decided it.** Painting NW for two reference candidates ($0.03 each) showed what
+  a still turnaround can't: candidate 2's curly hair and wolf-fur collar shimmered, and her two-layer cloak (short
+  in front, long at the back, fur collar over it) lost its long back in two frames. Candidate 1 (a braid, a
+  one-layer half-cloak to the hips) stayed steady. Avoid curls, fur and layered cloaks; a braid reads well and holds.
+- **The standard (male, 1.82 m) walk guide works for a woman:** with "a woman's figure" in the description and
+  `--she`, every direction came out as a woman with natural proportions; no custom guide needed.
+- **All 8 directions passed first time** with the hero-2 recipe (reference + `--match NW` + `--cloth` + STEADY):
+  colour 0.88-0.95, stride 12/12 except one false alarm (SW frame 9, pose correct). The feet check was clean.
+- **Cost:** $0.37 in all: references $0.10 (one round of 3), two trial NW walks $0.06, 7 more directions $0.21.
