@@ -87,13 +87,15 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
 ## Building and the game
 
 - **Never cut by grid lines:** find figures as connected components and assign each to the cell holding its centroid.
-- **Anchor by the feet, centre by the head and shoulders.** Anchoring by the head top left figures floating; centring
-  the whole figure made swinging legs shift the body.
+- **Anchor by the feet, centre by the head and shoulders** (stick-figure sheets). Anchoring by the head top left
+  figures floating; centring the whole figure made swinging legs shift the body. Mocap-guided sheets go further:
+  see "Translation drift and planted feet".
 - **Ground point below the frame bottom:** the foot nearer the camera hangs below the ground point in this view
   (footY 128 in a 152 px frame); give a character a taller frame rather than shrinking it.
 - **Mirroring** SW / W / NW into SE / E / NE swaps the legs, which in a walk cycle is just a half-stride phase shift.
   Held items and asymmetric clothes change sides (a knife on the other hip): paint all 8 when that matters.
-- **Advance frames by distance walked, not time** (`anim += distance × fpt / scale`): feet never slide.
+- **Advance frames by distance walked, not time** (`anim += distance × fpt / scale`): feet never slide, provided fpt
+  matches the guide's stride (see "Translation drift and planted feet").
 - **Older 4-frame sheets** can be re-cut (components, foot anchor, mirrored rows) at no AI cost; that alone fixed cut
   heads, floating and wrong-way rows.
 - Non-walking characters (wraiths, ghosts): one pose per direction plus a code-driven bob. Many-legged creatures need
@@ -130,3 +132,38 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
   outline in ALL figures ... never flares, billows, puffs out or swings wide; heavy, hangs close to the body; only its
   bottom edge moves a little" gave 0.86 mean, 0.81 worst pair: the steadiest cape so far. Now in guide_prompt.py.
   Asking for the cape's full width also turned the figure further toward the three-quarter back view.
+
+## Stable directions (2026-11-18, dungeon-crawler hero-2, OpenAI, 12 frames, all 8 painted)
+
+- **Recipe that worked:** approved reference (simple, bold shapes) + the approved NW walk as the third input
+  (`--match NW`) + the STEADY paragraph + a per-view cape sentence (now `guide_prompt.py --cloth`). 7 of 8
+  directions passed first time (stride 12/12, colour 0.80-0.89).
+- **Say where wide cloth shows in each view.** The cape was designed and approved in NW; in the other views the
+  model has to work out where a wide cape shows. Telling it per view ("front view: behind both shoulders and at both
+  sides behind the legs"; "side view facing left: down the back, on the RIGHT of the figure") kept its width and
+  placement the same all round.
+- **The one failure (SE, first try):** frame 3 off the stride, a faint thin cape, the chainmail skirt missing.
+  Repainted once with "the same rich deep crimson, fully opaque ... the chainmail skirt shows": 12/12, 0.80. Hence
+  `--cloth` also asks for the same colour and full opacity in every figure.
+- **Still to watch:** fine chainmail texture stays lumpy and can flicker a little; the cape in a front three-quarter
+  view came out a shade darker.
+
+## Translation drift and planted feet (2026-11-18, hero-2)
+
+- **The model shifts figures inside the sheet.** Registered against the guide (mask correlation, 6 x 2 sheets of
+  384 x 512 cells), every hero-2 direction drifted the same way: along each row the figures creep left by up to
+  20-30 guide px from the first to the last, and the bottom row sits 10-30 px low. At game scale that is up to ~8 px
+  of jumping, most visible in E and SE. The old build (centre the head and shoulders, feet on the guide's lowest
+  point) kept the horizontal part, and removed the body's natural sway.
+- **Fix in the build, not by repainting:** put each figure back on its guide frame. Soles on the guide's soles;
+  horizontally the feet band (bottom 30 %) slid to the best overlap, then refined (+-15 px) on the planted foot
+  alone, since the painted stride can be a little longer or shorter than the guide's. The guide's own position in
+  its cell is kept: the in-place mocap (cycle-mean pelvis at the centre), so the body sways as it really does.
+- **fpt must match the mocap's stride.** In the in-place guide the planted foot slides backward at exactly the
+  walking speed; render_guide measures it (`cycle_px`: the stance foot's speed relative to the pelvis) and with
+  fpt = frames / (loop length in tiles) the guide's planted ball of the foot stays within 0.1 px in the world.
+  Stocky legs (0.88) take shorter steps: 1.405 tiles per loop, fpt 8.54; the standard mannequin 1.495 tiles, fpt
+  8.02. The old fixed 7.5 for 12 frames let the feet slide about 1 px per frame.
+- **Checking it:** an automatic "slip" number (the centroid of the lowest piece near the planted foot) was too noisy:
+  it latched onto the cape hem or the other foot. The feet check image (`build_sheet.py --plant-check`) is reliable:
+  hero-2's planted feet stay within a couple of game px of the line.

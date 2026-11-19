@@ -19,10 +19,11 @@ tools/
                      --girth (body thickness), ...
   walk_cycle.py      the algorithmic stick-figure guide (per-character gaits in CHARS) and the projection
   default_guides.py  regenerates guides/
-  guide_prompt.py    the painting prompt: --plain (shaded guide), --character, --ref, --match
+  guide_prompt.py    the painting prompt: --plain (shaded guide), --character, --ref, --match, --cloth
   grid_check.py      checks a painting against its guide: stride, faded limbs, colour drift (--ref)
   board.py + board_template.html   the character board (review page, published as an Artifact)
-  build_sheet.py     painted directions -> game sprite sheet + meta.json entry
+  build_sheet.py     painted directions -> game sprite sheet + meta.json entry (aligned on the guide, fpt from
+                     the stride, --plant-check feet image; "from_guide": a mannequin sheet)
 tests/          a known guide + painting pair for grid_check (a real faded boot), see Verifying the tools
 ```
 
@@ -106,10 +107,11 @@ Start with a three-quarter view (SW or NW: the hardest and most telling). For ea
 
 ```
 python tools/guide_prompt.py <DIR> --plain --frames 12 --cols 6 --character <char>/character.json --ref \
-    [--match <first approved DIR>] > prompt.txt
-python <notes>/.../openai_media.py edit "$(cat prompt.txt)" -i <guide>.png <char>/reference.png [<char>/paint/<first>.png] \
-    --size 2304x1024 --quality medium --background transparent -o <char>/paint/<DIR>.png      # 8 frames: 1536x1024
-python tools/grid_check.py <guide>.png <char>/paint/<DIR>.png 6 2 --dir <DIR> --ref <char>/reference.png
+    [--match <first approved DIR>] [--cloth "wide crimson cape"] > <char>/paint/<DIR>.prompt.txt
+python <notes>/.../openai_media.py edit "$(cat <char>/paint/<DIR>.prompt.txt)" -i <guide>.png \
+    <char>/reference/reference.png [<char>/paint/<first>.png] --size 2304x1024 --quality medium \
+    --background transparent -o <char>/paint/<DIR>.png                                        # 8 frames: 1536x1024
+python tools/grid_check.py <guide>.png <char>/paint/<DIR>.png 6 2 --dir <DIR> --ref <char>/reference/reference.png
 ```
 
 - Input order matters: **guide first** (the image being edited), the **reference** second, from the second direction
@@ -118,6 +120,15 @@ python tools/grid_check.py <guide>.png <char>/paint/<DIR>.png 6 2 --dir <DIR> --
   rendered N times (same highlights, markings and colours in the same places), loose cloth keeps the same few folds
   and only sways, hems keep the same outline. It made the cape and the shading steady (learnings.md); keep it when
   adding your own lines to the prompt. Save the exact prompt next to the painting (`paint/<DIR>.prompt.txt`).
+- **Keeping the directions the same character** (learnings.md, "Stable directions"; all 8 of hero-2 passed, 7 on
+  the first try):
+  - paint the hardest view first (NW / SW), get it approved, then pass it as `--match` (third image) to every other
+    direction: same colours, shading, detail level;
+  - a character with a cape or cloak gets `--cloth "<its name>"`: per view, where the cloth shows and how wide, and
+    the same width, colour and full opacity in every figure. Without it the cape came out narrow, faint or missing
+    in some views;
+  - one failed direction: repaint it once with a line naming what went missing (hero-2 SE: "the same rich deep
+    crimson, fully opaque ... the chainmail skirt shows"); keep the failed try in `paint/attempts/` with its prompt.
 - **Check every image** (Read it, and look at it on the board's dark floor): every stride frame matches, no faded
   limbs, colour ≥ 0.70, right view, no leftover grey mannequin, items in the right hands, and no shimmer: play it
   on the board at the character's pace and watch the shading and any cloth hem. On a failed check, paint that
@@ -129,8 +140,24 @@ python tools/grid_check.py <guide>.png <char>/paint/<DIR>.png 6 2 --dir <DIR> --
 
 ```
 python tools/build_sheet.py <char>/character.json <project>/assets/<id>.webp --meta <project>/assets/meta.json \
-    [--height 118 --fw 144 --fh 152 --foot-y 128]
+    --key <id> [--height 118 --fw 144 --fh 152 --foot-y 128] [--plant-check feet.png]
 ```
+
+- **Frame size:** keep the game's other characters' (hero: 118 px tall in 144 x 152, foot at 128) so the new sheet
+  looks the same in the game; the 384 x 512 guide cells are downsampled (LANCZOS) about 3.6x.
+- **Alignment is automatic:** the model drifts figures (a row creeps left by up to ~30 guide px, the bottom row sits
+  low), so the build puts every figure back on its guide frame (soles on the guide's soles, feet over the guide's
+  feet, then on the planted foot) and keeps the guide's own in-place position. No repaint for a shifted frame.
+- **fpt comes from the guide:** the guide's sidecar records the ground covered per loop (`cycle_px`), and the build
+  turns it into frames per tile (hero-2, stocky legs: 8.54; the standard mannequin 8.02). Use it as is: with it the
+  planted foot stays still on the ground.
+- **Check the feet:** `--plant-check feet.png` shows, for every stance, the feet of its frames one under the other,
+  shifted by the ground walked, with a red line at the guide's planted foot. The planted foot should stay on the
+  line (a couple of game px is normal).
+- **A mannequin sheet:** a character.json with `"from_guide": true` builds the guide itself as a walking sheet (no
+  painting): a placeholder look, or a test of a game's animation.
+- **Folders:** everything in `<char>/` is source (`reference/` with its rounds, `guide/`, `paint/` with prompts and
+  `attempts/`, the board) and is never loaded by the game; only `<project>/assets/<id>.webp` and its meta entry ship.
 
 Then copy the meta entry wherever the game inlines it, run the game, and watch the character walk in every
 direction at its real speed (feet on the ground, no sliding, legs alternating).
@@ -140,7 +167,8 @@ direction at its real speed (feet on the ground, no sliding, legs alternating).
 - **Row order** S, SW, W, NW, N, NE, E, SE. Pick the row from the movement direction *projected to screen space*
   and rounded to 45° sectors.
 - **Advance frames by distance walked, not time:** `anim += distance × fpt / scale`, frame = `floor(anim) % frames`.
-  `fpt` = 5 for 8 frames (one stride per 1.6 tiles), 7.5 for 12. Feet never slide, whatever the speed.
+  `fpt` from build_sheet (the guide's own stride; the old stick-figure sheets used 5 for 8 frames, one stride per
+  1.6 tiles). Feet never slide, whatever the speed.
 - **Idle frame:** a feet-together pose (build_sheet picks the guide frame with the feet closest).
 - **Draw:** `dx = sx − fw·s/2`, `dy = sy − footY·s`, plus a shadow ellipse at the ground point (the painted ground
   shadow is removed in the build).

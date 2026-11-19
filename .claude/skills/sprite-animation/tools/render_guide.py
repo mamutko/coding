@@ -417,6 +417,10 @@ def main():
         t0 = 0.0
         print(f"clip {clip}: {rig.dur:.3f}s, from t = 0")
     times = [(t0 + rig.dur * i / frames) % rig.dur for i in range(frames)]
+    # ground covered per loop: a stance foot slides backward relative to the pelvis at the walking speed
+    stance = lh < np.percentile(lh, 30)
+    speed = -np.median(np.gradient(lf, ts)[stance])                # rig units per second
+    cycle_m = speed * rig.dur
     pel = np.mean([rig.joint_pos(g, "pelvis") for g in gl], 0)     # in place: cycle-mean pelvis (horizontal)
     height = rig.pos[:, 1].max() - rig.pos[:, 1].min()           # standing (bind pose) height
     skins, snrm = [], []
@@ -465,6 +469,7 @@ def main():
     dr = ImageDraw.Draw(im)
     light = np.array([0.3, 0.8, 0.5]); light /= np.linalg.norm(light)
     cam = np.array([0, math.sin(wc.ELEV), math.cos(wc.ELEV)])     # toward the camera
+    feet_all = {}
     for di, dname in enumerate(dirs):
         kdir = kd(dname)
         # the mannequin's feet hang less far below the ground line than the stick figure's: shift it down by a
@@ -472,9 +477,13 @@ def main():
         base = wc.MIRROR.get(dname, dname)
         tops = [screen(vs, kdir, k)[2].min() for vs, _ in skins]
         y_off = ph[wc.BASE.index(base), :, 0].mean() - np.mean(tops)
-        ext = []
+        ext, feet_px = [], []
         for i, (vs, g) in enumerate(skins):
-            w, sx, sy, dep = screen(vs, kdir, k)
+            balls = np.array([rig.joint_pos(g, "ball_l"), rig.joint_pos(g, "ball_r")])
+            w, sx, sy, dep = screen(np.vstack([vs, balls]), kdir, k)
+            fl = [(round(sx[-2 + j] * scale / ss, 1), round((sy[-2 + j] + y_off) * scale / ss, 1)) for j in (0, 1)]
+            feet_px.append([list(fl[0]), list(fl[1]), round(float(w[-2, 1] - w[-1, 1]) * scale / ss, 1)])
+            w, sx, sy, dep = w[:-2], sx[:-2], sy[:-2], dep[:-2]
             sy = sy + y_off
             r_, c_ = divmod(i, cols)
             r_ += di * rows_per_dir
@@ -514,10 +523,16 @@ def main():
                 rr = 0.11 * scale * 0.35
                 dr.ellipse([nx - rr, ny - rr, nx + rr, ny + rr], fill=RED)
         print(f"  {dname}: head top / lowest point, px from the ground line:", ext)
+        feet_all[dname] = feet_px
     side = dict(cols=cols, rows=rows_per_dir * len(dirs), frames=frames, dirs=dirs, cell=[cw, ch], clip=clip,
                 ground_y=round(ch - gy, 2), fig_px=round(fig * fitf, 2), fit=round(fitf, 4), shaded=shaded,
                 foot_cm=round(Rig.FOOT_CM * fs, 1), proportions=prop,
-                note="ground_y: ground line, px from the cell top; fig_px: a standing figure's height in px")
+                cycle_px=round(float(cycle_m * k * scale / ss), 2),
+                feet=feet_all if len(dirs) > 1 else feet_all[dirs[0]],
+                note="ground_y: ground line, px from the cell top; fig_px: a standing figure's height in px; "
+                     "cycle_px: ground covered in one loop, in px of a screen-horizontal ground line (a screen-"
+                     "vertical one is half as long: the 30 deg camera); feet: per frame [left ball, right ball, "
+                     "left minus right height] in px from the cell centre and the ground line")
     pathlib.Path(out).with_suffix(".json").write_text(json.dumps(side, indent=1))
     if shaded:
         im = clay(zbuf, nbuf, mbuf, cam)

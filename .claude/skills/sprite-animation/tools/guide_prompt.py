@@ -3,11 +3,15 @@ for any layout: one direction in a C x R grid of N frames, or several directions
 OpenAI wording (transparent background). Generalises nwprompt.py.
 
   python guide_prompt.py <DIR|DIR,DIR,...|all> [--frames N] [--cols C] [--plain] [--character FILE]
-                         [--ref] [--match DIR]
+                         [--ref] [--match DIR] [--cloth "wide crimson cape"]
   --plain       for the shaded grey mannequin (render_guide.py --shaded, the default guides): no limb-colour key
   --character   the character's description: a .txt file, or a .json with a "description" key (character.json)
   --ref         the 2nd input image is the approved character reference (turnaround): paint exactly that character
   --match DIR   the 3rd input image is this character already painted (and approved) walking DIR: match its look
+  --cloth TEXT  the character wears wide cloth hung from the shoulders (cape, cloak): say, for this view, where it
+                shows and how wide, and that it keeps the same width, colour and opacity in every figure and as in
+                the matched direction (learnings.md, "Stable directions": without it the cape came out narrow,
+                faint or missing in some directions)
 Input images go to the edit call in this order: guide, reference, matched direction.
 Every prompt includes the STEADY FROM FRAME TO FRAME paragraph (same highlights, markings, cloth folds and hem
 outline in every figure), which stopped shading shimmer and a jumping cape hem (learnings.md, "Shimmer").
@@ -28,13 +32,24 @@ VIEW = {
 SHORT = {"S": "toward the viewer", "SW": "toward the lower left", "W": "to the left, in profile",
          "NW": "away to the upper left", "N": "away from the viewer", "NE": "away to the upper right",
          "E": "to the right, in profile", "SE": "toward the lower right"}
+# where wide cloth hung from both shoulders shows, per view (--cloth); {c} = the cloth's name
+CLOTH_VIEW = {
+    "S":  "In this front view it shows BEHIND him: over and behind both shoulders, and at both sides behind his body and legs.",
+    "SW": "In this front three-quarter view it shows behind his body: over and behind both shoulders and as a band behind his legs and his RIGHT side.",
+    "W":  "In this side view (facing left) it hangs down his BACK, on the RIGHT side of the figure, from the shoulder down, close to the body.",
+    "NW": "In this three-quarter back view it covers the whole back: we see its near edge over his LEFT shoulder and arm, and its far edge beyond his RIGHT shoulder.",
+    "N":  "In this back view it covers his WHOLE back from shoulder to shoulder, wider than the torso; only the backs of the shoulders, the head and the lower legs show.",
+    "NE": "In this three-quarter back view it covers the whole back: we see its near edge over his RIGHT shoulder and arm, and its far edge beyond his LEFT shoulder.",
+    "E":  "In this side view (facing right) it hangs down his BACK, on the LEFT side of the figure, from the shoulder down, close to the body.",
+    "SE": "In this front three-quarter view it shows behind his body: over and behind both shoulders and as a band behind his legs and his LEFT side.",
+}
 CHARACTER = ("a lean young ranger/hunter, adult man about 25. Deep forest-green hooded cloak to mid-thigh, hood DOWN on "
              "his shoulders; short tousled auburn hair; brown leather jerkin laced over a cream linen shirt; dark leather "
              "bracers; wide brown belt with a pouch and a sheathed hunting knife at the hip; olive-brown trousers; "
              "knee-high scuffed brown leather boots. Hands EMPTY: NO bow, NO quiver, NO weapon held.")
 
 
-def prompt(dirs, frames=8, cols=4, character=CHARACTER, plain=False, ref=False, match=None):
+def prompt(dirs, frames=8, cols=4, character=CHARACTER, plain=False, ref=False, match=None, cloth=None):
     multi = len(dirs) > 1
     rows = len(dirs) if multi else -(-frames // cols)
     n = len(dirs) * frames if multi else frames
@@ -94,6 +109,14 @@ Arms swing opposite to the legs, following the TEAL and YELLOW arms exactly; the
 - Loose cloth (cloak, cape, skirt, coat tails) keeps the SAME width, the SAME outline and the SAME few broad folds in ALL {n} figures. It is heavy and hangs close to the body from the same points; only its bottom edge moves a little with the stride (swinging slightly opposite to the forward leg). It never flares, billows, puffs out or swings wide to one side, and folds never appear, vanish or rearrange between figures.
 - Hems and edges keep the SAME outline in every figure (the same frayed or torn edge, the same stains), simply moving with the cloth. Never redraw new tears, new jagged points or new stain blotches in each figure.
 - Show shine, wear and texture with a few BOLD shapes, never with fine noise, speckles or scratch texture."""
+    if cloth:
+        where = (" ".join(CLOTH_VIEW[d] for d in dirs) if len(dirs) == 1 else
+                 " ".join(f"Row {i + 1}: {CLOTH_VIEW[d]}" for i, d in enumerate(dirs)))
+        same = " and exactly as in the third image" if match else ""
+        steady = (f"THE {cloth.upper()} is exactly as in the reference: fastened at BOTH shoulders and draped over "
+                  f"both shoulders, wider than the torso, at its full length. {where} It keeps the SAME width, the "
+                  f"SAME rich colour and is fully OPAQUE in every figure{same}: never thin, faded, see-through or "
+                  f"missing.\n\n" + steady)
     return f"""This image is a POSE GUIDE: {layout} Paint over EVERY mannequin, keeping each one's EXACT position, size and pose of legs, arms, torso and head. Do not move, add or remove any figure, and do not change any pose.{inputs}
 
 {key}
@@ -122,5 +145,6 @@ if __name__ == "__main__":
         cf = pathlib.Path(sys.argv[sys.argv.index("--character") + 1])
         character = json.loads(cf.read_text(encoding="utf-8"))["description"] if cf.suffix == ".json" else cf.read_text(encoding="utf-8").strip()
     match = sys.argv[sys.argv.index("--match") + 1] if "--match" in sys.argv else None
+    cloth = sys.argv[sys.argv.index("--cloth") + 1] if "--cloth" in sys.argv else None
     print(prompt(dirs, f, c, character, plain="--plain" in sys.argv, ref="--ref" in sys.argv or bool(match),
-                 match=match))
+                 match=match, cloth=cloth))

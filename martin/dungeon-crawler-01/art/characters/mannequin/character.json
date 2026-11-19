@@ -1,0 +1,11 @@
+{
+  "name": "Mannequin",
+  "description": "the sprite-animation skill's standard pose guide itself: the shaded clay mannequin (Quaternius UAL1 Walk_Loop, adult 1.82 m, EU 43 feet), unpainted",
+  "frames": 12,
+  "mirror": false,
+  "guide": "walk",
+  "from_guide": true,
+  "body": "adult 1.82 m, EU 43 (the default guide, not the stocky one)",
+  "sheet": {"file": "../../../assets/mannequin.webp", "key": "mannequin"},
+  "spend": []
+}

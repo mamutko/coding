@@ -7,17 +7,32 @@
   "body": "--preset stocky (legs 0.88, shoulders 1.15, neck 0.6, head 1.05, girth 1.35, torso girth 1.25), EU 43",
   "references": [
     {
-      "file": "reference-1.png",
+      "file": "reference/round-1/reference-1.png",
+      "status": "rejected",
+      "note": "round 1 (from scratch): rejected as a set (wanted a full-length cape, more sheen, more weathering)"
+    },
+    {
+      "file": "reference/round-1/reference-2.png",
+      "status": "rejected",
+      "note": "round 1"
+    },
+    {
+      "file": "reference/round-1/reference-3.png",
+      "status": "rejected",
+      "note": "round 1"
+    },
+    {
+      "file": "reference/round-2/reference-1.png",
       "status": "rejected",
       "note": "deep jagged hem with heavy mud staining; most weathered"
     },
     {
-      "file": "reference-2.png",
+      "file": "reference/round-2/reference-2.png",
       "status": "approved",
       "note": "shiniest plate, cleanest hem (shallow fray, broad stain): least likely to jump when walking"
     },
     {
-      "file": "reference-3.png",
+      "file": "reference/round-2/reference-3.png",
       "status": "rejected",
       "note": "pointed visor ridge, star rondels, speckled stains on the hem"
     }
@@ -35,36 +50,36 @@
     },
     "S": {
       "file": "paint/S.png",
-      "status": "review",
+      "status": "approved",
       "note": "stocky guide, reference + NW match (paint/S.prompt.txt). front view, cape behind both shoulders and legs. Stride 12/12, colour 0.82."
     },
     "W": {
       "file": "paint/W.png",
-      "status": "review",
+      "status": "approved",
       "note": "stocky guide, reference + NW match (paint/W.prompt.txt). profile left, cape down the back. Stride 12/12, colour 0.88."
     },
     "N": {
       "file": "paint/N.png",
-      "status": "review",
+      "status": "approved",
       "note": "stocky guide, reference + NW match (paint/N.prompt.txt). back view, wide cape covers the whole back. Stride 12/12, colour 0.80."
     },
     "NE": {
       "file": "paint/NE.png",
-      "status": "review",
+      "status": "approved",
       "note": "stocky guide, reference + NW match (paint/NE.prompt.txt). three-quarter back right, wide cape. Stride 12/12, colour 0.88."
     },
     "E": {
       "file": "paint/E.png",
-      "status": "review",
+      "status": "approved",
       "note": "stocky guide, reference + NW match (paint/E.prompt.txt). profile right. Stride 12/12, colour 0.89."
     },
     "SE": {
       "file": "paint/SE.png",
-      "status": "review",
+      "status": "approved",
       "note": "stocky guide, reference + NW match (paint/SE.prompt.txt). attempt 2 (attempt 1: frame 3 stride off, faint thin cape, chainmail missing; in attempts/). Prompt adds 'same opaque crimson, chainmail shows'. Stride 12/12, colour 0.80."
     }
   },
-  "next": "Review all 8 directions on the board, then build the game sheet",
+  "next": "Done: in the game as the look \"Stocky knight\" (assets/hero2.webp)",
   "spend": [
     {
       "what": "3 reference candidates, from scratch (simple style)",
@@ -105,5 +120,10 @@
     "fw": 144,
     "fh": 152
   },
-  "artifact": "https://claude.ai/artifact/Tb2291p5DBxLtAhroRwHk5"
+  "artifact": "https://claude.ai/artifact/Tb2291p5DBxLtAhroRwHk5",
+  "reference": "reference/reference.png",
+  "sheet": {
+    "file": "../../../assets/hero2.webp",
+    "key": "hero2"
+  }
 }

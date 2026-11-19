@@ -1,7 +1,7 @@
 # Pre-rendered pose guides
 
 Paint over these directly; no rendering needed. Regenerate the whole set with `python ../tools/default_guides.py`
-(~5 min). Each `<DIR>.png` has a `<DIR>.json` beside it (grid, ground line, standing-figure height, clip, body),
+(~5 min). Each `<DIR>.png` has a `<DIR>.json` beside it (grid, ground line, standing-figure height, clip, body, ground covered per loop `cycle_px` and the feet per frame),
 which `build_sheet.py` and `board.py` read.
 
 | Folder | Source | Frames / layout | Size |

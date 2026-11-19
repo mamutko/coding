@@ -10,9 +10,11 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 |---|---|
 | `index.html` | The whole game: markup, CSS, and JavaScript. Asset metadata (`META`) is inlined so the page also works from `file://`. |
 | `assets/hero.webp`, `skeleton.webp`, `ghoul.webp`, `keeper1.webp`–`keeper4.webp` | 8-direction × 8-frame walk cycles (transparent): the hero, two monsters and the four Keepers of the Crypt. |
+| `assets/hero2.webp`, `assets/mannequin.webp` | The hero's other two looks (see [Hero looks](#hero-looks)): 8-direction × 12-frame walk cycles, 144 × 152 frames like `hero.webp`. Built by the `sprite-animation` skill's `build_sheet.py` from `art/characters/hero-2/` and `art/characters/mannequin/`; loaded only when a hero uses them. |
 | `assets/hunter.webp`, `huntress.webp`, `girl.webp`, `boy.webp`, `duke.webp`, `princess.webp`, `smithess.webp`, `sorcerer.webp` | The cast: 8-direction × 8-frame walk cycles of villagers and nobles not yet in the game, shown only in the sandbox's character viewer (loaded on demand). See [Walk cycles](#walk-cycles-hero-skeleton-ghoul). |
-| `art/characters/hero/` | The hero being repainted with the `sprite-animation` skill's workflow: `character.json` (design, decisions, spend, board URL), `source-knight.png` (front / side / back frames cut from the current sprite, the input for the references), `reference-1..3.png` (turnaround candidates; 2 approved, copied to `reference.png`), `paint/<DIR>.png` (12-frame walk per direction, all 8 painted) and `paint/attempts/` (rejected tries). `board.html` is the generated review page (not committed). |
-| `art/characters/hero-2/` | A second, fresh hero design (a stocky knight with a short half-cape, simple flat shading so the walk doesn't shimmer), made with the same `sprite-animation` workflow: `character.json`, `reference-1..3.png`, `paint/`. |
+| `art/characters/hero/` | A first attempt at repainting the hero with the `sprite-animation` skill's workflow: `character.json` (design, decisions, spend, board URL), `source-knight.png` (front / side / back frames cut from the current sprite, the input for the references), `reference-1..3.png` (turnaround candidates; 2 approved, copied to `reference.png`), `paint/<DIR>.png` (12-frame walk per direction, all 8 painted) and `paint/attempts/` (rejected tries). `board.html` is the generated review page (not committed). |
+| `art/characters/hero-2/` | Source art of the **stocky knight** look (`assets/hero2.webp`), made with the `sprite-animation` skill; nothing here is loaded by the game. `character.json` (design, decisions, per-direction notes, spend, board URL), `reference/` (`reference.png` = the approved turnaround; `round-1/` and `round-2/` = all candidates), `guide/<DIR>.png` + `.json` (the stocky mocap guide and its sidecar: grid, ground line, stride, feet), `paint/<DIR>.png` + `<DIR>.prompt.txt` (the painted 12-frame walk per direction and its exact prompt), `paint/attempts/` (rejected tries with their prompts). `board.html` is the generated review page (not committed). |
+| `art/characters/mannequin/` | `character.json` for the **mannequin** look (`assets/mannequin.webp`): `"from_guide": true`, so the build uses the skill's standard 12-frame walk guide itself as the frames. |
 | `art/characters/hero/3d/` | The hero as a 3D model instead of AI-painted frames: `build_knight.py` generates a skinned knight on the `sprite-animation` skill's Quaternius UAL1 mannequin skeleton (plate fitted to the mannequin by ray casts; procedural helm, pauldrons, belt, tassets, mail skirt and cape; EU 43 feet like the guides) and writes `knight.glb` (skeleton, all 43 mocap clips, three extra `cape_*` bones; `render_guide.py`'s `Rig` loads it too) plus `knight.txt` (the same, gzip + base64, for the viewer; not committed). `index.html` is the viewer, published as an [Artifact](https://claude.ai/artifact/626EuKeoCVR5LeKRMRfbuR): orbit, clip picker, the 8 game camera angles (orthographic, 30°), an in-game-size preview and a cape that swings clear of the legs and arms. Test shots: `index.html?dir=NW&t=0.25&clip=Walk_Loop`. |
 | `tools/raw/cast_design1.png`, `cast_design2.png` | The cast's front-view design sheets (4 × 1 each, on magenta). |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
@@ -282,7 +284,8 @@ opens the debug overlay (see [Version](#version)).
 
 Progress is saved in the browser's `localStorage` under one key, `crypt-of-endless-night.save`:
 `{ v: 1, last: <id of the hero played last>, heroes: { <id>: entry } }`, where an entry is
-`{ id, name, depth, lvl, saved: <timestamp>, hero: { name, lvl, xp, base, equip, inv, gold, hotkeys, kills, hp } }`.
+`{ id, name, depth, lvl, saved: <timestamp>, hero: { name, lvl, xp, base, equip, inv, gold, hotkeys, kills, hp, look } }`
+(`look`: see [Hero looks](#hero-looks); missing in older saves, which means the original knight).
 Items are plain data, so the hero's equipment, pack (potion stacks included) and quick keys are stored as they are.
 **Older saves** kept health potions as a counter (`hero.potions`) and a `{ type: 'potion' }` quick key; on loading,
 the counter becomes a health potion stack in the first free pack cell (if the pack is full, the stack is dropped
@@ -305,7 +308,8 @@ and the picker shows no saved heroes.
     refused with a red border. Creating saves the new hero (level 1, depth 1, starting kit) and selects it, and
     a fresh **New Hero** box appears below. With no saved heroes, the name field is shown straight away.
   - **The cogwheel** next to Enter the Crypt opens a box for the selected hero: rename it (**Rename** or
-    Enter), or **Erase hero**, which asks for confirmation ("… will be erased for good. This cannot be
+    Enter), export it, pick its **Look** (Knight, Stocky knight, Mannequin; the lit one is current; a click saves
+    it at once, see [Hero looks](#hero-looks)), or **Erase hero**, which asks for confirmation ("… will be erased for good. This cannot be
     undone.") before deleting the save.
   - **Long lists:** the title screen scrolls, and the Enter the Crypt / cogwheel row sticks to the bottom edge,
     so it can always be reached, on wide and tall screens alike. On narrow screens a hero's details go under
@@ -735,6 +739,33 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
   the hero's armor to armor × 3 + 60 for 20 s (`IRON`). Using one takes 0.4 s of the hero's action time (see [Actions](#actions)).
 - **Death** returns to the title screen with the fallen hero selected; the hero resumes from its last save
   (see [Saving](#saving)).
+
+### Hero looks
+
+Each hero is drawn with one of three walk sheets (`HERO_LOOKS`), its **look**, saved with the hero as `hero.look`:
+
+| Look | Key | Sheet | Frames | `fpt` |
+|---|---|---|---|---|
+| Knight (the original) | `hero` (or none) | `assets/hero.webp` | 8 | 5 |
+| Stocky knight | `hero2` | `assets/hero2.webp` | 12 | 8.54 |
+| Mannequin | `mannequin` | `assets/mannequin.webp` | 12 | 8.02 |
+
+- **Picking it:** in the hero's cogwheel box on the title screen, or with **Look** in the debug overlay (the selected
+  hero's on the title screen, the played hero's in the game). `setHeroLook` writes the look straight into the hero's
+  save entry (nothing else is saved) and, for the hero being played, changes it at once.
+- **Loading:** only `hero.webp` loads at start-up; the other two load on first use (`LOOK_SRC`, `loadCast`, also on
+  entering the game with a hero that has one). Until a sheet has loaded the hero is drawn as the knight.
+- **Drawing:** `heroLook(h)` picks the sheet in `drawChar` and in the equipment screen's turning portrait; every look
+  is 118 px tall at scale 1 and uses the knight's shadow. The walk frames advance by distance walked with the
+  look's own `fpt` (frames per tile).
+- **The sandbox's character viewer** sets `G.hero.look` to any sheet; its list names these three "The hero: …".
+- **How the two new sheets were made** (the `sprite-animation` skill, `art/characters/hero-2/`): the stocky knight
+  was painted by OpenAI over a stocky mocap mannequin guide (`render_guide.py --preset stocky`, Quaternius
+  Walk_Loop), all 8 directions × 12 frames. `build_sheet.py` puts every painted figure back on its guide frame (the
+  model had drifted figures by up to ~8 game px, most visibly in E and SE), keeps the mocap's in-place position (the
+  body's natural sway), and computes `fpt` from the mocap's own stride (1.405 tiles per loop for the stocky legs,
+  1.495 for the mannequin), so the foot on the ground stays still while the hero walks. The mannequin look is the
+  skill's standard (not stocky) guide built as a sheet.
 
 ## Combat
 
@@ -1279,6 +1310,8 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 - **Frame rate** (always shown under the switches) — the average frames per second over the last 2 s and the
   current render scale, e.g. `58 fps · scale 2`, plus `· refraction off` once the lakes' ripple refraction has
   been switched off (see [Main loop](#main-loop)).
+- **Look** — the hero's look (see [Hero looks](#hero-looks)): on the title screen the selected hero's, in the game the
+  played hero's. Saved with that hero, not in `dc01-debug`.
 - **Pursuit indicator** — a red dot (5 px, black outline) above every monster that is pursuing the hero
   (`state === 'chase'`).
 - **Auto resolution** (on by default) — the automatic render scale of [Main loop](#main-loop). Switching it off

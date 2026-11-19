@@ -202,9 +202,9 @@
   };
   // Character viewer: every sheet in META.characters, named; the hero takes the picked look (G.hero.look, see
   // heroLook in the game), in an empty big room
-  const lookName = k => k === 'hero' ? 'The hero (knight)' : MON[k] ? MON[k].name : /^keeper\d$/.test(k) ? KEEPERS[+k.slice(6)].name : CAST_NAMES[k] || k;
+  const lookName = k => HERO_LOOKS[k] ? 'The hero: ' + HERO_LOOKS[k].toLowerCase() : MON[k] ? MON[k].name : /^keeper\d$/.test(k) ? KEEPERS[+k.slice(6)].name : CAST_NAMES[k] || k;
   function fillLooks() {
-    const keys = Object.keys(META.characters), grp = k => k === 'hero' ? 'Hero' : MON[k] ? 'Monsters' : /^keeper\d$/.test(k) ? 'Keepers of the Crypt' : 'Villagers and nobles';
+    const keys = Object.keys(META.characters), grp = k => HERO_LOOKS[k] ? 'Hero' : MON[k] ? 'Monsters' : /^keeper\d$/.test(k) ? 'Keepers of the Crypt' : 'Villagers and nobles';
     const sel = $('sbLookSel'); sel.innerHTML = [...new Set(keys.map(grp))].map(g => `<optgroup label="${g}">` + keys.filter(k => grp(k) === g).map(k => `<option value="${k}">${lookName(k)}</option>`).join('') + '</optgroup>').join('');
     sel.value = heroLook(G.hero);
   }

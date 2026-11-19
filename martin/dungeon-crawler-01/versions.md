@@ -9,9 +9,23 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v80 — hero looks: the stocky knight and the mannequin (2026-11-18)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 80`)*
+
+- Each hero has a **look**, picked in its settings on the title screen (the cogwheel: Knight, Stocky knight,
+  Mannequin) or in the debug overlay, and saved with the hero (and in exported heroes).
+- **Stocky knight** (`assets/hero2.webp`): the new hero painted with the `sprite-animation` skill, 12 frames per
+  direction, all 8 directions painted. Every frame is lined up with its mocap guide frame (the AI drifts figures
+  by up to ~8 game px), and the frames advance 8.54 per tile walked, the mocap's own stride, so the foot on the
+  ground stays put.
+- **Mannequin** (`assets/mannequin.webp`): the skill's standard grey pose guide itself, walking (fpt 8.02).
+- The equipment screen's turning portrait shows the hero's look.
+- The two new sheets load only when a hero uses them.
+
 ## v73–v79 — the Keepers of the Crypt walk; character viewer and a new cast (2026-11-16)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 79`)*
+Commit: 9235266
 
 - The four Keepers of the Crypt have full 8-direction walk cycles (AI-painted, OpenAI).
 - A keeper always faces the hero. The first time the hero enters its room it walks up to the hero, once, and
