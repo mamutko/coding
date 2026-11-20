@@ -4,11 +4,23 @@ An isometric, gothic dungeon crawler in a single `index.html` (vanilla JavaScrip
 A lone knight descends an endless crypt, fighting monsters that grow stronger on every level, collecting
 and equipping gear, and levelling up. All art is AI-generated (see [Assets](#assets)).
 
+## Playing locally
+
+Double-click **`play.cmd`** (Windows): it serves this folder at `http://localhost:8137` with Python's built-in web
+server (in a minimised "Crypt server" window; close it to stop) and opens the game in the browser.
+
+Opening `index.html` straight from disk (`file://`) also runs the game, but **without music, the scroll
+incantation and the monsters' voices**: those are MP3 files loaded with `fetch()`, which browsers block for local
+files. The images load (through `<img>`), the asset metadata is inlined, and the other sound effects are
+synthesised with Web Audio, so all of that works either way. Any other local server works too
+(`python -m http.server` in this folder).
+
 ## Files
 
 | Path | Purpose |
 |---|---|
-| `index.html` | The whole game: markup, CSS, and JavaScript. Asset metadata (`META`) is inlined so the page also works from `file://`. |
+| `index.html` | The whole game: markup, CSS, and JavaScript. Asset metadata (`META`) is inlined so the page also works from `file://` (without music and voices, see [Playing locally](#playing-locally)). |
+| `play.cmd` | Plays the game locally with sound: serves the folder at `http://localhost:8137` and opens the browser (see [Playing locally](#playing-locally)). |
 | `assets/hero.webp`, `skeleton.webp`, `ghoul.webp`, `keeper1.webp`–`keeper4.webp` | 8-direction × 8-frame walk cycles (transparent): the hero, two monsters and the four Keepers of the Crypt. |
 | `assets/hero2.webp`, `assets/mannequin.webp` | Two of the hero's other looks (see [Hero looks](#hero-looks)): 8-direction × 12-frame walk cycles, 144 × 152 frames like `hero.webp`. Built by the `sprite-animation` skill's `build_sheet.py` from `art/characters/hero-2/` and `art/characters/mannequin/`; loaded only when a hero uses them. |
 | `assets/hero3.webp` | The **huntress** look (see [Hero looks](#hero-looks)): 8-direction × 12-frame walk, 144 × 152 frames, built from `art/characters/hero-3/` (fpt 8.02, idle 10); loaded only when a hero uses it. |
