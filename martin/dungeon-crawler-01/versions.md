@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v93 — the attack button shows the action in progress (2026-11-20)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 93`)*
+
+- While the hero is busy, a glowing arc runs round the attack button's rim in the action's colour, and behind the
+  icon an animation shows what it is: a crescent slash (melee), a tightening ring (bow), the potion welling up, frost
+  motes and runes (scroll), a soft pulse (a throw or a weapon swap).
+
 ## v91–v92 — a Voices slider, the Huntress's voice, a cast sound, a wider frost blast (2026-11-20)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 92`)*
+Commit: d6b1ec4
 
 - The Huntress reads incantations in a female voice (Google, Leda, the male voice's engine and prompt).
 - A **Voices** volume slider in the equipment screen (default 75 %), for the hero's spoken incantations.

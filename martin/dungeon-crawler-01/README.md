@@ -1459,6 +1459,20 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
   five passes) and pulses faster. The halo is cast by the bar's own outline, which the bar then covers, so only
   the blur shows: no hard red edge, and the frame stays gold.
 
+- **The attack button shows the action in progress** (`noteBusy`, `drawAtkFx`). Whenever the hero's action time
+  (`h.atkCd`) goes up, a new action is noted (`h.busy`: its kind, length and start): a melee swing, a bow shot, a
+  fire bomb throw, a weapon swap, a potion or a scroll. While it runs (a swing or shot: until the next attack is
+  possible, its whole cooldown), two small canvases in the button draw it:
+  - **Above the icon, the rim arc:** a glowing arc running clockwise round the button's rim from the top, as long
+    as the time gone, with a bright head; when the action ends the full ring flashes and fades over 0.3 s. Its
+    colour says what it is: steel white (melee), bowstring amber (bow), ember orange (throw), pale stone (swap),
+    the potion's own colour, frost blue (scroll).
+  - **Behind the icon, an animation of the action:** a melee swing, a crescent slash sweeping 150° across the
+    button in 0.3 s (centred on the swing's direction on screen, fading in from its tail, gone 0.15 s later) over a
+    steely glow; a bow, a ring tightening inward while the bow is drawn, then snapping outward on release; a potion,
+    its colour welling up from the bottom with bubbles, then draining; a scroll, frost motes spiralling in and a
+    faint rune circle brightening as the words go on, flashing as the spell goes off; a throw or a swap, a soft
+    pulse. The canvases use the screen's pixel ratio (up to 2), not the game's adjustable render resolution.
 - **Top left:** level name (e.g. *The Forsaken Crypt*, *The Ossuary*, … eight names that cycle with a Roman
   numeral after depth 8), the depth number, and gold.
 - **Top centre:** name, level and health bar of the hovered or targeted monster (gold name for champions,

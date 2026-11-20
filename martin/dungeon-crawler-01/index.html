@@ -62,6 +62,7 @@
     pointer-events: auto; touch-action: none; }
   #atk.held { border-color: var(--gold); box-shadow: 0 0 0 2px #1b130b, 0 0 22px rgba(230,180,80,0.75), inset 0 0 18px #000; }
   #atkIco { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background-repeat: no-repeat; }
+  #atkFx, #atkRim { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
   #bottom { position: absolute; left: 50%; transform: translateX(-50%); transform-origin: 50% 100%; bottom: 14px; display: flex; flex-direction: column;
     align-items: center; gap: 6px; pointer-events: auto; }
@@ -308,7 +309,7 @@
   <div id="orb" title="Click to drink a health potion"><div id="orbFill"></div><div id="orbGlass"></div><div id="orbText"></div></div>
   <div id="orbLabel">LIFE</div>
   <div id="burnBadge" class="hidden" title="You are burning"><canvas id="burnIco" width="32" height="40"></canvas><span id="burnText"></span></div>
-  <div id="atk" title="Hold, then tap to attack"><div id="atkIco"></div></div>
+  <div id="atk" title="Hold, then tap to attack"><canvas id="atkFx"></canvas><div id="atkIco"></div><canvas id="atkRim"></canvas></div>
   <div id="atkLabel">ATTACK</div>
   <div id="bottom">
     <div id="hotbar"></div>
@@ -394,7 +395,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 92;
+const VERSION = 93;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2712,7 +2713,81 @@ function log(msg, color = '#e8dcc4') {
   setTimeout(() => { d.style.opacity = 0; }, 6000); setTimeout(() => d.remove(), 7200);
 }
 let hudCache = {};
+// ---- The attack orb's action display (see README, HUD): while the hero is busy (h.atkCd: a swing and its attack
+// cooldown, a bow's draw and cooldown, a throw, a weapon swap, a potion, a scroll's reading), a glowing arc runs
+// clockwise round the orb's rim (above the icon) in the action's colour, flashing as it completes; behind the icon
+// a background animation says what the action is.
+const ORB_FX = { melee: '232,238,248', bow: '240,190,90', throw: '255,150,60', swap: '205,195,175', potion: null, scroll: '165,218,252' };
+function noteBusy(h) {   // a new action: h.atkCd went up this frame
+  if (h.atkCd > (h.prevCd || 0) + 1e-4) {
+    const kind = h.using ? (h.using.cast ? 'scroll' : 'potion') : h.draw ? 'bow' : h.swing ? 'melee' : isBomb(h.equip.weapon) ? 'throw' : 'swap';
+    h.busy = { kind, dur: h.atkCd, t0: G.time, ang: h.swing ? h.swing.ang : 0, draw: h.draw ? h.draw.dur : 0, pot: h.using ? h.using.pot : null, seed: Math.random() * 7 };
+  }
+  h.prevCd = h.atkCd;
+}
+function drawAtkFx() {
+  const dp = Math.min(2, window.devicePixelRatio || 1), h = G.hero, b = h.busy, fx = $('atkFx'), rim = $('atkRim'), el = $('atk'), S = el.clientWidth || 80, px = Math.round(S * dp);
+  for (const c of [fx, rim]) if (c.width !== px) { c.width = c.height = px; }
+  const done = b ? G.time - b.t0 - b.dur : 99;   // s since the action ended (negative while it runs)
+  if (!b || done > 0.3 || G.dead) { if (h.fxDrawn) { fx.getContext('2d').clearRect(0, 0, px, px); rim.getContext('2d').clearRect(0, 0, px, px); h.fxDrawn = false; } return; }
+  h.fxDrawn = true;
+  const g = fx.getContext('2d'), r = rim.getContext('2d'), R = px / 2, t = G.time - b.t0, p = c01(t / b.dur);
+  const col = b.kind === 'potion' ? POTIONS[b.pot].glow : ORB_FX[b.kind];
+  g.setTransform(1, 0, 0, 1, 0, 0); g.clearRect(0, 0, px, px); r.setTransform(1, 0, 0, 1, 0, 0); r.clearRect(0, 0, px, px);
+  g.save(); g.beginPath(); g.arc(R, R, R, 0, 7); g.clip(); g.translate(R, R);
+  const fade = done > 0 ? 1 - done / 0.3 : 1;
+  if (b.kind === 'melee') {   // a crescent slash sweeping 150° across the orb in 0.3 s, centred on the swing's direction on screen, then a steely afterglow
+    const k = c01(t / 0.3), sa = Math.atan2((Math.cos(b.ang) + Math.sin(b.ang)) / 2, Math.cos(b.ang) - Math.sin(b.ang)), span = Math.PI * 5 / 6;
+    const head = sa - span / 2 + span * easeOut3(k), tail = Math.max(sa - span / 2, head - span * 0.55);
+    // one filled crescent: outer edge R * 0.7, its thickness growing to 0.16 R at the head; it fades in from the tail
+    // (a conic gradient where the browser has one) and is gone 0.15 s after the sweep
+    const out = 1 - c01((t - 0.3) / 0.15), m = 24, th = u => R * (0.02 + 0.14 * u * u);
+    if (head - tail > 0.01 && out > 0) {
+      g.beginPath();
+      for (let i = 0; i <= m; i++) { const a = tail + (head - tail) * i / m; g.lineTo(Math.cos(a) * R * 0.7, Math.sin(a) * R * 0.7); }
+      for (let i = m; i >= 0; i--) { const a = tail + (head - tail) * i / m, rr = R * 0.7 - th(i / m); g.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); }
+      g.closePath();
+      const A = 0.85 * (1 - k * 0.5) * out;
+      if (g.createConicGradient) { const cg = g.createConicGradient(tail, 0, 0), f = (head - tail) / (Math.PI * 2);
+        cg.addColorStop(0, `rgba(${col},0)`); cg.addColorStop(Math.min(1, f), `rgba(${col},${A})`); if (f < 1) cg.addColorStop(Math.min(1, f + 0.001), `rgba(${col},0)`); g.fillStyle = cg; }
+      else g.fillStyle = `rgba(${col},${A * 0.7})`;
+      g.fill();
+    }
+    const gl = g.createRadialGradient(0, 0, 0, 0, 0, R); gl.addColorStop(0, `rgba(${col},${0.16 * (1 - p) * fade})`); gl.addColorStop(1, `rgba(${col},0)`); g.fillStyle = gl; g.fillRect(-R, -R, 2 * R, 2 * R);
+  } else if (b.kind === 'bow') {   // a ring tightening inward while drawn, snapping outward on release
+    const dk = b.draw ? c01(t / b.draw) : 1, after = b.draw ? t - b.draw : t;
+    if (after < 0) { const rr = R * (0.95 - 0.6 * dk); g.strokeStyle = `rgba(${col},${0.25 + 0.5 * dk})`; g.lineWidth = R * 0.06; g.beginPath(); g.arc(0, 0, rr, 0, 7); g.stroke();
+      const gl = g.createRadialGradient(0, 0, 0, 0, 0, R); gl.addColorStop(0, `rgba(${col},${0.25 * dk})`); gl.addColorStop(1, `rgba(${col},0)`); g.fillStyle = gl; g.fillRect(-R, -R, 2 * R, 2 * R); }
+    else { const k = c01(after / 0.3); g.strokeStyle = `rgba(${col},${0.7 * (1 - k)})`; g.lineWidth = R * 0.08 * (1 - k) + 1; g.beginPath(); g.arc(0, 0, R * (0.35 + 0.7 * k), 0, 7); g.stroke(); }
+  } else if (b.kind === 'potion') {   // the potion's colour welling up from the bottom with bubbles, then draining
+    const lvl = Math.sin(Math.PI * p) * 0.75 * fade, top = R - lvl * 2 * R;
+    const gr = g.createLinearGradient(0, R, 0, top); gr.addColorStop(0, `rgba(${col},0.55)`); gr.addColorStop(1, `rgba(${col},0.2)`);
+    g.fillStyle = gr; g.beginPath(); g.moveTo(-R, R);
+    for (let x = -R; x <= R; x += R / 8) g.lineTo(x, top + Math.sin(x / R * 6 + t * 12) * R * 0.04); g.lineTo(R, R); g.closePath(); g.fill();
+    for (let i = 0; i < 6; i++) { const u = (t * 1.6 + i / 6) % 1, y = R - u * (R - top), x = Math.sin(i * 2.3 + b.seed) * R * 0.5;
+      if (y > top) { g.strokeStyle = `rgba(255,240,230,${0.5 * (1 - u)})`; g.lineWidth = 1.2 * dp; g.beginPath(); g.arc(x, y, R * (0.03 + 0.02 * (i % 3)), 0, 7); g.stroke(); } }
+  } else if (b.kind === 'scroll') {   // frost motes spiralling in and a faint rune circle brightening, a flash as the spell goes off
+    const gl = g.createRadialGradient(0, 0, 0, 0, 0, R); gl.addColorStop(0, `rgba(${col},${0.35 * p * fade})`); gl.addColorStop(1, `rgba(${col},0)`); g.fillStyle = gl; g.fillRect(-R, -R, 2 * R, 2 * R);
+    g.save(); g.rotate(t * 0.8); g.strokeStyle = `rgba(${col},${(0.15 + 0.5 * p) * fade})`; g.lineWidth = 1.2 * dp;
+    g.beginPath(); g.arc(0, 0, R * 0.72, 0, 7); g.stroke(); g.beginPath(); g.arc(0, 0, R * 0.6, 0, 7); g.stroke();
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; g.beginPath(); g.moveTo(Math.cos(a) * R * 0.61, Math.sin(a) * R * 0.61); g.lineTo(Math.cos(a + 0.12) * R * 0.71, Math.sin(a + 0.12) * R * 0.71); g.stroke(); }
+    g.restore();
+    for (let i = 0; i < 14; i++) { const u = (t * (0.9 + p) + i / 14) % 1, a = i * 2.4 + t * 3, rr = R * 0.95 * (1 - u);
+      g.fillStyle = `rgba(215,240,255,${(0.3 + 0.6 * p) * Math.sin(Math.PI * u) * fade})`; g.beginPath(); g.arc(Math.cos(a) * rr, Math.sin(a) * rr, R * 0.035, 0, 7); g.fill(); }
+    if (done > 0) { g.fillStyle = `rgba(225,245,255,${0.6 * fade})`; g.fillRect(-R, -R, 2 * R, 2 * R); }
+  } else {   // a throw (an ember flick) or a weapon swap: a soft pulse
+    const gl = g.createRadialGradient(0, 0, 0, 0, 0, R); gl.addColorStop(0, `rgba(${col},${0.3 * Math.sin(Math.PI * p) * fade})`); gl.addColorStop(1, `rgba(${col},0)`); g.fillStyle = gl; g.fillRect(-R, -R, 2 * R, 2 * R);
+  }
+  g.restore();
+  // the rim arc: clockwise from the top, a soft glow under a bright line; when done, the full ring flashes and fades
+  const rr = R - 4 * dp * (S / 120), a0 = -Math.PI / 2, a1 = done > 0 ? a0 + Math.PI * 2 : a0 + Math.PI * 2 * p;
+  r.lineCap = 'round';
+  r.strokeStyle = `rgba(${col},${0.3 * fade})`; r.lineWidth = 9 * dp * (S / 120); r.beginPath(); r.arc(R, R, rr, a0, a1); r.stroke();
+  r.strokeStyle = `rgba(${col},${(done > 0 ? 1 : 0.9) * fade})`; r.lineWidth = 3.2 * dp * (S / 120); r.beginPath(); r.arc(R, R, rr, a0, a1); r.stroke();
+  if (done <= 0 && p > 0.01) { const [x, y] = [R + Math.cos(a1) * rr, R + Math.sin(a1) * rr]; r.fillStyle = `rgba(255,255,255,0.9)`; r.beginPath(); r.arc(x, y, 2.6 * dp * (S / 120), 0, 7); r.fill(); }   // the arc's bright head
+}
 function updateHud() {
+  drawAtkFx();
   const h = G.hero, set = (k, v, f) => { if (hudCache[k] !== v) { hudCache[k] = v; f(v); } };
   set('hp', Math.ceil(h.hp) + '/' + h.st.maxHp, v => { $('orbText').textContent = v.replace('/', ' / '); $('orbFill').style.height = (h.hp / h.st.maxHp * 100) + '%'; });
   set('xp', h.lvl + ':' + h.xp, () => { $('xpFill').style.width = (h.xp / xpNeed(h.lvl) * 100) + '%'; $('xpText').textContent = 'Level ' + h.lvl + ' — ' + h.xp + ' / ' + xpNeed(h.lvl) + ' xp'; });
@@ -2974,6 +3049,7 @@ function update(dt) {
   if (h.swing) { h.swing.t += dt; if (!h.swing.hit && h.swing.t >= 0.08) { h.swing.hit = true; resolveSwing(h); } if (h.swing.t >= h.swing.dur) h.swing = null; }
   if (h.draw && (h.draw.t += dt) >= h.draw.dur) releaseArrow(h);
   runQueue();
+  noteBusy(h);
   if (MK.o && (dist(h, { x: MK.o.fx, y: MK.o.fy }) > KEEPER.reach || !G.objects.includes(MK.o))) closeMarket();   // walked away
   // a click attack at the ground that came while the hero was busy waits (one at most) for the hero to be free
   if (h.pendingAt && h.atkCd <= 0 && !h.swing && heroAttack(h.pendingAt.x, h.pendingAt.y, null)) h.pendingAt = null;
