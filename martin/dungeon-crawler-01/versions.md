@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v88 — the frost blast shows its reach (2026-11-20)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 88`)*
+
+- The scroll of frost's blast has a visible wave: a glowing ring running out from the hero that stops at the
+  4-tile freeze radius, with ice shards flung to the same edge, and a ring of rime left on the stones there.
+- Frozen monsters stay frozen 1 s longer (6 s; a champion 4 s, a guardian 3 s).
+
 ## v87 — scrolls, and the scroll of frost (2026-11-19)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 87`)*
+Commit: e282dcc
 
 - **Scrolls**: use items like potions (they stack, bind to quick keys, show as equipped while used) that are read
   aloud; the spell goes off when the reading ends. Found only in a new chest on the lake room's shore (4 scrolls).

@@ -1215,16 +1215,24 @@ bind all things!": *gelu* frost, *cuncta* all things, *liga* bind), an AI voice,
 [Sound](#sound)). When the words end, a **blast of frost** goes off centred on the hero (`castFrost`; `FROST`):
 
 - **The frost front** runs out from the hero over `0.9 + 0.07 × 10` = 1.6 s, easing (`1 − (1 − u)³`): the radius
-  is reached at `fd · (1 − ∛(1 − u))`. A white flash at the hero (a light and an additive glow, fading in 0.5 s),
-  the `frostcast` sound, frost on the stones around the hero (rime, 70 streaks, powder, 3.5 tiles, spreading with
-  the front and fading as the ice melts; `floorFrostTex`), and cold mist rising along the front over the water.
+  is reached at `fd · (1 − ∛(1 − u))` (4 tiles after 0.25 s). A white flash at the hero (a light and an additive
+  glow 4 tiles wide, fading in 0.5 s), the `frostcast` sound, and cold mist rising along the front over the water.
+- **The blast wave shows the spell's reach** (the 4 tiles in which monsters freeze; the water freezes much
+  farther, and there may be no water at all). Drawn additively after the lighting (`drawIceFx`): a glowing ring on
+  the ground (three strokes: a wide soft blue glow, a narrower one, a thin white core) with a faint cold haze inside
+  it, running out with the frost front and **stopping at 4 tiles**, so it reaches each monster just as it freezes;
+  it holds there and fades (time constant 0.5 s, gone after about 2 s). 56 ice shards (short white streaks) fly
+  out with it, arcing up and landing along the same edge. The frost left on the stones around the hero
+  (`floorFrostTex`: rime, 70 streaks, powder, and a ragged ring of rime with crystals along it **at 4 tiles**)
+  spreads with the front up to that edge and stays until the ice has melted (18 s), fading during the thaw.
 - **Monsters within 4 tiles** (plus their radius) freeze when the front reaches them (`freezeMonster`): the whole
   body fades to a pale icy blue over 0.15 s (a `color`-blend tint, `ICE_TINT` `#a9dcf7`, at 90 %, plus 22 % of it
   added for a frosty brightness), cold mist pours off it for 2.5 s, and it stops dead mid-step (a wraith mid-air,
   its reflection too): no moving, no attacking (a wind-up is cancelled), no sound. Hits still land. For its last
-  0.75 s it shudders, then it thaws: the tint fades over 0.35 s. **How long** (`frostDur`): 5 s up to one level
-  above the hero (a monster's level is its depth), 12 % less for each level beyond that (at least half); a
-  champion 60 % of that (3 s), a guardian 40 % (2 s). The hero is never frozen.
+  0.75 s it shudders, then it thaws: the tint fades over 0.35 s. **How long** (`frostDur`), counted from when the
+  front reaches it: 5 s (`FROST.monDur`) up to one level above the hero (a monster's level is its depth), 12 % less
+  for each level beyond that (at least half); a champion 60 % of that, a guardian 40 %; then a fixed 1 s more for
+  every monster (`FROST.monPlus`): 6 s, a champion 4 s, a guardian 3 s. The hero is never frozen.
 - **Water within 10 tiles** freezes over for 18 s (`FROST.iceDur`). The ice is a patch (`map.iceS.patches`, at most
   3): a disc of radius 10 around where the hero stood, with a slightly wavy edge (sines of 5, 8, 13 and 29 cycles),
   clipped to the lake, at the water's level. It was worked out in `ice-prototype.html` (see Files), whose
