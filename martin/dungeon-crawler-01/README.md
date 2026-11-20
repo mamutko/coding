@@ -1221,10 +1221,11 @@ bind all things!": *gelu* frost, *cuncta* all things, *liga* bind), an AI voice,
   farther, and there may be no water at all). Drawn additively after the lighting (`drawIceFx`): a glowing ring on
   the ground (three strokes: a wide soft blue glow, a narrower one, a thin white core) with a faint cold haze inside
   it, running out with the frost front and **stopping at 4 tiles**, so it reaches each monster just as it freezes;
-  it holds there and fades (time constant 0.5 s, gone after about 2 s). 56 ice shards (short white streaks) fly
+  there it fades out over 0.5 s (gone 0.75 s after the blast). 56 ice shards (short white streaks) fly
   out with it, arcing up and landing along the same edge. The frost left on the stones around the hero
-  (`floorFrostTex`: rime, 70 streaks, powder, and a ragged ring of rime with crystals along it **at 4 tiles**)
-  spreads with the front up to that edge and stays until the ice has melted (18 s), fading during the thaw.
+  (`floorFrostTex`: rime, 70 streaks and powder) spreads with the front up to that edge and stays until the ice
+  has melted (18 s), fading during the thaw. A ragged ring of rime with crystals along it marks the edge **at 4
+  tiles** (its own canvas, `ftex.ring`): it appears as the wave stops there and fades out over 0.8 s.
 - **Monsters within 4 tiles** (plus their radius) freeze when the front reaches them (`freezeMonster`): the whole
   body fades to a pale icy blue over 0.15 s (a `color`-blend tint, `ICE_TINT` `#a9dcf7`, at 90 %, plus 22 % of it
   added for a frosty brightness), cold mist pours off it for 2.5 s, and it stops dead mid-step (a wraith mid-air,

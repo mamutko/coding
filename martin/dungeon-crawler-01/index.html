@@ -393,7 +393,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 88;
+const VERSION = 89;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -3562,8 +3562,10 @@ function floorFrostTex(p, rnd) {
     const a = rnd() * Math.PI * 2, r = P * (0.15 - Math.log(1 - rnd() * 0.97) * 0.45);
     g.fillStyle = `rgba(240,250,255,${0.15 + rnd() * 0.4})`; g.beginPath(); g.arc(Math.cos(a) * r, Math.sin(a) * r, 0.5 + rnd() * 1.1, 0, 7); g.fill();
   }
-  // the reach: a ragged ring of rime where the wave stopped (FROST.mon tiles), a soft band with crystals along it
-  const R0 = FROST.mon * P;
+  // the reach: a ragged ring of rime where the wave stopped (FROST.mon tiles), a soft band with crystals along it,
+  // on its own canvas (it fades out quickly; see drawFloorFrost)
+  const rc2 = document.createElement('canvas'); rc2.width = w * 2; rc2.height = h * 2; const R0 = FROST.mon * P;
+  { const g = rc2.getContext('2d'); g.scale(2, 2); g.translate(w / 2, h / 2); g.scale(1, 0.5);
   gr = g.createRadialGradient(0, 0, R0 - 14, 0, 0, R0 + 8);
   gr.addColorStop(0, 'rgba(225,242,252,0)'); gr.addColorStop(0.6, 'rgba(232,246,255,0.4)'); gr.addColorStop(0.8, 'rgba(240,250,255,0.55)'); gr.addColorStop(1, 'rgba(225,242,252,0)');
   g.fillStyle = gr; g.beginPath(); g.arc(0, 0, R0 + 8, 0, 7); g.fill();
@@ -3571,8 +3573,8 @@ function floorFrostTex(p, rnd) {
     const a = rnd() * Math.PI * 2, r = R0 + (rnd() - 0.6) * 12, l = 2 + rnd() * 7, b = a + (rnd() - 0.5) * 1.4;
     g.strokeStyle = `rgba(240,250,255,${0.25 + rnd() * 0.45})`; g.lineWidth = 0.8 + rnd() * 0.8;
     g.beginPath(); g.moveTo(Math.cos(a) * r, Math.sin(a) * r); g.lineTo(Math.cos(a) * r + Math.cos(b) * l, Math.sin(a) * r + Math.sin(b) * l); g.stroke();
-  }
-  return { c, w, h };
+  } }
+  return { c, w, h, ring: rc2 };
 }
 
 // ---- the cracks: 5 s before the melt ----
@@ -3806,19 +3808,22 @@ function drawFloorFrost() {
     const [X, Y] = iso(p.ox, p.oy), r = ICE_P * (Math.min(FROST.mon, p.R * easeOut3(c01(p.t / p.fd))) + 0.15);   // with the front, up to the reach
     ctx.save(); ctx.beginPath(); ctx.ellipse(X, Y, r, r / 2, 0, 0, 7); ctx.clip();
     ctx.globalAlpha = p.phase === 'melt' ? 1 - c01((p.t - p.life) / p.md) : 1;
-    ctx.drawImage(p.ftex.c, X - p.ftex.w / 2, Y - p.ftex.h / 2, p.ftex.w, p.ftex.h); ctx.restore();
+    ctx.drawImage(p.ftex.c, X - p.ftex.w / 2, Y - p.ftex.h / 2, p.ftex.w, p.ftex.h);
+    const tr = reachIce(p, FROST.mon / p.R), ra = p.t < tr ? 0 : 1 - c01((p.t - tr) / 0.8);   // the rime ring at the reach: there as the wave stops, gone 0.8 s later
+    if (ra > 0) { ctx.globalAlpha = ra; ctx.drawImage(p.ftex.ring, X - p.ftex.w / 2, Y - p.ftex.h / 2, p.ftex.w, p.ftex.h); }
+    ctx.restore();
   }
 }
 // After the lighting (additive): the blast's flash and its wave, the shards, and the cold mist (faintly glowing).
 // The wave: a glowing ring on the ground running out with the frost front, with a faint cold haze inside it; it
-// stops at FROST.mon tiles (the monsters' freeze radius: it reaches a monster just as that monster freezes), holds
-// there and fades over about 1.5 s. 56 ice shards fly out with it, arcing up and landing at the same edge.
+// stops at FROST.mon tiles (the monsters' freeze radius: it reaches a monster just as that monster freezes), then
+// fades out over 0.5 s. 56 ice shards fly out with it, arcing up and landing at the same edge.
 function drawIceFx(toDev, z) {
   const S = G.map.iceS, sc = z * DPR;
   for (const p of S.patches) {
-    if (p.t > 2.2) continue;
+    if (p.t > 1.2) continue;
     const front = p.R * easeOut3(c01(p.t / p.fd)), rw = Math.min(FROST.mon, front), tr = reachIce(p, FROST.mon / p.R);
-    const a = p.t < tr ? 1 : Math.exp(-(p.t - tr) / 0.5), [X, Y] = toDev(p.ox, p.oy, 0), r = rw * ICE_P * sc;
+    const a = p.t < tr ? 1 : 1 - c01((p.t - tr) / 0.5), [X, Y] = toDev(p.ox, p.oy, 0), r = rw * ICE_P * sc;   // gone 0.5 s after it stops
     if (r > 1) {
       ctx.save(); ctx.translate(X, Y); ctx.scale(1, 0.5);
       const gr = ctx.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, 'rgba(150,200,240,0)'); gr.addColorStop(0.75, `rgba(150,205,245,${0.08 * a})`); gr.addColorStop(1, `rgba(190,228,255,${0.22 * a})`);
