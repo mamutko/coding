@@ -45,3 +45,69 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
     - **Wear** — items wear out with use (weapons when hitting, armor when hit) and lose effectiveness as they do.
     - **Fixing** — some of it can be fixed: repairing wear (and perhaps improving quality) from a Keeper of the Crypt (the market, see README) or
       with a hero skill.
+
+17. **Dragon** — a big dragon boss with a large, articulated body (planned, not started).
+    - **Where:** the crypt is endless, so there is no deepest level. Proposal: the boss of every 8th depth from
+      depth 16 (the 8 level names cycle there, so it reads as the end of a chapter). Alternative: a one-time
+      "final" depth, which would change the game's endless structure.
+    - **Why one big sprite doesn't fit the engine:**
+      - *Depth sorting* — every drawable has one sort key (`x + y`) and is drawn whole. A dragon 6–8 tiles long
+        would be drawn entirely in front of or behind the hero, walls and pillars, so the wrong part covers them.
+      - *Sheet size* — a tile is 96 px wide, so a 7-tile dragon is ~700 px across. 8 directions × 8 frames of
+        800×600 is ~245 MB of decoded image memory; phones can't take it.
+      - *Stiffness* — a whole-body sprite turns in 45° steps and plays one loop: no curling neck or swinging tail.
+      - *Art consistency* — the image-model pipeline already drifts between directions on a hero-sized figure;
+        64 consistent frames of a big detailed body would be very hard.
+      - *Collision and pathing* — monsters are one circle (radius capped at 0.48) moving on the tile grid; a
+        dragon can't fit through corridors.
+    - **Recommended: a body made of parts, each sorted separately.** Every piece is its own drawable with its
+      own sort key, which fixes the sorting (the tail sorts at the tail, the head at the head) and gives the
+      articulation for free.
+
+      | Part | How it's drawn | Art |
+      |---|---|---|
+      | Torso | Pre-rendered sprite, 8 directions, 2–3 breathing frames | ~300 px frames, ~15 MB |
+      | Head | Pre-rendered sprite, 8 (ideally 16) directions × jaw closed / open / roaring | small |
+      | Neck and tail (8–12 segments) | One top-down scale texture per segment size, rotated and squashed onto the floor plane at runtime | 3–4 small images |
+      | Wings | Painted flat, projected onto a tilted plane, flapped by animating the plane's angle (+ 2–3 folding frames) | 2–3 images, mirrored |
+      | Legs | 4 short limb sprites; feet stay planted and step when they fall behind (simple two-bone IK) | 1–2 images |
+
+      - *Spine* — the head steers; neck, torso and tail segments follow the head's past path at fixed spacing,
+        like a snake.
+      - *Height* — each segment can be lifted off the floor (the floating wraiths' offset), so the neck can rear up.
+      - *Runtime rotation* normally looks wrong in an isometric view, but works for the neck and tail because
+        they're painted from above and projected onto the floor.
+      - *Cost* — ~400–600 lines for a new multi-part entity type (update, draw, hit-testing); ~20–30 MB of art
+        instead of 245.
+    - **Other options considered:**
+      - *Scaled-up single sprite* (like the Pit Demon, but huge) — cheapest; works only if the dragon stays
+        rooted in the middle of a big room and just turns to face the hero (sorting mostly avoided by keeping it
+        away from walls). Still stiff, and the sheet is large even with 4 frames.
+      - *3D model rendered to sprites* (offline into sheets, or live in WebGL with a camera matching the isometric
+        view) — smoothest via skeletal animation, but doesn't match the painted look; repainting frames with AI
+        brings back the drift. Live 3D also needs its own answer for overlap with walls.
+    - **Gameplay and integration:**
+      - *Lair* — a big boss room (~20×20 or more) with a gold-hoard decal, a few pillars (good for testing
+        sorting), possibly lava or a lake. The dragon never leaves it.
+      - *Collision* — a circle per segment; clicks and attacks hit any segment, all sharing one health pool.
+        The head could be a weak point (×1.5 damage).
+      - *Attacks* — fire breath in a cone (reusing the fire bomb / burning system); a tail sweep punishing
+        standing behind it; a bite in front; a wing buffet that knocks the hero back; later perhaps a takeoff
+        phase (only a shadow on the ground, then a slam on landing).
+      - *Camera* — zooms out to ~0.7 during the fight so the whole body fits on screen.
+      - *Existing systems* — the per-segment freeze tint already works with `tinted()` (boss freezes last 0.4×);
+        lake reflections, burning and the green boss glow work too. Bake the glow in rather than a CSS filter per
+        segment: per-draw filters caused 1 fps on boss levels in v84, and a dragon has ~20 pieces.
+      - *Death* — segments collapse one after another from the tail up, then the guardian's chest unseals.
+      - *Sound and music* — roar, breath and wing-flap sounds; the choir boss track.
+    - **Steps:**
+      1. Standalone prototype (like `ice-prototype.html`) with placeholder shapes: spine following, leg stepping,
+         wing flap, per-segment sorting next to a hero and pillars, camera zoom. Tune proportions and movement
+         before any paid art.
+      2. Concept art: a few reference paintings to pick from (~$0.04–0.19 each); then the parts painted from the
+         chosen one, using the sprite-animation skill's per-direction workflow for the head and torso.
+      3. Engine: the multi-part entity type (drawing, sort keys, hit areas, collision, shadow); then lair
+         generation, AI and attacks, and a sandbox scenario starting in the lair.
+      4. Polish: sounds, death sequence, balance, README and versions.
+    - **Open decisions:** which depth(s); articulated parts (recommended) or the rooted single sprite; whether
+      the dragon flies (adds takeoff and landing) or stays on the ground.
