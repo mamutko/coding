@@ -332,6 +332,7 @@
       <div id="vol">
         <label class="volRow"><span>Music</span><input type="range" id="volMusic" min="0" max="100" step="5"><span class="volVal" id="volMusicVal"></span></label>
         <label class="volRow"><span>Effects</span><input type="range" id="volFx" min="0" max="100" step="5"><span class="volVal" id="volFxVal"></span></label>
+        <label class="volRow"><span>Voices</span><input type="range" id="volVoice" min="0" max="100" step="5"><span class="volVal" id="volVoiceVal"></span></label>
       </div></div>
   </div>
   <div class="hkWrap">
@@ -393,7 +394,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 90;
+const VERSION = 91;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -464,6 +465,7 @@ const CAST_SCALE = { girl: 0.7, boy: 0.74, huntress: 0.97, princess: 0.95,
 const HERO_LOOKS = { hero: 'Knight', hero2: 'Stocky knight', hero3: 'Huntress', hero4: 'Woodsman', hero5: 'Scout', mannequin: 'Mannequin' };
 // Each look's voice for incantations (scrolls): 'm' or 'f' (sfx 'incant'; a voice with no clip yet uses the male one)
 const HERO_VOICE = { hero: 'm', hero2: 'm', hero3: 'f', hero4: 'm', hero5: 'm', mannequin: 'm' };
+const incantClip = h => { const k = 'incant' + (HERO_VOICE[h && h.look] || 'm'); return CLIP_BUF[k] ? k : 'incantm'; };   // the hero's incantation clip
 const LOOK_SRC = { hero2: 'assets/hero2.webp', hero3: 'assets/hero3.webp', hero4: 'assets/hero4.webp', hero5: 'assets/hero5.webp', mannequin: 'assets/mannequin.webp' };
 function loadCast(k) {
   const src = CAST_SRC[k] || LOOK_SRC[k];
@@ -498,13 +500,13 @@ let floorPat = null, dirtPat = null;
 // Everything goes through a master gain with a short dungeon reverb send. sfx(type, o) takes options: o.x / o.y
 // (a world position: quieter with distance from the hero, silent beyond SFX_RANGE tiles), o.kind (weapon kind
 // for swings), o.mat (what a hit strikes: 'bone', 'flesh', 'spirit', 'hide').
-let AC = null, soundOn = true, noiseBuf = null, MASTER = null, VERB = null;
+let AC = null, soundOn = true, noiseBuf = null, MASTER = null, VERB = null, VOICE = null;
 // Volumes (0-100, from the Sound sliders in the equipment overlay), shared by all heroes: localStorage dc01-volume.
 // A slider's gain is (v / 100)^2, so the slider feels even to the ear.
-const VOL = (() => { const d = { music: 60, fx: 100 }; try { return Object.assign(d, JSON.parse(localStorage.getItem('dc01-volume')) || {}); } catch (e) { return d; } })();
+const VOL = (() => { const d = { music: 60, fx: 100, voice: 75 }; try { return Object.assign(d, JSON.parse(localStorage.getItem('dc01-volume')) || {}); } catch (e) { return d; } })();
 const saveVol = () => { try { localStorage.setItem('dc01-volume', JSON.stringify(VOL)); } catch (e) {} };
 const volGain = v => Math.pow(v / 100, 2), FX_BASE = 0.9;
-const CLIPS = { moan: [1, 2, 3, 4, 5], grunt: [1, 2], incantm: [1], incantf: [] }, CLIP_BUF = {}, SFX_RANGE = 14, SFX_LAST = {};
+const CLIPS = { moan: [1, 2, 3, 4, 5], grunt: [1, 2], incantm: [1], incantf: [1] }, CLIP_BUF = {}, SFX_RANGE = 14, SFX_LAST = {};
 function audio() {
   if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)();
     noiseBuf = AC.createBuffer(1, AC.sampleRate * 1, AC.sampleRate);
@@ -518,6 +520,9 @@ function audio() {
     for (let c = 0; c < 2; c++) { const ch = ir.getChannelData(c); let lp = 0;
       for (let i = 0; i < n; i++) { lp += (Math.random() * 2 - 1 - lp) * (0.5 - 0.4 * i / n); ch[i] = lp * Math.pow(1 - i / n, 3); } }
     const conv = AC.createConvolver(); conv.buffer = ir; VERB = AC.createGain(); VERB.gain.value = 0.22; VERB.connect(conv); conv.connect(MASTER);
+    // voices (the hero's incantations): their own gain (the Voices slider) and the same reverb, past the effects gain
+    VOICE = AC.createGain(); VOICE.gain.value = volGain(VOL.voice); VOICE.connect(comp);
+    const vconv = AC.createConvolver(); vconv.buffer = ir; const vsend = AC.createGain(); vsend.gain.value = 0.22; VOICE.connect(vsend); vsend.connect(vconv); vconv.connect(comp);
     for (const k in CLIPS) CLIPS[k].forEach(i => fetch(`assets/sfx/${k}${i}.mp3`).then(r => r.arrayBuffer())
       .then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej))).then(buf => { (CLIP_BUF[k] = CLIP_BUF[k] || []).push(buf); }).catch(() => {}));
   } catch (e) { AC = null; } }
@@ -608,6 +613,13 @@ function updateMusic(dt) {
     if (el.textContent !== txt) el.textContent = txt;
   }
 }
+// A voice clip (CLIP_BUF[k], a random one of them) on the voices bus: the Voices slider, not the Effects one.
+function speak(k, peak = 1) {
+  if (!soundOn || !VOL.voice || !audio()) return;
+  const bs = CLIP_BUF[k]; if (!bs || !bs.length) return;
+  const s = AC.createBufferSource(); s.buffer = bs[Math.floor(Math.random() * bs.length)];
+  const g = AC.createGain(); g.gain.value = peak; s.connect(g); g.connect(VOICE); s.start(AC.currentTime + 0.005);
+}
 function sfx(type, o = {}) {
   if (!soundOn || !VOL.fx || !audio()) return;
   let vol = 1;
@@ -665,7 +677,35 @@ function sfx(type, o = {}) {
       for (let i = 0; i < 12; i++) knock(T + r(0, 0.6) ** 1.3, r(500, 1800), r(0.12, 0.25)); thud(T + 0.12, 110, 0.15, 0.3); break;
     case 'moan': clip('moan', o.rate || r(0.82, 1), 0.55 * (o.vol || 1)); break;
     case 'grunt': clip('grunt', r(0.85, 1), 0.5); break;
-    case 'incant': { const k = 'incant' + (o.v || 'm'); clip(CLIP_BUF[k] ? k : 'incantm', 1, 0.95); break; }   // a scroll read aloud in the hero's voice (HERO_VOICE; assets/sfx/incantm1.mp3, incantf1.mp3)
+    case 'castrise': {   // under a scroll's reading (o.dur s): a sound that builds to the spell, in the version picked (SOUND_LOOK.cast)
+      const D = o.dur || 1.6, k = SOUND_LOOK.cast, end = T + D;
+      const swell = (node, peak, curve = 3) => { const g = AC.createGain(), n = 24; const c = new Float32Array(n);
+        for (let i = 0; i < n; i++) c[i] = 0.0001 + peak * Math.pow(i / (n - 1), curve);
+        g.gain.setValueCurveAtTime(c, T, D); g.gain.setValueAtTime(peak, end + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, end + 0.12);
+        node.connect(g); g.connect(out); return g; };
+      if (k === 2) {        // Rising hum: a low drone (a root and its fifth, slightly detuned) rising a fourth, its filter opening, a tremolo speeding up
+        const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.Q.value = 4; lp.frequency.setValueAtTime(260, T); lp.frequency.exponentialRampToValueAtTime(2600, end);
+        const trem = AC.createGain(), lfo = AC.createOscillator(), lg = AC.createGain(); lfo.frequency.setValueAtTime(4, T); lfo.frequency.exponentialRampToValueAtTime(16, end);
+        lg.gain.value = 0.35; lfo.connect(lg); lg.connect(trem.gain); trem.gain.value = 0.65; lfo.start(T); lfo.stop(end + 0.2);
+        for (const [f, w, d] of [[110, 'sawtooth', -6], [110, 'sawtooth', 6], [165, 'triangle', 0], [55, 'sine', 0]]) {
+          const os = AC.createOscillator(); os.type = w; os.detune.value = d; os.frequency.setValueAtTime(f, T); os.frequency.exponentialRampToValueAtTime(f * 4 / 3, end);
+          os.connect(lp); os.start(T); os.stop(end + 0.2); }
+        lp.connect(trem); swell(trem, 0.12, 2);
+      } else if (k === 3) { // Crystal riser: glassy notes up a pentatonic scale, faster and faster, over a soft rising whoosh
+        const sc = [0, 3, 5, 7, 10, 12, 15, 17, 19, 22, 24, 27, 29, 31, 34, 36];
+        for (let i = 0, t = 0; t < D - 0.02 && i < 40; i++) { const f = 523 * Math.pow(2, sc[Math.min(sc.length - 1, i)] / 12) * (i >= sc.length ? Math.pow(2, (i - sc.length + 1) / 24) : 1);
+          tone(T + t, f, f * 1.01, 0.18, 0.05 + 0.08 * t / D, 'sine', 0.003); tone(T + t, f * 2.01, f * 2.02, 0.08, 0.02 + 0.03 * t / D, 'sine', 0.002);
+          t += 0.24 * Math.pow(1 - t / D, 1.6) + 0.035; }
+        const s = AC.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 1.2;
+        bp.frequency.setValueAtTime(800, T); bp.frequency.exponentialRampToValueAtTime(6000, end); s.connect(bp); swell(bp, 0.18, 2.5); s.start(T); s.stop(end + 0.2);
+      } else {              // Gathering frost (1): a cold wind sweeping up and swelling, with ice pings coming faster and faster
+        const s = AC.createBufferSource(); s.buffer = noiseBuf; s.loop = true; const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.Q.value = 2.5;
+        bp.frequency.setValueAtTime(350, T); bp.frequency.exponentialRampToValueAtTime(4500, end); s.connect(bp); swell(bp, 0.5, 2.2); s.start(T); s.stop(end + 0.2);
+        const s2 = AC.createBufferSource(); s2.buffer = noiseBuf; s2.loop = true; const hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 6000;
+        s2.connect(hp); swell(hp, 0.12, 3); s2.start(T, 0.3); s2.stop(end + 0.2);
+        for (let t = 0.15; t < D - 0.03; t += 0.3 * Math.pow(1 - t / D, 1.5) + 0.03) { const f = r(2200, 5200) * (1 + t / D * 0.5); tone(T + t, f, f * 0.9, 0.07, 0.02 + 0.07 * (t / D) ** 2, 'sine', 0.002); }
+      }
+      break; }
     case 'frostcast': {   // the frost blast: a cold whump, a hiss of frost as the front runs out, a few pings of ice setting
       tone(T, 140, 40, 0.5, 0.4); noise(T, 0.25, 900, 0.7, 0.3); noise(T + 0.02, 1.8, [6000, 2500], 0.8, 0.14, 0.05, 'highpass');
       for (let i = 0; i < 6; i++) tone(T + r(0, 1) ** 0.7 * 1.9, r(2200, 6700), r(1800, 4800), 0.12, r(0.03, 0.07));
@@ -818,7 +858,7 @@ const isBomb = it => !!it && it.base === 'firebomb';
 const LOOK = { fire: 1 };
 // The lake sounds (see README Sound): which of the drip's four and the plunge's three versions plays. The sandbox's
 // lake scenario switches them for the page's session (not saved).
-const SOUND_LOOK = { drip: 1, splash: 1 };
+const SOUND_LOOK = { drip: 1, splash: 1, cast: 1 };
 function setLook(k, n) { LOOK[k] = n; if (G) refreshUI(); }
 const iconKey = base => base === 'firebomb' ? 'firebomb1' : (BASES[base] && BASES[base].icon) || base;
 // Item groups a drop first chooses from (evenly): each weapon kind, each armor slot, rings, amulets.
@@ -926,7 +966,7 @@ const POTIONS = {
               filter: 'hue-rotate(195deg) saturate(0.55) brightness(1.2)', desc: 'Armor ×3 + 60 for 20 seconds.' },
   frost:    { name: 'Scroll of Frost', plural: 'scrolls of frost', color: '#9fd4ef', glow: '150,205,240', filter: '', icon: 'frostscroll',
               scroll: true, time: 1.6, words: 'Gelu, cuncta liga!',
-              desc: 'Read it aloud (1.6 seconds) to loose a blast of frost around you: monsters within 4 tiles freeze solid for up to 5 seconds (less for stronger ones, champions and guardians), and water within 10 tiles freezes over for 18 seconds. Walk on the ice while it lasts: it cracks for its last 5 seconds, and whoever is still on it when it melts drowns.' },
+              desc: 'Read it aloud (1.6 seconds) to loose a blast of frost around you: monsters within 5 tiles freeze solid for up to 6 seconds (less for stronger ones, champions and guardians), and water within 11 tiles freezes over for 18 seconds. Walk on the ice while it lasts: it cracks for its last 5 seconds, and whoever is still on it when it melts drowns.' },
 };
 const IRON = { mult: 3, add: 60, dur: 20 };     // iron skin: armor × mult + add for dur seconds
 const HEAL = 0.44;                              // health potion: restores this share of max life
@@ -2324,7 +2364,7 @@ function runAction(a) {
   const P = POTIONS[a.pot];
   if (P.scroll) {   // read aloud: the weapon hand is busy for P.time s, then the spell goes off (see update)
     h.atkCd = P.time; h.using = { pot: a.pot, t: 0, dur: P.time, cast: true };
-    sfx('incant', { v: HERO_VOICE[heroLook(h)] || 'm' }); log('You read the ' + P.name + ': “' + P.words + '”', P.color); refreshUI(); return true;
+    speak(incantClip(h)); sfx('castrise', { dur: P.time }); log('You read the ' + P.name + ': “' + P.words + '”', P.color); refreshUI(); return true;
   }
   if (a.pot === 'health') { const v = Math.round(h.st.maxHp * HEAL); h.hp = Math.min(h.st.maxHp, h.hp + v); floatText(h.x, h.y, '+' + v, '#7fd17f', 0.9, 16); }
   else { h.ironT = IRON.dur; recalc(); floatText(h.x, h.y, 'Iron skin', POTIONS.ironskin.color, 1.1, 15); log('Your skin hardens like iron.', POTIONS.ironskin.color); }
@@ -2475,11 +2515,12 @@ function buildUI() {
   $('eqClose').addEventListener('click', toggleEquip);
   // Sound sliders: Music sets the music bus (updateMusic picks it up), Effects the master gain of sfx; a short
   // sound on release lets the player hear the new effects level; the slider then gives the keyboard back.
-  for (const [id, key] of [['volMusic', 'music'], ['volFx', 'fx']]) {
+  for (const [id, key] of [['volMusic', 'music'], ['volFx', 'fx'], ['volVoice', 'voice']]) {
     const el = $(id), val = $(id + 'Val'); el.value = VOL[key]; val.textContent = VOL[key] + '%';
     el.addEventListener('input', () => { VOL[key] = +el.value; val.textContent = VOL[key] + '%';
-      if (key === 'fx' && MASTER) MASTER.gain.setTargetAtTime(FX_BASE * volGain(VOL.fx), AC.currentTime, 0.03); saveVol(); });
-    el.addEventListener('change', () => { if (key === 'fx') sfx('gold'); el.blur(); });
+      if (key === 'fx' && MASTER) MASTER.gain.setTargetAtTime(FX_BASE * volGain(VOL.fx), AC.currentTime, 0.03);
+      if (key === 'voice' && VOICE) VOICE.gain.setTargetAtTime(volGain(VOL.voice), AC.currentTime, 0.03); saveVol(); });
+    el.addEventListener('change', () => { if (key === 'fx') sfx('gold'); if (key === 'voice') speak(incantClip(G && G.hero)); el.blur(); });
   }
   // a hover tooltip follows the real mouse only (not the mouse events a browser makes up from touches), and
   // closes as soon as the mouse is no longer over the element that opened it
@@ -3395,7 +3436,7 @@ function drawLakeLights(lk, baseT) {
 // mon: monsters within this many tiles freeze, for monDur s at most plus monPlus s (see frostDur); water: lake
 // water within this many tiles freezes, for iceDur s, cracking for its last warn s, then melting over melt s. The
 // blast's visible wave, its shards and the frost on the stones reach exactly `mon` tiles: they show the spell's reach.
-const FROST = { mon: 4, monDur: 5, monPlus: 1, water: 10, iceDur: 18, warn: 5, melt: 2.4 };
+const FROST = { mon: 5, monDur: 5, monPlus: 1, water: 11, iceDur: 18, warn: 5, melt: 2.4 };
 const ICE_P = HW * Math.SQRT2;   // px per tile in the ground plane (a world circle is an ellipse ICE_P by ICE_P / 2)
 const ICE_TINT = '#a9dcf7';
 const c01 = v => clamp(v, 0, 1), easeOut3 = u => 1 - (1 - u) ** 3;

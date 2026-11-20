@@ -58,7 +58,7 @@
     <button class="sc" id="sbLooks2"><b>Character viewer</b>Walk around an empty big room as any character that has a sprite sheet: the hero, the monsters and the Keepers of the Crypt. Pick the look in the bar; click to walk, and watch every direction.</button>
     <h2>Lakes</h2>
     <button class="sc" id="sbLake"><b>The underground lake</b>Depth 8, on the shore of the huge lake room. The lake reaches out of sight; its far shores are the room's walls. Wraiths hover over the water in a loose group (only they can cross it). You carry 15 fire bombs (key 4): one that lands in the water sinks, but fire on the shore spreads its burning oil over the water. Drops fall from the ceiling now and then; watch the reflections ripple.</button>
-    <button class="sc" id="sbFrost"><b>The scroll of frost</b>Depth 8, on the lake's shore with 6 scrolls of frost (key 4) and 15 fire bombs (key 5). Two skeletons, a ghoul and a champion skeleton stand within 4 tiles; the lake's wraiths hover beyond. Press 4: you read the incantation (1.6 s), then the frost blast (its wave shows the 4-tile reach) freezes the monsters near you for 6 s (champions 4 s) and the lake within 10 tiles. Walk out on the ice, throw a bomb onto it (it shatters and burns there), and get off before it cracks and melts: whoever is on it then drowns.</button>
+    <button class="sc" id="sbFrost"><b>The scroll of frost</b>Depth 8, on the lake's shore with 6 scrolls of frost (key 4) and 15 fire bombs (key 5). Two skeletons, a ghoul and a champion skeleton stand within 5 tiles; the lake's wraiths hover beyond. Press 4: you read the incantation (1.6 s, over a rising cast sound: pick one of three versions in the bar; a click there plays it with the incantation), then the frost blast (its wave shows the 5-tile reach) freezes the monsters near you for 6 s (champions 4 s) and the lake within 10 tiles. Walk out on the ice, throw a bomb onto it (it shatters and burns there), and get off before it cracks and melts: whoever is on it then drowns.</button>
     <h2>Music</h2>
     <button class="sc" id="sbPack"><b>Pack fight</b>Five skeletons rush you at depth 3. Four or more pursuers start the combat track. Kill them all and it switches back at once; run until they lose interest and it holds 6 s.</button>
     <button class="sc" id="sbDemon"><b>Pit Demon level</b>Depth 8 with a Pit Demon boss, next to its boss room. The 2nd, 5th and 9th play of each track is the choir version (use Next loop to skip ahead); stepping into the boss room plays the choir combat track.</button>
@@ -69,6 +69,7 @@
     + [0.05, 0.1, 0.15, 0.25, 0.35, 0.5, 0.75, 1, 1.5].map(v => `<option value="${v}"${v === 1 ? ' selected' : ''}>${v === 1 ? 'normal' : v + '×'}</option>`).join('') + '</select></span>'
     + '<span id="sbDrips" class="sbSounds" hidden>Drip:' + [[1, 'Plink'], [2, 'Hollow'], [3, 'Glassy'], [4, 'Echo']].map(([n, l]) => `<button data-drip="${n}">${l}</button>`).join('') + '</span>'
     + '<span id="sbSplash" class="sbSounds" hidden>Bomb splash:' + [[1, 'Plunge'], [2, 'Heavy'], [3, 'Gurgle']].map(([n, l]) => `<button data-splash="${n}">${l}</button>`).join('') + '</span>'
+    + '<span id="sbCast" class="sbSounds" hidden>Casting:' + [[1, 'Gathering frost'], [2, 'Rising hum'], [3, 'Crystal riser']].map(([n, l]) => `<button data-cast="${n}">${l}</button>`).join('') + '</span>'
     + '<button id="sbNext" title="Start the next play of this track now">Next loop</button><button id="sbBack">Scenarios</button>';
   let mode = 'music';   // what the bar shows: 'music' or 'fire'
   // on the normal title screen (after Normal game, or a real hero's death) its Scenarios button (index.html) brings
@@ -96,7 +97,7 @@
   showDeath = () => { if (!isTest()) return realDeath(); G.running = false; pick.hidden = false; bar.hidden = true; };
   const floorAt = (x, y) => G.map.t[y * G.map.w + x] === T_FLOOR && !G.objects.some(o => o.x === x && o.y === y && !o.walk);
   function start(m = 'music') {
-    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbDrips').hidden = $('sbSplash').hidden = m !== 'lake'; soundButtons(); $('sbLookPick').hidden = m !== 'looks'; bar.classList.toggle('top', m === 'looks'); $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
+    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbDrips').hidden = $('sbSplash').hidden = m !== 'lake'; $('sbCast').hidden = true; soundButtons(); $('sbLookPick').hidden = m !== 'looks'; bar.classList.toggle('top', m === 'looks'); $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
     audio(); pick.hidden = true; bar.hidden = false;
     G.running = true; G.camSnap = true; G.deathShown = false;
     $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); $('heroCfg').classList.add('hidden'); hideTip();
@@ -144,8 +145,10 @@
   function soundButtons() {
     $('sbDrips').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.drip === SOUND_LOOK.drip));
     $('sbSplash').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.splash === SOUND_LOOK.splash));
+    $('sbCast').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.cast === SOUND_LOOK.cast));
   }
   $('sbDrips').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; SOUND_LOOK.drip = +b.dataset.drip; soundButtons(); sfx('drip'); b.blur(); });
+  $('sbCast').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; SOUND_LOOK.cast = +b.dataset.cast; soundButtons(); speak(incantClip(G.hero)); sfx('castrise', { dur: POTIONS.frost.time }); b.blur(); });
   $('sbSplash').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; SOUND_LOOK.splash = +b.dataset.splash; soundButtons(); sfx('plunge'); b.blur(); });
   function lookButtons() { $('sbLooks').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.look === LOOK.fire)); }
   $('sbLooks').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; setLook('fire', +b.dataset.look); lookButtons(); b.blur(); });
@@ -211,7 +214,7 @@
     ['skeleton', 'skeleton', 'ghoul', 'skeleton'].forEach((t, i) => { if (!spots.length) return;
       const [x, y] = spots.splice(Math.floor(Math.random() * spots.length), 1)[0], mo = makeMonster(t, x + 0.5, y + 0.5, 8, false, i === 3, i !== 3);
       mo.calm = { walked: -1e9, t: 1e9 }; G.monsters.push(mo); });
-    refreshUI(); mode = 'frost';
+    refreshUI(); mode = 'frost'; $('sbCast').hidden = false; $('sbDrips').hidden = $('sbSplash').hidden = true;
     log('Test: the scroll of frost. Press 4 to read it.', POTIONS.frost.color);
   };
   // Character viewer: every sheet in META.characters, named; the hero takes the picked look (G.hero.look, see
@@ -257,7 +260,7 @@
     G.monsters = G.monsters.filter(m => m.bossRoom || m.boss || Math.hypot(m.x - h.x, m.y - h.y) > 10);
     start(); log('Test: a Pit Demon level. Its boss room is close by.', '#7fe08a');
   };
-  $('sbNormal').onclick = () => { audio(); setLook('fire', 1); SOUND_LOOK.drip = SOUND_LOOK.splash = 1; if (G && G.hero) G.hero.look = null; pick.hidden = true; bar.hidden = true; };   // the normal game: the settled look (Blaze)
+  $('sbNormal').onclick = () => { audio(); setLook('fire', 1); SOUND_LOOK.drip = SOUND_LOOK.splash = SOUND_LOOK.cast = 1; if (G && G.hero) G.hero.look = null; pick.hidden = true; bar.hidden = true; };   // the normal game: the settled look (Blaze)
   $('sbBack').onclick = () => { G.running = false; pick.hidden = false; bar.hidden = true; };
   $('sbNext').onclick = () => { if (MUSIC.cur) MUSIC.cur.loopAt = 0; };
   setInterval(() => {

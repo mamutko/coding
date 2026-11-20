@@ -51,7 +51,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `tools/add_market.py`, `tools/raw/keepers.png`, `keeper_decor.png` | Adds the Keepers of the Crypt and their furnishings to `assets/props.webp` (the rows after row 2) and updates `assets/meta.json` and the inline `META`. See [Keepers of the Crypt](#keepers-of-the-crypt-the-market). |
 | `tools/add_props.py`, `tools/raw/bones_searched.png`, `doors.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones, door leaves) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
-| `assets/sfx/` | Ghoul moans and grunts, and the scroll of frost's incantation in the male heroes' voice (`incantm1.mp3`) (MP3). |
+| `assets/sfx/` | Ghoul moans and grunts, and the scroll of frost's incantation in the male and female heroes' voices (`incantm1.mp3`, `incantf1.mp3`) (MP3). |
 | `assets/music/explore-instrumental.mp3`, `combat-instrumental.mp3`, `explore.mp3`, `combat.mp3`, `surface-1.mp3`, `surface-2.mp3` | The music: exploration and combat loops, each instrumental and with a Latin choir, and two cheerful instrumental surface tracks. See [Music](#music). |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul`, `keeper1`–`keeper4` and the cast × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 | `lake-prototype.html` | A standalone prototype of underground lakes (not loaded by the game, which now has lakes: see [Lakes](#lakes)): still water set a few pixels below the floor, a mirrored reflection of the walls, props and characters, rock banks on the far shores, and ripples from drips. A panel compares the options (tile or rounded shore, ripple rings or refraction, water colour, depth, reflection strength). Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page lake-prototype.html --skip 'assets/*' --inline` (the seven images it uses). |
@@ -152,6 +152,8 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     two skeletons, a ghoul and a champion skeleton (depth 8). The bar shows the scrolls left, "reading…" while the
     incantation runs, the ice's phase and time to the melt, each frozen monster's time left, and whether the hero
     is on the ice.
+    The bar also has a **Casting** picker for the three versions of the cast sound; a click there plays it with the
+    hero's incantation.
   - **The underground lake** (depth 8, `LAKE_AT`, which always has the lake room): the hero stands on the dry
     shore where it faces the middle of the lake (the dry tile one step back from the water nearest the room's
     diagonal), facing the water, with 15 fire bombs in the pack on key 4 (the longsword stays equipped). Monsters
@@ -529,7 +531,7 @@ reflects at 70 % (`refl`), and a reflection fades by 45 % (`fade`) over 120 px o
 - **Loot over water.** A drop where a wraith dies over the lake washes ashore: `dropSpot` keeps searching, ring by
   ring up to 40 tiles, until it finds a free dry tile (the nearest ring with one, picked at random on it).
 - **The minimap** shows explored water dark blue.
-- **Ice.** A scroll of frost freezes the lake within 10 tiles of the hero for 18 s; while it lasts it can be walked
+- **Ice.** A scroll of frost freezes the lake within 11 tiles of the hero for 18 s; while it lasts it can be walked
   on, and it cracks and thaws. See [Scrolls](#scrolls).
 
 ## Main loop
@@ -1228,19 +1230,19 @@ ribbon and a snowflake wax seal). Reading takes 1.6 s; the incantation is *"Gelu
 bind all things!": *gelu* frost, *cuncta* all things, *liga* bind), an AI voice in the hero's own voice (see
 [Sound](#sound)). When the words end, a **blast of frost** goes off centred on the hero (`castFrost`; `FROST`):
 
-- **The frost front** runs out from the hero over `0.9 + 0.07 × 10` = 1.6 s, easing (`1 − (1 − u)³`): the radius
-  is reached at `fd · (1 − ∛(1 − u))` (4 tiles after 0.25 s). A white flash at the hero (a light and an additive
-  glow 4 tiles wide, fading in 0.5 s), the `frostcast` sound, and cold mist rising along the front over the water.
-- **The blast wave shows the spell's reach** (the 4 tiles in which monsters freeze; the water freezes much
+- **The frost front** runs out from the hero over `0.9 + 0.07 × 11` ≈ 1.67 s, easing (`1 − (1 − u)³`): the radius
+  is reached at `fd · (1 − ∛(1 − u))` (5 tiles after 0.3 s). A white flash at the hero (a light and an additive
+  glow 5 tiles wide, fading in 0.5 s), the `frostcast` sound, and cold mist rising along the front over the water.
+- **The blast wave shows the spell's reach** (the 5 tiles in which monsters freeze; the water freezes much
   farther, and there may be no water at all). Drawn additively after the lighting (`drawIceFx`): a glowing ring on
   the ground (three strokes: a wide soft blue glow, a narrower one, a thin white core) with a faint cold haze inside
-  it, running out with the frost front and **stopping at 4 tiles**, so it reaches each monster just as it freezes;
+  it, running out with the frost front and **stopping at 5 tiles**, so it reaches each monster just as it freezes;
   there it fades out over 0.5 s (gone 0.75 s after the blast). 56 ice shards (short white streaks) fly
   out with it, arcing up and landing along the same edge. The frost left on the stones around the hero
   (`floorFrostTex`: rime, 70 streaks and powder) spreads with the front up to that edge and stays until the ice
   has melted (18 s), fading during the thaw. A ragged ring of rime with crystals along it marks the edge **at 4
   tiles** (its own canvas, `ftex.ring`): it appears as the wave stops there and fades out over 0.8 s.
-- **Monsters within 4 tiles** (plus their radius) freeze when the front reaches them (`freezeMonster`): the whole
+- **Monsters within 5 tiles** (plus their radius) freeze when the front reaches them (`freezeMonster`): the whole
   body fades to a pale icy blue over 0.15 s (a `color`-blend tint, `ICE_TINT` `#a9dcf7`, at 90 %, plus 22 % of it
   added for a frosty brightness), cold mist pours off it for 2.5 s, and it stops dead mid-step (a wraith mid-air,
   its reflection too): no moving, no attacking (a wind-up is cancelled), no sound. Hits still land. For its last
@@ -1248,8 +1250,8 @@ bind all things!": *gelu* frost, *cuncta* all things, *liga* bind), an AI voice 
   front reaches it: 5 s (`FROST.monDur`) up to one level above the hero (a monster's level is its depth), 12 % less
   for each level beyond that (at least half); a champion 60 % of that, a guardian 40 %; then a fixed 1 s more for
   every monster (`FROST.monPlus`): 6 s, a champion 4 s, a guardian 3 s. The hero is never frozen.
-- **Water within 10 tiles** freezes over for 18 s (`FROST.iceDur`). The ice is a patch (`map.iceS.patches`, at most
-  3): a disc of radius 10 around where the hero stood, with a slightly wavy edge (sines of 5, 8, 13 and 29 cycles),
+- **Water within 11 tiles** freezes over for 18 s (`FROST.iceDur`). The ice is a patch (`map.iceS.patches`, at most
+  3): a disc of radius 11 around where the hero stood, with a slightly wavy edge (sines of 5, 8, 13 and 29 cycles),
   clipped to the lake, at the water's level. It was worked out in `ice-prototype.html` (see Files), whose
   *frost front* freeze and *thaw* melt were picked.
   - **The look** (`iceTex`, drawn once): a pale blue tint (46 % to 30 % from the middle out), clouds of white rime
@@ -1388,8 +1390,8 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
   `pointerType` mouse, not the mouse events browsers make up from touches), closes as soon as the mouse is no
   longer over the element that opened it (`tipHover`), and closes on any touch. So on a device with both a mouse
   and a touch screen, a tooltip opened by the mouse can't get stuck when the game switches to touch.
-- **Sound:** under the attributes, a **Music** and an **Effects** slider (0–100 % in steps of 5, default 60 % and
-  100 %), with the value beside each. See [Music](#music) and [Sound](#sound).
+- **Sound:** under the attributes, a **Music**, an **Effects** and a **Voices** slider (0–100 % in steps of 5,
+  default 60 %, 100 % and 75 %), with the value beside each. See [Music](#music) and [Sound](#sound).
 - **Attributes:** level, XP, STR / DEX / VIT, life (live), armor, damage range, attack speed, crit,
   move speed, kills, gold. Most show where they come from (`statRows`, `breakdown`): `total (parts)`, e.g.
   `Armor 80 (50+10+20)`. The total is white; the parts are **character** (grey), **regular items** (darker
@@ -1563,8 +1565,11 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
 
 - **Volume.** The **Effects** slider in the equipment overlay sets the master gain: `0.9 × (v / 100)²` (squared so
   the slider feels even to the ear); at 0 no effect is made at all. Releasing the slider plays a coin clink at
-  the new level. Both volumes are shared by all heroes, in `localStorage` `dc01-volume` (`VOL`, default
-  `{ music: 60, fx: 100 }`, wrapped in `try`).
+  the new level. The **Voices** slider sets the gain of the voices bus (`VOICE`, `(v / 100)²`, default 75 %, a bit
+  below the effects): the hero's spoken incantations (`speak`), with their own send to the same reverb, apart from
+  the effects (so either can be off alone); releasing it speaks the hero's incantation at the new level. The
+  volumes are shared by all heroes, in `localStorage` `dc01-volume` (`VOL`, default
+  `{ music: 60, fx: 100, voice: 75 }`, wrapped in `try`).
 
 - **Mixing.** Every sound goes to a master gain through a compressor (so stacked sounds don't clip), with a send
   to a short dungeon reverb (a 1.3 s impulse of decaying, darkening noise, 22 % wet). Sounds with a position
@@ -1617,8 +1622,8 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
 - **The scroll of frost.**
   - *Reading* (`incant`): the incantation, "Gelu, cuncta liga!", spoken in the hero's voice: each hero look has a
     voice (`HERO_VOICE`: `m` for the Knight, Stocky knight, Woodsman, Scout and the Mannequin; `f` for the Huntress),
-    and the clip is `assets/sfx/incant<voice>1.mp3` (`CLIPS.incantm`, `incantf`). A voice without a clip yet uses the
-    male one; the female clip is still being chosen.
+    and the clip is `assets/sfx/incant<voice>1.mp3` (`CLIPS.incantm`, `incantf`; `incantClip`), played on the voices
+    bus (the Voices slider). A voice without a clip uses the male one.
     - **Male (decided 2026-11-20)**: `incantm1.mp3`, 1.55 s. Google `gemini-3.8-flash-tts`, voice Algenib, text
       "Gelu, cuncta liga!", style prompt: "A sorcerer snapping out a three-word Latin spell, classical Latin
       pronunciation (GEH-loo, KOONK-tah, LEE-gah), fast and clipped, low and forceful, like a command, the whole
@@ -1626,8 +1631,18 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
       peak-normalised to 89 %, 96 kbit/s MP3. Kept over three later rounds of deeper, intoned takes (2.2–3.7 s, or
       sped up to fit). The same record is in each male hero's `art/characters/<hero>/character.json`
       (`incantation`). The other five voices of that first round are in `assets/unused/incantations`.
-    - **Female**: being chosen from the same engine and prompt in the female voices (Kore, Leda, Aoede, Despina,
-      Erinome, Pulcherrima, Sulafat, Vindemiatrix).
+    - **Female (decided 2026-11-20)**: `incantf1.mp3`, 1.41 s. The same engine, text, style prompt and trimming in
+      the voice Leda, picked from eight female voices (Kore, Leda, Aoede, Despina, Erinome, Pulcherrima, Sulafat,
+      Vindemiatrix; the others are in `assets/unused/incantations/female`). Recorded in `art/characters/hero-3/character.json`.
+  - *Casting* (`castrise`, an effect): under the reading, a sound that builds over its `time` (1.6 s) to the blast:
+    its loudness follows a curve (`(t / time)^c`), held to the end and cut 0.12 s after it, as the blast goes off.
+    Three versions, still being chosen (`SOUND_LOOK.cast`, default 1; the sandbox's frost scenario switches them):
+    1. *Gathering frost*: a cold wind (band-passed noise, Q 2.5) sweeping up from 350 to 4500 Hz and swelling, a high
+       hiss above it, and ice pings (2.2–5.2 kHz, rising) coming faster and louder toward the end.
+    2. *Rising hum*: a low drone (two detuned sawtooths at 110 Hz, a triangle fifth, a sine octave below) rising a
+       fourth, through a low-pass opening from 260 to 2600 Hz, with a tremolo speeding up from 4 to 16 Hz.
+    3. *Crystal riser*: glassy sine notes (each with a soft octave) climbing a minor pentatonic scale from C5, faster
+       and louder, over a soft whoosh band-passed up from 800 to 6000 Hz.
   - *The blast* (`frostcast`): a cold whump (140 → 40 Hz), a short noise burst, a high-passed hiss of frost
     sweeping down over 1.8 s as the front runs out, six high pings of ice setting and two crystalline clicks.
   - *A monster freezing* (`encase`): a short crackling hiss sweeping down, a low creak, a click.

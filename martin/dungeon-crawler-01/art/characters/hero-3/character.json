@@ -95,5 +95,15 @@
   "sheet": {
     "file": "../../../assets/hero3.webp",
     "key": "hero3"
+  },
+  "incantation": {
+    "voice": "f",
+    "clip": "assets/sfx/incantf1.mp3",
+    "engine": "Google gemini-3.8-flash-tts",
+    "speaker": "Leda",
+    "text": "Gelu, cuncta liga!",
+    "style": "A sorcerer snapping out a three-word Latin spell, classical Latin pronunciation (GEH-loo, KOONK-tah, LEE-gah), fast and clipped, low and forceful, like a command, the whole phrase in about one and a half seconds",
+    "processing": "trimmed of silence (30 ms before, 80 ms after the speech, 10 ms fades), peak-normalised to 89 %, 96 kbit/s MP3",
+    "decided": "2026-11-20: picked from eight female voices with the male incantation's engine and prompt; shared by all female hero looks (HERO_VOICE in index.html)"
   }
 }
