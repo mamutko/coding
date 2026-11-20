@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v90 — the hero's own voice for incantations (2026-11-20)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 90`)*
+
+- Each hero look has a voice for incantations (`HERO_VOICE`): the male looks keep the incantation in use (Google
+  `gemini-3.8-flash-tts`, Algenib; now `assets/sfx/incantm1.mp3`, its prompt recorded in the README and in each
+  male hero's `character.json`); the Huntress gets a female voice once one is picked (until then the male one).
+
 ## v88–v89 — the frost blast shows its reach (2026-11-20)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 89`)*
+Commit: 16e87cd
 
 - The scroll of frost's blast has a visible wave: a glowing ring running out from the hero that stops at the
   4-tile freeze radius, with ice shards flung to the same edge, and a ring of rime on the stones there that fades

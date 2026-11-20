@@ -74,5 +74,15 @@
     "file": "../../../assets/hero5.webp",
     "key": "hero5"
   },
-  "artifact": "https://claude.ai/artifact/TqZgNrBz5Tna8MJar9buG5"
+  "artifact": "https://claude.ai/artifact/TqZgNrBz5Tna8MJar9buG5",
+  "incantation": {
+    "voice": "m",
+    "clip": "assets/sfx/incantm1.mp3",
+    "engine": "Google gemini-3.8-flash-tts",
+    "speaker": "Algenib",
+    "text": "Gelu, cuncta liga!",
+    "style": "A sorcerer snapping out a three-word Latin spell, classical Latin pronunciation (GEH-loo, KOONK-tah, LEE-gah), fast and clipped, low and forceful, like a command, the whole phrase in about one and a half seconds",
+    "processing": "trimmed of silence (30 ms before, 80 ms after the speech, 10 ms fades), peak-normalised to 89 %, 96 kbit/s MP3",
+    "decided": "2026-11-20: kept over deeper, intoned takes; shared by all male hero looks (HERO_VOICE in index.html)"
+  }
 }

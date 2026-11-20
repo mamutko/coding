@@ -29,7 +29,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `assets/grass_a.jpg`, `assets/grass_b.jpg` | 512 px seamless grass textures of the surface (lush dark green; patchy olive meadow). See [The surface](#the-surface-depth-0). |
 | `assets/surface.webp` | The surface's sprites: four trees (oak, fir, dead tree, birch; each with its crown cut), four bushes, four ground details (flowers, rocks, mushrooms, a grass tuft) and the crypt. Coordinates in `META.surface`. |
 | `tools/add_surface.py`, `tools/raw/grass_a.png`, `grass_b.png`, `trees.png`, `bushes.png`, `crypt.png` | Builds the two grass textures and `assets/surface.webp` from the raw AI images, and writes `META.surface` into `assets/meta.json` and the inline `META`. |
-| `assets/unused/` | AI images and sounds made but not used by the game, kept for later: `keepers-creepy.png` (the first, rejected Keepers of the Crypt); `scrolls/frostscroll-A2`–`A6`, `B1`–`B6` (the eleven scroll of frost designs not picked, keyed, 192 px); `incantations/` (the incantation in six Google voices: Algenib, the one in use, Charon, Enceladus, Fenrir, Gacrux, Orus). The five unused fire bomb designs are in `assets/items.webp` (`firebomb2`–`firebomb6`) and `tools/raw/firebombs.png`. Not loaded, and left out of the sandbox artifact. |
+| `assets/unused/` | AI images and sounds made but not used by the game, kept for later: `keepers-creepy.png` (the first, rejected Keepers of the Crypt); `scrolls/frostscroll-A2`–`A6`, `B1`–`B6` (the eleven scroll of frost designs not picked, keyed, 192 px); `incantations/` (the incantation in six Google voices: Algenib, the male one in use, Charon, Enceladus, Fenrir, Gacrux, Orus; and `incantations/female/`, the female candidates: Kore, Leda, Aoede, Despina, Erinome, Pulcherrima, Sulafat, Vindemiatrix). The five unused fire bomb designs are in `assets/items.webp` (`firebomb2`–`firebomb6`) and `tools/raw/firebombs.png`. Not loaded, and left out of the sandbox artifact. |
 | `assets/dirt.jpg` | 512 px seamless dirt texture for wall tops and wall faces toward solid ground (from `add_props.py`). |
 | `assets/meta.json` | Frame sizes and atlas coordinates written by the processing script (copied into `META` in `index.html`). |
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
@@ -39,7 +39,7 @@ and equipping gear, and levelling up. All art is AI-generated (see [Assets](#ass
 | `tools/add_market.py`, `tools/raw/keepers.png`, `keeper_decor.png` | Adds the Keepers of the Crypt and their furnishings to `assets/props.webp` (the rows after row 2) and updates `assets/meta.json` and the inline `META`. See [Keepers of the Crypt](#keepers-of-the-crypt-the-market). |
 | `tools/add_props.py`, `tools/raw/bones_searched.png`, `doors.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones, door leaves) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
-| `assets/sfx/` | Ghoul moans and grunts, and the scroll of frost's incantation (`incant1.mp3`) (MP3). |
+| `assets/sfx/` | Ghoul moans and grunts, and the scroll of frost's incantation in the male heroes' voice (`incantm1.mp3`) (MP3). |
 | `assets/music/explore-instrumental.mp3`, `combat-instrumental.mp3`, `explore.mp3`, `combat.mp3`, `surface-1.mp3`, `surface-2.mp3` | The music: exploration and combat loops, each instrumental and with a Latin choir, and two cheerful instrumental surface tracks. See [Music](#music). |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul`, `keeper1`–`keeper4` and the cast × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 | `lake-prototype.html` | A standalone prototype of underground lakes (not loaded by the game, which now has lakes: see [Lakes](#lakes)): still water set a few pixels below the floor, a mirrored reflection of the walls, props and characters, rock banks on the far shores, and ripples from drips. A panel compares the options (tile or rounded shore, ripple rings or refraction, water colour, depth, reflection strength). Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page lake-prototype.html --skip 'assets/*' --inline` (the seven images it uses). |
@@ -784,6 +784,8 @@ Each hero is drawn with one of six walk sheets (`HERO_LOOKS`), its **look**, sav
 - **Picking it:** in the hero's cogwheel box on the title screen, or with **Look** in the debug overlay (the selected
   hero's on the title screen, the played hero's in the game). `setHeroLook` writes the look straight into the hero's
   save entry (nothing else is saved) and, for the hero being played, changes it at once.
+- **Voice:** each look has a voice for incantations (`HERO_VOICE`): male for the Knight, Stocky knight, Woodsman,
+  Scout and Mannequin, female for the Huntress (see [Sound](#sound), the scroll of frost).
 - **Loading:** only `hero.webp` loads at start-up; the other two load on first use (`LOOK_SRC`, `loadCast`, also on
   entering the game with a hero that has one). Until a sheet has loaded the hero is drawn as the knight.
 - **Drawing:** `heroLook(h)` picks the sheet in `drawChar` and in the equipment screen's turning portrait; every sheet
@@ -1211,7 +1213,7 @@ Scrolls are found in one place only: the chest on the lake room's shore holds 4 
 
 **The scroll of frost** (`POTIONS.frost`, icon `frostscroll`: a frosted rolled parchment tied with a pale blue
 ribbon and a snowflake wax seal). Reading takes 1.6 s; the incantation is *"Gelu, cuncta liga!"* (Latin, "Frost,
-bind all things!": *gelu* frost, *cuncta* all things, *liga* bind), an AI voice, `assets/sfx/incant1.mp3` (see
+bind all things!": *gelu* frost, *cuncta* all things, *liga* bind), an AI voice in the hero's own voice (see
 [Sound](#sound)). When the words end, a **blast of frost** goes off centred on the hero (`castFrost`; `FROST`):
 
 - **The frost front** runs out from the hero over `0.9 + 0.07 × 10` = 1.6 s, easing (`1 − (1 − u)³`): the radius
@@ -1601,11 +1603,19 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
     strength and its distance from the hero. It is silent when sound is off or the game isn't running, and stops
     when the fire goes out or the level changes.
 - **The scroll of frost.**
-  - *Reading* (`incant`): the incantation, "Gelu, cuncta liga!", a clip (`assets/sfx/incant1.mp3`, 1.55 s): Google
-    `gemini-3.8-flash-tts`, voice Algenib, styled "a sorcerer snapping out a three-word Latin spell, classical Latin
-    pronunciation (GEH-loo, KOONK-tah, LEE-gah), fast and clipped, low and forceful, like a command, the whole phrase
-    in about one and a half seconds"; trimmed of silence (10 ms fades), peak-normalised, 96 kbit/s MP3. The other
-    five voices are in `assets/unused/incantations`.
+  - *Reading* (`incant`): the incantation, "Gelu, cuncta liga!", spoken in the hero's voice: each hero look has a
+    voice (`HERO_VOICE`: `m` for the Knight, Stocky knight, Woodsman, Scout and the Mannequin; `f` for the Huntress),
+    and the clip is `assets/sfx/incant<voice>1.mp3` (`CLIPS.incantm`, `incantf`). A voice without a clip yet uses the
+    male one; the female clip is still being chosen.
+    - **Male (decided 2026-11-20)**: `incantm1.mp3`, 1.55 s. Google `gemini-3.8-flash-tts`, voice Algenib, text
+      "Gelu, cuncta liga!", style prompt: "A sorcerer snapping out a three-word Latin spell, classical Latin
+      pronunciation (GEH-loo, KOONK-tah, LEE-gah), fast and clipped, low and forceful, like a command, the whole
+      phrase in about one and a half seconds". Trimmed of silence (30 ms kept before, 80 ms after, 10 ms fades),
+      peak-normalised to 89 %, 96 kbit/s MP3. Kept over three later rounds of deeper, intoned takes (2.2–3.7 s, or
+      sped up to fit). The same record is in each male hero's `art/characters/<hero>/character.json`
+      (`incantation`). The other five voices of that first round are in `assets/unused/incantations`.
+    - **Female**: being chosen from the same engine and prompt in the female voices (Kore, Leda, Aoede, Despina,
+      Erinome, Pulcherrima, Sulafat, Vindemiatrix).
   - *The blast* (`frostcast`): a cold whump (140 → 40 Hz), a short noise burst, a high-passed hiss of frost
     sweeping down over 1.8 s as the front runs out, six high pings of ice setting and two crystalline clicks.
   - *A monster freezing* (`encase`): a short crackling hiss sweeping down, a low creak, a click.
