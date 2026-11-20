@@ -152,8 +152,8 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     two skeletons, a ghoul and a champion skeleton (depth 8). The bar shows the scrolls left, "reading…" while the
     incantation runs, the ice's phase and time to the melt, each frozen monster's time left, and whether the hero
     is on the ice.
-    The bar also has a **Casting** picker for the three versions of the cast sound; a click there plays it with the
-    hero's incantation.
+    The bar also has a **Casting** picker for the three versions of the cast sound (Gathering frost, the game's, and
+    the two not picked); a click there plays it with the hero's incantation.
   - **The underground lake** (depth 8, `LAKE_AT`, which always has the lake room): the hero stands on the dry
     shore where it faces the middle of the lake (the dry tile one step back from the water nearest the room's
     diagonal), facing the water, with 15 fire bombs in the pack on key 4 (the longsword stays equipped). Monsters
@@ -1636,7 +1636,8 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
       Vindemiatrix; the others are in `assets/unused/incantations/female`). Recorded in `art/characters/hero-3/character.json`.
   - *Casting* (`castrise`, an effect): under the reading, a sound that builds over its `time` (1.6 s) to the blast:
     its loudness follows a curve (`(t / time)^c`), held to the end and cut 0.12 s after it, as the blast goes off.
-    Three versions, still being chosen (`SOUND_LOOK.cast`, default 1; the sandbox's frost scenario switches them):
+    Three versions (`SOUND_LOOK.cast`); **Gathering frost (1) was picked** (2026-11-20) and is the game's; the other
+    two stay for the sandbox's frost scenario, which switches them for the page's session:
     1. *Gathering frost*: a cold wind (band-passed noise, Q 2.5) sweeping up from 350 to 4500 Hz and swelling, a high
        hiss above it, and ice pings (2.2–5.2 kHz, rising) coming faster and louder toward the end.
     2. *Rising hum*: a low drone (two detuned sawtooths at 110 Hz, a triangle fifth, a sine octave below) rising a

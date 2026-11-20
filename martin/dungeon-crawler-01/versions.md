@@ -9,14 +9,14 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v91 — a Voices slider, the Huntress's voice, a cast sound, a wider frost blast (2026-11-20)
+## v91–v92 — a Voices slider, the Huntress's voice, a cast sound, a wider frost blast (2026-11-20)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 91`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 92`)*
 
 - The Huntress reads incantations in a female voice (Google, Leda, the male voice's engine and prompt).
 - A **Voices** volume slider in the equipment screen (default 75 %), for the hero's spoken incantations.
-- A rising **cast sound** under a scroll's reading, building to the blast, in three versions still being chosen
-  (Gathering frost, Rising hum, Crystal riser; picked in the sandbox's frost scenario).
+- A rising **cast sound** under a scroll's reading, building to the blast: **Gathering frost** (picked from three;
+  Rising hum and Crystal riser stay in the sandbox's frost scenario).
 - The scroll of frost reaches 1 tile farther: monsters freeze within 5 tiles, water within 11.
 
 ## v90 — the hero's own voice for incantations (2026-11-20)

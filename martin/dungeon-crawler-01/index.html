@@ -394,7 +394,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 91;
+const VERSION = 92;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -677,7 +677,7 @@ function sfx(type, o = {}) {
       for (let i = 0; i < 12; i++) knock(T + r(0, 0.6) ** 1.3, r(500, 1800), r(0.12, 0.25)); thud(T + 0.12, 110, 0.15, 0.3); break;
     case 'moan': clip('moan', o.rate || r(0.82, 1), 0.55 * (o.vol || 1)); break;
     case 'grunt': clip('grunt', r(0.85, 1), 0.5); break;
-    case 'castrise': {   // under a scroll's reading (o.dur s): a sound that builds to the spell, in the version picked (SOUND_LOOK.cast)
+    case 'castrise': {   // under a scroll's reading (o.dur s): a sound that builds to the spell (SOUND_LOOK.cast: 1, Gathering frost, was picked; 2 and 3 for the sandbox)
       const D = o.dur || 1.6, k = SOUND_LOOK.cast, end = T + D;
       const swell = (node, peak, curve = 3) => { const g = AC.createGain(), n = 24; const c = new Float32Array(n);
         for (let i = 0; i < n; i++) c[i] = 0.0001 + peak * Math.pow(i / (n - 1), curve);
