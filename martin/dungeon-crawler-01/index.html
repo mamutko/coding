@@ -64,6 +64,24 @@
   #atkIco { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); background-repeat: no-repeat; }
   #atkFx, #atkRim { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
 
+  /* the dialogue panel: light, so the game stays in view (it keeps running) */
+  #dlg { position: absolute; left: 50%; transform: translateX(-50%); bottom: 132px; width: min(520px, calc(100vw - 32px)); display: flex; gap: 10px;
+    align-items: flex-start; padding: 8px 12px 8px 8px; background: linear-gradient(rgba(14,9,11,0.5), rgba(14,9,11,0.72)); border: 1px solid rgba(201,164,92,0.32);
+    border-radius: 3px; box-shadow: 0 0 18px rgba(0,0,0,0.55); pointer-events: auto; cursor: pointer; transition: border-color 0.3s, background 0.3s; user-select: none; }
+  #dlg.hidden { display: none; }
+  #dlg.far { background: linear-gradient(rgba(14,9,11,0.3), rgba(14,9,11,0.5)); border-color: rgba(201,164,92,0.16); }
+  #dlg.far .dlgBody, #dlg.far canvas { opacity: 0.7; }
+  #dlgPortrait { width: 56px; height: 56px; flex: none; border: 1px solid rgba(201,164,92,0.35); background: rgba(8,5,7,0.6); }
+  #dlg .dlgBody { flex: 1; min-width: 0; font: 15px/1.38 'IM Fell English', Georgia, serif; color: #e8dcc4; text-shadow: 0 1px 2px #000; }
+  #dlgHist { max-height: 2.8em; overflow-y: auto; font-size: 13px; line-height: 1.4; color: #a99c86; scrollbar-width: none; margin-bottom: 2px;
+    -webkit-mask-image: linear-gradient(transparent, #000 1.1em); mask-image: linear-gradient(transparent, #000 1.1em); }
+  #dlgHist:hover { -webkit-mask-image: none; mask-image: none; }
+  #dlgHist b { font-weight: normal; color: #b89a62; } #dlgHist .hero b { color: #8fa6b8; }
+  #dlgName { font: 12px Cinzel, serif; color: var(--gold); letter-spacing: 1px; } #dlgName.hero { color: #a9c3d6; }
+  #dlgLine .rest { visibility: hidden; }
+  #dlgChoices .opt { padding: 2px 6px; margin: 2px -6px 0; border-radius: 2px; color: #e3c98f; }
+  #dlgChoices .opt:hover { background: rgba(201,164,92,0.18); color: #fff2cc; }
+  #dlgChoices .opt .k { color: #8c7650; font-family: Cinzel, serif; font-size: 12px; }
   #bottom { position: absolute; left: 50%; transform: translateX(-50%); transform-origin: 50% 100%; bottom: 14px; display: flex; flex-direction: column;
     align-items: center; gap: 6px; pointer-events: auto; }
   #hotbar { display: flex; gap: 4px; padding: 5px; background: rgba(10, 7, 9, 0.8); border: 1px solid var(--panel-edge);
@@ -285,6 +303,7 @@
   body.narrow #target { top: 160px; width: min(300px, 80vw); }
   body.narrow #atk { left: 10px; top: 10px; bottom: auto; width: 76px; height: 76px; }
   body.narrow #atkLabel { display: none; }
+  body.narrow #dlg { bottom: 104px; }
   body.narrow #log { left: 10px; bottom: 112px; width: calc(100vw - 20px); font-size: 12px; }
   body.narrow #bottom { bottom: 8px; transform-origin: 50% 100%; }
   body.narrow #equip { width: 504px; transform-origin: 50% 50%; }
@@ -311,6 +330,8 @@
   <div id="burnBadge" class="hidden" title="You are burning"><canvas id="burnIco" width="32" height="40"></canvas><span id="burnText"></span></div>
   <div id="atk" title="Hold, then tap to attack"><canvas id="atkFx"></canvas><div id="atkIco"></div><canvas id="atkRim"></canvas></div>
   <div id="atkLabel">ATTACK</div>
+  <div id="dlg" class="hidden"><canvas id="dlgPortrait" width="112" height="112"></canvas>
+    <div class="dlgBody"><div id="dlgHist"></div><div id="dlgName"></div><div id="dlgLine"></div><div id="dlgChoices"></div></div></div>
   <div id="bottom">
     <div id="hotbar"></div>
     <div id="xpbar"><div id="xpFill"></div><div id="xpText"></div></div>
@@ -377,6 +398,7 @@
     <label>Look <select id="dbgLook"></select></label>
     <div id="dbgFps">– fps</div><div id="dbgMusic">music: –</div></div>
 
+<script src="story/story.js"></script>   <!-- the dialogue (STORIES), compiled from story/*.md: see README, Dialogue -->
 <script>
 'use strict';
 // =====================================================================================
@@ -395,7 +417,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 93;
+const VERSION = 94;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1068,6 +1090,7 @@ function newHero() {
 function newGame(entry) {
   nextId = 1; logEl.innerHTML = '';
   if (G) stopFireSounds();
+  DLG.c = null; DLG.cool = {};
   G = { depth: entry ? entry.depth : 0, hero: newHero(), map: null, monsters: [], objects: [], items: [], proj: [], fx: [], texts: [], fires: [],
     zoom: 1, camX: 0, camY: 0, time: 0, dead: false, deadT: 0, hover: null, uiHover: null, pick: [], fade: 1, minimap: true, miniT: 0 };
   if (entry) {
@@ -1095,7 +1118,7 @@ function newGame(entry) {
 // entry = { id, name, depth, lvl, saved: <ms timestamp>, hero: { ...the SAVED_FIELDS of the hero } }.
 // A hero is saved when created and on arrival at each new depth; the level layout is never saved.
 const SAVE_KEY = 'crypt-of-endless-night.save';
-const SAVED_FIELDS = ['name', 'lvl', 'xp', 'base', 'equip', 'inv', 'gold', 'hotkeys', 'kills', 'hp', 'look'];
+const SAVED_FIELDS = ['name', 'lvl', 'xp', 'base', 'equip', 'inv', 'gold', 'hotkeys', 'kills', 'hp', 'look', 'story'];   // story: see Dialogue
 // Older saves kept health potions as a counter (hero.potions) with a { type: 'potion' } quick key: turn them
 // into a stack in the pack (first free cell; dropped at the start if the pack is full) and a 'use' key.
 function migrateHero(h) {
@@ -2135,6 +2158,9 @@ function itemValue(it, one = false) {
   return Math.round((12 * L * L + 50) * mult * (1 + 0.15 * Math.max(0, tier - 1)));
 }
 const sellPrice = (it, one) => Math.max(1, Math.round(itemValue(it, one) * KEEPER.sell));
+// The price of a keeper's goods: its value, less the discount the story gave with this keeper (its N.discount, 0-0.9)
+const mkDiscount = () => { const o = MK.o; if (!o || !G.hero.story) return 0; const d = +npcBag(storyIds(o)[0]).discount || 0; return Math.min(0.9, Math.max(0, d)); };
+const buyPrice = it => Math.max(1, Math.round(itemValue(it) * (1 - mkDiscount())));
 // Wishes: what a keeper wants, and the magic (or rare) item it offers for it. Gear wishes take the least valuable
 // matching item from the pack; potion and bomb wishes take that many from a stack.
 const WISH_GEAR = [['head', 'any helm', 'a magic or rare helm'], ['chest', 'any body armor', 'magic or rare body armor'],
@@ -2187,7 +2213,7 @@ function mkCell(it, price, ref) {
 function renderMarket() {
   if (!MK.o) return;
   const h = G.hero, m = MK.o.market;
-  $('mkGold').textContent = h.gold + ' gold';
+  $('mkGold').textContent = h.gold + ' gold' + (mkDiscount() ? ' · ' + Math.round(mkDiscount() * 100) + ' % off' : '');
   $('mkWishes').innerHTML = m.wishes.map((w, i) => {
     const can = !w.done && wishGive(w) >= 0;
     return `<div class="wish${w.done ? ' done' : ''}${MK.sel && MK.sel.ref === 'w' + i ? ' mkSel' : ''}" data-ref="w${i}"><div>Wants <b>${w.label}</b></div>` +
@@ -2196,12 +2222,12 @@ function renderMarket() {
   }).join('');
   const miss = Math.ceil(h.st.maxHp - h.hp), hc = Math.ceil(miss * KEEPER.heal(G.depth));
   $('mkServices').innerHTML = `<div class="svc"><div>Heal your wounds</div><button id="mkHeal" ${miss > 0 && h.gold >= hc ? '' : 'disabled'}>${miss > 0 ? 'Heal ' + miss + ' life — ' + hc + ' gold' : 'You are unhurt'}</button></div>`;
-  $('mkStock').innerHTML = m.stock.map((it, i) => it ? mkCell(it, itemValue(it), 's' + i) : '<div class="cell"></div>').join('');
+  $('mkStock').innerHTML = m.stock.map((it, i) => it ? mkCell(it, buyPrice(it), 's' + i) : '<div class="cell"></div>').join('');
   $('mkPack').innerHTML = h.inv.map((it, i) => it ? mkCell(it, sellPrice(it, true), 'p' + i) : '<div class="cell"></div>').join('');
   // the detail pane: the selected item and what can be done with it
   const sel = MK.sel, det = $('mkDetail');
   let it = null, act = '';
-  if (sel && sel.ref[0] === 's') { it = m.stock[sel.i]; if (it) { const pr = itemValue(it), ok = h.gold >= pr && h.inv.includes(null);
+  if (sel && sel.ref[0] === 's') { it = m.stock[sel.i]; if (it) { const pr = buyPrice(it), ok = h.gold >= pr && h.inv.includes(null);
       act = `<button data-act="buy" ${ok ? '' : 'disabled'}>Buy for ${pr} gold</button>` + (h.gold < pr ? '<div class="ty">Not enough gold.</div>' : !h.inv.includes(null) ? '<div class="ty">Your pack is full.</div>' : ''); } }
   else if (sel && sel.ref[0] === 'p') { it = h.inv[sel.i]; if (it) { const one = stackCount(it) > 1;
       act = `<button data-act="sell">Sell ${one ? 'one ' : ''}for ${sellPrice(it, true)} gold</button>` + (one ? `<button data-act="sellall">Sell all ${it.count} for ${sellPrice(it, true) * it.count} gold</button>` : ''); } }
@@ -2217,7 +2243,7 @@ function mkRemove(i, n = 0) {   // take a pack item (or n of a stack) away, clea
 }
 function marketAction(a) {
   const h = G.hero, m = MK.o.market, sel = MK.sel; if (!sel) return;
-  if (a === 'buy') { const it = m.stock[sel.i], pr = itemValue(it), slot = h.inv.indexOf(null); if (!it || h.gold < pr || slot < 0) return;
+  if (a === 'buy') { const it = m.stock[sel.i], pr = buyPrice(it), slot = h.inv.indexOf(null); if (!it || h.gold < pr || slot < 0) return;
     h.gold -= pr; h.inv[slot] = it; m.stock[sel.i] = null; MK.sel = { ref: 'p' + slot, i: slot }; log('Bought ' + it.name + ' for ' + pr + ' gold.', rarityColor(it.rarity)); }
   else if (a === 'sell' || a === 'sellall') { const it = h.inv[sel.i]; if (!it) return; const n = a === 'sellall' ? it.count : 1, pr = sellPrice(it, true) * (stackCount(it) ? n : 1);
     mkRemove(sel.i, stackCount(it) ? n : 0); h.gold += pr; if (!h.inv[sel.i]) MK.sel = null; log('Sold ' + it.name + (stackCount(it) && n > 1 ? ' ×' + n : '') + ' for ' + pr + ' gold.', '#e3c060'); }
@@ -2238,10 +2264,273 @@ $('market').addEventListener('click', e => {
   const c = e.target.closest('[data-ref]'); if (!c) return;
   const ref = c.dataset.ref; MK.sel = { ref, i: +ref.slice(1) }; renderMarket();
 });
+// =====================================================================================
+//  Dialogue (see README, Dialogue)
+// =====================================================================================
+// Conversations come from STORY (story/story.js, compiled from story/story.md by tools/story/build.js). The game
+// keeps running while one plays: lines advance on their own after a reading time (a click on the panel shows the
+// whole line, a second one moves on), choices wait. One conversation plays at a time (DLG.c).
+const DLG_DEF = { starts: 'click', talk: 3.5, leave: 6 };   // a character's defaults (its ## Character: section overrides them)
+const DLG_T = { cps: 55, min: 1.6, per: 0.045, max: 7, fade: 0.45, cool: 6, hist: 40, scan: 14, lost: 1.6 };
+// cps: letters shown per second; a line then stays min + per · letters s (at most max); fade: the panel's fade out;
+// cool: s before a character starts a conversation of its own again; hist: lines kept; scan: tiles searched for a
+// character that may start talking; lost: beyond leave × lost (after a reaction that went on talking) it stops quietly
+const STORY_EMPTY = { chars: {}, convs: [] };
+let STORY = (typeof STORIES !== 'undefined' && STORIES.story) || STORY_EMPTY;
+const DLG = { c: null, cool: {} };
+const KEEPER_IDS = [null, 'aldric', 'borin', 'mirela', 'tobias'];
+// The story ids of a game entity, most specific first: a keeper's name id; a story NPC's own id; a monster's own
+// id (if given), then boss / champion, then its type
+function storyIds(e) {
+  if (!e) return [];
+  if (e.type === 'keeper' && !e.b) return [e.storyId || KEEPER_IDS[e.look]];
+  if (e.type === 'npc') return [e.char];
+  return [e.storyId, e.boss && 'boss', e.champ && 'champion', e.type].filter(Boolean);
+}
+const charDef = id => Object.assign({}, DLG_DEF, STORY.chars[id] || {});
+const heroStory = () => { const h = G.hero; return h.story || (h.story = { P: {}, N: {}, seen: {}, met: {}, susp: {} }); };
+const npcBag = id => { const s = heroStory(); return s.N[id] || (s.N[id] = {}); };
+function npcName(e, id) {
+  const ch = STORY.chars[id]; if (ch && ch.name) return ch.name;
+  if (e && e.type === 'keeper' && KEEPERS[e.look]) return KEEPERS[e.look].name;
+  return e && e.name || id;
+}
+const dlgDist = e => Math.hypot(G.hero.x - (e.fx != null ? e.fx : e.x), G.hero.y - (e.fy != null ? e.fy : e.y));
+const dlgAlive = e => e && (e.b ? G.monsters.includes(e) && !e.dead : G.objects.includes(e));
+// Items: potions and scrolls by their POTIONS key (health, ironskin, frost), fire bombs as firebomb, gear by its base
+function storyCount(k) {
+  const h = G.hero; if (POTIONS[k]) { const s = stackOf(k); return s ? s.count : 0; }
+  if (k === 'firebomb') return bombCount();
+  return [...Object.values(h.equip), ...h.inv].filter(it => it && it.base === k).length;
+}
+function storyGive(k, n = 1) {
+  const h = G.hero, put = it => { const i = h.inv.indexOf(null); if (i >= 0) h.inv[i] = it; else dropItem(it, h.x, h.y); };
+  if (POTIONS[k]) { const s = stackOf(k); if (s) s.count += n; else put(makePotion(k, n)); log('Received ' + (n > 1 ? n + ' ' + POTIONS[k].plural : 'a ' + POTIONS[k].name) + '.', POTIONS[k].color); }
+  else if (k === 'firebomb') { const s = bombStack(); if (s) s.count += n; else put(makeBombs(n)); log('Received ' + (n > 1 ? n + ' ' + BOMB.plural : 'a ' + BOMB.name) + '.', BOMB.color); }
+  else if (BASES[k]) for (let i = 0; i < n; i++) { const it = genItem(G.depth, 0, k, 'common'); put(it); log('Received ' + it.name + '.', rarityColor(it.rarity)); }
+  sfx('pick'); refreshUI();
+}
+function storyTake(k, n = 1) {
+  const h = G.hero; let left = n;
+  if (POTIONS[k] || k === 'firebomb') {
+    for (const it of [h.equip.weapon, ...h.inv]) { if (!left || !it || !(POTIONS[k] ? it.slot === 'use' && it.pot === k : isBomb(it))) continue;
+      const t = Math.min(left, it.count); it.count -= t; left -= t;
+      if (!it.count) { if (it === h.equip.weapon) h.equip.weapon = null; else mkRemove(h.inv.indexOf(it)); } }
+  } else for (let i = 0; i < h.inv.length && left; i++) if (h.inv[i] && h.inv[i].base === k) { mkRemove(i); left--; }
+  recalc(); refreshUI(); return n - left;
+}
+// The names a story's conditions, effects and {…} text can use (README, Dialogue: Scope)
+function storyScope(c) {
+  const h = G.hero, S = heroStory();
+  return {
+    P: S.P, get N() { return npcBag(c.char); }, hero: h, npc: c.npc, G,
+    get name() { return h.name; }, get npcName() { return c.name; }, get depth() { return G.depth; }, get lvl() { return h.lvl; },
+    get gold() { return h.gold; }, set gold(v) { h.gold = Math.max(0, Math.round(v)); refreshUI(); if (marketOpen()) renderMarket(); },
+    get life() { return h.hp / h.st.maxHp; },
+    has: (k, n = 1) => storyCount(k) >= n, count: storyCount, give: storyGive, take: storyTake,
+    met: id => S.met[id || c.char] || 0, seen: id => S.seen[id] || 0,
+    heal: () => { h.hp = h.st.maxHp; refreshUI(); }, xp: n => gainXp(n), log: (t, col) => log(t, col || '#e8dcc4'), sound: k => sfx(k),
+    market: () => { c.after = 'market'; c.stop = true; }, end: () => { c.stop = true; },
+    attack: () => { const m = c.npc; if (m && m.b && !m.dead) chase(m); },
+  };
+}
+function dlgTry(f, c, dflt = false) {
+  try { return f(c.scope); } catch (e) { console.error('story ' + c.conv.id + ':', e); log('Story error in ' + c.conv.id + ': ' + e.message, '#e06a5a'); return dflt; }
+}
+const dlgText = (t, c) => typeof t === 'function' ? String(dlgTry(t, c, '')) : t;
+const dlgNodes = c => c.nodes || (c.nodes = Object.assign({}, (STORY.chars[c.char] || {}).nodes || {}, c.conv.nodes));
+function dlgNew(e, id, conv) {
+  const c = { npc: e, char: id, conv, def: charDef(id), name: npcName(e, id), node: 'start', i: 0, hist: [], wait: null, phase: 'talk', armed: true };
+  c.scope = storyScope(c); return c;
+}
+// Conversations a character could start now: not yet played (or repeat), whose when holds; how: 'near' leaves out
+// the ones that wait for a click. Highest priority first, then in file order.
+function dlgPick(e, id, how) {
+  const S = heroStory(), def = charDef(id), probe = dlgNew(e, id, { id: '?', nodes: {} });
+  return STORY.convs.filter(v => v.who === id && (v.repeat || !S.seen[v.id]) && (how === 'click' || (v.starts != null ? v.starts : def.starts) !== 'click')
+    && (!v.when || dlgTry(v.when, Object.assign(probe, { conv: v }))))
+    .map((v, i) => [v, i]).sort((a, b) => (b[0].priority || 0) - (a[0].priority || 0) || a[1] - b[1]).map(a => a[0]);
+}
+function dlgStart(e, id, conv) {
+  if (DLG.c && !DLG.c.done) dlgSuspend(DLG.c, true);
+  const c = DLG.c = dlgNew(e, id, conv); dlgPortrait(c); dlgRun(c);
+}
+function dlgResume(e, id, sp) {
+  const conv = STORY.convs.find(v => v.id === sp.conv), S = heroStory();
+  if (!conv) { delete S.susp[id]; return false; }   // the story changed since
+  if (DLG.c && !DLG.c.done) dlgSuspend(DLG.c, true);
+  const c = DLG.c = dlgNew(e, id, conv); c.hist = sp.hist.slice(); c.counted = true; c.resume = { node: sp.node, i: sp.i };
+  delete S.susp[id]; dlgPortrait(c);
+  if (dlgNodes(c)['@back']) { c.node = '@back'; c.phase = 'back'; } else { c.node = sp.node; c.i = sp.i; }
+  dlgRun(c); return true;
+}
+// Runs the conversation's items from where it is until something waits: a line (its reading time) or a choice
+function dlgRun(c) {
+  for (let guard = 0; guard < 500 && !c.done; guard++) {
+    if (c.stop) return dlgEnd(c);
+    const items = dlgNodes(c)[c.node];
+    if (!items || c.i >= items.length) {   // the node ran out: the end, or after @back / @leave what comes next
+      if (c.phase === 'back') { c.phase = 'talk'; c.node = c.resume.node; c.i = c.resume.i; continue; }
+      return c.phase === 'leave' ? dlgSuspend(c) : dlgEnd(c);
+    }
+    const at = c.i, it = items[c.i++];
+    if (it.if && !dlgTry(it.if, c)) continue;
+    if (it.t === 'do') { dlgTry(it.f, c); continue; }
+    if (it.t === 'go') { dlgGo(c, it.to); continue; }
+    if (it.t === 'say') {
+      const text = dlgText(it.text, c);
+      c.hist.push({ who: it.who, text }); if (c.hist.length > DLG_T.hist) c.hist.shift();
+      c.at = at; c.wait = { t: 0, n: text.length, dur: text.length / DLG_T.cps + Math.min(DLG_T.max, DLG_T.min + DLG_T.per * text.length) };
+      const nx = items[c.i], opts = nx && nx.t === 'choice' && (!nx.if || dlgTry(nx.if, c)) ? dlgOpts(c, nx) : null;
+      if (opts && opts.length) { c.i++; c.wait.opts = opts; }   // a line with choices under it: shown together
+      dlgShow(true); return;
+    }
+    if (it.t === 'choice') { const opts = dlgOpts(c, it); if (!opts.length) continue; c.at = at; c.wait = { t: 1e9, n: 0, dur: 0, opts }; dlgShow(true); return; }
+  }
+}
+const dlgOpts = (c, it) => it.opts.filter(o => !o.if || dlgTry(o.if, c)).map(o => Object.assign({}, o, { label: dlgText(o.text, c) }));
+function dlgGo(c, to) {
+  if (c.phase === 'leave' || c.phase === 'back') { c.phase = 'talk'; c.armed = false; }   // a reaction that goes on talking
+  if (to === 'end') { c.stop = true; return; }
+  if (c.conv.nodes[to]) { c.node = to; c.i = 0; return; }
+  const v = STORY.convs.find(x => x.id === to);
+  if (v) { dlgCount(c); c.conv = v; c.nodes = null; c.node = 'start'; c.i = 0; c.counted = false; }
+}
+function dlgChoose(k) {
+  const c = DLG.c; if (!c || c.done || !c.wait || !c.wait.opts) return;
+  const o = c.wait.opts[k]; if (!o) return;
+  c.hist.push({ who: 'hero', text: o.label }); c.wait = null;
+  if (o.do) dlgTry(o.do, c);
+  if (o.to) dlgGo(c, o.to);
+  dlgRun(c);
+}
+function dlgCount(c) { if (c.counted) return; c.counted = true; const S = heroStory(); S.seen[c.conv.id] = (S.seen[c.conv.id] || 0) + 1; S.met[c.char] = (S.met[c.char] || 0) + 1; }
+// The end: counted as played and met; the panel fades. market(): the keeper's market opens.
+function dlgEnd(c, quiet) {
+  if (c.done) return; c.done = true; dlgCount(c); delete heroStory().susp[c.char];
+  DLG.cool[c.char] = G.time + DLG_T.cool; c.wait = null; c.fadeT = quiet ? 0.01 : DLG_T.fade;
+  if (c.after === 'market' && c.npc && c.npc.type === 'keeper') { c.fadeT = 0.01; openMarket(c.npc); }
+  dlgShow(true);
+}
+// Walked away: the @leave reaction (the conversation's own, else the character's), then it is put aside where it was
+function dlgLeave(c) {
+  if (!dlgNodes(c)['@leave']) return dlgSuspend(c);
+  c.resume = { node: c.node, i: c.at != null ? c.at : c.i }; c.node = '@leave'; c.i = 0; c.phase = 'leave'; c.wait = null; dlgRun(c);
+}
+function dlgSuspend(c, quiet) {
+  if (c.done) return;
+  const r = c.phase === 'talk' ? { node: c.node, i: c.at != null ? c.at : c.i } : c.resume || { node: 'start', i: 0 };
+  dlgCount(c); heroStory().susp[c.char] = { conv: c.conv.id, node: r.node, i: r.i, hist: c.hist.slice(-DLG_T.hist) };
+  c.done = true; c.wait = null; c.fadeT = quiet ? 0.01 : DLG_T.fade; DLG.cool[c.char] = G.time + DLG_T.cool; dlgShow(true);
+}
+// A click on a character: its conversation goes on (the line moves on), one put aside is picked up again, or one
+// it has (any, those that wait for a click too) starts. False: it has nothing to say.
+function dlgTalk(e) {
+  const c = DLG.c;
+  if (c && !c.done && c.npc === e) { dlgSkip(); return true; }
+  for (const id of storyIds(e)) {
+    const sp = heroStory().susp[id]; if (sp && dlgResume(e, id, sp)) return true;
+    const v = dlgPick(e, id, 'click')[0]; if (v) { dlgStart(e, id, v); return true; }
+  }
+  return false;
+}
+// The reach of a click on a character with something to say: its talk distance (else null: walk up to it)
+function dlgReach(o) {
+  if (!STORY.convs.length || !(o.type === 'keeper' || o.type === 'npc')) return null;
+  const S = heroStory();
+  for (const id of storyIds(o)) if (S.susp[id] || dlgPick(o, id, 'click').length) return Math.max(0.75, charDef(id).talk - 0.3);
+  return null;
+}
+function dlgSkip() {   // a click on the panel: the whole line at once, then the next one
+  const c = DLG.c; if (!c || c.done || !c.wait) return;
+  const w = c.wait, rev = w.n / DLG_T.cps;
+  if (w.t < rev) w.t = rev; else if (!w.opts) { c.wait = null; dlgRun(c); }
+  dlgShow(true);
+}
+function updateDialogue(dt) {
+  const c = DLG.c;
+  if (c) {
+    if (c.done) { c.fadeT -= dt; if (c.fadeT <= 0) DLG.c = null; dlgShow(); return; }
+    if (G.dead || !dlgAlive(c.npc)) { dlgEnd(c, true); return; }
+    const d = dlgDist(c.npc);
+    if (c.phase === 'talk') {
+      if (d <= c.def.talk) c.armed = true;
+      if (d > c.def.leave && c.armed) dlgLeave(c);
+      else if (d > c.def.leave * DLG_T.lost) dlgSuspend(c, true);
+    }
+    if (c.done) return;
+    c.far = d > c.def.talk;
+    const w = c.wait;
+    if (w && !w.opts) { w.t += dt; if (w.t >= w.dur) { c.wait = null; dlgRun(c); } } else if (w) w.t += dt;
+    dlgShow(); return;
+  }
+  if (G.dead || !STORY.convs.length || G.map.surface && !STORY.surface) return;
+  // nobody talking: a character near enough may start (or pick up again) a conversation of its own
+  const h = G.hero, S = heroStory(), cand = [];
+  for (const o of G.objects) if (o.type === 'keeper' || o.type === 'npc') cand.push(o);
+  for (const m of G.monsters) if (!m.dead && Math.abs(m.x - h.x) < DLG_T.scan && Math.abs(m.y - h.y) < DLG_T.scan) cand.push(m);
+  for (const e of cand) {
+    const d = dlgDist(e); if (d > DLG_T.scan) continue;
+    for (const id of storyIds(e)) {
+      if (DLG.cool[id] > G.time) continue;
+      const def = charDef(id), sp = S.susp[id], [ex, ey] = e.fx != null ? [e.fx, e.fy] : [e.x, e.y];
+      if (sp) { if (def.starts !== 'click' && d <= def.starts && los(h.x, h.y, ex, ey) && dlgResume(e, id, sp)) return; continue; }
+      for (const v of dlgPick(e, id, 'near')) {
+        const st = v.starts != null ? v.starts : def.starts;
+        if (d <= st && los(h.x, h.y, ex, ey)) { dlgStart(e, id, v); return; }
+      }
+    }
+  }
+}
+// ---- The panel (#dlg): portrait, name, the lines so far (scrolls), the current line as it is spoken, the choices
+const dlgEl = { box: $('dlg'), hist: $('dlgHist'), line: $('dlgLine'), who: $('dlgName'), opts: $('dlgChoices') };
+let dlgSig = '';
+function dlgShow(force) {
+  const c = DLG.c, E = dlgEl;
+  if (!c) { if (!E.box.classList.contains('hidden')) { E.box.classList.add('hidden'); dlgSig = ''; } return; }
+  E.box.classList.remove('hidden');
+  E.box.style.opacity = c.done ? Math.max(0, c.fadeT / DLG_T.fade) : '';
+  E.box.classList.toggle('far', !!c.far && !c.done);
+  const cur = c.hist[c.hist.length - 1], w = c.wait, shown = w && cur ? Math.min(cur.text.length, Math.floor(w.t * DLG_T.cps)) : cur ? cur.text.length : 0;
+  const sig = c.hist.length + '|' + shown + '|' + (w && w.opts ? w.opts.length : 0) + '|' + c.done;
+  if (!force && sig === dlgSig) return; dlgSig = sig;
+  const who = x => x === 'hero' ? G.hero.name : x === c.char ? c.name : npcName(null, x);
+  E.hist.innerHTML = c.hist.slice(0, -1).map(l => `<div class="${l.who === 'hero' ? 'hero' : ''}"><b>${dlgEsc(who(l.who))}:</b> ${dlgEsc(l.text)}</div>`).join('');
+  E.hist.scrollTop = E.hist.scrollHeight;
+  if (cur) { E.who.textContent = who(cur.who); E.who.className = cur.who === 'hero' ? 'hero' : '';
+    E.line.innerHTML = dlgEsc(cur.text.slice(0, shown)) + `<span class="rest">${dlgEsc(cur.text.slice(shown))}</span>`; }
+  else { E.who.textContent = c.name; E.line.textContent = ''; }
+  const ready = w && w.opts && shown >= (cur ? cur.text.length : 0);
+  E.opts.innerHTML = ready ? w.opts.map((o, i) => `<div class="opt" data-k="${i}"><span class="k">${i + 1}.</span> ${dlgEsc(o.label)}</div>`).join('') : '';
+  if (cur && (cur.who === 'hero') !== (E.box.dataset.who === 'hero')) { E.box.dataset.who = cur.who === 'hero' ? 'hero' : 'npc'; dlgPortrait(c, cur.who === 'hero'); }
+}
+const dlgEsc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[ch]));
+dlgEl.box.addEventListener('click', e => { const o = e.target.closest('.opt'); if (o) dlgChoose(+o.dataset.k); else dlgSkip(); });
+// The speaker's portrait: the head and shoulders of its sheet's first frame (facing south): the top 55 % of the
+// figure's drawn pixels, found once per sheet
+const PORTRAIT_BOX = {};
+function dlgPortrait(c, hero) {
+  const e = hero ? G.hero : c.npc, sheet = hero ? heroLook(G.hero) : e.type === 'keeper' ? 'keeper' + e.look : e.type === 'npc' ? e.sheet : e.type;
+  const ch = STORY.chars[c.char], sh = !hero && ch && ch.sprite && META.characters[ch.sprite] && IMG[ch.sprite] ? ch.sprite : sheet;
+  const md = META.characters[sh], img = IMG[sh], pc = $('dlgPortrait').getContext('2d'); pc.clearRect(0, 0, 112, 112);
+  if (!md || !img) return;
+  const f = (md.idle || 0) * md.fw;
+  let b = PORTRAIT_BOX[sh];
+  if (!b) {
+    b = [0, 0, md.fw, md.fh];
+    try { const t = document.createElement('canvas'); t.width = md.fw; t.height = md.fh; const tc = t.getContext('2d'); tc.drawImage(img, f, 0, md.fw, md.fh, 0, 0, md.fw, md.fh);
+      const px = tc.getImageData(0, 0, md.fw, md.fh).data; let x0 = md.fw, y0 = md.fh, x1 = 0, y1 = 0;
+      for (let y = 0; y < md.fh; y++) for (let x = 0; x < md.fw; x++) if (px[(y * md.fw + x) * 4 + 3] > 40) { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; }
+      if (x1 > x0) b = [x0, y0, x1 - x0 + 1, y1 - y0 + 1]; } catch (err) {}
+    PORTRAIT_BOX[sh] = b;
+  }
+  const s = Math.max(1, b[3] * 0.55), cx = b[0] + b[2] / 2, k = 104 / s;
+  pc.drawImage(img, f + cx - s / 2, b[1] - s * 0.04, s, s, 4, 6, 104, 104);
+}
 function interactable(o) {
   if (o.type === 'door') return !o.open;
   if (o.type === 'brazier' || o.decor) return false;
-  if (o.type === 'keeper' || o.type === 'cryptdoor') return true;
+  if (o.type === 'keeper' || o.type === 'npc' || o.type === 'cryptdoor') return true;
   if (o.type === 'stairs') return true;
   return !o.used;
 }
@@ -2315,12 +2604,14 @@ function act(ref) {
       if (o.used) return; o.used = true; h.gold += o.amount; G.objects.splice(G.objects.indexOf(o), 1); sfx('gold');
       floatText(h.x, h.y, '+' + o.amount + ' gold', '#e3c060', 0.9, 14); break;
     case 'stairs': descend(); break;
-    case 'keeper': openMarket(o); break;
+    case 'keeper': if (!dlgTalk(o)) openMarket(o); break;   // a keeper with something to say talks first
+    case 'npc': dlgTalk(o); break;
     case 'cryptdoor': descend(); break;
   }
 }
 function descend() {
   sfx('stairs');
+  if (DLG.c && !DLG.c.done) dlgSuspend(DLG.c, true); DLG.c = null;   // a conversation in progress is put aside
   const d = G.depth + 1; G.depth = d;
   gainXp(10 * d);
   buildLevel(d);
@@ -2887,8 +3178,8 @@ function pointerDown(e) {
     if (ref && ref.kind === 'item') lastItemTap = { fi: ref.r, t: now, x: mouse.x, y: mouse.y };
     if (ref && ref.kind !== 'mon') {
       h.intent = ref; const [cx, cy] = ref.kind === 'item' ? [ref.r.x, ref.r.y] : objCenter(ref.r);
-      const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door');
-      if (dist(h, { x: cx, y: cy }) <= (blk ? 1.5 : 0.75)) { act(ref); h.intent = null; h.path = []; }
+      const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door'), talk = ref.kind === 'obj' && dlgReach(ref.r);   // a character to talk to: from its talk distance
+      if (dist(h, { x: cx, y: cy }) <= (talk || (blk ? 1.5 : 0.75))) { act(ref); h.intent = null; h.path = []; }
       else pathTo(h, cx, cy, blk);
       mouse.holdWalk = false;
     } else {
@@ -3021,7 +3312,7 @@ function update(dt) {
     for (const mo of G.monsters) { const px = mo.x, py = mo.y; updateMonster(mo, dt);
       if (mo.moving) mo.anim += Math.hypot(mo.x - px, mo.y - py) * (META.characters[mo.type].fpt || 2) / mo.scale; }
     G.monsters = G.monsters.filter(mo => !(mo.dead && mo.deathT > 1.2));
-    G.proj = []; updateFires(dt, false); updateIce(dt); updateFx(dt); return;
+    G.proj = []; updateFires(dt, false); updateIce(dt); updateFx(dt); updateDialogue(dt); return;
   }
   // continuous input
   if (mouse.holdWalk && mouse.left) {
@@ -3073,14 +3364,15 @@ function update(dt) {
   if (h.moving) { const lk = heroLook(h); h.anim += stepD * (META.characters[lk].fpt || 2) / lookScale(lk); if (stepD < 1e-4) { h.stuckT += dt; if (h.stuckT > 0.3) { h.path = []; h.stuckT = 0; } } else h.stuckT = 0; }
   if (h.intent) {
     const ref = h.intent, [cx, cy] = ref.kind === 'item' ? [ref.r.x, ref.r.y] : objCenter(ref.r);
-    const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door');
+    const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door'), talk = ref.kind === 'obj' && dlgReach(ref.r);
     const dd = dist(h, { x: cx, y: cy });
-    if (dd <= (blk ? 1.5 : 0.75)) { setDir(h, cx - h.x, cy - h.y); h.path = []; h.intent = null; act(ref); }
+    if (dd <= (talk || (blk ? 1.5 : 0.75))) { setDir(h, cx - h.x, cy - h.y); h.path = []; h.intent = null; act(ref); }
     else if (!h.path.length) { if (dd <= 1.7) { h.intent = null; act(ref); } else h.intent = null; }
   }
   if (G.map.surface) shiftSurface();
   updateLake(dt); updateIce(dt);
   for (const o of G.objects) if (o.type === 'keeper') updateKeeper(o, dt);
+  updateDialogue(dt);
   // mark explored
   const m = G.map;
   for (let y = Math.floor(h.y) - 7; y <= Math.floor(h.y) + 7; y++) for (let x = Math.floor(h.x) - 7; x <= Math.floor(h.x) + 7; x++)
@@ -3326,7 +3618,7 @@ function mirrorChar(e, isHero) {
   }
 }
 function mirrorProp(o) {
-  if (o.surf || o.type === 'keeper' || o.type === 'stairs' || o.type === 'bones' || o.type === 'gold' || o.type === 'mrug' || (o.type === 'urn' && o.used)) return;
+  if (o.surf || o.type === 'keeper' || o.type === 'npc' || o.type === 'stairs' || o.type === 'bones' || o.type === 'gold' || o.type === 'mrug' || (o.type === 'urn' && o.used)) return;
   const key = o.type === 'chest' && o.used ? 'chestopen' : o.type === 'keeper' ? 'keeper' + o.look : o.type;
   const [px, py, pw, ph] = META.props[key], [s, off] = PROP_STYLE[key], [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy), w = pw * s, hh = ph * s;
   mirSprite(IMG.props, px, py, pw, ph, sx - w / 2, sy - hh + off, w, hh, sy, o.flip ? sx : null);
@@ -3999,7 +4291,7 @@ function render() {
     if (o.surf) { if ((o.type === 'decal' && o.look !== 'tuft') || o.type === 'cryptdoor') continue;
       const big = o.type === 'crypt' ? SURF.cryptN : 1;   // the crypt sorts by its front corner
       if (o.x + big >= x0 && o.x <= x1 + 1 && o.y + big >= y0 && o.y <= y1 + 1) dl.push({ k: o.x + o.y + 2 * big - 1, t: 1, o }); continue; }
-    if (o.type !== 'stairs' && o.type !== 'bones' && o.type !== 'gold' && o.type !== 'mrug' && o.type !== 'door' && o.x >= x0 && o.x <= x1 && o.y >= y0 && o.y <= y1) dl.push({ k: o.type === 'keeper' ? o.fx + o.fy : o.x + o.y + 1, t: 1, o });   // a keeper sorts like a character
+    if (o.type !== 'stairs' && o.type !== 'bones' && o.type !== 'gold' && o.type !== 'mrug' && o.type !== 'door' && o.x >= x0 && o.x <= x1 && o.y >= y0 && o.y <= y1) dl.push({ k: o.type === 'keeper' || o.type === 'npc' ? o.fx + o.fy : o.x + o.y + 1, t: 1, o });   // a keeper (or story NPC) sorts like a character
   }
   for (const mo of G.monsters) if (mo.x >= x0 && mo.x <= x1 + 1 && mo.y >= y0 && mo.y <= y1 + 1) dl.push({ k: mo.x + mo.y, t: 2, e: mo });
   dl.push({ k: h.x + h.y, t: 3, e: h });
@@ -4133,7 +4425,7 @@ function render() {
   if (G.hover && G.hover.kind === 'obj') {
     const o = G.hover.r, [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy);
     // (only the keeper's own look picks a keeper name: doors have a look too)
-    const label = { cryptdoor: 'Crypt Entrance — Depth 1', keeper: o.type === 'keeper' && KEEPERS[o.look] ? KEEPERS[o.look].name + ', Keeper of the Crypt' : '', chest: o.boss ? "Guardian's Chest" : 'Chest', door: 'Door', urn: 'Funeral Urn', bones: 'Bones', gold: o.amount + ' Gold', stairs: 'Stairs Down — Depth ' + (G.depth + 1) }[o.type];
+    const label = { cryptdoor: 'Crypt Entrance — Depth 1', keeper: o.type === 'keeper' && KEEPERS[o.look] ? KEEPERS[o.look].name + ', Keeper of the Crypt' : '', chest: o.boss ? "Guardian's Chest" : 'Chest', door: 'Door', urn: 'Funeral Urn', bones: 'Bones', gold: o.amount + ' Gold', stairs: 'Stairs Down — Depth ' + (G.depth + 1), npc: o.type === 'npc' ? npcName(o, o.char) : '' }[o.type];
     ctx.font = '14px Cinzel, serif'; const tw = ctx.measureText(label).width + 12;
     ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(sx - tw / 2, G.hover.y - 22, tw, 19); ctx.fillStyle = '#e8dcc4'; ctx.fillText(label, sx, G.hover.y - 8);
   }
@@ -4346,7 +4638,7 @@ function drawRuneCircle(r) {
 }
 function drawProp(o) {
   if (o.surf) return drawSurf(o);
-  if (o.type === 'keeper') return drawKeeper(o);
+  if (o.type === 'keeper' || o.type === 'npc') return drawKeeper(o);
   let key = o.type === 'chest' && o.used ? 'chestopen' : o.type === 'bones' && o.used ? 'bonesused' : o.type === 'keeper' ? 'keeper' + o.look : o.type;
   if (o.type === 'urn' && o.used) return;
   const [px, py, pw, ph] = META.props[key], [s, off] = PROP_STYLE[key];
@@ -4399,8 +4691,9 @@ function updateKeeper(o, dt) {
   }
   setDir(o, dx, dy);
 }
-function drawKeeper(o) {
-  const name = 'keeper' + o.look, md = META.characters[name], [sx, sy] = iso(o.fx, o.fy), s = KEEPER.scale;
+function drawKeeper(o) {   // also a story NPC (type 'npc'): its own sheet (o.sheet), at that sheet's scale
+  const name = o.type === 'npc' ? o.sheet : 'keeper' + o.look, md = META.characters[name], [sx, sy] = iso(o.fx, o.fy), s = o.type === 'npc' ? lookScale(name) : KEEPER.scale;
+  if (!md || !IMG[name]) return;
   const w = md.fw * s, hgt = md.fh * s, dx = sx - w / 2, dy = sy - md.footY * s;
   softShadow(sx, sy + 2 * s, 32 * s, 15 * s, 0.55, 0.55);
   const hov = G.hover && G.hover.r === o, frame = o.moving ? Math.floor(o.anim) % md.frames : md.idle;

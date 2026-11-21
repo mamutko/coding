@@ -9,9 +9,23 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v94 — dialogue with characters (2026-11-21)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 94`)*
+
+- A dialogue system: conversations written in Markdown (`story/*.md`), compiled and checked by
+  `tools/story/build.js` into `story/story.js`. Lines, choices, conditions and effects in JavaScript, a property bag
+  on the hero and one per character, consequences in the game (gold, items, a keeper's discount, a monster that
+  attacks or lets you pass).
+- The game keeps running while characters talk, in a light panel above the quick bar. Characters can start talking
+  by themselves when you come near, or wait for a click; walking away gets a reaction, and coming back picks the
+  conversation up where it stopped. Monsters can talk too.
+- The game's own story is not written yet, so the game plays as before. A demo story (Old Tobias, Vesper the
+  Sorcerer, a champion skeleton) is in the sandbox's new **Dialogue** scenario.
+
 ## v93 — the attack button shows the action in progress (2026-11-20)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 93`)*
+Commit: 1ecb10e
 
 - While the hero is busy, a glowing arc runs round the attack button's rim in the action's colour, and behind the
   icon an animation shows what it is: a crescent slash (melee), a tightening ring (bow), the potion welling up, frost

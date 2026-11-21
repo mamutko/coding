@@ -11,6 +11,7 @@ What it writes into <out-dir> (see SKILL.md):
                apple-touch-icon) are removed; the <title> is replaced when --title is given; and the block between
                <!-- sandbox:start --> and <!-- sandbox:end --> (the ?sandbox loader) is replaced by the sandbox
                script inlined, because the artifact's address carries no query string. No markers: no sandbox.
+               Local scripts the page loads (<script src="file.js"></script>, not http) are inlined as well.
                Assets matching --inline are embedded in the page as base64 data: URIs instead, wherever the page
                names them in quotes or url(...): the phone's artifact viewer can fail to serve the separate files
                (all of them, retries too). Mind the 16 MB page limit (base64 adds a third).
@@ -54,6 +55,14 @@ if m:
     s = s[:m.start()] + '<script>\n' + sb.replace('</script', '<\\/script') + '</script>' + s[m.end():]
 else:
     print('no <!-- sandbox:start --> ... <!-- sandbox:end --> markers: building the page without a sandbox')
+
+# local scripts (<script src="some/file.js"></script>, not http(s)) are inlined too: the viewer may fail to serve
+# separate files, and a page script that is not there breaks the page
+def inline_script(mm):
+    f = os.path.join(proj, mm.group(1))
+    if not os.path.isfile(f): print('warning: script', mm.group(1), 'not found: kept as a tag'); return mm.group(0)
+    return '<script>\n' + open(f, encoding='utf-8').read().replace('</script', '<\\/script') + '\n</script>'
+s = re.sub(r'<script src="(?!https?:|//)([^"]+)"></script>', inline_script, s)
 
 dirs = a.assets if a.assets is not None else (['assets'] if os.path.isdir(os.path.join(proj, 'assets')) else [])
 

@@ -52,6 +52,8 @@
     <button class="sc" id="sbFireYard"><b>Fire bombs: practice yard</b>30 bombs, a quiet room: three sleeping skeletons to burn (a burn wakes them) and two small stacks of bombs on the floor to pick up (they join your stack). Switch the fire's look in the bar to compare.</button>
     <h2>Market</h2>
     <button class="sc" id="sbMarket"><b>Keeper of the Crypt</b>Depth 6, in a keeper's furnished room, a few steps from the keeper (who walks up to you), with 3000 gold and things to sell or trade (a helm, an axe, a magic ring, potions, fire bombs). Click the keeper to open the market. Switch between the four keepers in the bar.</button>
+    <h2>Dialogue</h2>
+    <button class="sc" id="sbDialogue"><b>Dialogue</b>Depth 6, in Old Tobias's stall, with 1000 gold, playing the demo story (story/demo.md) instead of the game's. Tobias starts talking as he comes near; Vesper the Sorcerer, in the same room, talks only when clicked; a champion skeleton asleep outside the room (9–13 tiles away) taunts you when you come within 6 tiles and see it. The game keeps running: lines move on by themselves (click the panel to hurry them), choices wait. Walk away mid-conversation to hear a reaction (a discount, a warning, a complaint); come back and it picks up where it stopped. The bar shows the story's properties; Reset story forgets everything.</button>
     <h2>Kiting</h2>
     <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
     <h2>Characters</h2>
@@ -70,6 +72,7 @@
     + '<span id="sbDrips" class="sbSounds" hidden>Drip:' + [[1, 'Plink'], [2, 'Hollow'], [3, 'Glassy'], [4, 'Echo']].map(([n, l]) => `<button data-drip="${n}">${l}</button>`).join('') + '</span>'
     + '<span id="sbSplash" class="sbSounds" hidden>Bomb splash:' + [[1, 'Plunge'], [2, 'Heavy'], [3, 'Gurgle']].map(([n, l]) => `<button data-splash="${n}">${l}</button>`).join('') + '</span>'
     + '<span id="sbCast" class="sbSounds" hidden>Casting:' + [[1, 'Gathering frost'], [2, 'Rising hum'], [3, 'Crystal riser']].map(([n, l]) => `<button data-cast="${n}">${l}</button>`).join('') + '</span>'
+    + '<span id="sbStory" class="sbSounds" hidden><button id="sbStoryReset" title="Forget the story: properties, who was met, conversations put aside">Reset story</button></span>'
     + '<button id="sbNext" title="Start the next play of this track now">Next loop</button><button id="sbBack">Scenarios</button>';
   let mode = 'music';   // what the bar shows: 'music' or 'fire'
   // on the normal title screen (after Normal game, or a real hero's death) its Scenarios button (index.html) brings
@@ -97,7 +100,8 @@
   showDeath = () => { if (!isTest()) return realDeath(); G.running = false; pick.hidden = false; bar.hidden = true; };
   const floorAt = (x, y) => G.map.t[y * G.map.w + x] === T_FLOOR && !G.objects.some(o => o.x === x && o.y === y && !o.walk);
   function start(m = 'music') {
-    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbDrips').hidden = $('sbSplash').hidden = m !== 'lake'; $('sbCast').hidden = true; soundButtons(); $('sbLookPick').hidden = m !== 'looks'; bar.classList.toggle('top', m === 'looks'); $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
+    STORY = m === 'dialogue' ? STORIES.demo : (typeof STORIES !== 'undefined' && STORIES.story) || STORY_EMPTY; $('sbStory').hidden = m !== 'dialogue';
+    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbDrips').hidden = $('sbSplash').hidden = m !== 'lake'; $('sbCast').hidden = true; soundButtons(); $('sbLookPick').hidden = m !== 'looks'; bar.classList.toggle('top', m === 'looks' || m === 'dialogue'); $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
     audio(); pick.hidden = true; bar.hidden = false;
     G.running = true; G.camSnap = true; G.deathShown = false;
     $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); $('heroCfg').classList.add('hidden'); hideTip();
@@ -170,6 +174,32 @@
     G.monsters = G.monsters.filter(m => Math.hypot(m.x - h.x, m.y - h.y) > 16); refreshUI();
     start('market'); keeperButtons(); log('Test: a Keeper of the Crypt. Click it to trade.', '#e3c060');
   };
+  // Dialogue: the demo story in Old Tobias's stall, Vesper the Sorcerer (a story NPC) in a corner of it, and a
+  // sleeping champion skeleton 7-11 tiles from the room, in sight of a floor tile on the way
+  $('sbDialogue').onclick = () => {
+    STORY = STORIES.demo; loadCast('sorcerer');
+    for (let i = 0; i < 50; i++) { testHero(6); if (G.objects.some(o => o.type === 'keeper')) break; }
+    const h = G.hero, k = G.objects.find(o => o.type === 'keeper'), kr = k.room, m = G.map; k.look = 4; h.gold = 1000; h.story = null;
+    const free = (x, y) => floorAt(x, y) && !m.block[y * m.w + x], inR = (x, y) => x >= kr.x && x < kr.x + kr.w && y >= kr.y && y < kr.y + kr.h;
+    let best = null; for (let y = kr.y; y < kr.y + kr.h; y++) for (let x = kr.x; x < kr.x + kr.w; x++) {
+      if (!free(x, y)) continue; const dd = Math.abs(Math.hypot(x - k.x, y - k.y) - 5); if (!best || dd < best[2]) best = [x, y, dd]; }
+    if (best) { h.x = best[0] + 0.5; h.y = best[1] + 0.5; h.path = []; }
+    // Vesper: the free room tile farthest from both the keeper and the hero (but not by a wall's door)
+    let vb = null; for (let y = kr.y + 1; y < kr.y + kr.h - 1; y++) for (let x = kr.x + 1; x < kr.x + kr.w - 1; x++) {
+      if (!free(x, y)) continue; const sc = Math.min(Math.hypot(x - k.x, y - k.y), Math.hypot(x + 0.5 - h.x, y + 0.5 - h.y) * 1.3); if (!vb || sc > vb[2]) vb = [x, y, sc]; }
+    if (vb) { G.objects.push({ type: 'npc', char: 'vesper', sheet: 'sorcerer', x: vb[0], y: vb[1], fx: vb[0] + 0.5, fy: vb[1] + 0.5, dir: 0, anim: 0, moving: false, block: true });
+      m.block[vb[1] * m.w + vb[0]] = 1; }
+    G.monsters = G.monsters.filter(mo => Math.hypot(mo.x - h.x, mo.y - h.y) > 22 && !mo.champ && !mo.boss);   // (other champions would taunt too)
+    // the champion: on a floor tile outside the room 9-13 tiles from the hero, the shortest walk away
+    let sp = null; const hx = h.x, hy = h.y;
+    for (let y = 0; y < m.h; y++) for (let x = 0; x < m.w; x++) {
+      if (!free(x, y) || inR(x, y)) continue; const dd = Math.hypot(x + 0.5 - hx, y + 0.5 - hy); if (dd < 9 || dd > 13) continue;
+      pathTo(h, x + 0.5, y + 0.5, false); const n = h.path.length; if (n && (!sp || n < sp[2])) sp = [x, y, n]; }
+    h.path = [];
+    if (sp) { const ch = makeMonster('skeleton', sp[0] + 0.5, sp[1] + 0.5, G.depth, false, true); ch.calm = { walked: -1e9, t: 1e9 }; G.monsters.push(ch); }
+    refreshUI(); start('dialogue'); log('Test: the dialogue demo. Old Tobias is coming over.', '#e3c060');
+  };
+  $('sbStoryReset').onclick = e => { if (G && G.hero) { G.hero.story = null; DLG.c = null; DLG.cool = {}; } e.target.blur(); };
   function keeperButtons() { const k = G.objects.find(o => o.type === 'keeper'); $('sbKeepers').querySelectorAll('button').forEach(b => b.classList.toggle('on', k && +b.dataset.keeper === k.look)); }
   $('sbKeepers').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const k = G.objects.find(o => o.type === 'keeper');
     if (k) { k.look = +b.dataset.keeper; if (marketOpen()) openMarket(k); } keeperButtons(); b.blur(); });
@@ -260,7 +290,7 @@
     G.monsters = G.monsters.filter(m => m.bossRoom || m.boss || Math.hypot(m.x - h.x, m.y - h.y) > 10);
     start(); log('Test: a Pit Demon level. Its boss room is close by.', '#7fe08a');
   };
-  $('sbNormal').onclick = () => { audio(); setLook('fire', 1); SOUND_LOOK.drip = SOUND_LOOK.splash = SOUND_LOOK.cast = 1; if (G && G.hero) G.hero.look = null; pick.hidden = true; bar.hidden = true; };   // the normal game: the settled look (Blaze)
+  $('sbNormal').onclick = () => { STORY = (typeof STORIES !== 'undefined' && STORIES.story) || STORY_EMPTY; audio(); setLook('fire', 1); SOUND_LOOK.drip = SOUND_LOOK.splash = SOUND_LOOK.cast = 1; if (G && G.hero) G.hero.look = null; pick.hidden = true; bar.hidden = true; };   // the normal game: the settled look (Blaze)
   $('sbBack').onclick = () => { G.running = false; pick.hidden = false; bar.hidden = true; };
   $('sbNext').onclick = () => { if (MUSIC.cur) MUSIC.cur.loopAt = 0; };
   setInterval(() => {
@@ -268,6 +298,14 @@
     if (mode === 'surface') {
       const h = G.hero, sv = G.surf, c = MUSIC.cur, tune = c ? ` · music ${MUSIC_FILES[c.name]}${c.n ? ' (play ' + c.n + ')' : ''}` : ' · no music';
       $('sbInfo').innerHTML = (sv && G.map.surface ? `<span class="mood">The surface</span> · world tile ${Math.floor(h.x + sv.ox)}, ${Math.floor(h.y + sv.oy)} · super tile ${sv.cx}, ${sv.cy}` : `<span class="mood">${depthName(G.depth)}</span> · depth ${G.depth}`) + tune;
+      return;
+    }
+    if (mode === 'dialogue') {
+      const S = heroStory(), c = DLG.c, js = o => { const t = JSON.stringify(o); return t === '{}' ? '–' : t.replace(/"/g, '').replace(/,/g, ', '); };
+      const susp = Object.keys(S.susp).map(id => `${id} (${S.susp[id].conv} · ${S.susp[id].node})`);
+      $('sbInfo').innerHTML = `<span class="mood">${c && !c.done ? c.name + ' · ' + c.conv.id + ' · ' + c.node + (c.phase !== 'talk' ? ' (' + c.phase + ')' : '') + ' · ' + dlgDist(c.npc).toFixed(1) + ' tiles' : 'no conversation'}</span>`
+        + ` · P ${js(S.P)}` + Object.keys(S.N).filter(id => Object.keys(S.N[id]).length).map(id => ` · ${id} ${js(S.N[id])}`).join('')
+        + (susp.length ? ` · put aside: ${susp.join(', ')}` : '') + ` · ${G.hero.gold} gold`;
       return;
     }
     if (mode === 'market') {
@@ -318,7 +356,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbLooks2', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
+  const SC = ['sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
   // the same, but the picker covers it); errors thrown later are listed there too

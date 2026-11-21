@@ -61,6 +61,10 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
 | `tools/simulation/` | Balance simulation: `simulate.js` runs simulated heroes through the real game and reports how hero and monsters compare per depth. How to use it: [`tools/simulation/README.md`](tools/simulation/README.md); dated results with conclusions: `results-YYYY-MM-DD.md`. |
 | `manifest.webmanifest`, `assets/icons/`, `tools/make_icons.py` | Web app manifest and home-screen icons (made from the hero sprite by `make_icons.py`): see [Home screen app](#home-screen-app). |
+| `story/story.md` | The game's story, in the dialogue format (nothing written yet). See [Dialogue](#dialogue). |
+| `story/demo.md` | A demo story showing every dialogue feature, played in the sandbox's Dialogue scenario. |
+| `story/story.js` | **Generated** from `story/*.md` by `tools/story/build.js` (`STORIES`); loaded by `index.html`. |
+| `tools/story/build.js` | Compiles and checks the story files: `node tools/story/build.js`. |
 | `todo.md` | Numbered list of ideas for future work (not yet implemented). |
 | `versions.md` | What each version added, newest first, and how to get any version back from git history: see [Version](#version). |
 | `backup/index.NN.html` | Old snapshots of `index.html`, numbered `01`, `02`, … in the order they were made; not used by the game and not described by this README. `index.01.html` is an early version of the game; `index.02.html` is v20, the last version before game time followed real time (see [Main loop](#main-loop)), kept to compare performance; it has a `<base href="../">` so it loads `assets/` from the game folder. |
@@ -82,7 +86,8 @@ it. They live in `sandbox.js`, apart from the game; the game itself never uses t
   publishing and testing):
   `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music Sandbox" --skip assets/meta.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*' --inline 'assets/*.webp' 'assets/*.jpg'`.
   It removes the document wrapper (the viewer adds its own) and the manifest and touch-icon links, inlines
-  `sandbox.js` in place of the loader block (the artifact's address carries no query string), embeds the 26
+  `sandbox.js` in place of the loader block (the artifact's address carries no query string) and `story/story.js`
+  in place of its `<script src>`, embeds the 26
   images (`assets/*.webp`, `*.jpg`, the cast's included) in the page as data URIs (about 7.6 MB; the claude.ai app on a phone failed
   to load them as separate files, every one and every retry), copies the other assets (sounds and music, minus
   `meta.json`, inlined as `META`, and the unused icon sizes) and writes `files.json` for publishing; the
@@ -133,6 +138,25 @@ The picker (*Crypt Sandbox*) groups the scenarios:
   - **Keeper of the Crypt** (depth 6, regenerated until it has a keeper): the test hero stands about two tiles from
     the keeper. It has 3000 gold, 60 % life (to try healing), and in the pack a common Iron Helm and Battle Axe, a
     magic Ruby Ring and 3 fire bombs, besides the bow and 12 health potions. Monsters within 16 tiles are removed.
+- **Dialogue:**
+  - **Dialogue** (depth 6, regenerated until it has a keeper): plays the demo story (`STORIES.demo`, from
+    `story/demo.md`) instead of the game's, with a fresh story state. The keeper is Old Tobias (`look` 4), and the
+    test hero, with 1000 gold, stands in his room about 5 tiles from him, so he walks up and starts talking.
+    **Vesper the Sorcerer** (a story NPC, the cast's sorcerer sheet, loaded on demand) stands on the room's free
+    tile farthest from both; he talks only when clicked. A **champion skeleton**, asleep (its calm never ends, so it
+    doesn't move until the story or a hit wakes it), waits on the floor tile 9–13 tiles from the hero outside the
+    room that is the shortest walk away; it taunts the hero within 6 tiles and in sight. Other monsters within 22
+    tiles, and every other champion and boss on the level, are removed. What the demo shows:
+    - Tobias: a first meeting that starts by itself (asking about the depths sets `P.heardOfDragon`); walking away
+      mid-conversation gets "Wait, wait! Ten percent off" (his `N.discount`, which the market then applies), the
+      second time a complaint; coming back gets "Back, are you?" and the conversation picks up where it stopped.
+      Later conversations wait for a click; a bribe of 100 gold raises the discount to 20 %, and a question he
+      answers only once you've heard of the wyrm sets `P.dragonHatesCold`.
+    - Vesper: lines that depend on whether you carry a scroll of frost; a lesson for 200 gold that gives 2 scrolls;
+      a choice only after you've met Tobias, and one only after Tobias told you about the cold; walking away the
+      first time gets an important warning, later a curt goodbye.
+    - The champion: "Turn back"; *Then fall* makes it attack; *I carry the frost* (only with a scroll) makes it let
+      you pass.
 - **Kiting:**
   - **Kiting with a bow** (depth 7, regenerated until the level has a big room): the test hero holds a common
     Hunting Bow (about 3 arrows per spider and 15 per Pit Demon there; the longsword in the pack, key 1).
@@ -180,6 +204,10 @@ A status bar at the top (above the bottom HUD on narrow screens) shows what the 
 
   It also has **Fire look** buttons (*Blaze*, *Ember bed*, *Oil pool*) that switch the fire's look for the next
   fires (see [Fire bombs](#fire-bombs)).
+- **In the dialogue scenario** it shows the conversation in progress (who, which conversation and node, a reaction
+  in progress, the hero's distance), the hero's bag `P` and every character's bag `N` that holds anything, the
+  conversations put aside (and where), and the gold. **Reset story** forgets the story state (as if the hero had
+  never talked to anyone). On narrow screens the bar stays at the top, clear of the dialogue panel.
 - **In the market scenario** it shows the keeper's name, the hero's gold and life, and "trading" while the market is
   open. **Keeper** buttons (*Aldric*, *Borin*, *Mirela*, *Old* Tobias) switch the keeper's look and name.
 - **In the kiting scenario** it shows the weapon and its draw time, "drawing" while the hero draws, the
@@ -252,7 +280,9 @@ template, never in `catalog.html`.
 |---|---|
 | Left click on floor | Walk there (A* pathfinding). Holding the button keeps walking toward the cursor. |
 | Left click on chest / door / urn / bones / gold / item / stairs | Walk to it and act on it: open, break, search, pick up, or descend. |
-| Left click on a Keeper of the Crypt | Walk up to it and open the market (see [Keepers of the Crypt](#keepers-of-the-crypt-the-market)); `Esc`, ✕ or walking away closes it. |
+| Left click on a Keeper of the Crypt | Walk up to it and open the market (see [Keepers of the Crypt](#keepers-of-the-crypt-the-market)); `Esc`, ✕ or walking away closes it. If the story gives it something to say, it talks first (see [Dialogue](#dialogue)). |
+| Left click on a character with something to say | Walk to its talking distance and start (or pick up) a conversation (see [Dialogue](#dialogue)). |
+| Click / tap on the dialogue panel | Show the whole line at once, then move on to the next; a click on a choice picks it. |
 | Double click / double tap on an item on the floor | Walk to it, pick it up and equip it at once; what it replaces goes into the pack slot it took. Needs a free pack slot, unless the item's equipment slot is empty (then it goes straight on). Potions are just picked up. |
 | Right click, or `Shift` + left click, or a tap while a finger rests on the attack button (touch) | Attack with the equipped weapon (see [Combat](#combat)). Hold to keep attacking. With fire bombs equipped: throw one at the monster or the spot (see [Fire bombs](#fire-bombs)). |
 | `I`, `C` or `Tab` | Toggle the equipment overlay (`Esc` closes it). |
@@ -309,8 +339,9 @@ opens the debug overlay (see [Version](#version)).
 
 Progress is saved in the browser's `localStorage` under one key, `crypt-of-endless-night.save`:
 `{ v: 1, last: <id of the hero played last>, heroes: { <id>: entry } }`, where an entry is
-`{ id, name, depth, lvl, saved: <timestamp>, hero: { name, lvl, xp, base, equip, inv, gold, hotkeys, kills, hp, look } }`
-(`look`: see [Hero looks](#hero-looks); missing in older saves, which means the original knight).
+`{ id, name, depth, lvl, saved: <timestamp>, hero: { name, lvl, xp, base, equip, inv, gold, hotkeys, kills, hp, look, story } }`
+(`look`: see [Hero looks](#hero-looks); missing in older saves, which means the original knight; `story`: the hero's
+story state, see [Dialogue](#dialogue); missing until the story first touches it).
 Items are plain data, so the hero's equipment, pack (potion stacks included) and quick keys are stored as they are.
 **Older saves** kept health potions as a counter (`hero.potions`) and a `{ type: 'potion' }` quick key; on loading,
 the counter becomes a health potion stack in the first free pack cell (if the pack is full, the stack is dropped
@@ -1290,7 +1321,10 @@ bind all things!": *gelu* frost, *cuncta* all things, *liga* bind), an AI voice 
 
 On every third depth (3, 6, 9, …) a **Keeper of the Crypt**, a living human merchant, keeps a stall in a quiet room of
 its own. It is an NPC: it never fights and nothing attacks it. Hovering shows its name; clicking it walks the hero up
-to it and opens the **market** (`openMarket`). The constants are `KEEPER` in the code.
+to it and opens the **market** (`openMarket`). If the story has a conversation for the keeper (ids `aldric`,
+`borin`, `mirela`, `tobias`; see [Dialogue](#dialogue)), the click starts that instead (from the keeper's talking
+distance), and the conversation can open the market (`market()`); a keeper can also start talking by itself. The
+constants are `KEEPER` in the code.
 
 - **The four keepers** (`KEEPERS`), one drawn at random for each stall (`look`):
   - **Aldric the Wanderer**, a travelling merchant in a green fur-trimmed cloak with a lantern: "Long road down here,
@@ -1339,7 +1373,8 @@ to it and opens the **market** (`openMarket`). The constants are `KEEPER` in the
     done. Equipped items never count.
 - **For sale** (`KEEPER.stock`, 4–6 items, `makeMarket`): gear of depth + 3 (`KEEPER.plus`) rolled like loot with a
   0.25 rarity boost, so mostly common items, with magic and rare ones if you're lucky. Buying costs the item's
-  value and needs a free pack cell. A bought item's cell stays empty.
+  value (less the keeper's story discount, if any: see [Dialogue](#dialogue)) and needs a free pack cell. A
+  bought item's cell stays empty.
 - **Your pack** shows every pack item with its sell price. Selling gives `KEEPER.sell` (25 %) of the value, for
   one at a time from a stack (or the whole stack), and clears quick keys bound to a sold item.
 - **Services:** **heal** to full life for `1 + 0.15 × depth` gold per missing life point (1.45 at depth 3, 1.9 at
@@ -1353,6 +1388,170 @@ to it and opens the **market** (`openMarket`). The constants are `KEEPER` in the
   For comparison, a level holds about 250 × depth gold (100 at depth 1, 370 at 3, 1300 at 6, 2400 at 9), so a hero
   reaches the first keeper with about 500 gold.
 - Nothing about the market is saved: a keeper's stock and wishes belong to its level.
+
+## Dialogue
+
+Characters talk to the hero through **conversations**: lines, choices that depend on what the hero has done and
+carries, and effects that change the game. The **story** is written in Markdown (`story/story.md`; nothing is
+written yet: the game's own story comes later) and compiled into JavaScript the game loads (`story/story.js`).
+`story/demo.md` is a worked example of every feature, played in the sandbox's **Dialogue** scenario (see
+[Sandbox](#sandbox)). Voice-over is planned (**TODO**: a recorded clip per line, played on the Voices bus).
+
+### Story files
+
+- **`story/*.md`** are the sources. **`node tools/story/build.js`** (from the game folder) compiles every one into
+  `story/story.js`: `var STORIES = { story: {…}, demo: {…} }`, one entry per file named after it. Conditions,
+  effects and `{…}` text become functions there. The build checks everything and writes nothing if anything is
+  wrong, listing each mistake with its file and line: an unknown speaker, character or jump target, a node nothing
+  jumps to, a setting it doesn't know, JavaScript that doesn't parse, or a line that is none of the forms below.
+  **After editing a story file, rebuild `story.js` and commit both.**
+- `index.html` loads `story/story.js` with a `<script src>` before its own script and plays `STORIES.story`
+  (`STORY`). Without the file (or with an empty story) nothing changes in the game. The sandbox's Dialogue
+  scenario switches `STORY` to `STORIES.demo`; every other scenario and **Normal game** switch it back.
+
+### The format
+
+A story file is ordinary Markdown, so it reads well on GitHub. Each line is one of these forms:
+
+| Form | Meaning |
+|---|---|
+| `# Title` | The document's title (ignored). |
+| `> text` | A note for the writer (ignored). So are `<!-- comments -->` and blank lines. |
+| `## Character: id` | A character's section: its settings (below), and optionally its own `### @leave` and `### @back` nodes. |
+| `## Conversation: id` | A conversation. Its settings come first, then its lines (the `start` node). |
+| `## Anything else` | A chapter heading: ends the section, nothing else. |
+| `- key: value` | A setting, right after the section's heading (see below). |
+| `### name` | A node of the conversation: a named place to jump to. `### @leave` and `### @back` are the reactions to walking away and coming back. |
+| `**Speaker:** text` | A line. The speaker is a character's id or name (or its first word: `Tobias` for *Old Tobias*), or `Hero` / `You`. |
+| ``1. text → target `do: code` `` | A choice. Numbered lines in a row form one set of choices; the target and the `do:` are optional (`->` works too). Without a target the conversation goes on after the choices. |
+| `` `do: code` `` | An effect: JavaScript run when the conversation reaches it. A fenced code block (```` ``` ````) is a longer effect. |
+| `→ target` | A jump: a node of this conversation, another conversation's id (it continues there), or `end`. |
+
+Any line, choice, effect or jump can start with a **condition**, `` `if expression` ``: it is skipped (a choice
+isn't offered) when the expression is false. **Text** can hold `{expression}`: `{name}` is the hero's name,
+`{depth}` the depth, `{N.price}` anything else (`\{` is a plain brace).
+
+**Character settings:**
+- `name:` the name shown (default: the character's game name: a keeper's name, a monster's own name such as
+  *Blighted Skeleton Warrior*, else the id);
+- `sprite:` the sheet its portrait is cut from (default: the sheet it is drawn with);
+- `starts: near N` (it starts a conversation itself when the hero is within N tiles and in sight) or `starts: click`
+  (it waits for a click: the default);
+- `talk:` the distance it talks at (3.5 tiles): a click walks the hero this close, and farther away the panel dims;
+- `leave:` beyond this distance the hero has walked away (6 tiles).
+
+**Conversation settings:**
+- `who:` the character it belongs to (required);
+- `` when: `expression` ``: it can only start while this holds;
+- `priority:` a number (default 0): of the conversations that can start, the highest priority plays, then the first
+  in the file;
+- `repeat`: it can play again (without it a conversation plays once);
+- `starts:` like the character's, for this conversation only (e.g. a first meeting that starts by itself, later
+  ones on a click).
+
+**Who is who.** A game entity answers to the first of its story ids that the story uses:
+- the Keepers of the Crypt: `aldric`, `borin`, `mirela`, `tobias`;
+- story NPCs (objects of type `npc`, placed by the sandbox for now): their own `char` id. They are drawn, shadowed
+  and depth-sorted like a keeper (`drawKeeper`, with their own sheet `sheet` at its scale), block their tile, and
+  show their name on hover;
+- monsters: their own `storyId` if one is set, then `boss` (any boss) or `champion` (any champion), then the type
+  (`skeleton`, `ghoul`, `spider`, `wraith`, `demon`).
+
+A character needs a `## Character:` section only for settings or its own reactions.
+
+**Example** (from `story/demo.md`):
+
+```
+## Conversation: tobias-again
+- who: tobias
+- when: `met('tobias')`
+- repeat
+- starts: click
+
+**Tobias:** Back for more, {name}?
+**Tobias:** `if N.discount` My offer stands: ten percent off everything.
+1. Show me your wares. `do: market()`
+2. `if gold >= 100 && !N.discount` Surely an old friend gets a better price? (100 gold) → bribe
+3. Nothing. Goodbye. → end
+
+### bribe
+`do: gold -= 100; N.discount = 0.2`
+**Tobias:** For an old friend? Twenty percent. Don't tell the others.
+```
+
+### The scope: what conditions and effects can use
+
+The expressions are JavaScript, run with these names in reach (`storyScope`):
+
+| Name | What it is |
+|---|---|
+| `P` | The **hero's property bag**: any values the story sets (`P.heardOfDragon = true`) and reads. |
+| `N` | This character's bag, kept with the hero (`N.discount`, `N.warned`): what it remembers about the hero. |
+| `name`, `npcName`, `depth`, `lvl`, `life` | The hero's name, the character's name, the depth, the hero's level, its life as a fraction (0–1). |
+| `gold` | The hero's gold; it can be set (`gold -= 100`, never below 0). |
+| `has(item, n = 1)`, `count(item)` | Whether the hero carries an item, how many. `item`: a potion or scroll (`health`, `ironskin`, `frost`), `firebomb`, or a gear base (`shortsword`, `ironhelm`, …; equipped ones count). |
+| `give(item, n = 1)`, `take(item, n = 1)` | Give items (into the pack, onto the floor if it is full; logged) or take them (`take` returns how many it took). |
+| `met(id)`, `seen(convId)` | How many conversations the hero has had with a character (default: this one), how often a conversation played. A conversation counts once it ends or is put aside. |
+| `heal()`, `xp(n)`, `log(text, color)`, `sound(name)` | Full life, experience, a log line, a sound effect. |
+| `market()` | End the conversation and open this keeper's market. |
+| `attack()` | This character, a monster, attacks (wakes and pursues the hero). |
+| `end()` | End the conversation. |
+| `hero`, `npc`, `G` | The hero, the character's game entity, the whole game state: anything else, at your own risk. |
+
+An expression that throws logs "Story error in <conversation>: …" (and the console has the details); a condition
+that throws counts as false.
+
+**Consequences in the game so far:** gold, items, life and experience (above); a monster's `attack()`; and a
+keeper's **discount**: its `N.discount` (0–0.9) lowers its prices (`buyPrice`), and the market shows "· 10 % off"
+next to the gold. More hooks are added as the story needs them.
+
+### How a conversation plays
+
+- **One at a time** (`DLG.c`). **The game keeps running**: monsters move, fires burn, the hero walks.
+- **Starting:** a character with `starts: near N` starts its first conversation that can start (by `when`,
+  `repeat` and priority, leaving out those that wait for a click) when the hero comes within N tiles and in its
+  line of sight (`updateDialogue` looks at the keepers, story NPCs and the monsters within 14 tiles). A **click**
+  on a character walks the hero to its `talk` distance, then picks up a conversation put aside with it, or starts
+  any conversation it has. A click on a keeper with nothing to say opens the market, as before. After a
+  conversation ends (or is put aside) its character waits 6 s before starting one of its own again (`DLG_T.cool`).
+- **Lines** appear letter by letter (55 a second, `DLG_T.cps`) and stay `1.6 s + 0.045 s × letters` (at most 7 s)
+  after that, then the conversation goes on by itself. A click on the panel shows the whole line at once; a second
+  click moves on. A line followed by choices shows them together, once the line is fully shown; the choices wait
+  for a click (numbers 1–9 are the quick keys, so choices are clicked or tapped). The chosen text goes into the
+  history as the hero's line.
+- **Walking away:** within `talk` (3.5 tiles) the conversation goes on normally; between `talk` and `leave` it still
+  goes on, with the panel dimmed. Beyond `leave` (6 tiles) the character **reacts**: its `@leave` node plays (the
+  conversation's own, else the character's). It can complain, call out a fact it didn't get to tell, offer a
+  discount, or change the bags. When the reaction ends, the conversation is **put aside** where it stopped:
+  `hero.story.susp[id] = { conv, node, i, hist }`, the line or choices that were showing and the history so far. A
+  reaction that jumps (`→ node`) goes on talking instead; it then stops quietly if the hero goes beyond
+  `leave × 1.6`. `→ end` in a reaction ends the conversation for good. Without a `@leave` node the conversation
+  is put aside quietly.
+- **Coming back:** the next time the conversation is picked up (the hero comes within `starts: near N` again, or
+  clicks the character), its `@back` node plays first ("Back, are you? Where was I…"), then the line or choices
+  that were showing come again and it goes on. The history is kept.
+- **The end:** when a conversation runs out of lines (or jumps to `end`, or `end()` / `market()`), the panel fades
+  out (0.45 s). The hero's death, the character's (a slain monster) or its disappearance end it at once. Going down
+  the stairs puts it aside quietly.
+
+### The panel
+
+`#dlg`, above the quick bar (on narrow screens just above the bottom HUD), is light on purpose: a thin gold border
+on a half-transparent dark background, 520 px wide at most, so the game stays in view. It holds:
+- the **portrait** of whoever speaks (56 px): the head and shoulders cut from the first idle frame of its sheet
+  facing south (the top 55 % of the figure's drawn pixels, found once per sheet, `dlgPortrait`); the hero's own when
+  the hero speaks;
+- the **history**: the earlier lines, small and dim, with the speaker's name (two lines show, fading at the top;
+  it scrolls back to the start of the conversation);
+- the **speaker's name** (gold, or pale blue for the hero) and the **current line**, appearing as it is spoken
+  (the rest of the line already takes its space, so the panel doesn't jump);
+- the **choices**, numbered, highlighted under the pointer.
+
+### Saving
+
+The hero carries its story (`hero.story`, one of the saved fields: see [Saving](#saving)): `{ P, N: { id: bag },
+seen: { convId: n }, met: { id: n }, susp: { id: … } }`. Like everything else it is saved on arrival at each new
+depth, so a reload goes back to the story as it was then. Exported heroes carry it.
 
 ## Equipment overlay
 
@@ -1451,6 +1650,7 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 
 ## HUD
 
+- **Dialogue panel** (`#dlg`): above the quick bar while a conversation plays; see [Dialogue](#dialogue).
 - **Hero life bar** (`drawHeroBar`, `HERO_BAR`): a bar over the hero's head, shown for 2 s after each hit
   (`hurtAt`, set in `damageHero`) and then fading out over 0.8 s, whatever the hero's life (low life included).
   It is styled apart from the monsters' flat 50 × 4 px bars: 50 × 6 px, rounded, with a thin gold frame
