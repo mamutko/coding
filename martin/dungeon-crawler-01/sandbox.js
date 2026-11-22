@@ -58,6 +58,7 @@
     <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
     <h2>Dragon</h2>
     <button class="sc" id="sbDragon"><b>The dragon's lair</b>Depth 13, the first depth with a dragon: you stand at the west end of its lair (20–23 tiles a side, four pillars, braziers, the sealed guardian's chest), and on the gold hoard in the middle Nythrakar, the Crypt Wyrm, sleeps. Come within 4.5 tiles, or hit it, and it wakes with a roar: it walks after you, turns its whole long body, and bites, breathes fire (it sets you burning), sweeps its tail at you when you stand behind it, and beats its wings to throw you back. Strike any part of it; the head takes ×1.5. Slain, it spills its hoard: rare and magic items along its body, gold, potions and fire bombs. The bar's buttons make it attack at once, or start the scenario again.</button>
+    <button class="sc" id="sbChest"><b>Guardian's chests</b>Depth 13, in the dragon's lair emptied of everything but six guardian's chests along its walls, all unsealed (no dragon, no guardians). Open them to see what a dragon's guardian's chest gives (a magic or rare item from 4 depths deeper, a normal chest's items, gold, and 3–5 scrolls of frost). Then play on: the rest of the level is the real game, with its monsters and the stairs down to depth 14.</button>
     <h2>Crossbows</h2>
     <button class="sc" id="sbXbow"><b>Crossbows</b>Depth 18, in the middle of the level's big room, with the three best ranged weapons: the Gilded Arbalest equipped (key 5: 62–104 a bolt, a long 1.4 s reload), the Heavy Crossbow (key 4) and the War Bow (key 2) to compare. Two skeletons, two ghouls and two Pit Demons sleep around you; a hit wakes one. The bar shows each weapon's damage, reload and draw, the last shot and a tally per weapon. Key 1 is your longsword.</button>
     <h2>Characters</h2>
@@ -244,6 +245,24 @@
     G.monsters = G.monsters.filter(mo => mo.parts || Math.hypot(mo.x - h.x, mo.y - h.y) > 28);
     start('dragon'); log('Test: the dragon\'s lair. Nythrakar sleeps on its hoard.', '#7fe08a');
   };
+  // Guardian's chests: the dragon's lair at depth 13 emptied of everything (dragon, monsters, pillars, braziers,
+  // skull piles, hoard) and given 6 unsealed guardian's chests (each with 3-5 scrolls of frost) along its north and west
+  // walls; the level has no boss, so none is sealed. The rest of the level is left as built.
+  $('sbChest').onclick = async () => {
+    $('sbChest').disabled = true; await loadDragonArt(); $('sbChest').disabled = false;
+    testHero(DRAGON_FROM);
+    const m = G.map, h = G.hero, r = m.bossRoom;
+    const inR = o => o.x >= r.x && o.x < r.x + r.w && o.y >= r.y && o.y < r.y + r.h;
+    G.monsters = G.monsters.filter(mo => !mo.parts && !mo.bossRoom); m.boss = null; m.hoard = null;
+    for (const o of G.objects) if (inR(o)) m.block[o.y * m.w + o.x] = 0;
+    G.objects = G.objects.filter(o => !inR(o));
+    const wallAt = (x, y) => m.t[y * m.w + x] === T_WALL, spots = [];
+    for (let x = r.x + 2; x <= r.x + r.w - 3; x += 3) if (wallAt(x, r.y - 1) && floorAt(x, r.y)) spots.push([x, r.y]);
+    for (let y = r.y + 3; y <= r.y + r.h - 3; y += 3) if (wallAt(r.x - 1, y) && floorAt(r.x, y)) spots.push([r.x, y]);
+    for (const [x, y] of spots.slice(0, 6)) { G.objects.push({ type: 'chest', x, y, used: false, block: true, boss: true, frost: ri(3, 5) }); m.block[y * m.w + x] = 1; }
+    h.x = r.x + 3.5; h.y = r.y + 3.5; h.path = []; G.camSnap = true;
+    start(); log('Test: a lair of unsealed guardian\'s chests. Open them, then play on.', '#7fe08a');
+  };
   $('sbDragonActs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; b.blur();
     if (b.dataset.dact === 'again') return $('sbDragon').onclick();
     const dr = G.monsters.find(mo => mo.parts && !mo.dead); if (dr) { dr.sleep = false; dr.state = 'chase'; dgStart(dr, b.dataset.dact); } });
@@ -414,7 +433,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbDragon', 'sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbXbow', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
+  const SC = ['sbDragon', 'sbChest', 'sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbXbow', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
   // the same, but the picker covers it); errors thrown later are listed there too

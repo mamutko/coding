@@ -172,6 +172,14 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     biting, breathing fire, sweeping its tail, beating its wings, roaring, frozen, slain), its life, whether the hero
     burns, the zoom and the frame rate, and has buttons that make it attack at once (**Bite**, **Breath**, **Tail**,
     **Wings**, **Roar**; it wakes) and **Again**, which builds the scenario anew.
+  - **Guardian's chests** (depth 13, the first dragon depth): the game's own dragon's lair emptied: the dragon and
+    every boss-room monster removed, the level's boss cleared (`map.boss = null`, so no chest is sealed) and the hoard
+    gone, and every object in the room taken away (braziers, pillars, skull piles, the chest). In their place up to 6
+    guardian's chests (`boss: true`, each with 3–5 scrolls of frost: a dragon lair's chest), on every 3rd tile of the
+    north wall (from 2 tiles in) and then of the west wall (from 3 tiles in), where solid wall is behind them. The hero
+    starts 3 tiles in from the room's north-west corner. Nothing else on the level is changed, so after the chests the
+    level plays as the real game (its other monsters, the stairs down to depth 14). The bar shows the music, as in the
+    music scenarios.
 - **Kiting:**
   - **Kiting with a bow** (depth 7, regenerated until the level has a big room): the test hero holds a common
     Hunting Bow (about 3 arrows per spider and 15 per Pit Demon there; the longsword in the pack, key 1).
