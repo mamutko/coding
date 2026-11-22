@@ -22,7 +22,7 @@ const root = path.resolve(__dirname, '../..'), out = path.join(root, 'art/charac
   const res = await p.evaluate(() => {
     const CW = 384, CH = 512, DIRS = ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'];
     Object.assign(COL, { hi: '#e2e2e2', mid: '#9a9a9a', lo: '#454545', rim: '#5a5a5a', spike: '#c8c8c8', bone: '#555', claw: '#eee' });
-    O.mode = 'still'; O.spine = 'body'; O.size = 1;
+    O.mode = 'still'; O.spine = 'body'; O.size = 1; O.look = 'shapes';
     const parts = {
       torso: { scale: 1.6, jaw: 0, nodes: [SH - 1, SH, SH + 1, SH + 2, HIPS, HIPS + 1] },
       head: { scale: 2.4, jaw: 0, nodes: [0] },
@@ -63,7 +63,7 @@ async function walk(b, p) {
   const res = await p.evaluate(W => {
     const CW = 384, CH = 512, ALL = ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'];
     Object.assign(COL, { hi: '#e2e2e2', mid: '#9a9a9a', lo: '#454545', rim: '#5a5a5a', spike: '#c8c8c8', bone: '#555', claw: '#eee' });
-    O.mode = 'still'; O.spine = 'body'; O.size = 1; O.legs = true;
+    O.mode = 'still'; O.spine = 'body'; O.size = 1; O.look = 'shapes'; O.legs = true;
     const meta = { cell: [CW, CH], cols: 4, rows: 2, frames: 8, scale: W.scale, cycle: W.cycle, fpt: 8 / W.cycle, duty: W.duty,
       note: 'anchor = the ground point under the torso centre, the same in every cell of a direction', anchor: {} }, urls = {};
     for (const d of W.dirs) {

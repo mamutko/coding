@@ -9,7 +9,8 @@ For each frame, the moving region is the guide's legs in that frame and in the m
 painting doesn't follow the guide exactly) and softened by --soft px; inside it the frame's own pixels are kept, outside
 it the master frame's. Above a still line (--line: that share of the way down from the top of the body to the belly, both
 from the guide's body without legs, which every frame shares) nothing moves at all, so the back, the spike row and the
-upper flanks are the master's in every frame. The master frame is copied unchanged.
+upper flanks are the master's in every frame. The master frame is copied unchanged. Last, small detached bits (specks the
+image model left near the feet: under 1.5 % of the figure) are removed from every frame.
 """
 import argparse, os
 import numpy as np
@@ -17,6 +18,22 @@ from PIL import Image, ImageFilter
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..', 'art', 'characters', 'dragon')
 CW, CH = 384, 512
+
+
+def blobs(mask):
+    """Connected regions (8-neighbourhood) of a boolean mask: a list of (ys, xs) index arrays."""
+    seen, h, w, out = np.zeros_like(mask), mask.shape[0], mask.shape[1], []
+    for y0, x0 in zip(*np.nonzero(mask)):
+        if seen[y0, x0]: continue
+        seen[y0, x0] = True; stack, ys, xs = [(y0, x0)], [], []
+        while stack:
+            y, x = stack.pop(); ys.append(y); xs.append(x)
+            for dy in (-1, 0, 1):
+                for dx in (-1, 0, 1):
+                    v, u = y + dy, x + dx
+                    if 0 <= v < h and 0 <= u < w and mask[v, u] and not seen[v, u]: seen[v, u] = True; stack.append((v, u))
+        out.append((np.array(ys), np.array(xs)))
+    return out
 
 
 def cells(im):
@@ -54,6 +71,10 @@ def main():
         pa, pm = fr[..., 3:] / 255, master[..., 3:] / 255
         alpha = pa * m + pm * (1 - m)
         rgb = (fr[..., :3] * pa * m + master[..., :3] * pm * (1 - m)) / np.maximum(alpha, 1e-6)
+        parts = blobs(alpha[..., 0] > 0.1)   # drop specks: detached bits under 1.5 % of the figure
+        big = max(len(ys) for ys, xs in parts)
+        for ys, xs in parts:
+            if len(ys) < 0.015 * big: alpha[ys, xs] = 0
         cell = np.concatenate([rgb, alpha * 255], axis=2).clip(0, 255).astype(np.uint8)
         out.paste(Image.fromarray(cell, 'RGBA'), ((f % 4) * CW, (f // 4) * CH))
     dst = os.path.join(ROOT, 'paint', 'walk', a.dir + '.steady.png')

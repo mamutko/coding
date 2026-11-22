@@ -111,5 +111,9 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
       4. Polish: sounds, death sequence, balance, README and versions.
     - **Decided:** sandbox only (above); a body of **articulated parts** (the recommended option below); it
       **stays on the ground** (no flying, takeoff or landing).
-    - **Step 1 is done:** `dragon-prototype.html` (see the README's file list), with placeholder shapes. Next:
-      tune proportions and movement in it, then step 2 (concept art).
+    - **Step 1 is done:** `dragon-prototype.html` (see the README's file list), with placeholder shapes.
+    - **Step 2 is done:** the crypt dragon (concept 2) painted in the game's style (`art/characters/dragon/`): the
+      body with its legs as a walking sprite (the trunk alone looked like a grub, so the legs are painted, not IK),
+      the head (mouth closed and open), the wing, a bone spike, the tail club, and the body's scales for the neck and
+      tail; in the prototype as *Look: Painted*. Next: step 3, the engine (the multi-part entity in `index.html`, the
+      lair and a sandbox scenario).

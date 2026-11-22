@@ -66,7 +66,10 @@
 <div id="boss"><div class="name">Vharzul the Ember Wyrm</div><div class="bar"><div class="fill" id="bossFill"></div></div></div>
 <div id="panel" class="closed">
   <header><h1>Crypt Dragon</h1><button class="btn" id="toggle" aria-expanded="false">Options</button></header>
-  <p class="hint">Placeholder shapes, to tune how a big dragon made of parts moves and sorts. Tap the floor to walk, tap the dragon to strike it (the head takes ×1.5). Walk close to wake it.</p>
+  <p class="hint">A big dragon made of parts, to tune how it moves and sorts. Tap the floor to walk, tap the dragon to strike it (the head takes ×1.5). Walk close to wake it.</p>
+  <div class="row"><div class="lab">Look</div>
+    <div class="seg" data-opt="look"><button data-v="painted">Painted</button><button data-v="shapes">Shapes</button></div>
+    <p class="desc" id="lookD"></p></div>
   <div class="row"><div class="lab">The dragon</div>
     <div class="seg" data-opt="mode"><button data-v="fight">Fights</button><button data-v="follow">Follows</button><button data-v="still">Stays</button></div>
     <p class="desc" id="modeD"></p></div>
@@ -121,7 +124,7 @@ const S3 = (x, y, z) => [(x - y) * HW, (x + y) * HH - z];
 const MW = 26, MH = 24;
 const isWall = (x, y) => x <= 0 || y <= 0 || x >= MW - 1 || y >= MH - 1;
 
-const SRC = { floor: 'assets/floor.jpg', wall: 'assets/wall.jpg', dirt: 'assets/dirt.jpg', props: 'assets/props.webp', hero: 'assets/hero.webp' };
+const SRC = { floor: 'assets/floor.jpg', wall: 'assets/wall.jpg', dirt: 'assets/dirt.jpg', props: 'assets/props.webp', hero: 'assets/hero.webp', dragon: 'assets/dragon.webp' };
 const HERO_MD = { fw: 144, fh: 152, frames: 8, idle: 3, footY: 128, fpt: 5 };
 const PROPS = { brazier: [571, 0, 104, 167], banner: [1593, 0, 84, 206], pillar: [1679, 0, 98, 191], skullpile: [1425, 0, 166, 136] };
 const PROP_STYLE = { brazier: [0.62, 10], banner: [0.66, 6], pillar: [0.72, 8], skullpile: [0.42, 8] };
@@ -135,8 +138,10 @@ const objects = [
 const COLL = objects.map(o => ({ x: o.x + 0.5, y: o.y + 0.5, r: o.k === 'pillar' ? 0.42 : 0.36 }));
 const HOARD = { x: 13, y: 9.5, r: 3.3 };
 
-const O = { mode: 'fight', spine: 'body', sort: 'part', size: 1, speed: 1.9, fz: 0.7, light: 'game', wings: true, legs: true, shadows: true, debug: false, sound: true };
+const O = { look: 'painted', mode: 'fight', spine: 'body', sort: 'part', size: 1, speed: 1.9, fz: 0.7, light: 'game', wings: true, legs: true, shadows: true, debug: false, sound: true };
 const DESC = {
+  painted: 'The crypt dragon: its body walks on painted legs; head, wings, neck and tail are painted pieces that move on their own.',
+  shapes: 'Placeholder shapes, with legs that step on their own (two-bone IK).',
   fight: 'Asleep on its hoard until you come near; then it roars, follows you and attacks.',
   follow: 'Awake, follows you at a distance and never attacks: to watch the walk, the turns and the legs.',
   still: 'Stays where it is; only the neck and head follow you.',
@@ -157,6 +162,10 @@ const COL = { hi: '#a8603f', mid: '#5c261c', lo: '#1a0806', rim: '#30120c', spik
 const WING_SPREAD = [[0, 0, 0], [0.25, 1.05, 0.38], [0.45, 2.05, 0.6], [-0.25, 3.4, 0.28], [-1.05, 2.9, 0.05], [-1.75, 2.0, -0.05], [-2.0, 0.45, 0]];
 const WING_FOLD = [[0, 0, 0], [-0.3, 0.3, 0.45], [0.12, 0.4, 0.9], [-1.25, 0.5, 0.78], [-1.55, 0.48, 0.64], [-1.85, 0.42, 0.52], [-1.95, 0.3, 0.36]];
 const WING_PANELS = [[0, 1, 2, 3], [2, 3, 4], [2, 4, 5], [2, 5, 6, 0]];
+// The painted crypt dragon (art/characters/dragon/): assets/dragon.webp's layout, written by tools/dragon/build_assets.py
+// dragon-art:start
+const DRAGON_ART = {"walk":{"w":231,"h":244,"anchor":[124.3,170.1],"fpt":6.666666666666667,"frames":8,"dirs":{"S":[[466,0,231,244],[699,0,231,244],[932,0,231,244],[1165,0,231,244],[1398,0,231,244],[1631,0,231,244],[0,330,231,244],[233,330,231,244]],"SW":[[466,330,231,244],[699,330,231,244],[932,330,231,244],[1165,330,231,244],[1398,330,231,244],[1631,330,231,244],[0,576,231,244],[233,576,231,244]],"W":[[466,576,231,244],[699,576,231,244],[932,576,231,244],[1165,576,231,244],[1398,576,231,244],[1631,576,231,244],[0,822,231,244],[233,822,231,244]],"NW":[[466,822,231,244],[699,822,231,244],[932,822,231,244],[1165,822,231,244],[1398,822,231,244],[1631,822,231,244],[0,1068,231,244],[233,1068,231,244]],"N":[[466,1068,231,244],[699,1068,231,244],[932,1068,231,244],[1165,1068,231,244],[1398,1068,231,244],[1631,1068,231,244],[0,1314,231,244],[233,1314,231,244]]}},"head":{"w":160,"h":191,"z":72,"anchor":[[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1]],"closed":[[466,1314,160,191],[628,1314,160,191],[790,1314,160,191],[952,1314,160,191],[1114,1314,160,191],[1276,1314,160,191],[1438,1314,160,191],[1600,1314,160,191]],"open":[[1762,1314,160,191],[0,1560,160,191],[162,1560,160,191],[324,1560,160,191],[486,1560,160,191],[648,1560,160,191],[810,1560,160,191],[972,1560,160,191]]},"wing":{"points":[[13.3,70.3],[146.3,38.7],[273.0,13.3],[444.0,102.0],[380.7,203.3],[266.7,292.0],[70.3,323.7]],"panels":[[0,1,2,3],[2,3,4],[2,4,5],[2,5,6,0]],"rect":[0,0,464,328]},"spike":{"w":52,"h":70,"rect":[1304,1560,52,70]},"club":{"w":70,"h":90,"note":"points left; the tail joins at the right edge","rect":[1134,1560,70,90]},"scales":{"w":96,"h":72,"rect":[1206,1560,96,72]}};
+// dragon-art:end
 
 const $ = id => document.getElementById(id);
 const cv = $('cv'), ctx = cv.getContext('2d');
@@ -328,7 +337,7 @@ function makeDragon() {
   const n = PROFILE.map(([kind, r, s]) => ({ kind, r: r * k, s: s * k, R: r * k * P, x: 0, y: 0, z: 0, flash: 0, key: 0 }));
   DR = { n, cx: 13.2, cy: 9.2, th: 2.6, turn: 0, v: 0, na: 0, ha: 2.6, look: [0, 0], headZ: 24 * k, headZT: 24 * k, jaw: 0, jawT: 0,
     lunge: 0, wingF: 0, wingT: 0, phi: 0, act: null, cd: 1.5, state: 'sleep', t: 0, hp: 1800, max: 1800, dead: null, flash: 0,
-    sway: n.map(() => 0), bend: n.map(() => 0), trail: [], legs: [], eyes: 0.15, sweepSide: 1, vel: [0, 0], breathOff: 0 };
+    sway: n.map(() => 0), bend: n.map(() => 0), trail: [], legs: [], eyes: 0.15, sweepSide: 1, vel: [0, 0], breathOff: 0, walk: 0 };
   // a lying pose: the torso along the heading, neck and tail curled round the hoard
   const h = [Math.cos(DR.th), Math.sin(DR.th)];
   if (O.spine === 'snake') {   // the head is the driver; the trail runs back from it, curled
@@ -572,6 +581,7 @@ function updateDragon(dt) {
   DR.wingF += (DR.wingT - DR.wingF) * (1 - Math.exp(-dt * 5));
   layout(dt);
   updateLegs(dt);
+  if (DRAGON_ART) DR.walk += (Math.abs(DR.v) + Math.abs(DR.turn) * 0.9) * dt * DRAGON_ART.walk.fpt / O.size;   // walk frames advance with the distance walked (turning on the spot steps too)
   // the hero can't walk through the dragon
   if (!hero.dead) for (const q of n) { const dx = hero.x - q.x, dy = hero.y - q.y, d = Math.hypot(dx, dy), m = q.r + hero.r; if (d < m && d > 1e-6) { hero.x = q.x + dx / d * m; hero.y = q.y + dy / d * m; } }
   pushOut(hero, hero.r);
@@ -720,6 +730,15 @@ function drawWingPanel(c, pts, pi) {
 function dragonDrawables(dl) {
   const n = DR.n, one = O.sort === 'one', K1 = (n[SH].x + n[SH].y + n[HIPS].x + n[HIPS].y) / 2;
   const key = k => one ? K1 + k * 1e-4 : k;
+  if (painted()) {   // the painted body (with its legs) is one sprite at the torso's middle; the rest are pieces
+    for (let i = 0; i < n.length; i++) if (i < SH || i > HIPS) dl.push({ k: key(n[i].x + n[i].y), f: c => drawPainted(c, i) });
+    dl.push({ k: key(K1), f: drawBodySprite });
+    if (O.wings) for (const side of [1, -1]) {
+      const pts = wingPoints(side);
+      WING_PANELS.forEach((ids, pi) => { let kk = 0; for (const i of ids) kk += pts[i].x + pts[i].y; dl.push({ k: key(kk / ids.length), f: c => drawWingPainted(c, pts, pi) }); });
+    }
+    return;
+  }
   for (let i = 0; i < n.length; i++) dl.push({ k: key(n[i].x + n[i].y), f: c => drawNode(c, i) });
   if (O.legs) for (const L of DR.legs) {
     const fr = legFrame(L); dl.push({ k: key((fr.attach[0] + fr.attach[1] + L.foot[0] + L.foot[1]) / 2 + 0.02), f: c => drawLeg(c, L) });
@@ -729,13 +748,105 @@ function dragonDrawables(dl) {
     WING_PANELS.forEach((ids, pi) => { let kk = 0; for (const i of ids) kk += pts[i].x + pts[i].y; dl.push({ k: key(kk / ids.length), f: c => drawWingPanel(c, pts, pi) }); });
   }
 }
+// ---------- the painted dragon (Look: Painted) ----------
+const painted = () => O.look === 'painted' && DRAGON_ART && IMG.dragon;
+const MIRROR = { 5: 'NW', 6: 'W', 7: 'SW' }, PAINTED_DIRS = ['S', 'SW', 'W', 'NW', 'N'];
+let SCALE_CANVAS = null;
+function scalePat(c) {   // the neck and tail's scales: a flank patch of the body painting, tiling
+  if (!SCALE_CANVAS) { const r = DRAGON_ART.scales.rect; SCALE_CANVAS = document.createElement('canvas'); SCALE_CANVAS.width = r[2]; SCALE_CANVAS.height = r[3]; SCALE_CANVAS.getContext('2d').drawImage(IMG.dragon, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]); }
+  const m = c.__scalePat || (c.__scalePat = c.createPattern(SCALE_CANVAS, 'repeat')); return m;
+}
+function flashOf(q) { return Math.min(0.7, (q && q.flash > 0 ? q.flash / 0.18 * 0.55 : 0) + DR.flash * 2); }
+function sprite(c, r, x, y, w, h, flip, fl, dk = 0) {   // an atlas piece, mirrored if flip, flashed white when hit
+  c.save(); c.translate(x, y); if (flip) { c.scale(-1, 1); x = 0; }
+  const dx = flip ? -w : 0; c.drawImage(IMG.dragon, r[0], r[1], r[2], r[3], flip ? -w + w : 0, 0, w, h);
+  if (fl > 0) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = fl; c.drawImage(IMG.dragon, r[0], r[1], r[2], r[3], 0, 0, w, h); }
+  c.restore(); void dx; void dk;
+}
+function pshade(c, path, g, q) { path(); c.fillStyle = g; c.fill(); shadeOver(c, q, path); }
+function pblob(c, x, y, R, q) {
+  const p = scalePat(c); p.setTransform(new DOMMatrix().translate(x, y).scale(R / 40));
+  const path = () => { c.beginPath(); c.arc(x, y, R, 0, 7); };
+  path(); c.fillStyle = p; c.fill();
+  const g = c.createRadialGradient(x - R * 0.35, y - R * 0.45, R * 0.1, x, y, R * 1.05);
+  g.addColorStop(0, 'rgba(225,230,240,0.16)'); g.addColorStop(0.55, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.6)');
+  pshade(c, path, g, q);
+}
+function pcapsule(c, a, b) {
+  const [ax, ay] = S3(a.x, a.y, a.z), [bx, by] = S3(b.x, b.y, b.z), dx = bx - ax, dy = by - ay, l = Math.hypot(dx, dy);
+  if (l < 1) return;
+  const nx = -dy / l, ny = dx / l, ra = a.R * 0.93, rb = b.R * 0.93, up = ny < 0;
+  const path = () => { c.beginPath(); c.moveTo(ax + nx * ra, ay + ny * ra); c.lineTo(bx + nx * rb, by + ny * rb); c.lineTo(bx - nx * rb, by - ny * rb); c.lineTo(ax - nx * ra, ay - ny * ra); c.closePath(); };
+  const p = scalePat(c); p.setTransform(new DOMMatrix().translate(ax, ay).rotate(Math.atan2(dy, dx) * 180 / Math.PI).scale(a.R / 40));
+  path(); c.fillStyle = p; c.fill();
+  const g = c.createLinearGradient(ax + nx * ra, ay + ny * ra, ax - nx * ra, ay - ny * ra);
+  g.addColorStop(0, up ? 'rgba(225,230,240,0.14)' : 'rgba(0,0,0,0.6)'); g.addColorStop(0.45, 'rgba(0,0,0,0.05)'); g.addColorStop(1, up ? 'rgba(0,0,0,0.6)' : 'rgba(225,230,240,0.14)');
+  pshade(c, path, g, a);
+}
+function drawPainted(c, i) {
+  const n = DR.n, q = n[i], k = O.size;
+  if (i === 0) return drawHeadSprite(c, q);
+  if (i === n.length - 1) return drawClub(c, q, n[i - 1]);
+  if (i !== HIPS + 1 || true) pcapsule(c, q, n[i - 1]);
+  const [x, y] = S3(q.x, q.y, q.z);
+  pblob(c, x, y, q.R, q);
+  if (i >= 2 && i < n.length - 3) {   // a bone spike on top, leaning toward the tail
+    const f = bodyDir(i), back = (f[0] - f[1]) > 0, A = DRAGON_ART.spike, h = Math.max(10, q.R * 0.95), w = A.w / A.h * h;
+    sprite(c, A.rect, back ? x + w * 0.45 : x - w * 0.55, y - q.R * 0.72 - h, w, h, back, 0);
+    void k;
+  }
+}
+function drawClub(c, q, p) {   // the tail's bony club, pointing along the tail
+  const [x, y] = S3(q.x, q.y, q.z), [px, py] = S3(p.x, p.y, p.z), a = Math.atan2(y - py, x - px), A = DRAGON_ART.club, w = 58 * O.size, h = A.h / A.w * w;
+  pcapsule(c, q, p);
+  c.save(); c.translate(x, y); c.rotate(a + Math.PI); if (Math.cos(a + Math.PI) < 0) c.scale(1, -1);   // keep its spikes up
+  c.drawImage(IMG.dragon, A.rect[0], A.rect[1], A.rect[2], A.rect[3], -w * 0.55, -h / 2, w, h);
+  const fl = flashOf(q); if (fl > 0) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = fl; c.drawImage(IMG.dragon, A.rect[0], A.rect[1], A.rect[2], A.rect[3], -w * 0.55, -h / 2, w, h); }
+  c.restore();
+}
+function drawHeadSprite(c, q) {
+  const A = DRAGON_ART.head, k = O.size, d = dirOf(Math.cos(DR.ha), Math.sin(DR.ha)), st = DR.jaw > 0.45 ? 'open' : 'closed', r = A[st][d], an = A.anchor[d];
+  const [sx, sy] = iso(q.x, q.y), dz = q.z - A.z * k;
+  sprite(c, r, sx - an[0] * k, sy - dz - an[1] * k, r[2] * k, r[3] * k, false, flashOf(q));
+}
+function drawBodySprite(c) {
+  const A = DRAGON_ART.walk, n = DR.n, k = O.size, d = dirOf(Math.cos(DR.th), Math.sin(DR.th)), name = PAINTED_DIRS[d] || MIRROR[d], flip = d > 4;
+  const r = A.dirs[name][Math.floor(DR.walk) % 8], cx = (n[SH].x + n[HIPS].x) / 2, cy = (n[SH].y + n[HIPS].y) / 2, [sx, sy] = iso(cx, cy);
+  const z0 = (n[SH].R + 26 * k + n[HIPS].R + 20 * k) / 2, dz = (n[SH].z + n[HIPS].z) / 2 - z0;   // sinks when it dies, breathes a little
+  const fl = Math.max(flashOf(n[SH]), flashOf(n[SH + 1]), flashOf(n[SH + 2]), flashOf(n[HIPS]));
+  c.save(); c.translate(sx, sy - dz); if (flip) c.scale(-1, 1);
+  c.drawImage(IMG.dragon, r[0], r[1], r[2], r[3], -A.anchor[0] * k, -A.anchor[1] * k, r[2] * k, r[3] * k);
+  if (fl > 0) { c.globalCompositeOperation = 'lighter'; c.globalAlpha = fl; c.drawImage(IMG.dragon, r[0], r[1], r[2], r[3], -A.anchor[0] * k, -A.anchor[1] * k, r[2] * k, r[3] * k); }
+  c.restore();
+}
+function texTri(c, rect, s, d) {   // one triangle of the wing painting (s: points in it) onto the screen triangle d
+  const [x0, y0] = s[0], [x1, y1] = s[1], [x2, y2] = s[2], [u0, v0] = d[0], [u1, v1] = d[1], [u2, v2] = d[2];
+  const den = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0); if (Math.abs(den) < 1e-6) return;
+  const a = ((u1 - u0) * (y2 - y0) - (u2 - u0) * (y1 - y0)) / den, b = ((v1 - v0) * (y2 - y0) - (v2 - v0) * (y1 - y0)) / den;
+  const cc = ((u2 - u0) * (x1 - x0) - (u1 - u0) * (x2 - x0)) / den, dd = ((v2 - v0) * (x1 - x0) - (v1 - v0) * (x2 - x0)) / den;
+  const e = u0 - a * x0 - cc * y0, f = v0 - b * x0 - dd * y0;
+  const mx = (u0 + u1 + u2) / 3, my = (v0 + v1 + v2) / 3, grow = p => { const dx = p[0] - mx, dy = p[1] - my, l = Math.hypot(dx, dy) || 1; return [p[0] + dx / l * 1.2, p[1] + dy / l * 1.2]; };
+  c.save(); c.beginPath(); d.map(grow).forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); c.clip();
+  c.transform(a, b, cc, dd, e, f); c.drawImage(IMG.dragon, rect[0], rect[1], rect[2], rect[3], 0, 0, rect[2], rect[3]); c.restore();
+}
+function drawWingPainted(c, pts, pi) {
+  const A = DRAGON_ART.wing, ids = WING_PANELS[pi], tris = ids.length === 4 ? [[ids[0], ids[1], ids[2]], [ids[0], ids[2], ids[3]]] : [ids];
+  const out = ids.map(i => S3(pts[i].x, pts[i].y, pts[i].z));
+  for (const t of tris) texTri(c, A.rect, t.map(i => A.points[i]), t.map(i => S3(pts[i].x, pts[i].y, pts[i].z)));
+  // the panel's tilt toward the light darkens it a little
+  const a = pts[ids[0]], b = pts[ids[1]], d = pts[ids[2]], ux = (b.x - a.x) * P, uy = (b.y - a.y) * P, uz = b.z - a.z, vx = (d.x - a.x) * P, vy = (d.y - a.y) * P, vz = d.z - a.z;
+  let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const nl = Math.hypot(nx, ny, nz) || 1;
+  const lit = Math.abs(nz / nl * 0.8 + (nx + ny) / nl * 0.3);
+  const path = () => { c.beginPath(); out.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); };
+  path(); c.fillStyle = `rgba(0,0,0,${(1 - lit) * 0.4})`; c.fill(); shadeOver(c, null, path);
+}
 function drawDragonShadows() {
   // all parts into one mask (overlaps don't double up), then drawn once at 45 %
   const cw = cv.width, ch = cv.height;
   sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, cw, ch); sctx.setTransform(...TF);
   const n = DR.n;
   for (const q of n) { const [x, y] = iso(q.x, q.y), r = q.R * (1 + q.z / 240); softShadow(sctx, x, y, r, r * 0.5, 1, 0.6); }
-  if (O.legs) for (const L of DR.legs) { const [x, y] = iso(L.foot[0], L.foot[1]); softShadow(sctx, x, y, 14 * O.size, 7 * O.size, 1, 0.5); }
+  if (O.legs && !painted()) for (const L of DR.legs) { const [x, y] = iso(L.foot[0], L.foot[1]); softShadow(sctx, x, y, 14 * O.size, 7 * O.size, 1, 0.5); }
   if (O.wings && DR.wingF > 0.05) for (const side of [1, -1]) {
     const pts = wingPoints(side);
     sctx.globalAlpha = DR.wingF * 0.7;
@@ -886,13 +997,14 @@ function syncUI() {
   $('size').value = O.size; $('sizeV').textContent = '×' + O.size.toFixed(2) + ' (' + (7.8 * O.size).toFixed(1) + ' tiles long)';
   $('speed').value = O.speed; $('speedV').textContent = O.speed.toFixed(1) + ' tiles/s (the hero 4.2)';
   $('fz').value = O.fz; $('fzV').textContent = '×' + O.fz.toFixed(2);
-  $('modeD').textContent = DESC[O.mode]; $('spineD').textContent = DESC[O.spine]; $('sortD').textContent = DESC[O.sort];
+  $('lookD').textContent = DESC[O.look]; $('modeD').textContent = DESC[O.mode]; $('spineD').textContent = DESC[O.spine]; $('sortD').textContent = DESC[O.sort];
   for (const k of ['wings', 'legs', 'shadows', 'debug', 'sound']) $(k).checked = O[k];
 }
 for (const seg of document.querySelectorAll('.seg')) seg.addEventListener('click', ev => {
   const b = ev.target.closest('button'); if (!b) return;
   const k = seg.dataset.opt, was = O[k]; O[k] = b.dataset.v; syncUI();
   if (k === 'spine' && was !== O[k]) makeDragon();
+  if (k === 'look') { const L = $('legs').closest('label'); L.style.opacity = O.look === 'painted' ? 0.5 : 1; }
   if (k === 'mode' && !DR.dead) { if (O.mode !== 'fight' && DR.state === 'sleep') { DR.state = 'awake'; DR.eyes = 1; } DR.act = null; }
 });
 for (const b of document.querySelectorAll('[data-act]')) b.onclick = () => { wakeAudio(); if (DR.dead) return; if (DR.state === 'sleep') DR.state = 'awake'; if (b.dataset.act === 'tail' && O.spine === 'snake') { note('The tail sweep needs the Body leads spine.'); return; } startAct(b.dataset.act); };
