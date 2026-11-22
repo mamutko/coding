@@ -47,9 +47,9 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
       with a hero skill.
 
 17. **Dragon** — a big dragon boss with a large, articulated body (planned, not started).
-    - **Where:** the crypt is endless, so there is no deepest level. Proposal: the boss of every 8th depth from
-      depth 16 (the 8 level names cycle there, so it reads as the end of a chapter). Alternative: a one-time
-      "final" depth, which would change the game's endless structure.
+    - **Where:** decided — **sandbox only** for now: the dragon lives in its own sandbox scenario (a lair the
+      test hero starts in) and does not appear in the game's depths. Placing it in the game (e.g. the boss of
+      every 8th depth from 16, where the level names cycle) can be decided later.
     - **Why one big sprite doesn't fit the engine:**
       - *Depth sorting* — every drawable has one sort key (`x + y`) and is drawn whole. A dragon 6–8 tiles long
         would be drawn entirely in front of or behind the hero, walls and pillars, so the wrong part covers them.
@@ -109,5 +109,5 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
       3. Engine: the multi-part entity type (drawing, sort keys, hit areas, collision, shadow); then lair
          generation, AI and attacks, and a sandbox scenario starting in the lair.
       4. Polish: sounds, death sequence, balance, README and versions.
-    - **Open decisions:** which depth(s); articulated parts (recommended) or the rooted single sprite; whether
+    - **Open decisions:** articulated parts (recommended) or the rooted single sprite; whether
       the dragon flies (adds takeoff and landing) or stays on the ground.
