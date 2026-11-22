@@ -417,7 +417,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 94;
+const VERSION = 95;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -585,7 +585,7 @@ function musicLoad(name) {
       MUSIC.loading[name] = false;
     }).catch(() => { MUSIC.loading[name] = false; });
 }
-const demonLevel = () => !!(G && G.map && G.map.boss && G.map.boss.type === 'demon');
+const demonLevel = () => !!(G && G.map && G.map.boss && (G.map.boss.type === 'demon' || G.map.boss.type === 'dragon'));   // (the dragon's lair: also the choir)
 function musicMood(dt) {
   if (!G || !G.running || G.dead || !G.map) return null;
   if (G.map.surface) return 'surface';
@@ -691,6 +691,16 @@ function sfx(type, o = {}) {
       else if (o.mat === 'spirit') { noise(T, 0.25, [1800, 500], 3, 0.6, 0.01); tone(T, 520, 260, 0.25, 0.1, 'triangle'); }
       else { thud(T, o.mat === 'hide' ? 120 : 95, 0.12, 0.55); noise(T, 0.1, 700, 1.1, 0.22, 0.002); }
       break;
+    case 'roar':    // the dragon: a long low roar (two noise bands falling) over a rumble
+      noise(T, 1.7, [900, 140], 3, 2.2, 0.12, 'lowpass'); noise(T + 0.05, 1.5, [300, 90], 6, 1.8, 0.2); tone(T, 70, 42, 1.6, 0.5, 'sawtooth', 0.15); break;
+    case 'dbite':   // its jaws snapping shut
+      noise(T, 0.18, [2400, 300], 1, 1.4, 0.004, 'lowpass'); thud(T + 0.02, 90, 0.18, 0.7); break;
+    case 'dbreath': // a rushing roar of flame
+      noise(T, 1.5, [700, 1600], 0.7, 1.3, 0.15); noise(T, 1.5, 300, 0.8, 0.9, 0.2, 'lowpass'); break;
+    case 'flap':    // a wingbeat: a heavy whoosh
+      noise(T, 0.34, [500, 120], 1, 1.5, 0.06, 'lowpass'); break;
+    case 'dtail':   // the tail whipping through the air
+      noise(T, 0.4, [400, 1600, 500], 2, 1.1, 0.12); break;
     case 'urn':     // fired clay breaking: a crack and shards
       thud(T, 180, 0.08, 0.4); noise(T, 0.12, 2400, 0.8, 0.3, 0.001, 'highpass');
       for (let i = 0; i < 9; i++) knock(T + 0.02 + r(0, 0.35) ** 1.5, r(1800, 4200), r(0.06, 0.13)); break;
@@ -810,7 +820,7 @@ function monsterVoice(m, ev) {
     if (ev === 'hurt') sfx('grunt', at); else if (ev === 'die') sfx('moan', { ...at, rate: 0.7 }); else if (ev !== 'attack') sfx('moan', at);
   }
 }
-const HIT_MAT = { skeleton: 'bone', ghoul: 'flesh', spider: 'hide', wraith: 'spirit', demon: 'flesh' };
+const HIT_MAT = { skeleton: 'bone', ghoul: 'flesh', spider: 'hide', wraith: 'spirit', demon: 'flesh', dragon: 'hide' };
 
 // =====================================================================================
 //  Item data
@@ -1061,6 +1071,414 @@ function makeMonster(type, x, y, d, boss = false, forceChamp = false, noChamp = 
     stuckT: 0, anchor: null, calm: null, lastSeen: 0, detourT: 0 };
   m.hp = m.maxHp;
   return m;
+}
+
+// =====================================================================================
+//  The dragon (see README, The dragon): a big boss made of parts, only in the sandbox for now (todo #17)
+// =====================================================================================
+// One entry in G.monsters (type 'dragon', m.parts: its 19 body nodes), so the game's targeting, hover, loot and
+// music treat it like any boss; the checks that measure a distance to a monster use near(m, x, y), the node nearest
+// the point. Its art (assets/dragon.webp, laid out by tools/dragon/build_assets.py as DRAGON_ART) loads on demand.
+// The spine, head to tail tip: [kind, radius (tiles), spacing to the node before it (tiles)]
+const DG_PROFILE = [['head', 0.40, 0],
+  ['neck', 0.27, 0.46], ['neck', 0.29, 0.40], ['neck', 0.31, 0.40], ['neck', 0.34, 0.40], ['neck', 0.38, 0.40],
+  ['shoulders', 0.62, 0.48], ['torso', 0.72, 0.55], ['torso', 0.70, 0.55], ['hips', 0.60, 0.55],
+  ['tail', 0.48, 0.50], ['tail', 0.42, 0.46], ['tail', 0.36, 0.44], ['tail', 0.31, 0.42], ['tail', 0.26, 0.40],
+  ['tail', 0.21, 0.38], ['tail', 0.17, 0.36], ['tail', 0.13, 0.34], ['tail', 0.09, 0.32]];
+const DG_SH = 6, DG_HIPS = 9, DG_NECK = 5, DG_P = HW * Math.SQRT2;   // DG_P: px per tile in the ground plane
+// wing bones in the body's frame: [forward, outward, up] in tiles; root, elbow, wrist, 3 finger tips, trailing root
+const DG_WING_SPREAD = [[0, 0, 0], [0.25, 1.05, 0.38], [0.45, 2.05, 0.6], [-0.25, 3.4, 0.28], [-1.05, 2.9, 0.05], [-1.75, 2.0, -0.05], [-2.0, 0.45, 0]];
+const DG_WING_FOLD = [[0, 0, 0], [-0.3, 0.3, 0.45], [0.12, 0.4, 0.9], [-1.25, 0.5, 0.78], [-1.55, 0.48, 0.64], [-1.85, 0.42, 0.52], [-1.95, 0.3, 0.36]];
+const DG_PANELS = [[0, 1, 2, 3], [2, 3, 4], [2, 4, 5], [2, 5, 6, 0]];
+// The dragon's numbers. Life, damage and armor scale with depth like a boss (×MON_BASE, ×MON_SCALE per depth); its
+// attacks: bite (in front), breath (a cone, each tick, and it sets the hero burning), tail (behind it), buffet
+// (around its shoulders), each [min, max] before armor; knock: tiles the hero is thrown.
+const DRAGON = { name: 'Nythrakar, the Crypt Wyrm', hp: 110, armor: 20, xp: 900, speed: 1.9, turn: 1.1, size: 1,
+  bite: [16, 24], breath: [2.5, 3.5], tail: [11, 16], buffet: [5, 8], knockTail: 2.2, knockBuffet: 2.4,
+  wake: 4.5, standoff: 3.9, fightZoom: 0.7, float: false, cd: [1.1, 2.4] };
+// attack timings (s)
+const DG_ACT = { roar: 1.7, bite: 0.95, breath: 2.3, tail: 1.15, buffet: 1.6 };
+const dirOf = (dx, dy) => { const o = { dir: 0 }; setDir(o, dx, dy); return o.dir; };   // the sheet row (S, SW, W, ... SE) of a facing
+const dgLerp = (a, b, t) => a + (b - a) * t, dgEase = u => u * u * (3 - 2 * u);
+const dgWrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+// dragon-art:start
+const DRAGON_ART = {"walk":{"w":231,"h":244,"anchor":[124.3,170.1],"fpt":6.666666666666667,"frames":8,"dirs":{"S":[[466,0,231,244],[699,0,231,244],[932,0,231,244],[1165,0,231,244],[1398,0,231,244],[1631,0,231,244],[0,330,231,244],[233,330,231,244]],"SW":[[466,330,231,244],[699,330,231,244],[932,330,231,244],[1165,330,231,244],[1398,330,231,244],[1631,330,231,244],[0,576,231,244],[233,576,231,244]],"W":[[466,576,231,244],[699,576,231,244],[932,576,231,244],[1165,576,231,244],[1398,576,231,244],[1631,576,231,244],[0,822,231,244],[233,822,231,244]],"NW":[[466,822,231,244],[699,822,231,244],[932,822,231,244],[1165,822,231,244],[1398,822,231,244],[1631,822,231,244],[0,1068,231,244],[233,1068,231,244]],"N":[[466,1068,231,244],[699,1068,231,244],[932,1068,231,244],[1165,1068,231,244],[1398,1068,231,244],[1631,1068,231,244],[0,1314,231,244],[233,1314,231,244]]}},"head":{"w":160,"h":191,"z":72,"anchor":[[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1]],"closed":[[466,1314,160,191],[628,1314,160,191],[790,1314,160,191],[952,1314,160,191],[1114,1314,160,191],[1276,1314,160,191],[1438,1314,160,191],[1600,1314,160,191]],"open":[[1762,1314,160,191],[0,1560,160,191],[162,1560,160,191],[324,1560,160,191],[486,1560,160,191],[648,1560,160,191],[810,1560,160,191],[972,1560,160,191]]},"wing":{"points":[[13.3,70.3],[146.3,38.7],[273.0,13.3],[444.0,102.0],[380.7,203.3],[266.7,292.0],[70.3,323.7]],"panels":[[0,1,2,3],[2,3,4],[2,4,5],[2,5,6,0]],"rect":[0,0,464,328]},"spike":{"w":52,"h":70,"rect":[1304,1560,52,70]},"club":{"w":70,"h":90,"note":"points left; the tail joins at the right edge","rect":[1134,1560,70,90]},"scales":{"w":96,"h":72,"rect":[1206,1560,96,72]}};
+// dragon-art:end
+let dragonArt = null;   // loading: a promise
+function loadDragonArt() {
+  if (IMG.dragon) return Promise.resolve();
+  return dragonArt || (dragonArt = new Promise(ok => { const im = new Image(); im.onload = () => { IMG.dragon = im; ok(); }; im.onerror = () => { dragonArt = null; ok(); }; im.src = 'assets/dragon.webp'; }));
+}
+// The node of monster m nearest a point (itself for an ordinary monster): what the game's hit checks measure to.
+function near(m, x, y) {
+  if (!m.parts) return m;
+  let best = m.parts[0], bd = 1e9;
+  for (const p of m.parts) { const d = Math.hypot(p.x - x, p.y - y) - p.r; if (d < bd) { bd = d; best = p; } }
+  return best;
+}
+// The dragon at (x, y), facing th (rad, world), asleep, at depth d.
+function makeDragon(x, y, th, d) {
+  const k = DRAGON.size, hpS = MON_BASE * Math.pow(MON_SCALE, d - 1), T = TIER.boss;
+  const parts = DG_PROFILE.map(([kind, r, s], i) => ({ kind, r: r * k, s: s * k, R: r * k * DG_P, x, y, z: 0, i, head: i === 0, flash: 0 }));
+  const m = { type: 'dragon', b: DRAGON, parts, x, y, r: 0.72 * k, scale: k, lvl: d, champ: false, boss: true, dragon: true, name: DRAGON.name,
+    maxHp: Math.round(DRAGON.hp * hpS * T.hp), dmgS: hpS, armor: Math.round(DRAGON.armor + 3 * (d - 1) + T.armor * d), speed: DRAGON.speed,
+    xp: Math.round(DRAGON.xp * Math.pow(1.17, d - 1)), state: 'idle', cd: 1.5, dir: 0, anim: 0, moving: false, hitT: 0, dead: false, deathT: 0, lunge: 0, lastHit: -99,
+    path: [], wander: 0, stuckT: 0, anchor: null, calm: null, lastSeen: 0, detourT: 0,
+    // the body: its centre (cx, cy) and heading (th), turning rate, speed; the neck's angle (na), the head's facing (ha)
+    cx: x, cy: y, th, turn: 0, v: 0, na: 0, ha: th, look: [x, y], headZ: 24 * k, headZT: 24 * k, jaw: 0, jawT: 0, lunge2: 0,
+    wingF: 0, wingT: 0, phi: 0, act: null, sleep: true, t: 0, sway: parts.map(() => 0), bend: parts.map(() => 0), eyes: 0.15,
+    sweepSide: 1, breathOff: 0, walk: 0, fx: [], dz: null };
+  m.hp = m.maxHp;
+  for (let i = DG_HIPS + 1; i < parts.length; i++) m.bend[i] = 0.3;   // it lies curled
+  dgLayout(m, 0.0001, true);
+  for (let i = DG_HIPS + 1; i < parts.length; i++) m.bend[i] = 0;
+  m.look = [parts[0].x + Math.cos(m.ha) * 3, parts[0].y + Math.sin(m.ha) * 3];
+  return m;
+}
+function dgDir(m, i) {   // the body's forward direction at node i (toward the head)
+  const n = m.parts, a = n[Math.max(0, i - 1)], b = n[Math.min(n.length - 1, i + 1)], dx = a.x - b.x, dy = a.y - b.y, l = Math.hypot(dx, dy) || 1;
+  return [dx / l, dy / l];
+}
+function dgKeepIn(q, r) {   // a node or point out of walls and blocking props (pushed back to the nearest free spot)
+  for (let it = 0; it < 3; it++) {
+    const tx = Math.floor(q.x), ty = Math.floor(q.y);
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      if (!blocked(tx + dx, ty + dy)) continue;
+      const nx = clamp(q.x, tx + dx, tx + dx + 1), ny = clamp(q.y, ty + dy, ty + dy + 1), ex = q.x - nx, ey = q.y - ny, d = Math.hypot(ex, ey);
+      if (d < r) { if (d > 1e-6) { q.x = nx + ex / d * r; q.y = ny + ey / d * r; } else { q.x += (q.x - (tx + dx + 0.5)) * 0.2; q.y += (q.y - (ty + dy + 0.5)) * 0.2; } }
+    }
+  }
+}
+// The body's pose from its centre and heading: the torso straight back from the shoulders (bending into a turn), the
+// tail a drag chain behind the hips (each joint relaxing toward its wanted bend: sway, sweep), the neck a curve from the
+// shoulders toward what it looks at (within ±1.3 rad of the heading), and every node's height.
+function dgLayout(m, dt, init = false) {
+  const n = m.parts, k = DRAGON.size, br = Math.sin(m.t * 1.6) * 1.5 * k;
+  const h = [Math.cos(m.th), Math.sin(m.th)], Lt = n[DG_SH + 1].s + n[DG_SH + 2].s + n[DG_HIPS].s;
+  let x = m.cx + h[0] * Lt / 2, y = m.cy + h[1] * Lt / 2, a = m.th + Math.PI;
+  n[DG_SH].x = x; n[DG_SH].y = y;
+  const bend = clamp(-m.turn * 0.22, -0.25, 0.25);
+  for (let i = DG_SH + 1; i <= DG_HIPS; i++) { a += bend; x += Math.cos(a) * n[i].s; y += Math.sin(a) * n[i].s; n[i].x = x; n[i].y = y; }
+  for (let i = DG_HIPS + 1; i < n.length; i++) {
+    const p = n[i - 1], q = n[i], cur = init ? a : Math.atan2(q.y - p.y, q.x - p.x);
+    let d = dgWrap(cur - a);
+    const want = m.bend[i] + m.sway[i], rate = m.act && m.act.type === 'tail' ? 14 : 2.2;
+    d += (want - d) * (init ? 1 : 1 - Math.exp(-dt * rate)); d = clamp(d, -0.55, 0.55);
+    q.x = p.x + Math.cos(a + d) * q.s; q.y = p.y + Math.sin(a + d) * q.s; dgKeepIn(q, q.r * 0.7);
+    a = Math.atan2(q.y - p.y, q.x - p.x);
+  }
+  const s = n[DG_SH], la = Math.atan2(m.look[1] - s.y, m.look[0] - s.x), da = clamp(dgWrap(la - m.th), -1.3, 1.3);
+  m.na += (da - m.na) * (init ? 1 : 1 - Math.exp(-dt * 3.5));
+  let len = 0; for (let i = 1; i <= DG_SH; i++) len += n[i].s;
+  const toLook = Math.hypot(m.look[0] - s.x, m.look[1] - s.y);
+  const reach = clamp(Math.min(len * 0.9, toLook - 1.0), len * 0.55, len * 0.9) + m.lunge2 * 0.9 * k;
+  const na = m.th + m.na, hd = n[0];
+  hd.x = s.x + Math.cos(na) * reach; hd.y = s.y + Math.sin(na) * reach; dgKeepIn(hd, hd.r * 0.7);
+  const c1 = [s.x + h[0] * reach * 0.55, s.y + h[1] * reach * 0.55];
+  for (let i = 1; i <= DG_NECK; i++) { const t = 1 - i / (DG_NECK + 1), u = 1 - t;
+    n[i].x = u * u * s.x + 2 * u * t * c1[0] + t * t * hd.x; n[i].y = u * u * s.y + 2 * u * t * c1[1] + t * t * hd.y; }
+  const nd = Math.atan2(hd.y - n[1].y, hd.x - n[1].x), ha = Math.atan2(m.look[1] - hd.y, m.look[0] - hd.x);
+  m.ha = nd + clamp(dgWrap(ha - nd), -0.9, 0.9);
+  for (let i = DG_SH; i <= DG_HIPS; i++) n[i].z = n[i].R + (i === DG_HIPS ? 20 : 26) * k + br;
+  for (let i = DG_HIPS + 1; i < n.length; i++) { const u = c01((i - DG_HIPS) / 3.5); n[i].z = dgLerp(n[DG_HIPS].z, n[i].R * 0.95, dgEase(u)); }
+  n[0].z = m.headZ;
+  for (let i = 1; i <= DG_NECK; i++) { const t = 1 - i / (DG_NECK + 1); n[i].z = dgLerp(n[DG_SH].z, n[0].z, dgEase(t)) + Math.sin(Math.PI * t) * 12 * k; }
+  if (m.dead) for (let i = 0; i < n.length; i++) {   // dying: each node sinks to the floor, from the tail tip to the head
+    const q = n[i], p = c01((m.deathT - (n.length - 1 - i) * 0.12) / 0.55); q.z = dgLerp(q.z, q.R * 0.7, dgEase(p)); q.dk = p;
+  }
+  m.x = (n[DG_SH].x + n[DG_HIPS].x) / 2; m.y = (n[DG_SH].y + n[DG_HIPS].y) / 2;   // the monster's own point: the torso's middle
+}
+function dgStart(m, type) {
+  if (m.dead) return;
+  const h = G.hero, n = m.parts; m.sleep = false;
+  m.act = { type, t: 0, hit: false, flaps: 0 };
+  if (type === 'tail') {   // the tail whips toward the side the hero is on
+    const aBack = Math.atan2(n[DG_HIPS + 1].y - n[DG_HIPS].y, n[DG_HIPS + 1].x - n[DG_HIPS].x), toH = Math.atan2(h.y - n[DG_HIPS].y, h.x - n[DG_HIPS].x);
+    m.sweepSide = dgWrap(toH - aBack) >= 0 ? 1 : -1; sfx('dtail', { x: m.x, y: m.y });
+  }
+  if (type === 'breath') m.breathOff = -0.35;
+}
+function dgKnock(fx, fy, d) {   // the hero thrown d tiles away from (fx, fy) over 0.3 s (see update: h.kb)
+  const h = G.hero, dx = h.x - fx, dy = h.y - fy, l = Math.hypot(dx, dy) || 1;
+  h.kb = { vx: dx / l * d / 0.3, vy: dy / l * d / 0.3, t: 0.3 }; h.path = []; h.attackTarget = null;
+}
+const dgRoll = (m, r) => (r[0] + rnd() * (r[1] - r[0])) * m.dmgS;
+function dgAct(m, dt) {
+  const a = m.act, k = DRAGON.size, n = m.parts, hd = n[0], h = G.hero, t = (a.t += dt);
+  m.headZT = 72 * k; m.jawT = 0; m.wingT = 0; m.lunge2 += (0 - m.lunge2) * (1 - Math.exp(-dt * 8));
+  for (let i = DG_HIPS + 1; i < n.length; i++) m.bend[i] = 0;
+  if (a.type === 'roar') {
+    m.headZT = 125 * k; m.wingT = t > 0.2 && t < 1.4 ? 0.6 : 0; m.jawT = t > 0.3 && t < 1.35 ? 1 : 0; m.eyes = 1;
+    if (!a.hit && t > 0.3) { a.hit = true; sfx('roar', { x: m.x, y: m.y }); G.shake = 0.9; }
+  } else if (a.type === 'bite') {
+    if (t < 0.45) { m.headZT = 92 * k; m.lunge2 = dgLerp(m.lunge2, -0.35, 0.2); m.jawT = 0.4; }
+    else if (t < 0.62) { m.headZT = 34 * k; m.lunge2 = dgLerp(m.lunge2, 1, 0.35); m.jawT = 1; }
+    else { m.headZT = 60 * k; m.jawT = 0; }
+    if (!a.hit && t >= 0.6) { a.hit = true; sfx('dbite', { x: hd.x, y: hd.y });
+      const fx = hd.x + Math.cos(m.ha) * hd.r, fy = hd.y + Math.sin(m.ha) * hd.r;
+      if (!G.dead && Math.hypot(h.x - fx, h.y - fy) < hd.r + 0.75) damageHero(dgRoll(m, DRAGON.bite), m); }
+  } else if (a.type === 'breath') {
+    if (t < 0.5) { m.headZT = 108 * k; m.jawT = 0.3; }
+    else if (t < 1.95) {
+      m.headZT = 70 * k; m.jawT = 1; m.breathOff = dgLerp(-0.35, 0.35, (t - 0.5) / 1.45);
+      if (!a.hit) { a.hit = true; sfx('dbreath', { x: hd.x, y: hd.y }); }
+      const mx = hd.x + Math.cos(m.ha) * hd.r * 1.5, my = hd.y + Math.sin(m.ha) * hd.r * 1.5, mz = hd.z - 4 * k;
+      for (let i = 0; i < 105 * dt; i++) {
+        const sp = 5.5 + rnd() * 1.5, aa = m.ha + (rnd() - 0.5) * 0.5;
+        m.fx.push({ x: mx, y: my, z: mz, vx: Math.cos(aa) * sp, vy: Math.sin(aa) * sp, vz: -mz / 0.75 * (0.6 + rnd() * 0.5), t: 0, life: 0.65 + rnd() * 0.25 });
+      }
+      const dx = h.x - mx, dy = h.y - my, d = Math.hypot(dx, dy), off = Math.abs(dgWrap(Math.atan2(dy, dx) - m.ha));
+      if (!G.dead && d < 5.2 * k && off < 0.33 + 0.3 / Math.max(1, d) && los(mx, my, h.x, h.y)) {
+        a.burn = (a.burn || 0) + dt;
+        if (a.burn > 0.2) { a.burn = 0; damageHero(dgRoll(m, DRAGON.breath), m); h.burnLeft = FIRE.after; h.burning = true; }   // it goes on burning
+      }
+    } else { m.headZT = 72 * k; m.jawT = 0; m.breathOff = 0; }
+  } else if (a.type === 'tail') {
+    const s = m.sweepSide, j = t < 0.28 ? -0.16 : t < 0.62 ? 0.4 : 0;
+    for (let i = DG_HIPS + 1; i < n.length; i++) m.bend[i] = s * j;
+    if (t >= 0.32 && t < 0.62 && !a.hit && !G.dead) for (let i = DG_HIPS + 2; i < n.length; i++) {
+      const q = n[i]; if (Math.hypot(h.x - q.x, h.y - q.y) < q.r + 0.5) { a.hit = true; damageHero(dgRoll(m, DRAGON.tail), m); dgKnock(q.x, q.y, DRAGON.knockTail); break; }
+    }
+  } else if (a.type === 'buffet') {
+    m.headZT = 96 * k; m.wingT = 1; m.jawT = 0.3;
+    if (t > 0.2 && t < 1.4) {
+      const ph = (t - 0.2) / 0.6; m.phi = 0.25 + 0.75 * Math.cos(ph * Math.PI * 2);
+      if (ph >= a.flaps + 0.5) { a.flaps++; sfx('flap', { x: m.x, y: m.y });   // a downstroke: a gust that throws the hero back
+        const s = n[DG_SH], d = Math.hypot(h.x - s.x, h.y - s.y);
+        if (!G.dead && d < 4.4 * k) { damageHero(dgRoll(m, DRAGON.buffet), m); dgKnock(s.x, s.y, DRAGON.knockBuffet * (1 - d / (5 * k)) + 0.6); }
+        for (let i = 0; i < 18; i++) { const aa = rnd() * 7; G.fx.push({ type: 'spark', x: s.x + Math.cos(aa) * 1.5, y: s.y + Math.sin(aa) * 1.5, vx: Math.cos(aa) * 4, vy: Math.sin(aa) * 4, z: 4, vz: 20, t: 0, dur: 0.7, color: '140,120,95' }); }
+      }
+    } else m.phi = 0.4;
+  }
+  if (t >= DG_ACT[a.type]) { m.act = null; m.cd = DRAGON.cd[0] + rnd() * (DRAGON.cd[1] - DRAGON.cd[0]); m.breathOff = 0; }
+}
+function dgDecide(m) {   // the next attack, by where the hero is
+  const n = m.parts, h = G.hero, c = { x: m.cx, y: m.cy }, rel = Math.abs(dgWrap(Math.atan2(h.y - c.y, h.x - c.x) - m.th)), dc = dist(h, c), dHead = dist(h, n[0]);
+  let tailD = 99; for (let i = DG_HIPS + 1; i < n.length; i++) tailD = Math.min(tailD, dist(h, n[i]) - n[i].r);
+  if (rel > 1.8 && tailD < 1.8) dgStart(m, 'tail');
+  else if (dHead < n[0].r + 1.05) dgStart(m, 'bite');
+  else if (dc < 7.5 && dHead < 5.5 && rel < 0.9 && rnd() < 0.5 && los(n[0].x, n[0].y, h.x, h.y)) dgStart(m, 'breath');
+  else if (dc < 4.6 && rnd() < 0.4) dgStart(m, 'buffet');
+  else m.cd = 0.35;
+}
+function dgDrive(m, dt) {   // walk and turn toward the hero, stopping DRAGON.standoff tiles from it
+  const k = DRAGON.size, h = G.hero, sp = m.speed * k, want = Math.atan2(h.y - m.cy, h.x - m.cx), err = dgWrap(want - m.th), dc = Math.hypot(h.x - m.cx, h.y - m.cy);
+  const acting = !!m.act, standoff = DRAGON.standoff * k;
+  let turn = 0, v = 0;
+  if (!G.dead && m.state === 'chase') {
+    const tmax = DRAGON.turn * (acting ? (m.act.type === 'tail' ? 0 : 0.3) : 1);
+    turn = clamp(err * 2, -tmax, tmax);
+    if (!acting) { if (dc > standoff + 0.4) v = sp * Math.pow(Math.max(0, Math.cos(err)), 2); else if (dc < standoff - 1.6 && Math.abs(err) < 0.6) v = -sp * 0.3; }
+  }
+  m.turn += (turn - m.turn) * (1 - Math.exp(-dt * 5)); m.th = dgWrap(m.th + m.turn * dt);
+  m.v += (v - m.v) * (1 - Math.exp(-dt * 3));
+  m.cx += Math.cos(m.th) * m.v * dt; m.cy += Math.sin(m.th) * m.v * dt;
+  const hd = [Math.cos(m.th), Math.sin(m.th)], half = 0.825 * k;   // keep the shoulders, the middle and the hips clear of walls
+  for (const [o, r] of [[half, 0.62], [0, 0.72], [-half, 0.6]]) {
+    const q = { x: m.cx + hd[0] * o, y: m.cy + hd[1] * o }, ox = q.x, oy = q.y; dgKeepIn(q, r * k); m.cx += q.x - ox; m.cy += q.y - oy;
+  }
+  m.moving = Math.abs(m.v) > 0.05 || Math.abs(m.turn) > 0.05;
+}
+function updateDragon(m, dt) {
+  const n = m.parts, k = DRAGON.size, h = G.hero; m.t += dt;
+  m.hitT = Math.max(0, m.hitT - dt);
+  for (const q of n) q.flash = Math.max(0, q.flash - dt);
+  if (m.dead) {
+    m.deathT += dt; m.headZT = n[0].R * 0.7; m.eyes = Math.max(0, m.eyes - dt * (m.deathT > 2 ? 0.8 : 0)); m.jawT = m.deathT > 2.2 ? 0.25 : 0.6; m.wingT = 0;
+  } else if (frozenTick(m, dt)) {   // frozen by a scroll of frost: held still
+  } else if (m.sleep) {
+    m.headZT = 24 * k; m.jawT = 0; m.eyes = 0.15 + 0.1 * Math.max(0, Math.sin(m.t * 0.7));
+    let d = 99; for (const q of n) d = Math.min(d, dist(h, q) - q.r);
+    if (!G.dead && (d < DRAGON.wake || m.state === 'chase')) { m.sleep = false; m.state = 'chase'; dgStart(m, 'roar'); }
+  } else {
+    m.eyes = 1; m.state = 'chase'; m.look = [h.x, h.y];
+    if (m.breathOff) { const s = n[DG_SH], a = Math.atan2(h.y - s.y, h.x - s.x) + m.breathOff, d = Math.max(3, dist(h, s)); m.look = [s.x + Math.cos(a) * d, s.y + Math.sin(a) * d]; }
+    if (m.act) dgAct(m, dt);
+    else {
+      m.headZT = 72 * k; m.jawT = 0; m.wingT = 0; m.phi = 0; m.lunge2 *= Math.exp(-dt * 8);
+      for (let i = DG_HIPS + 1; i < n.length; i++) m.bend[i] = 0;
+      m.cd -= dt; if (m.cd <= 0 && !G.dead) dgDecide(m);
+    }
+    for (let i = DG_HIPS + 1; i < n.length; i++) m.sway[i] = 0.09 * Math.sin(m.t * 1.1 - (i - DG_HIPS) * 0.55) * ((i - DG_HIPS) / 9 + 0.3);
+    dgDrive(m, dt);
+  }
+  if (m.dead || m.sleep || (m.frozen && m.frozen.on)) { m.v = 0; m.turn *= 0.9; m.moving = false; }
+  const r = m.act && m.act.type === 'bite' && m.act.t > 0.45 && m.act.t < 0.62 ? 16 : 6;
+  m.headZ += (m.headZT - m.headZ) * (1 - Math.exp(-dt * r));
+  m.jaw += (m.jawT - m.jaw) * (1 - Math.exp(-dt * 14));
+  m.wingF += (m.wingT - m.wingF) * (1 - Math.exp(-dt * 5));
+  dgLayout(m, dt);
+  if (DRAGON_ART) m.walk += (Math.abs(m.v) + Math.abs(m.turn) * 0.9) * dt * DRAGON_ART.walk.fpt / k;   // walk frames follow the distance walked
+  for (const f of m.fx) { f.t += dt; f.x += f.vx * dt; f.y += f.vy * dt; f.z = Math.max(6, f.z + f.vz * dt); f.vx *= Math.exp(-dt * 1.2); f.vy *= Math.exp(-dt * 1.2);
+    if (opaque(Math.floor(f.x), Math.floor(f.y))) { f.vx *= -0.2; f.vy *= -0.2; } }
+  m.fx = m.fx.filter(f => f.t < f.life);
+  // the hero can't walk through it
+  if (!G.dead) for (const q of n) { const dx = h.x - q.x, dy = h.y - q.y, d = Math.hypot(dx, dy), md = q.r + h.r; if (d < md && d > 1e-6) moveEnt(h, dx / d * (md - d), dy / d * (md - d)); }
+  // the camera draws back while it fights
+  const fight = !m.dead && !m.sleep && dist(h, m) < 18;
+  G.fightZ = (G.fightZ || 1) + ((fight ? DRAGON.fightZoom : 1) - (G.fightZ || 1)) * (1 - Math.exp(-dt * 1.5));
+}
+// ---- drawing (the painted crypt dragon: art/characters/dragon, assets/dragon.webp)
+let DG_SCALES = null;
+function dgScalePat() {   // the neck and tail's scales: a patch of the body painting, tiling
+  if (!DG_SCALES) { const r = DRAGON_ART.scales.rect, c = document.createElement('canvas'); c.width = r[2]; c.height = r[3]; c.getContext('2d').drawImage(IMG.dragon, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]); DG_SCALES = ctx.createPattern(c, 'repeat'); }
+  return DG_SCALES;
+}
+const dgFlash = (m, q) => Math.min(0.7, (q && q.flash > 0 ? q.flash / 0.18 * 0.55 : 0) + (m.hitT > 0 ? 0.35 : 0) + (G.hover && G.hover.r === m ? 0.12 : 0));
+function dgOver(m, q, path) {   // a hit flash and the darkening of death over a shape
+  const fl = dgFlash(m, q); if (fl > 0) { path(); ctx.fillStyle = `rgba(255,240,220,${fl})`; ctx.fill(); }
+  const dk = q ? q.dk || 0 : 0; if (dk > 0) { path(); ctx.fillStyle = `rgba(10,4,3,${dk * 0.45})`; ctx.fill(); }
+}
+function dgS3(x, y, z) { const [X, Y] = iso(x, y); return [X, Y - z]; }
+function dgBlob(m, x, y, R, q) {
+  const p = dgScalePat(); p.setTransform(new DOMMatrix().translate(x, y).scale(R / 40));
+  const path = () => { ctx.beginPath(); ctx.arc(x, y, R, 0, 7); };
+  path(); ctx.fillStyle = p; ctx.fill();
+  const g = ctx.createRadialGradient(x - R * 0.35, y - R * 0.45, R * 0.1, x, y, R * 1.05);
+  g.addColorStop(0, 'rgba(225,230,240,0.16)'); g.addColorStop(0.55, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.6)');
+  path(); ctx.fillStyle = g; ctx.fill(); dgOver(m, q, path);
+}
+function dgBand(m, a, b) {   // the body between two nodes: a quad along their tangents
+  const [ax, ay] = dgS3(a.x, a.y, a.z), [bx, by] = dgS3(b.x, b.y, b.z), dx = bx - ax, dy = by - ay, l = Math.hypot(dx, dy);
+  if (l < 1) return;
+  const nx = -dy / l, ny = dx / l, ra = a.R * 0.93, rb = b.R * 0.93, up = ny < 0;
+  const path = () => { ctx.beginPath(); ctx.moveTo(ax + nx * ra, ay + ny * ra); ctx.lineTo(bx + nx * rb, by + ny * rb); ctx.lineTo(bx - nx * rb, by - ny * rb); ctx.lineTo(ax - nx * ra, ay - ny * ra); ctx.closePath(); };
+  const p = dgScalePat(); p.setTransform(new DOMMatrix().translate(ax, ay).rotate(Math.atan2(dy, dx) * 180 / Math.PI).scale(a.R / 40));
+  path(); ctx.fillStyle = p; ctx.fill();
+  const g = ctx.createLinearGradient(ax + nx * ra, ay + ny * ra, ax - nx * ra, ay - ny * ra);
+  g.addColorStop(0, up ? 'rgba(225,230,240,0.14)' : 'rgba(0,0,0,0.6)'); g.addColorStop(0.45, 'rgba(0,0,0,0.05)'); g.addColorStop(1, up ? 'rgba(0,0,0,0.6)' : 'rgba(225,230,240,0.14)');
+  path(); ctx.fillStyle = g; ctx.fill(); dgOver(m, a, path);
+}
+function dgPiece(m, r, x, y, w, h, q, flip) {   // an atlas piece, flashed white when hit
+  ctx.save(); ctx.translate(x, y); if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(IMG.dragon, r[0], r[1], r[2], r[3], 0, 0, w, h);
+  const fl = dgFlash(m, q); if (fl > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = fl; ctx.drawImage(IMG.dragon, r[0], r[1], r[2], r[3], 0, 0, w, h); }
+  ctx.restore();
+}
+function dgNode(m, i) {
+  const n = m.parts, q = n[i];
+  if (i === 0) return dgHead(m, q);
+  if (i === n.length - 1) return dgClub(m, q, n[i - 1]);
+  dgBand(m, q, n[i - 1]);
+  const [x, y] = dgS3(q.x, q.y, q.z);
+  dgBlob(m, x, y, q.R, q);
+  if (i >= 2 && i < n.length - 3) {   // a bone spike on top, leaning toward the tail
+    const f = dgDir(m, i), back = (f[0] - f[1]) > 0, A = DRAGON_ART.spike, hh = Math.max(10, q.R * 0.95), w = A.w / A.h * hh;
+    dgPiece(m, A.rect, back ? x + w * 0.45 : x - w * 0.55, y - q.R * 0.72 - hh, w, hh, null, back);
+  }
+}
+function dgClub(m, q, p) {   // the tail's bony club, pointing along the tail
+  const [x, y] = dgS3(q.x, q.y, q.z), [px, py] = dgS3(p.x, p.y, p.z), a = Math.atan2(y - py, x - px), A = DRAGON_ART.club, w = 58 * DRAGON.size, hh = A.h / A.w * w;
+  dgBand(m, q, p);
+  ctx.save(); ctx.translate(x, y); ctx.rotate(a + Math.PI); if (Math.cos(a + Math.PI) < 0) ctx.scale(1, -1);   // its spikes kept up
+  ctx.drawImage(IMG.dragon, A.rect[0], A.rect[1], A.rect[2], A.rect[3], -w * 0.55, -hh / 2, w, hh);
+  ctx.restore();
+}
+function dgHead(m, q) {
+  const A = DRAGON_ART.head, k = DRAGON.size, d = dirOf(Math.cos(m.ha), Math.sin(m.ha)), r = A[m.jaw > 0.45 ? 'open' : 'closed'][d], an = A.anchor[d];
+  const [sx, sy] = iso(q.x, q.y), dz = q.z - A.z * k;
+  dgPiece(m, r, sx - an[0] * k, sy - dz - an[1] * k, r[2] * k, r[3] * k, q, false);
+}
+const DG_DIRS = ['S', 'SW', 'W', 'NW', 'N'], DG_MIRROR = { 5: 'NW', 6: 'W', 7: 'SW' };
+function dgBody(m) {   // the body with its four legs: one sprite at the torso's middle, 8 directions (3 mirrored), 8 walk frames
+  const A = DRAGON_ART.walk, n = m.parts, k = DRAGON.size, d = dirOf(Math.cos(m.th), Math.sin(m.th)), name = DG_DIRS[d] || DG_MIRROR[d], flip = d > 4;
+  const r = A.dirs[name][Math.floor(m.walk) % 8], [sx, sy] = iso(m.x, m.y);
+  const z0 = (n[DG_SH].R + 26 * k + n[DG_HIPS].R + 20 * k) / 2, dz = (n[DG_SH].z + n[DG_HIPS].z) / 2 - z0;   // it sinks when it dies
+  const fl = Math.max(...[DG_SH, DG_SH + 1, DG_SH + 2, DG_HIPS].map(i => dgFlash(m, n[i])));
+  ctx.save(); ctx.translate(sx, sy - dz); if (flip) ctx.scale(-1, 1);
+  ctx.drawImage(IMG.dragon, r[0], r[1], r[2], r[3], -A.anchor[0] * k, -A.anchor[1] * k, r[2] * k, r[3] * k);
+  if (fl > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = fl; ctx.drawImage(IMG.dragon, r[0], r[1], r[2], r[3], -A.anchor[0] * k, -A.anchor[1] * k, r[2] * k, r[3] * k); }
+  if (m.dead) { ctx.globalCompositeOperation = 'source-atop'; ctx.globalAlpha = c01(m.deathT / 2.5) * 0.45; ctx.fillStyle = '#0a0403'; ctx.fillRect(-A.anchor[0] * k, -A.anchor[1] * k, r[2] * k, r[3] * k); }
+  ctx.restore();
+}
+function dgWingPts(m, side) {
+  const n = m.parts, s = n[DG_SH], f = dgDir(m, DG_SH), nr = [-f[1], f[0]], k = DRAGON.size, fF = m.wingF, dk = m.dead ? c01(m.deathT / 2) : 0;
+  const rx = s.x + nr[0] * side * s.r * 0.35, ry = s.y + nr[1] * side * s.r * 0.35, rz = s.z + s.R * 0.55 - dk * s.R * 0.5;
+  const phi = m.phi * fF + (1 - fF) * 0.05 * Math.sin(m.t * 1.6);
+  return DG_WING_FOLD.map((p, i) => {
+    const q = DG_WING_SPREAD[i], u = dgLerp(p[0], q[0], fF) * k, b0 = dgLerp(p[1], q[1], fF) * k, c0 = dgLerp(p[2], q[2], fF) * k * (1 - dk * 0.6);
+    const b = b0 * Math.cos(phi) - c0 * Math.sin(phi), cz = b0 * Math.sin(phi) + c0 * Math.cos(phi);
+    return { x: rx + f[0] * u + nr[0] * side * b, y: ry + f[1] * u + nr[1] * side * b, z: rz + cz * DG_P };
+  });
+}
+function dgTri(rect, s, d) {   // one triangle of the flat wing painting (s: points in it) onto the screen triangle d
+  const [x0, y0] = s[0], [x1, y1] = s[1], [x2, y2] = s[2], [u0, v0] = d[0], [u1, v1] = d[1], [u2, v2] = d[2];
+  const den = (x1 - x0) * (y2 - y0) - (x2 - x0) * (y1 - y0); if (Math.abs(den) < 1e-6) return;
+  const a = ((u1 - u0) * (y2 - y0) - (u2 - u0) * (y1 - y0)) / den, b = ((v1 - v0) * (y2 - y0) - (v2 - v0) * (y1 - y0)) / den;
+  const c = ((u2 - u0) * (x1 - x0) - (u1 - u0) * (x2 - x0)) / den, dd = ((v2 - v0) * (x1 - x0) - (v1 - v0) * (x2 - x0)) / den;
+  const e = u0 - a * x0 - c * y0, f = v0 - b * x0 - dd * y0;
+  const mx = (u0 + u1 + u2) / 3, my = (v0 + v1 + v2) / 3, grow = p => { const dx = p[0] - mx, dy = p[1] - my, l = Math.hypot(dx, dy) || 1; return [p[0] + dx / l * 1.2, p[1] + dy / l * 1.2]; };
+  ctx.save(); ctx.beginPath(); d.map(grow).forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); ctx.clip();
+  ctx.transform(a, b, c, dd, e, f); ctx.drawImage(IMG.dragon, rect[0], rect[1], rect[2], rect[3], 0, 0, rect[2], rect[3]); ctx.restore();
+}
+function dgWing(m, pts, pi) {
+  const A = DRAGON_ART.wing, ids = DG_PANELS[pi], tris = ids.length === 4 ? [[ids[0], ids[1], ids[2]], [ids[0], ids[2], ids[3]]] : [ids];
+  const out = ids.map(i => dgS3(pts[i].x, pts[i].y, pts[i].z));
+  for (const t of tris) dgTri(A.rect, t.map(i => A.points[i]), t.map(i => dgS3(pts[i].x, pts[i].y, pts[i].z)));
+  const a = pts[ids[0]], b = pts[ids[1]], d = pts[ids[2]], ux = (b.x - a.x) * DG_P, uy = (b.y - a.y) * DG_P, uz = b.z - a.z, vx = (d.x - a.x) * DG_P, vy = (d.y - a.y) * DG_P, vz = d.z - a.z;
+  const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, nl = Math.hypot(nx, ny, nz) || 1, lit = Math.abs(nz / nl * 0.8 + (nx + ny) / nl * 0.3);
+  const path = () => { ctx.beginPath(); out.forEach((p, i) => i ? ctx.lineTo(p[0], p[1]) : ctx.moveTo(p[0], p[1])); ctx.closePath(); };
+  path(); ctx.fillStyle = `rgba(0,0,0,${(1 - lit) * 0.4})`; ctx.fill(); dgOver(m, null, path);
+}
+// Its drawables for render's depth-sorted list: every neck and tail node, the head, the body sprite and each wing panel
+// with its own key (x + y), so each part sorts against walls, props and the hero on its own.
+function dragonDrawables(m, dl) {
+  if (!IMG.dragon || !DRAGON_ART) return;
+  const n = m.parts;
+  for (let i = 0; i < n.length; i++) if (i < DG_SH || i > DG_HIPS) dl.push({ k: n[i].x + n[i].y, t: 7, f: () => dgNode(m, i) });
+  dl.push({ k: m.x + m.y, t: 7, f: () => dgBody(m) });
+  for (const side of [1, -1]) {
+    const pts = dgWingPts(m, side);
+    DG_PANELS.forEach((ids, pi) => { let kk = 0; for (const i of ids) kk += pts[i].x + pts[i].y; dl.push({ k: kk / ids.length, t: 7, f: () => dgWing(m, pts, pi) }); });
+  }
+  if (!m.dead) for (const q of n) {   // hover and click boxes: each node's circle at its height
+    const [x, y] = dgS3(q.x, q.y, q.z); G.pick.push({ kind: 'mon', r: m, x: x - q.R, y: y - q.R, w: q.R * 2, h: q.R * 2 });
+  }
+}
+const dgShadowCanvas = document.createElement('canvas'), dgShadowCtx = dgShadowCanvas.getContext('2d');
+function dragonShadows(m, baseT) {   // every part's shadow into one mask (overlaps don't double up), drawn once at 45 %
+  const c = dgShadowCtx; if (dgShadowCanvas.width !== cv.width || dgShadowCanvas.height !== cv.height) { dgShadowCanvas.width = cv.width; dgShadowCanvas.height = cv.height; }
+  c.setTransform(1, 0, 0, 1, 0, 0); c.clearRect(0, 0, cv.width, cv.height); c.setTransform(...baseT);
+  const soft = (x, y, rx, ry) => { c.save(); c.translate(x, y); c.scale(1, ry / rx); const g = c.createRadialGradient(0, 0, 0, 0, 0, rx);
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(0.6, 'rgba(0,0,0,0.7)'); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.beginPath(); c.arc(0, 0, rx, 0, 7); c.fill(); c.restore(); };
+  for (const q of m.parts) { const [x, y] = iso(q.x, q.y), r = q.R * (1 + q.z / 240); soft(x, y, r, r * 0.5); }
+  if (m.wingF > 0.05) for (const side of [1, -1]) {
+    const pts = dgWingPts(m, side); c.globalAlpha = m.wingF * 0.7; c.fillStyle = '#000';
+    for (const ids of DG_PANELS) { c.beginPath(); ids.forEach((i, j) => { const [x, y] = iso(pts[i].x, pts[i].y); j ? c.lineTo(x, y) : c.moveTo(x, y); }); c.closePath(); c.fill(); }
+    c.globalAlpha = 1;
+  }
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 0.45; ctx.drawImage(dgShadowCanvas, 0, 0); ctx.restore();
+}
+function dragonFire(m) {   // the breath's flames, additive, after the depth-sorted pass
+  if (!m.fx.length) return;
+  ctx.save(); ctx.globalCompositeOperation = 'lighter';
+  for (const f of m.fx) {
+    const u = f.t / f.life, [x, y] = dgS3(f.x, f.y, f.z), r = (5 + 34 * u) * DRAGON.size, a = (1 - u) * 0.55;
+    const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+    g.addColorStop(0, `rgba(255,${230 - u * 120},${150 - u * 130},${a})`); g.addColorStop(0.5, `rgba(255,${120 - u * 60},30,${a * 0.6})`); g.addColorStop(1, 'rgba(160,30,10,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  }
+  ctx.restore();
+}
+// The hoard under a dragon (a level's map.hoard: { x, y, r } in tiles): coins and goblets baked once, drawn on the floor.
+let DG_HOARD = null;
+function drawHoard(hd) {
+  if (!DG_HOARD || DG_HOARD.r !== hd.r) {
+    const s = 2, rx = hd.r * DG_P, ry = rx / 2, c = document.createElement('canvas'); c.width = Math.ceil(rx * 2 * s + 20); c.height = Math.ceil(ry * 2 * s + 20);
+    const g = c.getContext('2d'), R = mulberry(7); g.setTransform(s, 0, 0, s, c.width / 2, c.height / 2);
+    const glow = g.createRadialGradient(0, 0, 0, 0, 0, rx); glow.addColorStop(0, 'rgba(150,105,30,0.55)'); glow.addColorStop(0.7, 'rgba(110,75,20,0.3)'); glow.addColorStop(1, 'rgba(90,60,15,0)');
+    g.save(); g.scale(1, 0.5); g.fillStyle = glow; g.beginPath(); g.arc(0, 0, rx, 0, 7); g.fill(); g.restore();
+    for (let i = 0; i < 900; i++) {
+      const a = R() * 7, r = Math.pow(R(), 0.75) * 0.97, x = Math.cos(a) * r * rx, y = Math.sin(a) * r * ry, l = 40 + R() * 30 - r * 18;
+      g.fillStyle = `hsl(${38 + R() * 10},${60 + R() * 25}%,${l}%)`; g.beginPath(); g.ellipse(x, y, 3.2, 1.7, R() * 0.6 - 0.3, 0, 7); g.fill();
+      if (R() < 0.35) { g.fillStyle = 'rgba(255,240,190,0.7)'; g.fillRect(x - 1, y - 1, 1.4, 0.8); }
+    }
+    for (let i = 0; i < 7; i++) { const a = R() * 7, r = R() * 0.7, x = Math.cos(a) * r * rx, y = Math.sin(a) * r * ry;
+      g.fillStyle = '#c99a3a'; g.fillRect(x - 2, y - 7, 4, 7); g.fillStyle = '#f0d27a'; g.fillRect(x - 3.5, y - 9, 7, 2.2); }
+    DG_HOARD = { c, s, r: hd.r };
+  }
+  const [x, y] = iso(hd.x, hd.y), w = DG_HOARD.c.width / DG_HOARD.s, h = DG_HOARD.c.height / DG_HOARD.s;
+  ctx.drawImage(DG_HOARD.c, x - w / 2, y - h / 2, w, h);
 }
 
 // =====================================================================================
@@ -1817,6 +2235,7 @@ function damageMonster(m, raw, crit) {
   if (m.dead) return;
   const v = Math.max(1, Math.round(raw * (1 - armorReduce(m.armor, G.hero.lvl))));
   m.hp -= v; m.hitT = 0.14; m.lastHit = G.time;
+  if (m.hitPart) { m.hitPart.flash = 0.18; m.hitPart = null; }   // the dragon: the part that was struck flashes
   floatText(m.x, m.y, (crit ? v + '!' : '' + v), crit ? '#ffd36a' : '#f2e6d0', 0.8, crit ? 20 : 15);
   for (let i = 0; i < 5; i++) G.fx.push({ type: 'spark', x: m.x, y: m.y, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 40 + rnd() * 20, vz: 60 + rnd() * 60, t: 0, dur: 0.45, color: m.type === 'wraith' ? '120,255,170' : '170,20,20' });
   sfx('hit', { mat: HIT_MAT[m.type], x: m.x, y: m.y }); if (m.hp > 0) monsterVoice(m, 'hurt');
@@ -1850,7 +2269,7 @@ function loseInterest(m, stuck) {
 }
 function killMonster(m, drowned = false) {
   m.dead = true; m.deathT = 0; m.hp = 0; G.hero.kills++; m.frozen = null;
-  if (drowned) m.drowned = true; else if (m.type === 'skeleton' || m.type === 'ghoul') monsterVoice(m, 'die'); else sfx('die', { x: m.x, y: m.y });
+  if (drowned) m.drowned = true; else if (m.type === 'skeleton' || m.type === 'ghoul') monsterVoice(m, 'die'); else sfx(m.parts ? 'roar' : 'die', { x: m.x, y: m.y });
   gainXp(m.xp); floatText(m.x, m.y - 0.3, '+' + m.xp + ' xp', '#c9b37a', 1.1, 13);
   if (drowned) return;   // went through the ice: what it carried sinks with it
   const d = G.depth;
@@ -1867,13 +2286,14 @@ function heroAttack(px, py, target) {
   const h = G.hero; if (h.atkCd > 0 || G.dead || h.queue.length) return false;   // queued item uses go first
   const w = weaponOf(h), info = KIND_INFO[w.kind];
   h.atkCd = w.cd;
-  const ax = (target ? target.x : px) - h.x, ay = (target ? target.y : py) - h.y;
+  const tp = target && near(target, h.x, h.y);   // the dragon: aim at its nearest part
+  const ax = (target ? tp.x : px) - h.x, ay = (target ? tp.y : py) - h.y;
   setDir(h, ax, ay);
   const ang = Math.atan2(ay, ax);
   const [mn, mx] = weaponDamageRange(h);
   const roll = () => { const crit = rnd() * 100 < h.st.crit; return [(mn + rnd() * (mx - mn)) * (crit ? 1.75 : 1), crit]; };
   h.path = [];
-  if (w.kind === 'bomb') { throwBomb(h, target ? target.x : px, target ? target.y : py); return true; }
+  if (w.kind === 'bomb') { throwBomb(h, target ? tp.x : px, target ? tp.y : py); return true; }
   if (w.kind === 'bow') {   // the hero stands still drawing the bow, then looses (see releaseArrow); the cooldown runs from now
     h.draw = { t: 0, dur: drawTime(w), target: target || null, x: px, y: py, roll };
   } else {
@@ -1890,7 +2310,7 @@ const BOW_DRAW = { base: 0.15, perCd: 0.3 };
 const drawTime = w => BOW_DRAW.base + BOW_DRAW.perCd * Math.max(0, w.cd - 0.6);
 function releaseArrow(h) {
   const d = h.draw; h.draw = null;
-  const tx = d.target && !d.target.dead ? d.target.x : d.x, ty = d.target && !d.target.dead ? d.target.y : d.y;
+  const tp = d.target && !d.target.dead ? near(d.target, h.x, h.y) : null, tx = tp ? tp.x : d.x, ty = tp ? tp.y : d.y;
   const ang = Math.atan2(ty - h.y, tx - h.x), sp = 15, [dmg, crit] = d.roll();
   setDir(h, tx - h.x, ty - h.y); sfx('bow');
   G.proj.push({ type: 'arrow', x: h.x + Math.cos(ang) * 0.4, y: h.y + Math.sin(ang) * 0.4, vx: Math.cos(ang) * sp, vy: Math.sin(ang) * sp, life: KIND_INFO.bow.reach / sp, dmg, crit, friendly: true });
@@ -1908,19 +2328,19 @@ function chargeOnShot(m) {
 // A swing hits every monster in its arc, but only the main target takes full damage; the others take
 // CLEAVE (25 %). The main target is the clicked monster, or, for a swing at the ground (or if the clicked
 // monster isn't hit), the hit monster closest to the aim direction.
-const CLEAVE = 0.25;
+const CLEAVE = 0.25, DRAGON_HEAD = 1.5;   // a hit on the dragon's head deals ×1.5
 function resolveSwing(h) {
   const s = h.swing, hits = [];
   for (const m of G.monsters) {
     if (m.dead) continue;
-    const dx = m.x - h.x, dy = m.y - h.y, d = Math.hypot(dx, dy);
-    if (d - m.r > s.reach) continue;
+    const t = near(m, h.x, h.y), dx = t.x - h.x, dy = t.y - h.y, d = Math.hypot(dx, dy);   // t: the dragon's nearest part
+    if (d - t.r > s.reach) continue;
     let da = Math.abs(Math.atan2(dy, dx) - s.ang); if (da > Math.PI) da = 2 * Math.PI - da;
-    if (da <= s.arc || d < 0.55) hits.push({ m, da, d });
+    if (da <= s.arc || d < 0.55 + (t.r - m.r)) hits.push({ m, da, d, t });
   }
   if (!hits.length) return;
   const main = hits.find(x => x.m === s.target) || hits.reduce((a, b) => (b.da < a.da - 0.05 || (Math.abs(b.da - a.da) <= 0.05 && b.d < a.d)) ? b : a);
-  for (const x of hits) { const [dmg, crit] = s.roll(); damageMonster(x.m, x === main ? dmg : dmg * CLEAVE, crit); }
+  for (const x of hits) { const [dmg, crit] = s.roll(); if (x.m.parts) x.m.hitPart = x.t; damageMonster(x.m, (x === main ? dmg : dmg * CLEAVE) * (x.t.head ? DRAGON_HEAD : 1), crit); }
 }
 // ---- Fire bombs in flight and the fires they leave (constants and the item: see BOMB / FIRE above)
 // A thrown bomb flies from the hero's hand to the target in an arc: it is at height z (screen px) =
@@ -2018,7 +2438,7 @@ function updateFires(dt, hurt) {
   burnTick(G.hero, dt, v => damageHero(v, null), 0);
   for (const m of G.monsters) if (!m.dead) burnTick(m, dt, v => burnMonster(m, v), FIRE.catchMon);
 }
-const inFire = e => G.fires.some(f => f.t < f.dur && Math.hypot(e.x - f.x, e.y - f.y) < f.r + e.r * 0.5);
+const inFire = e => G.fires.some(f => f.t < f.dur && (e.parts ? e.parts.some(p => Math.hypot(p.x - f.x, p.y - f.y) < f.r + p.r * 0.5) : Math.hypot(e.x - f.x, e.y - f.y) < f.r + e.r * 0.5));
 // Burning: a creature in a fire burns at FIRE.dps, and goes on burning for FIRE.after s after it steps out
 // (e.burnLeft; a fire touched again restarts the 10 s) at FIRE.afterDps. Nothing stacks: in two fires, or in a
 // fire while still burning, it is FIRE.dps. Damage comes in ticks of FIRE.tick s: the first at once on catching
@@ -3103,7 +3523,8 @@ function updateHud() {
 // =====================================================================================
 //  Input
 // =====================================================================================
-function screenToIso(mx, my) { return [(mx - W / 2) / G.zoom + G.camX, (my - H / 2) / G.zoom + G.camY]; }
+const zoomNow = () => G.zoom * (G.fightZ || 1);   // the player's zoom, drawn back while the dragon fights (G.fightZ, see updateDragon)
+function screenToIso(mx, my) { return [(mx - W / 2) / zoomNow() + G.camX, (my - H / 2) / zoomNow() + G.camY]; }
 function isoToWorld(X, Y) { return [(X / HW + Y / HH) / 2, (Y / HH - X / HW) / 2]; }
 function pickAt(mx, my) {
   const [X, Y] = screenToIso(mx, my);
@@ -3310,8 +3731,8 @@ function update(dt) {
     G.deadT += dt; if (MK.o) closeMarket();
     if (G.deadT > DEATH_DELAY && !G.deathShown) { G.deathShown = true; showDeath(); }
     for (const mo of G.monsters) { const px = mo.x, py = mo.y; updateMonster(mo, dt);
-      if (mo.moving) mo.anim += Math.hypot(mo.x - px, mo.y - py) * (META.characters[mo.type].fpt || 2) / mo.scale; }
-    G.monsters = G.monsters.filter(mo => !(mo.dead && mo.deathT > 1.2));
+      if (mo.moving && !mo.parts) mo.anim += Math.hypot(mo.x - px, mo.y - py) * (META.characters[mo.type].fpt || 2) / mo.scale; }
+    G.monsters = G.monsters.filter(mo => !(mo.dead && mo.deathT > 1.2 && !mo.parts));
     G.proj = []; updateFires(dt, false); updateIce(dt); updateFx(dt); updateDialogue(dt); return;
   }
   // continuous input
@@ -3327,7 +3748,7 @@ function update(dt) {
   if (autoAtk && (!h.attackTarget || h.attackTarget.dead)) {
     const reach = KIND_INFO[weaponOf(h).kind].reach * 0.85;
     let best = null, bd = 1e9;
-    for (const mo of G.monsters) { if (mo.dead) continue; const dd = dist(h, mo) - mo.r; if (dd <= reach && dd < bd) { bd = dd; best = mo; } }
+    for (const mo of G.monsters) { if (mo.dead) continue; const t = near(mo, h.x, h.y), dd = dist(h, t) - t.r; if (dd <= reach && dd < bd) { bd = dd; best = mo; } }
     if (best) { h.attackTarget = best; h.attackPending = false; h.intent = null; }
   }
 
@@ -3351,15 +3772,17 @@ function update(dt) {
       const w = weaponOf(h), info = KIND_INFO[w.kind];
       if (RANGED[w.kind]) { if ((mouse.right || h.attackPending) && h.atkCd <= 0) { heroAttack(0, 0, at); h.attackPending = false; } else if (!mouse.right && !h.attackPending) h.attackTarget = null; }
       else {
-        const inReach = dist(h, at) - at.r <= info.reach * 0.85;
+        const tp = near(at, h.x, h.y), inReach = dist(h, tp) - tp.r <= info.reach * 0.85;   // tp: the dragon's nearest part
         if (inReach) { h.path = []; if (h.atkCd <= 0 && !h.swing && (h.attackPending || mouse.right || autoAtk)) { heroAttack(0, 0, at); h.attackPending = false; } }
-        else if (h.attackPending || mouse.right) { h.repath -= dt; if (h.repath <= 0 || !h.path.length) { h.repath = 0.25; pathTo(h, at.x, at.y, true); } }
+        else if (h.attackPending || mouse.right) { h.repath -= dt; if (h.repath <= 0 || !h.path.length) { h.repath = 0.25; pathTo(h, tp.x, tp.y, true); } }
         else h.attackTarget = null;
       }
     }
   }
+  if (h.kb) { h.path = []; moveEnt(h, h.kb.vx * dt, h.kb.vy * dt); if ((h.kb.t -= dt) <= 0) h.kb = null; }   // thrown back by the dragon
+  if (G.shake > 0) G.shake = Math.max(0, G.shake - dt);
   const ox = h.x, oy = h.y;
-  h.moving = !h.swing && !h.draw && followPath(h, h.st.speed * (h.speedMul || 1), dt);   // speedMul: the sandbox's character viewer
+  h.moving = !h.swing && !h.draw && !h.kb && followPath(h, h.st.speed * (h.speedMul || 1), dt);   // speedMul: the sandbox's character viewer
   const stepD = Math.hypot(h.x - ox, h.y - oy);
   if (h.moving) { const lk = heroLook(h); h.anim += stepD * (META.characters[lk].fpt || 2) / lookScale(lk); if (stepD < 1e-4) { h.stuckT += dt; if (h.stuckT > 0.3) { h.path = []; h.stuckT = 0; } } else h.stuckT = 0; }
   if (h.intent) {
@@ -3381,11 +3804,11 @@ function update(dt) {
   // monsters
   for (const mo of G.monsters) {   // walk frames advance with distance walked: META fpt = frames per tile at scale 1
     const px = mo.x, py = mo.y; FLY = flies(mo); try { updateMonster(mo, dt); } finally { FLY = false; }
-    if (mo.moving) mo.anim += Math.hypot(mo.x - px, mo.y - py) * (META.characters[mo.type].fpt || 2) / mo.scale;
+    if (mo.moving && !mo.parts) mo.anim += Math.hypot(mo.x - px, mo.y - py) * (META.characters[mo.type].fpt || 2) / mo.scale;
   }
-  G.monsters = G.monsters.filter(mo => !(mo.dead && mo.deathT > 1.2));
+  G.monsters = G.monsters.filter(mo => !(mo.dead && mo.deathT > 1.2 && !mo.parts));   // a slain dragon stays where it fell
   // separation
-  const act_ = G.monsters.filter(mo => !mo.dead && Math.abs(mo.x - h.x) < 16 && Math.abs(mo.y - h.y) < 16);
+  const act_ = G.monsters.filter(mo => !mo.dead && !mo.parts && Math.abs(mo.x - h.x) < 16 && Math.abs(mo.y - h.y) < 16);   // the dragon pushes the hero itself
   for (let i = 0; i < act_.length; i++) {
     const a = act_[i];
     for (let j = i + 1; j < act_.length; j++) { const b = act_[j]; const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy), md = a.r + b.r;
@@ -3400,7 +3823,8 @@ function update(dt) {
     for (let s = 0; s < steps && p.life > 0; s++) {
       p.x += p.vx * dt / steps; p.y += p.vy * dt / steps; p.life -= dt / steps;
       if (opaque(Math.floor(p.x), Math.floor(p.y))) { p.life = 0; G.fx.push({ type: 'spark', x: p.x, y: p.y, vx: 0, vy: 0, z: 40, vz: 30, t: 0, dur: 0.3, color: p.friendly ? '200,180,140' : '120,255,170' }); break; }
-      if (p.friendly) { for (const mo of G.monsters) if (!mo.dead && Math.hypot(mo.x - p.x, mo.y - p.y) < mo.r + 0.18) { damageMonster(mo, p.dmg, p.crit); chargeOnShot(mo); p.life = 0; break; } }
+      if (p.friendly) { for (const mo of G.monsters) { if (mo.dead) continue; const t = near(mo, p.x, p.y);
+        if (Math.hypot(t.x - p.x, t.y - p.y) < t.r + 0.18) { if (mo.parts) mo.hitPart = t; damageMonster(mo, p.dmg * (t.head ? DRAGON_HEAD : 1), p.crit); chargeOnShot(mo); p.life = 0; break; } } }
       else if (Math.hypot(h.x - p.x, h.y - p.y) < h.r + 0.2) { damageHero(p.dmg, p.src); p.life = 0; }
     }
   }
@@ -3418,6 +3842,7 @@ function updateFx(dt) {
 }
 const DEATH_DELAY = 4;   // seconds between the hero's death and the death screen
 function updateMonster(m, dt) {
+  if (m.parts) return updateDragon(m, dt);
   m.hitT = Math.max(0, m.hitT - dt); m.lunge = Math.max(0, m.lunge - dt * 4);
   if (m.chargeT > 0) { m.chargeT -= dt;   // charging: a trail of dust behind it
     if (m.moving && rnd() < dt * 25) G.fx.push({ type: 'spark', x: m.x + (rnd() - 0.5) * 0.4, y: m.y + (rnd() - 0.5) * 0.4, vx: 0, vy: 0, z: 3, vz: 25 + rnd() * 20, t: 0, dur: 0.5, color: '130,110,85' }); }
@@ -3887,8 +4312,8 @@ function castFrost(h) {
   p.shards = Array.from({ length: 56 }, () => ({ a: rnd() * Math.PI * 2, sp: 0.8 + rnd() * 0.22, vz: 60 + rnd() * 120, len: 0.12 + rnd() * 0.2 }));
   S.patches.push(p); while (S.patches.length > 3) S.patches.shift();
   for (const mo of G.monsters) {   // monsters near the hero freeze as the front reaches them
-    if (mo.dead) continue; const d = Math.hypot(mo.x - x, mo.y - y);
-    if (d < FROST.mon + mo.r) freezeMonster(mo, reachIce(p, Math.min(0.999, d / R)), frostDur(mo));
+    if (mo.dead) continue; const t = near(mo, x, y), d = Math.hypot(t.x - x, t.y - y);
+    if (d < FROST.mon + t.r) freezeMonster(mo, reachIce(p, Math.min(0.999, d / R)), frostDur(mo));
   }
   sfx('frostcast');
 }
@@ -4268,13 +4693,14 @@ function drawIceFx(toDev, z) {
 // =====================================================================================
 const dl = [];
 function render() {
-  const h = G.hero, m = G.map, z = G.zoom;
+  const h = G.hero, m = G.map, z = zoomNow();
   ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
   ctx.fillStyle = '#040205'; ctx.fillRect(0, 0, W, H);
   const [hx, hy] = iso(h.x, h.y);
   G.camX += (hx - G.camX) * (G.camSnap ? 1 : 0.25); G.camY += (hy - 46 - G.camY) * (G.camSnap ? 1 : 0.25); G.camSnap = false;
   if (Math.abs(hx - G.camX) > 400) { G.camX = hx; G.camY = hy - 46; }
-  const baseT = [DPR * z, 0, 0, DPR * z, DPR * (W / 2 - G.camX * z), DPR * (H / 2 - G.camY * z)];
+  const shk = G.shake > 0 ? G.shake * 6 : 0;   // the dragon's roar shakes the view
+  const baseT = [DPR * z, 0, 0, DPR * z, DPR * (W / 2 - G.camX * z + (rnd() - 0.5) * shk), DPR * (H / 2 - G.camY * z + (rnd() - 0.5) * shk)];
   ctx.setTransform(...baseT);
   // visible tile range
   const cs = [[0, 0], [W, 0], [0, H], [W, H]].map(([sx, sy]) => isoToWorld(...screenToIso(sx, sy)));
@@ -4293,7 +4719,8 @@ function render() {
       if (o.x + big >= x0 && o.x <= x1 + 1 && o.y + big >= y0 && o.y <= y1 + 1) dl.push({ k: o.x + o.y + 2 * big - 1, t: 1, o }); continue; }
     if (o.type !== 'stairs' && o.type !== 'bones' && o.type !== 'gold' && o.type !== 'mrug' && o.type !== 'door' && o.x >= x0 && o.x <= x1 && o.y >= y0 && o.y <= y1) dl.push({ k: o.type === 'keeper' || o.type === 'npc' ? o.fx + o.fy : o.x + o.y + 1, t: 1, o });   // a keeper (or story NPC) sorts like a character
   }
-  for (const mo of G.monsters) if (mo.x >= x0 && mo.x <= x1 + 1 && mo.y >= y0 && mo.y <= y1 + 1) dl.push({ k: mo.x + mo.y, t: 2, e: mo });
+  for (const mo of G.monsters) if (mo.parts) { if (Math.abs(mo.x - h.x) < 30 && Math.abs(mo.y - h.y) < 30) dragonDrawables(mo, dl); }
+    else if (mo.x >= x0 && mo.x <= x1 + 1 && mo.y >= y0 && mo.y <= y1 + 1) dl.push({ k: mo.x + mo.y, t: 2, e: mo });
   dl.push({ k: h.x + h.y, t: 3, e: h });
   for (const p of G.proj) dl.push({ k: p.x + p.y, t: 4, p });
   for (const f of G.fires) for (const q of f.parts) if (q.x > x0 - 1 && q.x < x1 + 2 && q.y > y0 - 1 && q.y < y1 + 2) dl.push({ k: q.x + q.y, t: 6, q, f });
@@ -4324,7 +4751,9 @@ function render() {
   if (m.iceS && m.iceS.patches.length) drawFloorFrost();
   // floor-level props (stairs, bones, gold) and items
   G.pick.length = 0;
-  if (m.bossRoom) drawRuneCircle(m.bossRoom);
+  if (m.bossRoom && !m.hoard) drawRuneCircle(m.bossRoom);   // (a dragon's lair has its hoard instead)
+  if (m.hoard) drawHoard(m.hoard);
+  for (const mo of G.monsters) if (mo.parts && IMG.dragon && Math.abs(mo.x - h.x) < 30 && Math.abs(mo.y - h.y) < 30) dragonShadows(mo, baseT);
   for (const f of G.fires) if (f.x > x0 - 3 && f.x < x1 + 3 && f.y > y0 - 3 && f.y < y1 + 3) drawFireGround(f);
   for (const o of G.objects) {
     if (o.x < x0 - 1 || o.x > x1 + 1 || o.y < y0 - 1 || o.y > y1 + 1) continue;
@@ -4354,8 +4783,10 @@ function render() {
     else if (d.t === 3) drawChar(d.e, true);
     else if (d.t === 5) drawDoor(d.o);
     else if (d.t === 6) drawFirePart(d.q, d.f);
+    else if (d.t === 7) d.f();   // a part of the dragon
     else drawProj(d.p);
   }
+  for (const mo of G.monsters) if (mo.parts) dragonFire(mo);
   if (m.surface) drawCrowns(x0, x1, y0, y1);
   drawFx();
 
@@ -4430,7 +4861,7 @@ function render() {
     ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(sx - tw / 2, G.hover.y - 22, tw, 19); ctx.fillStyle = '#e8dcc4'; ctx.fillText(label, sx, G.hover.y - 8);
   }
   for (const mo of G.monsters) {
-    if (mo.dead || mo.hp >= mo.maxHp || dist(mo, h) > 9) continue;
+    if (mo.dead || mo.parts || mo.hp >= mo.maxHp || dist(mo, h) > 9) continue;   // (the dragon's life shows in the target panel)
     const [sx, sy] = iso(mo.x, mo.y), top = sy - 128 * mo.scale + 4 - (mo.b.float ? 10 : 0);
     ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(sx - 25, top - 8, 50, 6);
     ctx.fillStyle = mo.boss ? '#5fd06a' : mo.champ ? '#e6c84a' : '#c4291f'; ctx.fillRect(sx - 24, top - 7, 48 * mo.hp / mo.maxHp, 4);

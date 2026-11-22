@@ -36,7 +36,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `art/characters/dragon/` | Concept art for the planned dragon boss (`todo.md` #17; not loaded by the game): `reference/game-style-refs.png` (the style reference: frames of the demon, spider, ghoul, hero and skeleton), `reference/concept-1..3.png` (three candidate designs painted from it; 2, the crypt dragon, was chosen), `reference/round-2/candidate-1..2.png` (it redrawn in the game camera; 2 approved, copied to `reference/reference.png`), `guide/` (painting guides from `tools/dragon/render_guides.js`), `paint/<part>.png` + `<part>.prompt.txt` (the painted parts: `head.png` and `headopen.png`, 8 directions, mouth closed and open; `walk/<DIR>.png`, the body with its legs walking, 8 frames, for S, SW, W, NW, N, and `walk/<DIR>.steady.png`, the same with the body kept still; `wing.png`, the right wing flat over `guide/wing.png`; `bits.png`, a bone spike and the tail club) and `paint/attempts/` (rejected tries), `character.json` (prompts, model, decisions, spend, status). |
 | `tools/dragon/render_guides.js` | Renders the dragon's painting guides from `dragon-prototype.html`'s own placeholder body (Playwright, `file://`): the torso and the head (mouth closed and open) in the 8 game directions, 4 × 2 cells of 384 × 512 on white, so the painted parts fit the prototype; writes `art/characters/dragon/guide/<part>.png` and `guides.json` (cell size, scale, and each cell's anchor: the ground point under the part). With `walk`: the body (torso and legs) walking, 8 frames per direction for S, SW, W, NW, N (the others mirrored), diagonal leg pairs half a cycle apart, each foot planted 60 % of the cycle, 1.2 tiles per cycle; writes `guide/walk/<DIR>.png`, `<DIR>.legs.png` (the legs alone) and `walk.json`. |
 | `tools/dragon/wing_guide.py` | Draws the guide for painting the wing flat: the prototype's spread right wing from above (bone points, grey membrane), `art/characters/dragon/guide/wing.png` and `wing.json` (the bone points in pixels). |
-| `tools/dragon/build_assets.py` | Builds `assets/dragon.webp` and `assets/dragon.json` from the paintings: the steady walk sheets (guide scale 1.4 → 1) and the heads (2.4 → 1) each cut to one box shared by all their frames, with the anchor (the ground point under the torso centre, or under the head node with the head 72 px up); the wing (⅓, with its bone points); the spike and club from `paint/bits.png`; a flank patch of the SW walk mirrored 2 × 2 into a tiling scale texture; shelf-packed into a 2048 px wide atlas. Writes the layout into `dragon-prototype.html` between `// dragon-art:start` and `// dragon-art:end`. |
+| `tools/dragon/build_assets.py` | Builds `assets/dragon.webp` and `assets/dragon.json` from the paintings: the steady walk sheets (guide scale 1.4 → 1) and the heads (2.4 → 1) each cut to one box shared by all their frames, with the anchor (the ground point under the torso centre, or under the head node with the head 72 px up); the wing (⅓, with its bone points); the spike and club from `paint/bits.png`; a flank patch of the SW walk mirrored 2 × 2 into a tiling scale texture; shelf-packed into a 2048 px wide atlas. Writes the layout into `dragon-prototype.html` and `index.html` between `// dragon-art:start` and `// dragon-art:end`. |
 | `tools/dragon/steady_walk.py` | Keeps the dragon's body still in a painted walk sheet, since the image model repaints the scales in every frame and they twitch: `python tools/dragon/steady_walk.py <DIR>` writes `paint/walk/<DIR>.steady.png`, where every frame is the master frame (0) except around the legs (the guide's legs in that frame and in the master, grown 16 px, softened 6 px), and nothing changes above a still line 55 % of the way down from the top of the body to the belly, so the back, the spike row and the upper flanks are identical in all 8 frames. |
 | `tools/raw/cast_design1.png`, `cast_design2.png` | The cast's front-view design sheets (4 × 1 each, on magenta). |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
@@ -62,7 +62,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `lake-prototype.html` | A standalone prototype of underground lakes (not loaded by the game, which now has lakes: see [Lakes](#lakes)): still water set a few pixels below the floor, a mirrored reflection of the walls, props and characters, rock banks on the far shores, and ripples from drips. A panel compares the options (tile or rounded shore, ripple rings or refraction, water colour, depth, reflection strength). Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page lake-prototype.html --skip 'assets/*' --inline` (the seven images it uses). |
 | `ice-prototype.html` | A standalone prototype of lake water freezing under an ice blast (not loaded by the game, which now has ice from the scroll of frost: see [Scrolls](#scrolls)). The blast comes either from a target spot on the water (a scar of white rime, frost streaks, broken pressure rings and fractures at the centre of the ice) or from the hero on the shore (heavy rime along the water's edge nearest the hero, streaks and fractures fanning out across the ice, frost on the stones around their feet). It freezes the lake in a radius; the ice lasts a set time and cracks for its last 5 s, the cracks branching out from under whoever stands on it (the hero or a monster; not the wraith, which floats), else from the scar or the edge nearest the hero. Anyone still on the ice when it melts falls through and drowns. Monsters inside the radius (not the caster) freeze too, as the front reaches them, for a shorter time than the water (8 s by default): the whole body fades to pale icy blue over 0.15 s and cold mist pours off them, and they stop mid-step (the wraith mid-air); for the last 0.75 s they shudder, then the blue fades over 0.35 s. Burning oil does not melt the ice. The chosen looks are the frost front (freezing) and thaw (melting; at most 3 ripples per melt, as refraction is costly); shard burst, flash, break up and recede stay in the panel. On the ice drops only tick, with no ripples, and fire bombs shatter and burn instead of sinking. Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page ice-prototype.html --skip 'assets/*' --inline` (the same seven images as the lake prototype): https://claude.ai/artifact/ECmt2MkwcVn97V4E9iGib5 |
 | `dragon-prototype.html` | A standalone prototype of the planned dragon boss (`todo.md` #17; not loaded by the game; the dragon will appear only in the sandbox), in a 24 × 22 lair with four pillars, braziers, banners, skull piles and a gold hoard, next to the game's hero. The body is a spine of 19 nodes (head, 5 neck, shoulders, 2 torso, hips, 9 tail; about 7.8 tiles long), each a circle on the floor (collision and hit area) lifted to its own height and drawn as a shaded sphere joined to the next by a tapered band, with a dorsal spike; the head has a snout with an opening jaw and teeth, horns and glowing eyes. Every node, each of the 4 legs and each of the 4 panels of each wing is its own drawable with its own depth key (`x + y`), sorted with the walls, pillars and the hero. **Look** (option): *Painted* (the default: the crypt dragon of `art/characters/dragon/`, from `assets/dragon.webp`, whose layout `tools/dragon/build_assets.py` writes into the page as `DRAGON_ART`) or *Shapes* (the placeholder spheres). Painted: the shoulders-to-hips nodes are replaced by one sprite of the body with its four legs, drawn at the torso's middle (its depth key) in the 8 directions (S, SW, W, NW, N painted; NE, E, SE mirrored), its 8 walk frames advancing with the distance walked plus 0.9 × the turning (rad/s), `fpt` 6.67 frames per tile (÷ size), sinking with the torso when it dies; the head is a sprite per direction (from the head's facing), mouth closed or, while the jaw is over half open, open, drawn at the head node's height; the neck and tail nodes are the same spheres and bands filled with a tiling patch of the body painting's scales (scaled with each node) under a light-to-dark shading, with a painted bone spike on top of each (not on the first neck node and the last three tail nodes), leaning toward the tail; the last tail node is the painted bone club, turned along the tail (spikes kept up); each wing panel is the painted flat wing mapped onto it triangle by triangle (an affine map per triangle, clipped to it), darkened by its tilt; a hit flashes a sprite with an added copy of itself (`lighter`). The legs in the body sprite replace the IK legs (the *Legs* switch only affects *Shapes*). **Spine** (option): *Body leads* (the torso walks with a centre and heading, turning at most 1.1 rad/s and bending into the turn; the neck reaches from the shoulders toward the hero along a curve, within ±1.3 rad of the heading; the tail is a drag chain behind the hips, each joint relaxing toward its wanted bend within ±0.55 rad, with a slow sway) or *Snake* (the head walks and every node follows its path at fixed spacing, so it can only turn by circling). **Legs:** feet planted on the floor step in a 0.32 s arc when they fall half a tile (× size) behind their place under the shoulders or hips, diagonal pairs alternating; two-bone IK, elbows back, knees forward. **Wings:** flat panels between arm and finger bones, blended between folded and spread and flapped by rotating them about the body's axis. All shadows go into one mask, drawn at 45 %. **Behaviour** (option): *Fights* (asleep on the hoard until the hero comes within 4.5 tiles, then roars, follows to about 3.9 tiles and attacks), *Follows* (follows at 6.5 tiles, no attacks) or *Stays* (only the neck and head follow the hero). **Attacks** (also on buttons): bite (rears, lunges, snaps: 55), fire breath (a 5-tile cone of flame sweeping across the hero over 1.45 s: 14 every 0.2 s inside it), tail sweep (when the hero is behind it, the tail whips toward the hero's side: 42 and a 2.2-tile knock-back), wing buffet (two flaps; each downstroke within 4.4 tiles: 12 and a knock-back of up to 3 tiles, with dust), roar (on waking; wings half spread, the camera shakes). The hero (400 life, back at the door 2.5 s after falling) walks with a tap on the floor and strikes the tapped node with a tap on the dragon (24-40, the head ×1.5, 12 % criticals ×1.75); the dragon has one pool of 1800 life (bar at the bottom), and when slain it sinks node by node from the tail tip to the head. While the dragon is awake and near, the camera zooms out to the **Camera in the fight** factor (default ×0.7). Other options: **Depth sorting** *Per part* or *One key* (the whole dragon at its middle's key, as one big sprite would sort, to show the problem), size ×0.7-1.4, walking speed, light (the game's darkness, dim or off), wings, legs, shadows, *Show the spine* (node circles, keys, foot targets) and sound (synthesised placeholders). Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page dragon-prototype.html --title "Crypt Dragon Prototype" --skip 'assets/*' --inline assets/floor.jpg assets/wall.jpg assets/dirt.jpg assets/props.webp assets/hero.webp assets/dragon.webp`: https://claude.ai/artifact/DTUxbqHsmxk5nTESydSZRD |
-| `assets/dragon.webp`, `assets/dragon.json` | The painted dragon's atlas for `dragon-prototype.html` (not used by the game): the body walk (5 directions × 8 frames, 231 × 244), the head mouth closed and open (8 directions each, 160 × 191), the flat wing, the bone spike, the tail club and the scale patch, at the game's scale; built by `tools/dragon/build_assets.py`, which also writes the layout (`dragon.json`, and inline in the page as `DRAGON_ART`). |
+| `assets/dragon.webp`, `assets/dragon.json` | The painted dragon's atlas for the game's dragon ([The dragon](#the-dragon); loaded only for it) and `dragon-prototype.html`: the body walk (5 directions × 8 frames, 231 × 244), the head mouth closed and open (8 directions each, 160 × 191), the flat wing, the bone spike, the tail club and the scale patch, at the game's scale; built by `tools/dragon/build_assets.py`, which also writes the layout (`dragon.json`, and inline in both pages as `DRAGON_ART`). |
 | `sandbox.js` | Test scenarios, loaded with `?sandbox` and inlined into the Claude artifact: see [Sandbox](#sandbox). |
 | `catalog.html` | Monster and item catalog (bestiary, armory, potions, affixes, rarity, and what first appears at each depth), with sprites from `assets/`. **Generated** by `tools/catalog/build.js`: see [Catalog](#catalog). |
 | `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
@@ -91,13 +91,13 @@ it. They live in `sandbox.js`, apart from the game; the game itself never uses t
   https://claude.ai/artifact/T9nJm2WxgZYWtneTWFVqHa (private to its owner). It is built from the current
   `index.html` and `sandbox.js` by the repo's shared script (see the `artifact-sandbox` skill, which also covers
   publishing and testing):
-  `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music Sandbox" --skip assets/meta.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*' --inline 'assets/*.webp' 'assets/*.jpg'`.
+  `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music Sandbox" --skip assets/meta.json assets/dragon.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*' --inline 'assets/*.webp' 'assets/*.jpg'`.
   It removes the document wrapper (the viewer adds its own) and the manifest and touch-icon links, inlines
   `sandbox.js` in place of the loader block (the artifact's address carries no query string) and `story/story.js`
   in place of its `<script src>`, embeds the 26
-  images (`assets/*.webp`, `*.jpg`, the cast's included) in the page as data URIs (about 7.6 MB; the claude.ai app on a phone failed
+  images (`assets/*.webp`, `*.jpg`, the cast's and the dragon's included) in the page as data URIs (about 8.8 MB; the claude.ai app on a phone failed
   to load them as separate files, every one and every retry), copies the other assets (sounds and music, minus
-  `meta.json`, inlined as `META`, and the unused icon sizes) and writes `files.json` for publishing; the
+  `meta.json`, inlined as `META`, `dragon.json`, inlined as `DRAGON_ART`, and the unused icon sizes) and writes `files.json` for publishing; the
   artifact is then republished to the same URL. Nothing is copied by hand, so a rebuild always matches the
   game; **after a change to the game the artifact is rebuilt and republished**, or it keeps the older version.
 
@@ -164,6 +164,21 @@ The picker (*Crypt Sandbox*) groups the scenarios:
       first time gets an important warning, later a curt goodbye.
     - The champion: "Turn back"; *Then fall* makes it attack; *I carry the frost* (only with a scroll) makes it let
       you pass.
+- **Dragon:**
+  - **The dragon's lair** (depth 10, regenerated until the level has a boss room; from depth 6 every level has one):
+    waits for the dragon's art (`loadDragonArt`) before building. The boss room is grown to 3.2× its area with
+    `enlargeRoom` (about 20–25 tiles a side), its boss and guards are removed, and everything that stood in it is
+    cleared; then it is furnished again: a brazier every 6 tiles along the north wall (from 2 tiles in) and the west
+    wall (from 5 tiles in), wherever solid wall is behind it, the guardian's chest (`boss: true`, sealed while the
+    dragon lives) on the north wall next to the middle, four pillars (blocking decor) at 28 % and 72 % of the room's
+    width and height, and two skull piles (not blocking) near the north-west and north-east corners. The level's
+    `map.hoard` (`{ x, y, r: 3.3 }`, see [The dragon](#the-dragon)) lies in the room's middle, with the dragon asleep
+    on it (`makeDragon`, depth 10), facing the hero turned 0.6 rad; it is the level's boss (`map.boss`). The hero
+    starts 2 tiles in from the west wall on the room's middle row. Monsters within 28 tiles of the hero (other than the
+    dragon) are removed. The bar shows the dragon's state (asleep, walking, turning, biting, breathing fire, sweeping
+    its tail, beating its wings, roaring, frozen, slain), its life, whether the hero burns, the zoom and the frame
+    rate, and has buttons that make it attack at once (**Bite**, **Breath**, **Tail**, **Wings**, **Roar**; it wakes)
+    and **Again**, which builds the scenario anew.
 - **Kiting:**
   - **Kiting with a bow** (depth 7, regenerated until the level has a big room): the test hero holds a common
     Hunting Bow (about 3 arrows per spider and 15 per Pit Demon there; the longsword in the pack, key 1).
@@ -1323,6 +1338,69 @@ bind all things!": *gelu* frost, *cuncta* all things, *liga* bind), an AI voice 
     back, and the last 30 % fades it out. At most 3 ripples rise from the holes (ripple refraction is costly).
   - **Light.** The ice glows faintly (a light hole of up to 6 tiles at 22 %, at the edge nearest the hero, fading
     with the thaw).
+
+## The dragon
+
+A big boss made of parts (`todo.md` #17), so far **only in the sandbox** ([The dragon's lair](#sandbox)): nothing in
+the game's own levels makes one. It is the crypt dragon painted for `dragon-prototype.html` (`art/characters/dragon/`;
+the art: `assets/dragon.webp` and its layout `DRAGON_ART`, written into `index.html` and the prototype by
+`tools/dragon/build_assets.py`), and moves and attacks as the prototype's *Body leads* spine.
+
+- **One monster with parts.** `makeDragon(x, y, th, d)` makes an entry for `G.monsters` (`type: 'dragon'`, `boss:
+  true`, its own data `DRAGON` as `b`) that also has `parts`: 19 nodes (head, 5 neck, shoulders, 2 torso, hips, 9 tail;
+  `DG_PROFILE`: radius and spacing in tiles, about 7.8 tiles from snout to tail tip). Each node is a circle on the
+  floor (its collision and hit area) at a height `z`. The monster's own point (`x`, `y`) follows the middle of the
+  torso, and its `r` is 0.72. **`near(m, x, y)`** gives the part nearest a point (an ordinary monster gives itself):
+  the game's distance checks use it, so it is the dragon's nearest part that a sword reaches (`resolveSwing`, the
+  attack walk, auto attack), an arrow strikes, a bow or a fire bomb is aimed at, and a frost blast reaches. A part
+  struck flashes. A hit on the head deals ×1.5 (`DRAGON_HEAD`). A fire burns it when any part is in it (`inFire`).
+- **Numbers** (`DRAGON`): life 110, armor 20, XP 900 base, scaled by depth like a boss (life ×`MON_BASE` ×
+  `MON_SCALE`^(d−1) × the boss tier's 8; armor + 3 per depth + 4 × depth; XP ×1.17^(d−1); at depth 10: 2928 life,
+  87 armor); attacks before armor ×`MON_BASE`×`MON_SCALE`^(d−1): bite 16–24, breath 2.5–3.5 per 0.2 s, tail 11–16,
+  wing buffet 5–8. Walks 1.9 tiles/s, turns at most 1.1 rad/s, stops 3.9 tiles (its middle) from the hero.
+- **Asleep** until the hero comes within 4.5 tiles of any part or it is hit (any hit starts pursuit): it lies with
+  its head low (24 px) and its tail curled, eyes dim. Waking, it roars (1.7 s: head up to 125 px, jaws open, wings
+  half spread, the view shakes for 0.9 s: `G.shake`).
+- **Moving** (`dgDrive`, `dgLayout`; as the prototype's *Body leads*): the torso turns toward the hero (2 × the angle
+  off, at most 1.1 rad/s; 0.3× while attacking, not at all during a tail sweep) and walks forward at full speed × cos²
+  of the angle off when farther than 3.9 + 0.4 tiles, backs off at 0.3× when much closer; the shoulders, middle and
+  hips are kept clear of walls and blocking props (`dgKeepIn`), as are the head and the tail nodes. The neck curves
+  from the shoulders toward the hero (within ±1.3 rad of the heading), the head turns to face it (±0.9 rad off the
+  neck), and the tail is a drag chain with a slow sway. It never chases out of sight or gives up: it is a boss in its
+  lair. It pushes the hero out of every part (`moveEnt`, so not into walls); other monsters don't push it.
+- **Attacks** (`dgDecide`, when its cooldown of 1.1–2.4 s has run out): a **tail sweep** when the hero is behind it
+  (more than 1.8 rad off its heading) within 1.8 tiles of the tail (the tail whips toward the hero's side between
+  0.32 and 0.62 s; a tail node touching the hero hits once and throws it 2.2 tiles); else a **bite** when the hero is
+  within 1.05 tiles of the head (rears, lunges, the jaws snap at 0.6 s: a hit within 0.75 tiles of the snout); else,
+  half the time, **fire breath** when the hero is ahead (within 0.9 rad), its middle within 7.5 tiles and the head
+  within 5.5 tiles with a clear line (from 0.5 to 1.95 s a 5.2-tile cone of flame, ±0.33 rad and a little wider up
+  close, sweeps across the hero: a hit every 0.2 s inside it, and the hero burns on for `FIRE.after` s, as after a
+  fire); else, 40 % of the time within 4.6 tiles, a **wing buffet** (two wingbeats; each downstroke within 4.4 tiles
+  hits and throws the hero back 0.6 + up to 2.4 tiles, raising dust). A throw (`h.kb`) moves the hero over 0.3 s with
+  `moveEnt` and cancels its walk and attack.
+- **Frozen** by a scroll of frost (`frozenTick`, a boss's shorter freeze) it holds still; it has no ice tint yet
+  (TODO).
+- **Death**: its nodes sink to the floor one after another from the tail tip to the head (0.12 s apart, 0.55 s each),
+  the body darkens, the eyes go out; it drops a boss's loot and unseals the guardian's chest. It stays where it fell
+  (slain dragons are never removed from `G.monsters`).
+- **Drawing** (`dragonDrawables`, entries of kind 7 in render's depth-sorted list, each with its own key `x + y`):
+  the body with its legs as one sprite at the torso's middle (8 directions from the heading, NE / E / SE mirrored; 8
+  walk frames advancing with the distance walked plus 0.9 × the turning in rad/s, 6.67 frames per tile), the head as a
+  sprite per direction of its facing, mouth open while the jaw is over half open, the neck and tail nodes as spheres
+  and bands filled with the body painting's scales under a light-to-dark shading, a bone spike on each, the tail
+  club at the tip, and each of the 4 panels of each wing as the flat painted wing mapped onto it triangle by triangle
+  (folded at rest, spread and flapped by its attacks). A hit or the hover brightens a part. Its shadow: every part's
+  soft ellipse (and the spread wings) into one mask, drawn at 45 % (`dragonShadows`), right after the floor-level
+  things; the breath's flames are drawn additively after the sorted list (`dragonFire`). Hover and click boxes: each
+  node's circle at its height. Its life shows in the target panel, not as a bar over it. The art loads only when
+  needed (`loadDragonArt`).
+- **The hoard**: a level's `map.hoard` (`{ x, y, r }`) is drawn on the floor (`drawHoard`, baked once): a golden
+  glow and about 900 coins and 7 goblets in an ellipse of radius `r` tiles. A level with a hoard doesn't draw the
+  boss room's rune circle.
+- **Camera**: while it is awake, alive and within 18 tiles of the hero, the view zooms out to ×0.7 of the player's
+  zoom (`G.fightZ`, eased; `zoomNow()` is the zoom drawing and clicks use), and back afterwards.
+- **Sounds** (synthesised): `roar` (also when it dies), `dbite`, `dbreath`, `flap`, `dtail`. **Music**: its lair
+  is a boss room, so the choir combat track plays there while it lives (`demonLevel` counts a dragon).
 
 ## Keepers of the Crypt (the market)
 

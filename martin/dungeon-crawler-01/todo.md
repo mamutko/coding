@@ -115,5 +115,8 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
     - **Step 2 is done:** the crypt dragon (concept 2) painted in the game's style (`art/characters/dragon/`): the
       body with its legs as a walking sprite (the trunk alone looked like a grub, so the legs are painted, not IK),
       the head (mouth closed and open), the wing, a bone spike, the tail club, and the body's scales for the neck and
-      tail; in the prototype as *Look: Painted*. Next: step 3, the engine (the multi-part entity in `index.html`, the
-      lair and a sandbox scenario).
+      tail; in the prototype as *Look: Painted*.
+    - **Step 3 is done (v95):** the dragon in the game (`index.html`, README "The dragon") and the sandbox's
+      **The dragon's lair** scenario. Left for step 4 (polish): real sounds (roar, breath, wings) instead of the
+      synthesised ones, an ice tint while frozen and flames on it while burning, balance, and whether and where it
+      appears in the game's own levels.

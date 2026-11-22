@@ -1,5 +1,5 @@
 """Builds the dragon's game art from the paintings in art/characters/dragon/: one atlas, assets/dragon.webp, and its
-layout, written into dragon-prototype.html between the markers `// dragon-art:start` and `// dragon-art:end` (as
+layout, written into dragon-prototype.html and index.html between the markers `// dragon-art:start` and `// dragon-art:end` (as
 `const DRAGON_ART = {...}`) and into assets/dragon.json.     python tools/dragon/build_assets.py
 
 What goes in (all at the game's own scale, 1 atlas px = 1 screen px at zoom 1 and size 1):
@@ -107,10 +107,11 @@ def main():
     atlas.save(os.path.join(PROJ, 'assets', 'dragon.webp'), quality=88, method=6)
     js = json.dumps(meta, separators=(',', ':'))
     open(os.path.join(PROJ, 'assets', 'dragon.json'), 'w').write(json.dumps(meta, indent=1))
-    page = os.path.join(PROJ, 'dragon-prototype.html'); s = open(page).read()
-    s2 = re.sub(r'// dragon-art:start\n.*?// dragon-art:end', lambda m: '// dragon-art:start\nconst DRAGON_ART = ' + js + ';\n// dragon-art:end', s, flags=re.S)
-    if s2 == s and 'dragon-art:start' not in s: raise SystemExit('no dragon-art markers in dragon-prototype.html')
-    open(page, 'w').write(s2)
+    for name in ('dragon-prototype.html', 'index.html'):   # the prototype and the game
+        page = os.path.join(PROJ, name); s = open(page).read()
+        if 'dragon-art:start' not in s: raise SystemExit('no dragon-art markers in ' + name)
+        s = re.sub(r'// dragon-art:start\n.*?// dragon-art:end', lambda m: '// dragon-art:start\nconst DRAGON_ART = ' + js + ';\n// dragon-art:end', s, flags=re.S)
+        open(page, 'w').write(s)
     print('assets/dragon.webp', atlas.size, os.path.getsize(os.path.join(PROJ, 'assets', 'dragon.webp')) // 1024, 'KB')
 
 

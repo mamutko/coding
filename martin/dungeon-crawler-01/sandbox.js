@@ -56,6 +56,8 @@
     <button class="sc" id="sbDialogue"><b>Dialogue</b>Depth 6, in Old Tobias's stall, with 1000 gold, playing the demo story (story/demo.md) instead of the game's. Tobias starts talking as he comes near; Vesper the Sorcerer, in the same room, talks only when clicked; a champion skeleton asleep outside the room (9–13 tiles away) taunts you when you come within 6 tiles and see it. The game keeps running: lines move on by themselves (click the panel to hurry them), choices wait. Walk away mid-conversation to hear a reaction (a discount, a warning, a complaint); come back and it picks up where it stopped. The bar shows the story's properties; Reset story forgets everything.</button>
     <h2>Kiting</h2>
     <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
+    <h2>Dragon</h2>
+    <button class="sc" id="sbDragon"><b>The dragon's lair</b>Depth 10, at the west end of the level's boss room grown to a lair of about 20–25 tiles a side: four pillars, braziers, a gold hoard, the sealed guardian's chest, and on the hoard Nythrakar, the Crypt Wyrm, asleep. Come within 4.5 tiles, or hit it, and it wakes with a roar: it walks after you, turns its whole long body, and bites, breathes fire (it sets you burning), sweeps its tail at you when you stand behind it, and beats its wings to throw you back. Strike any part of it; the head takes ×1.5. The bar's buttons make it attack at once, or bring it back to life.</button>
     <h2>Characters</h2>
     <button class="sc" id="sbLooks2"><b>Character viewer</b>Walk around an empty big room as any character that has a sprite sheet: the hero, the monsters and the Keepers of the Crypt. Pick the look in the bar; click to walk, and watch every direction.</button>
     <h2>Lakes</h2>
@@ -72,6 +74,7 @@
     + '<span id="sbDrips" class="sbSounds" hidden>Drip:' + [[1, 'Plink'], [2, 'Hollow'], [3, 'Glassy'], [4, 'Echo']].map(([n, l]) => `<button data-drip="${n}">${l}</button>`).join('') + '</span>'
     + '<span id="sbSplash" class="sbSounds" hidden>Bomb splash:' + [[1, 'Plunge'], [2, 'Heavy'], [3, 'Gurgle']].map(([n, l]) => `<button data-splash="${n}">${l}</button>`).join('') + '</span>'
     + '<span id="sbCast" class="sbSounds" hidden>Casting:' + [[1, 'Gathering frost'], [2, 'Rising hum'], [3, 'Crystal riser']].map(([n, l]) => `<button data-cast="${n}">${l}</button>`).join('') + '</span>'
+    + '<span id="sbDragonActs" class="sbSounds" hidden>' + [['bite', 'Bite'], ['breath', 'Breath'], ['tail', 'Tail'], ['buffet', 'Wings'], ['roar', 'Roar'], ['again', 'Again']].map(([k, l]) => `<button data-dact="${k}">${l}</button>`).join('') + '</span>'
     + '<span id="sbStory" class="sbSounds" hidden><button id="sbStoryReset" title="Forget the story: properties, who was met, conversations put aside">Reset story</button></span>'
     + '<button id="sbNext" title="Start the next play of this track now">Next loop</button><button id="sbBack">Scenarios</button>';
   let mode = 'music';   // what the bar shows: 'music' or 'fire'
@@ -101,7 +104,7 @@
   const floorAt = (x, y) => G.map.t[y * G.map.w + x] === T_FLOOR && !G.objects.some(o => o.x === x && o.y === y && !o.walk);
   function start(m = 'music') {
     STORY = m === 'dialogue' ? STORIES.demo : (typeof STORIES !== 'undefined' && STORIES.story) || STORY_EMPTY; $('sbStory').hidden = m !== 'dialogue';
-    mode = m; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbDrips').hidden = $('sbSplash').hidden = m !== 'lake'; $('sbCast').hidden = true; soundButtons(); $('sbLookPick').hidden = m !== 'looks'; bar.classList.toggle('top', m === 'looks' || m === 'dialogue'); $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
+    mode = m; $('sbDragonActs').hidden = m !== 'dragon'; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbDrips').hidden = $('sbSplash').hidden = m !== 'lake'; $('sbCast').hidden = true; soundButtons(); $('sbLookPick').hidden = m !== 'looks'; bar.classList.toggle('top', m === 'looks' || m === 'dialogue'); $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
     audio(); pick.hidden = true; bar.hidden = false;
     G.running = true; G.camSnap = true; G.deathShown = false;
     $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); $('heroCfg').classList.add('hidden'); hideTip();
@@ -221,6 +224,38 @@
       const m = makeMonster(t, x + 0.5, y + 0.5, 7, false, false, true); m.calm = { walked: -1e9, t: 1e9 }; G.monsters.push(m); }
     start('kite'); log('Test: the big room. Shoot a sleeper from afar and watch it charge.', '#c9a45c');
   };
+  // The dragon's lair (sandbox only, todo #17): the boss room grown about 3.2 times, emptied and furnished again,
+  // with the dragon asleep on a hoard in its middle (see README, The dragon)
+  $('sbDragon').onclick = async () => {
+    $('sbDragon').disabled = true; await loadDragonArt(); $('sbDragon').disabled = false;
+    const D = 10;
+    for (let i = 0; i < 60; i++) { testHero(D); if (G.map.bossRoom) break; }
+    const m = G.map, room = m.bossRoom, h = G.hero;
+    G.monsters = G.monsters.filter(mo => !mo.boss && !mo.bossRoom);
+    enlargeRoom(room, 3.2);
+    const inR = (x, y) => x >= room.x && x < room.x + room.w && y >= room.y && y < room.y + room.h;
+    for (const o of G.objects) if (inR(o.x, o.y)) m.block[o.y * m.w + o.x] = 0;
+    G.objects = G.objects.filter(o => !inR(o.x, o.y));
+    const put = (type, x, y, extra = {}) => { if (m.t[y * m.w + x] !== T_FLOOR || G.objects.some(o => o.x === x && o.y === y)) return null;
+      const o = Object.assign({ type, x, y, used: false, block: true }, extra); G.objects.push(o); if (o.block) m.block[y * m.w + x] = 1; return o; };
+    const wallAt = (x, y) => m.t[y * m.w + x] === T_WALL;
+    // braziers along the north and west walls (the walls the camera sees), the guardian's chest in the north wall's middle
+    for (let x = room.x + 2; x <= room.x + room.w - 3; x += 6) if (wallAt(x, room.y - 1)) put('brazier', x, room.y);
+    for (let y = room.y + 5; y <= room.y + room.h - 3; y += 6) if (wallAt(room.x - 1, y)) put('brazier', room.x, y);
+    put('chest', room.cx + 1, room.y, { boss: true });
+    // four pillars and two skull piles inside
+    for (const [fx, fy] of [[0.28, 0.28], [0.72, 0.28], [0.28, 0.72], [0.72, 0.72]]) put('pillar', room.x + Math.round(room.w * fx), room.y + Math.round(room.h * fy), { decor: true });
+    for (const [fx, fy] of [[0.15, 0.2], [0.85, 0.15]]) put('skullpile', room.x + Math.round(room.w * fx), room.y + Math.round(room.h * fy), { decor: true, block: false });
+    // the hero at the room's west end, the dragon asleep on the hoard in the middle, its head toward the hero
+    const hx = room.x + 2, hy = room.cy; h.x = hx + 0.5; h.y = hy + 0.5; h.path = []; G.camSnap = true;
+    m.hoard = { x: room.cx + 0.5, y: room.cy + 0.5, r: 3.3 };
+    const dragon = makeDragon(room.cx + 0.5, room.cy + 0.5, Math.atan2(h.y - room.cy, h.x - room.cx) + 0.6, D);
+    G.monsters = G.monsters.filter(mo => Math.hypot(mo.x - h.x, mo.y - h.y) > 28); G.monsters.push(dragon); m.boss = dragon;
+    start('dragon'); log('Test: the dragon\'s lair. Nythrakar sleeps on its hoard.', '#7fe08a');
+  };
+  $('sbDragonActs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; b.blur();
+    if (b.dataset.dact === 'again') return $('sbDragon').onclick();
+    const dr = G.monsters.find(mo => mo.parts && !mo.dead); if (dr) { dr.sleep = false; dr.state = 'chase'; dgStart(dr, b.dataset.dact); } });
   $('sbLake').onclick = () => {
     testHero(LAKE_AT); const h = G.hero, r = G.map.lakeRoom, m = G.map;
     // the hero on the dry shore where it faces the middle of the lake: the shore tile nearest the room's diagonal,
@@ -329,6 +364,12 @@
         + ` · ${(h.st.speed * (h.speedMul || 1)).toFixed(2)} tiles/s`;
       return;
     }
+    if (mode === 'dragon') {
+      const dr = G.monsters.find(mo => mo.parts), h = G.hero;
+      const st = !dr ? 'gone' : dr.dead ? 'slain' : dr.sleep ? 'asleep on its hoard' : dr.frozen && dr.frozen.on ? 'frozen' : dr.act ? { roar: 'roaring', bite: 'biting', breath: 'breathing fire', tail: 'sweeping its tail', buffet: 'beating its wings' }[dr.act.type] : Math.abs(dr.v) > 0.2 ? 'walking' : 'turning';
+      $('sbInfo').innerHTML = `<span class="mood">The dragon</span> · ${st}` + (dr ? ` · ${Math.max(0, Math.ceil(dr.hp))} / ${dr.maxHp}` : '') + (h.burning ? ' · <span class="burn">you are burning</span>' : '') + ` · zoom ${(G.zoom * (G.fightZ || 1)).toFixed(2)}` + (PERF.fps ? ` · ${PERF.fps} fps` : '');
+      return;
+    }
     if (mode === 'frost') {
       const h = G.hero, st = h.inv.find(it => it && it.pot === 'frost'), S = G.map.iceS, p = S && S.patches[S.patches.length - 1];
       const fz = G.monsters.filter(mo => !mo.dead && mo.frozen && mo.frozen.on).map(mo => `${mo.champ ? 'champion ' : ''}${mo.type} ${(mo.frozen.delay + mo.frozen.dur - mo.frozen.t).toFixed(1)} s`);
@@ -356,7 +397,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
+  const SC = ['sbDragon', 'sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
   // the same, but the picker covers it); errors thrown later are listed there too

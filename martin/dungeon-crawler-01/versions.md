@@ -9,9 +9,22 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v95 — the dragon, in the sandbox (2026-11-22)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 95`)*
+
+- A dragon boss made of parts: Nythrakar, the Crypt Wyrm, painted in the game's style (a walking body with its legs,
+  a head with an opening jaw, a curving neck and tail with bone spikes and a spiked club, wings that fold and beat),
+  each part sorted on its own against walls, pillars and the hero.
+- It sleeps on a gold hoard until you come near, wakes with a roar, follows you, and bites, breathes fire (you go on
+  burning), sweeps its tail at you behind it and beats its wings to throw you back. Swords, arrows, fire bombs and the
+  scroll of frost work on whichever part they reach; the head takes ×1.5. The view draws back during the fight. Slain,
+  it sinks from the tail to the head and unseals the guardian's chest.
+- Only in the sandbox for now: the new **The dragon's lair** scenario (depth 10).
+
 ## v94 — dialogue with characters (2026-11-21)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 94`)*
+Commit: c1cb7a7
 
 - A dialogue system: conversations written in Markdown (`story/*.md`), compiled and checked by
   `tools/story/build.js` into `story/story.js`. Lines, choices, conditions and effects in JavaScript, a property bag
