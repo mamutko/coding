@@ -417,7 +417,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 96;
+const VERSION = 97;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2010,7 +2010,7 @@ function buildLevel(d) {
     for (let i = 0; i < 5; i++) put('brazier', 5, { block: true });
     for (let i = 0; i < 2; i++) put('bones', 3, { block: false });
     if (rnd() < 0.5) put('chest', 3, { block: true, big: true });
-    put('chest', 3, { block: true, scrolls: 4 });   // the only place scrolls are found: 4 scrolls of frost, nothing else
+    put('chest', 3, { block: true, scrolls: 4 });   // 4 scrolls of frost, nothing else (scrolls are also in a dragon's guardian's chest)
     // 4 broken pillars standing in the water 2-7 tiles from the shore (water all around), at least 5 apart: from
     // the shore they are what the lake visibly reflects (the shore's own props reflect onto the floor, out of view)
     const inWater = [];
@@ -2063,7 +2063,7 @@ function buildLevel(d) {
       const p = occ[r.cy * w + r.cx] ? (freeInner(r, false) || [r.cx, r.cy]) : [r.cx, r.cy]; occ[p[1] * w + p[0]] = 1;
       if (dragonAt(d)) {   // the dragon's lair: 6 braziers, the guardian's chest, 4 pillars, 3 skull piles, the hoard, the dragon
         for (let n = 0, k = 0; n < 6 && k < 24; k++) if (place('brazier', r, true)) n++;
-        place('chest', r, true, { boss: true });
+        place('chest', r, true, { boss: true, frost: ri(3, 5) });   // the guardian's chest also holds 3-5 scrolls of frost
         for (const [fx, fy] of [[0.28, 0.28], [0.72, 0.28], [0.28, 0.72], [0.72, 0.72]]) {
           const x = r.x + Math.round(r.w * fx), y = r.y + Math.round(r.h * fy);
           if (!occ[y * w + x]) { occ[y * w + x] = 1; objects.push({ type: 'pillar', x, y, used: false, block: true, decor: true }); }
@@ -3027,6 +3027,7 @@ function act(ref) {
         const gd = d + LOOT_PLUS.guardian;
         dropItem(genItem(gd, 0, null, rnd() < 0.3 && maxRarity(gd) === 'rare' ? 'rare' : 'magic', gd), o.x + 0.5, o.y + 0.5);
         dropGold(ri(30, 60) * d, o.x + 0.5, o.y + 0.5);
+        if (o.frost) { dropItem(makePotion('frost', o.frost), o.x + 0.5, o.y + 0.5); log('Among the treasure lies a bundle of scrolls, cold to the touch.', POTIONS.frost.color); }   // a dragon's lair
       }
       const n = ri(1, 2) + (rnd() < 0.4 ? 1 : 0);
       // a normal chest: loot depth d (30 %: d + 1), rules of depth d; the big room's and the guardian's: all of a deeper depth

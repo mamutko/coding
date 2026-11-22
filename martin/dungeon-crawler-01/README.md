@@ -703,7 +703,7 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
   - no chests, urns, bones or gold piles.
   **At a dragon depth** (13, 21, 29, …; see [The dragon](#the-dragon)) the boss room is **the dragon's lair**
   instead: 20–23 tiles a side (if it doesn't fit in its 300 tries the whole level is generated again), with 6 braziers
-  and the guardian's chest on its edge, 4 pillars (blocking decor) at 28 % and 72 % of its width and height, 3 skull
+  and the guardian's chest (which also holds 3–5 scrolls of frost) on its edge, 4 pillars (blocking decor) at 28 % and 72 % of its width and height, 3 skull
   piles inside, the gold hoard (`map.hoard`, radius 3.3) in its middle instead of the rune circle, and the dragon
   asleep on it, facing a random way: no other boss, guards, champion or furnishings.
   The boss's type is drawn by weight from the types unlocked at depth `d + 1`, so it can be a type not yet
@@ -725,7 +725,7 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
     rooms it is entered only through doors. It is never the stairs', boss, big, keeper or lone monster's room.
   - **The scroll chest.** On the dry shore, among the braziers and bones (a shore tile next to the water, at least
     3 tiles from the other things placed there), a chest that holds **4 scrolls of frost and nothing else**
-    (`scrolls: 4`; no gold, no item, no potion). It is the only place in the game where scrolls are found. The
+    (`scrolls: 4`; no gold, no item, no potion). Besides a dragon's guardian's chest, it is the only place where scrolls are found. The
     lake room's other chest (50 %, a big room's chest) is unchanged.
   - **The lake.** After the walls are built, its tiles become water (`T_WATER`) except a dry shore 4 tiles wide
     (`LAKE_SHORE`) along the east and south walls. The shoreline is a quarter superellipse around the north-west
@@ -1141,7 +1141,7 @@ chests 27 %, urns 10.8 %. A dropped potion is then an iron skin potion 15 % of t
 | Champion | an item of depth d+2 (boost 0.35), plus a 50 % chance of a second (boost 0.2) |
 | Boss | an item of depth d+3 (boost 0.35), gold (20–40 × d), plus the normal potion / gold rolls of a monster |
 | Chest | 1–3 items (boost 0.15, 30 % chance of loot depth d+1; in the big room all of depth d+2), gold (10–30 × d), 22.5 % × 1.2 potion, 15 % 1–3 fire bombs (from depth 2) |
-| Guardian's chest | **always** one item of depth d+4 that is rare (30 %) or else magic, gold (30–60 × d), plus everything a normal chest drops (its items also of depth d+4) |
+| Guardian's chest | **always** one item of depth d+4 that is rare (30 %) or else magic, gold (30–60 × d), plus everything a normal chest drops (its items also of depth d+4); in a dragon's lair also a stack of 3–5 scrolls of frost (`frost` on the chest) |
 | Urn | 35 % gold, 9 % × 1.2 potion, 8 % item, 5 % one fire bomb (from depth 2) |
 | Bones | 20 % gold, 10 % item |
 
@@ -1273,7 +1273,7 @@ the scroll is used up, the hero speaks its incantation (`time` s, the weapon han
 it shows as the equipped item meanwhile (its quick key lit, the attack button showing it) and above the hero's head,
 then its spell goes off and the weapon comes back. Keepers buy and sell it like a potion (value 150 a scroll).
 
-Scrolls are found in one place only: the chest on the lake room's shore holds 4 scrolls of frost (see
+Scrolls are found in two places: the guardian's chest in a dragon's lair holds 3–5 scrolls of frost besides its loot (see [The dragon](#the-dragon)), and the chest on the lake room's shore holds 4 scrolls of frost (see
 [Dungeon generation](#dungeon-generation)). Nothing else drops them.
 
 **The scroll of frost** (`POTIONS.frost`, icon `frostscroll`: a frosted rolled parchment tied with a pale blue
@@ -1386,7 +1386,8 @@ the art: `assets/dragon.webp` and its layout `DRAGON_ART`, written into `index.h
   (depth + 4) with a boost of 0.6, the first 3 rare and each of the others rare or magic (even odds), dropped along its
   body from the head to the middle of the tail; 5 gold piles of 60–110 × depth each, on the hoard; 4 potions (as any
   monster's potion drop: 15 % iron skin); a stack of 3 fire bombs. The log says *"… is slain! Its hoard spills across
-  the floor, and the guardian's chest unseals."* (The guardian's chest gives its own loot as for any boss.)
+  the floor, and the guardian's chest unseals."* (The guardian's chest gives its own loot as for any boss, and in a
+  lair also a stack of 3–5 scrolls of frost: *"Among the treasure lies a bundle of scrolls, cold to the touch."*)
 - **Drawing** (`dragonDrawables`, entries of kind 7 in render's depth-sorted list, each with its own key `x + y`):
   the body with its legs as one sprite at the torso's middle (8 directions from the heading, NE / E / SE mirrored; 8
   walk frames advancing with the distance walked plus 0.9 × the turning in rad/s, 6.67 frames per tile), the head as a

@@ -9,9 +9,15 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v97 — frost scrolls in the dragon's chest (2026-11-22)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 97`)*
+
+- The guardian's chest in a dragon's lair also holds 3–5 scrolls of frost.
+
 ## v96 — the dragon in the game (2026-11-22)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 96`)*
+Commit: 87470f4
 
 - The dragon is the boss of depth 13 and every 8th depth after it (21, 29, …): there the boss room is its lair, 20–23
   tiles a side, with pillars, braziers, the guardian's chest and its gold hoard, and the dragon asleep on it.
