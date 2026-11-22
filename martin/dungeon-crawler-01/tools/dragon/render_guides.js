@@ -5,6 +5,8 @@
 //   node tools/dragon/render_guides.js            (from martin/dungeon-crawler-01; uses the pre-installed Playwright)
 //   node tools/dragon/render_guides.js body16          the body for the game: guide/body16.png, body16.full.png, limbs.png,
 //                                                 feet.png and body16.json (see "body16" below)
+//   node tools/dragon/render_guides.js body32          the 8 in-between body views (headings 1, 3 ... 15 of 32):
+//                                                 guide/body32.png, body32.full.png, body32.json
 // Parts: torso (shoulders to hips with short neck and tail stumps, ×1.6), head (jaw closed, ×2.4), headopen (jaw open, ×2.4).
 // Each part's middle is at its cell's middle; the anchor (its ground point) is below that, maybe outside the cell.
 const { chromium } = require('playwright');
@@ -14,7 +16,8 @@ const root = path.resolve(__dirname, '../..'), out = path.join(root, 'art/charac
   fs.mkdirSync(out, { recursive: true });
   const b = await chromium.launch(), p = await b.newPage();
   await p.goto('file://' + path.join(root, 'dragon-prototype.html')); await p.waitForFunction(() => typeof DR !== 'undefined' && DR);
-  if (process.argv[2] === 'body16') return body16(b, p);
+  if (process.argv[2] === 'body16') return body16(b, p, false);
+  if (process.argv[2] === 'body32') return body16(b, p, true);
   const res = await p.evaluate(() => {
     const CW = 384, CH = 512, DIRS = ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'];
     Object.assign(COL, { hi: '#e2e2e2', mid: '#9a9a9a', lo: '#454545', rim: '#5a5a5a', spike: '#c8c8c8', bone: '#555', claw: '#eee' });
@@ -53,10 +56,11 @@ const root = path.resolve(__dirname, '../..'), out = path.join(root, 'art/charac
   console.log('wrote', Object.keys(res.urls).join(', '), 'to', out);
   await b.close();
 })();
-// ---- body16: the body for separate legs, 16 directions; and the leg pieces (limbs, feet)
+// ---- body16 / body32: the body for separate legs, 32 directions; and the leg pieces (limbs, feet)
 // guide/body16.png: the torso (with short neck and tail stumps and the tops of the four legs, which the painted
-// thigh pieces cover) standing still, in the 9 directions S, SSW, SW, WSW, W, WNW, NW, NNW, N (the other 7 are
-// mirrored), heading th = PI/4 + i * PI/8, in 3 x 3 cells of 512 x 341, ×BODY.scale; anchor = the ground point
+// thigh pieces cover) standing still, in the 9 directions S, SSW, SW, WSW, W, WNW, NW, NNW, N (directions 0, 2 ... 16
+// of 32, heading th = PI/4 + i * PI/16; body32: the 8 odd ones between them, guide/body32*.png, the 9th cell empty;
+// the game mirrors the rest), in 3 x 3 cells of 512 x 341, ×BODY.scale; anchor = the ground point
 // under the torso centre. guide/limbs.png: the leg bones upright, top joint up (front upper, front lower, hind upper,
 // hind lower), ×LEGS.scale, in 4 columns of 384 x 1024. guide/feet.png: a clawed foot in the 8 directions (S, SW, W ...
 // SE, the way the body faces), ×LEGS.scale, 4 x 2 cells of 384 x 512; anchor = the ankle's ground point.
@@ -67,8 +71,8 @@ const BODY = { scale: 1.3, cw: 512, ch: 341, stub: 0.3 };
 // the leg bones: [front?, name, -, width at the top, at the bottom (× the shoulders' or hips' node R)]
 const LIMBS = [[true, 'front upper', 0, 0.8, 0.55], [true, 'front lower', 0, 0.55, 0.4], [false, 'hind upper', 0, 0.95, 0.58], [false, 'hind lower', 0, 0.56, 0.4]];
 const LEGS = { scale: 7, foot: 0.85 };
-async function body16(b, p) {
-  const res = await p.evaluate(([B, LG, LIMBS]) => {
+async function body16(b, p, odd) {
+  const res = await p.evaluate(([B, LG, LIMBS, odd]) => {
     function taper(gg, a, b, w0, w1) {   // a bone from a to b (screen), w0 wide at a, w1 at b, round ends, lit from the left
       const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l;
       const gr = gg.createLinearGradient(a[0] - Math.abs(nx) * w0, a[1], a[0] + Math.abs(nx) * w0, a[1]); gr.addColorStop(0, '#d8d8d8'); gr.addColorStop(0.45, '#9a9a9a'); gr.addColorStop(1, '#404040');
@@ -77,7 +81,7 @@ async function body16(b, p) {
     }
     Object.assign(COL, { hi: '#e2e2e2', mid: '#9a9a9a', lo: '#454545', rim: '#5a5a5a', spike: '#c8c8c8', bone: '#555', claw: '#eee' });
     O.mode = 'still'; O.spine = 'body'; O.size = 1; O.look = 'shapes'; O.legs = true;
-    const urls = {}, meta = { body: { cell: [B.cw, B.ch], cols: 3, rows: 3, scale: B.scale, dirs: ['S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N'], anchor: [] } };
+    const urls = {}, meta = { body: { cell: [B.cw, B.ch], cols: 3, rows: 3, scale: B.scale, dirs: odd ? [1, 3, 5, 7, 9, 11, 13, 15] : [0, 2, 4, 6, 8, 10, 12, 14, 16], anchor: [] } };
     function ik(L) {   // the leg's hip, knee and ankle in 3D (tiles * P, px), as drawLeg works them out
       const fr = legFrame(L), H = [fr.attach[0] * P, fr.attach[1] * P, fr.az], F = [L.foot[0] * P, L.foot[1] * P, 0], L1 = 44, L2 = 42;
       let dx = F[0] - H[0], dy = F[1] - H[1], dz = F[2] - H[2], d = Math.hypot(dx, dy, dz);
@@ -95,8 +99,8 @@ async function body16(b, p) {
     const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
     const full = document.createElement('canvas'); full.width = c.width; full.height = c.height;   // with whole legs, to check
     const gf = full.getContext('2d'); gf.fillStyle = '#fff'; gf.fillRect(0, 0, c.width, c.height);
-    for (let i = 0; i < 9; i++) {
-      makeDragon(); DR.state = 'awake'; DR.cx = 12; DR.cy = 11; DR.th = Math.PI / 4 + i * Math.PI / 8; DR.turn = 0; DR.vel = [0, 0]; DR.t = 0;
+    meta.body.dirs.forEach((di, i) => {
+      makeDragon(); DR.state = 'awake'; DR.cx = 12; DR.cy = 11; DR.th = Math.PI / 4 + di * Math.PI / 16; DR.turn = 0; DR.vel = [0, 0]; DR.t = 0;
       DR.look = [DR.cx + Math.cos(DR.th) * 9, DR.cy + Math.sin(DR.th) * 9]; DR.na = 0; DR.act = null; DR.flash = 0;
       layout(0.0001, true);
       for (const L of DR.legs) L.foot = legFrame(L).home.slice();
@@ -120,8 +124,10 @@ async function body16(b, p) {
         gg.restore();
       }
       meta.body.anchor.push([cx, cy]);
-    }
-    urls.body16 = c.toDataURL('image/png'); urls['body16.full'] = full.toDataURL('image/png');
+    });
+    const nm = odd ? 'body32' : 'body16';
+    urls[nm] = c.toDataURL('image/png'); urls[nm + '.full'] = full.toDataURL('image/png');
+    if (odd) return { meta: { body: meta.body }, urls };
     // the limbs, upright: [length px, width px (× the node's R)]
     const lc = document.createElement('canvas'); lc.width = 1536; lc.height = 1024; const l = lc.getContext('2d'); l.fillStyle = '#fff'; l.fillRect(0, 0, 1536, 1024);
     meta.limbs = { scale: LG.scale, pieces: [] };
@@ -158,9 +164,9 @@ async function body16(b, p) {
     }
     urls.feet = fc.toDataURL('image/png');
     return { meta, urls };
-  }, [BODY, LEGS, LIMBS]);
+  }, [BODY, LEGS, LIMBS, odd]);
   for (const [k, u] of Object.entries(res.urls)) fs.writeFileSync(path.join(out, k + '.png'), Buffer.from(u.split(',')[1], 'base64'));
-  fs.writeFileSync(path.join(out, 'body16.json'), JSON.stringify(res.meta, null, 1));
+  fs.writeFileSync(path.join(out, (odd ? 'body32' : 'body16') + '.json'), JSON.stringify(res.meta, null, 1));
   console.log('wrote', Object.keys(res.urls).join(', '));
   await b.close();
 }

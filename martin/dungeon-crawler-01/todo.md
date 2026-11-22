@@ -119,6 +119,6 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
       synthesised ones, an ice tint while frozen and flames on it while burning, balance, and the dragon in the
       catalog (`tools/catalog`) and the balance simulation (`tools/simulation`).
     - **Body and legs redone (v102):** the walking body slid (its painted legs hardly strode) and turned in visible
-      45° jumps, so the body is now a still sprite in 16 directions with its lower legs cut off (painted standing on
+      45° jumps, so the body is now a still sprite in 32 directions (v103; 16 in v102) with its lower legs cut off (painted standing on
       whole legs, which reads as a dragon, then cut: `tools/dragon/cut_body.py`), on four IK legs of painted bones and
       feet whose feet stay planted; the neck and tail join the torso at the snapped direction, so no stumps show.

@@ -3,9 +3,10 @@ layout, written into index.html between the markers `// dragon-art:start` and `/
 `const DRAGON_ART = {...}`) and into assets/dragon.json.     python tools/dragon/build_assets.py
 
 What goes in (all at the game's own scale, 1 atlas px = 1 screen px at zoom 1 and size 1):
-- body: the body without its lower legs, paint/body16.cut.png (tools/dragon/cut_body.py): 9 painted directions S, SSW,
-  SW, WSW, W, WNW, NW, NNW, N, i.e. headings PI/4 + i * PI/8 (i = 9 ... 15 are i = 16 - i mirrored), cut to one shared
-  box (guide scale 1.3 -> 1); `anchor` is the ground point under the torso centre, the torso drawn at its standing height.
+- body: the body without its lower legs, paint/body16.cut.png and paint/body32.cut.png (tools/dragon/cut_body.py): 17
+  painted directions of 32, headings PI/4 + i * PI/16 for i = 0 (S) ... 16 (N) (body16 has the even i, body32 the odd;
+  i = 17 ... 31 are i = 32 - i mirrored), cut to one shared box (guide scale 1.3 -> 1); `anchor` is the ground point
+  under the torso centre, the torso drawn at its standing height.
 - limbs: the four leg bones of paint/limbs.png (front upper, front lower, hind upper, hind lower), upright, each cut to its
   content (scale 7 -> 1), with `top` and `bottom`, its two joints, inside the piece; `len` the bone's length (px).
 - foot: paint/feet.png, 8 directions (S, SW ... SE, the way the body faces), one shared box (scale 5.95 -> 1); `anchor` is
@@ -52,16 +53,20 @@ def main():
     guides = json.load(open(os.path.join(ART, 'guide', 'guides.json')))
     pieces, meta = [], {}
 
-    # the body: 9 painted directions (S ... N; the other 7 mirrored), legs cut off, one shared box
+    # the body: 17 painted directions of 32 (0 = S ... 16 = N; the other 15 mirrored), legs cut off, one shared box:
+    # body16 has the even ones, body32 the odd ones between them
     b16 = json.load(open(os.path.join(ART, 'guide', 'body16.json')))
-    bm, im = b16['body'], Image.open(os.path.join(ART, 'paint', 'body16.cut.png')).convert('RGBA')
-    bw, bh = bm['cell']
-    body = [im.crop(((i % 3) * bw, (i // 3) * bh, (i % 3) * bw + bw, (i // 3) * bh + bh)) for i in range(9)]
+    bm = b16['body']; bw, bh = bm['cell']
+    body = [None] * 17
+    for name in ('body16', 'body32'):
+        dirs = json.load(open(os.path.join(ART, 'guide', name + '.json')))['body']['dirs']
+        im = Image.open(os.path.join(ART, 'paint', name + '.cut.png')).convert('RGBA')
+        for i, di in enumerate(dirs): body[di] = im.crop(((i % 3) * bw, (i // 3) * bh, (i % 3) * bw + bw, (i // 3) * bh + bh))
     box = union_box(body, w=bw, h=bh)
     k = 1 / bm['scale']
     ax, ay = bm['anchor'][0]; ax, ay = ax % bw, ay % bh   # the same point of every cell
     meta['body'] = {'w': round((box[2] - box[0]) * k), 'h': round((box[3] - box[1]) * k), 'anchor': [round((ax - box[0]) * k, 1), round((ay - box[1]) * k, 1)],
-                    'dirs': 16, 'painted': bm['dirs'], 'rects': [None] * 9}
+                    'dirs': 32, 'rects': [None] * 17}
     for i, c in enumerate(body): pieces.append((('body', i), scaled(c.crop(box), k)))
 
     # the leg bones, upright, top joint up: each cut to its content, with its two joints inside the piece

@@ -417,7 +417,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 102;
+const VERSION = 103;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1109,7 +1109,7 @@ const dirOf = (dx, dy) => { const o = { dir: 0 }; setDir(o, dx, dy); return o.di
 const dgLerp = (a, b, t) => a + (b - a) * t, dgEase = u => u * u * (3 - 2 * u);
 const dgWrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
 // dragon-art:start
-const DRAGON_ART = {"body":{"w":279,"h":188,"anchor":[139.2,156.0],"dirs":16,"painted":["S","SSW","SW","WSW","W","WNW","NW","NNW","N"],"rects":[[1134,330,279,188],[1415,330,279,188],[1696,330,279,188],[0,523,279,188],[281,523,279,188],[562,523,279,188],[843,523,279,188],[1124,523,279,188],[1405,523,279,188]]},"limbs":[{"name":"front upper","len":44,"top":[18.7,19.9],"bottom":[18.7,63.9],"rect":[1805,523,39,79]},{"name":"front lower","len":42,"top":[14.0,13.4],"bottom":[14.0,55.4],"rect":[1998,523,27,69]},{"name":"hind upper","len":44,"top":[21.9,22.0],"bottom":[21.9,66.0],"rect":[1758,523,45,82]},{"name":"hind lower","len":42,"top":[13.9,12.9],"bottom":[13.9,54.9],"rect":[0,713,27,69]}],"foot":{"w":51,"h":41,"anchor":[23.4,26.4],"ankle":16,"rects":[[29,713,51,41],[82,713,51,41],[135,713,51,41],[188,713,51,41],[241,713,51,41],[294,713,51,41],[347,713,51,41],[400,713,51,41]]},"head":{"w":160,"h":191,"z":72,"anchor":[[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1]],"closed":[[466,0,160,191],[628,0,160,191],[790,0,160,191],[952,0,160,191],[1114,0,160,191],[1276,0,160,191],[1438,0,160,191],[1600,0,160,191]],"open":[[1762,0,160,191],[0,330,160,191],[162,330,160,191],[324,330,160,191],[486,330,160,191],[648,330,160,191],[810,330,160,191],[972,330,160,191]]},"wing":{"points":[[13.3,70.3],[146.3,38.7],[273.0,13.3],[444.0,102.0],[380.7,203.3],[266.7,292.0],[70.3,323.7]],"panels":[[0,1,2,3],[2,3,4],[2,4,5],[2,5,6,0]],"rect":[0,0,464,328]},"spike":{"w":52,"h":70,"rect":[1944,523,52,70]},"club":{"w":70,"h":90,"note":"points left; the tail joins at the right edge","rect":[1686,523,70,90]},"scales":{"w":96,"h":72,"rect":[1846,523,96,72]}};
+const DRAGON_ART = {"body":{"w":279,"h":189,"anchor":[139.2,156.7],"dirs":32,"rects":[[1134,330,279,189],[1415,330,279,189],[1696,330,279,189],[0,523,279,189],[281,523,279,189],[562,523,279,189],[843,523,279,189],[1124,523,279,189],[1405,523,279,189],[1686,523,279,189],[0,714,279,189],[281,714,279,189],[562,714,279,189],[843,714,279,189],[1124,714,279,189],[1405,714,279,189],[1686,714,279,189]]},"limbs":[{"name":"front upper","len":44,"top":[18.7,19.9],"bottom":[18.7,63.9],"rect":[47,905,39,79]},{"name":"front lower","len":42,"top":[14.0,13.4],"bottom":[14.0,55.4],"rect":[240,905,27,69]},{"name":"hind upper","len":44,"top":[21.9,22.0],"bottom":[21.9,66.0],"rect":[0,905,45,82]},{"name":"hind lower","len":42,"top":[13.9,12.9],"bottom":[13.9,54.9],"rect":[269,905,27,69]}],"foot":{"w":51,"h":41,"anchor":[23.4,26.4],"ankle":16,"rects":[[298,905,51,41],[351,905,51,41],[404,905,51,41],[457,905,51,41],[510,905,51,41],[563,905,51,41],[616,905,51,41],[669,905,51,41]]},"head":{"w":160,"h":191,"z":72,"anchor":[[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1]],"closed":[[466,0,160,191],[628,0,160,191],[790,0,160,191],[952,0,160,191],[1114,0,160,191],[1276,0,160,191],[1438,0,160,191],[1600,0,160,191]],"open":[[1762,0,160,191],[0,330,160,191],[162,330,160,191],[324,330,160,191],[486,330,160,191],[648,330,160,191],[810,330,160,191],[972,330,160,191]]},"wing":{"points":[[13.3,70.3],[146.3,38.7],[273.0,13.3],[444.0,102.0],[380.7,203.3],[266.7,292.0],[70.3,323.7]],"panels":[[0,1,2,3],[2,3,4],[2,4,5],[2,5,6,0]],"rect":[0,0,464,328]},"spike":{"w":52,"h":70,"rect":[186,905,52,70]},"club":{"w":70,"h":90,"note":"points left; the tail joins at the right edge","rect":[1967,714,70,90]},"scales":{"w":96,"h":72,"rect":[88,905,96,72]}};
 // dragon-art:end
 let dragonArt = null;   // loading: a promise
 function loadDragonArt() {
@@ -1160,12 +1160,12 @@ function dgKeepIn(q, r) {   // a node or point out of walls and blocking props (
 // The body's pose from its centre and heading: the torso straight back from the shoulders, the
 // tail a drag chain behind the hips (each joint relaxing toward its wanted bend: sway, sweep), the neck a curve from the
 // shoulders toward what it looks at (within ±1.3 rad of the heading), and every node's height.
-// The torso is the painted sprite, which has 16 directions: it lies along m.thd, the heading m.th snapped to them
+// The torso is the painted sprite, which has 32 directions: it lies along m.thd, the heading m.th snapped to them
 // (dgSnap), straight, so the neck, the tail and the legs join it where the painting has them.
-const DG_STEP = Math.PI / 8;
-function dgSnap(m, init) {   // m.di: the body sprite's direction 0-15 (heading PI/4 + di * PI/8; 0 faces S on screen); a little hysteresis
-  if (!init && Math.abs(dgWrap(m.th - m.thd)) < DG_STEP / 2 + 0.06) return;
-  const di = ((Math.round((m.th - Math.PI / 4) / DG_STEP) % 16) + 16) % 16, thd = Math.PI / 4 + di * DG_STEP;
+const DG_DIRS = 32, DG_STEP = 2 * Math.PI / DG_DIRS;
+function dgSnap(m, init) {   // m.di: the body sprite's direction 0-31 (heading PI/4 + di * PI/16; 0 faces S on screen); a little hysteresis
+  if (!init && Math.abs(dgWrap(m.th - m.thd)) < DG_STEP / 2 + 0.03) return;
+  const di = ((Math.round((m.th - Math.PI / 4) / DG_STEP) % DG_DIRS) + DG_DIRS) % DG_DIRS, thd = Math.PI / 4 + di * DG_STEP;
   if (!init) m.na -= dgWrap(thd - m.thd);   // the neck keeps pointing where it did, so the head doesn't jump
   m.di = di; m.thd = thd;
 }
@@ -1451,8 +1451,8 @@ function dgSprite(m, r, x, y, w, h, flip, fl, dk) {   // an atlas piece at (x, y
 }
 const dgTorsoFlash = m => Math.max(...[DG_SH, DG_SH + 1, DG_SH + 2, DG_HIPS].map(i => dgFlash(m, m.parts[i])));
 const dgDark = m => m.dead ? c01(m.deathT / 2.5) * 0.45 : 0;
-function dgBody(m) {   // the body without its lower legs: one sprite at the torso's middle, 16 directions (m.di; 9 painted, 7 mirrored)
-  const A = DRAGON_ART.body, n = m.parts, k = DRAGON.size, flip = m.di > 8, r = A.rects[flip ? 16 - m.di : m.di], [sx, sy] = iso(m.x, m.y);
+function dgBody(m) {   // the body without its lower legs: one sprite at the torso's middle, 32 directions (m.di; 17 painted, 15 mirrored)
+  const A = DRAGON_ART.body, n = m.parts, k = DRAGON.size, half = DG_DIRS / 2, flip = m.di > half, r = A.rects[flip ? DG_DIRS - m.di : m.di], [sx, sy] = iso(m.x, m.y);
   const z0 = (n[DG_SH].R + 26 * k + n[DG_HIPS].R + 20 * k) / 2, dz = (n[DG_SH].z + n[DG_HIPS].z) / 2 - z0;   // it breathes; it sinks when it dies
   dgSprite(m, r, sx + (flip ? A.anchor[0] : -A.anchor[0]) * k, sy - dz - A.anchor[1] * k, r[2] * k, r[3] * k, flip, dgTorsoFlash(m), dgDark(m));
 }
@@ -1478,7 +1478,7 @@ function dgBone(m, piece, a, b, fl, dk) {   // a painted leg bone (upright, its 
 }
 function dgLeg(m, L) {   // a leg: the foot (8 directions, the way the body faces), then the upper bone, then the lower
   const A = DRAGON_ART, k = DRAGON.size, g = dgLegIK(m, L), fl = dgTorsoFlash(m), dk = dgDark(m), fa = A.foot;
-  const r = fa.rects[Math.round(m.di / 2) % 8];
+  const r = fa.rects[Math.round(m.di / (DG_DIRS / 8)) % 8];
   dgSprite(m, r, g.F[0] - fa.anchor[0] * k, g.F[1] - g.lift - fa.anchor[1] * k, r[2] * k, r[3] * k, false, fl, dk);
   const j = L.front ? 0 : 2;
   dgBone(m, A.limbs[j], g.H, g.K, fl, dk);
