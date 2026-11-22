@@ -1,6 +1,6 @@
 {
   "name": "dragon",
-  "status": "concept 2 (the crypt dragon) chosen; reference round 2 (game camera, transparent) awaiting approval",
+  "status": "reference approved; head painted (8 directions, mouth closed); torso alone failed twice (reads as a grub without legs) - approach for the body under discussion",
   "style_reference": "reference/game-style-refs.png (SW frames of the demon, spider, ghoul, hero and skeleton sheets, 3x, on light grey)",
   "model": "gemini-3.1-flash-image (google_media.py edit, 1K, 16:9)",
   "prompt_base": "A new character in exactly the same art style as these game sprites (same painterly dark-fantasy rendering, gritty desaturated palette, crimson accents, soft top-left light, crisp silhouette): a huge ground-bound dragon boss for the same isometric game. Full body, seen from above at the same 3/4 isometric camera angle as the sprites (about 30 degrees down), facing down-left. Long curving neck, heavy four-legged body standing on the ground, wings folded against its back, long tapering tail curling behind. Plain flat light grey background, no floor, no shadow, no text, the whole dragon in frame with margin. Design: <design>",
@@ -10,7 +10,7 @@
     "concept-3.png": "a rust-and-ash coloured old dragon with a scarred, armoured hide like the Pit Demon's, broken horns, chains and grave dirt clinging to it, molten orange eyes."
   },
   "notes": "All three came out as side views, not the game's 30-degree camera; 2 and 3 also painted the reference sprites beside the dragon (a useful scale comparison). The camera angle is fixed when the parts are painted.",
-  "spend_usd": 0.28,
+  "spend_usd": 0.38,
   "chosen_concept": "reference/concept-2.png",
   "reference_round_2": {
     "model": "gpt-image-2.6-flare edit, medium, 1536x1024, transparent",
@@ -19,6 +19,26 @@
     "candidates": {
       "round-2/candidate-1.png": "down-left, profile and back views as asked",
       "round-2/candidate-2.png": "views 1 and 2 nearly the same; wings slightly open"
+    },
+    "approved": "round-2/candidate-2.png"
+  },
+  "parts": {
+    "guides": "guide/<part>.png from tools/dragon/render_guides.js (the prototype placeholder body, 8 directions, 4 x 2 cells of 384 x 512; guide/guides.json has the scales and anchors)",
+    "head": {
+      "file": "paint/head.png",
+      "prompt": "paint/head.prompt.txt",
+      "inputs": [
+        "guide/head.png",
+        "reference/reference.png"
+      ],
+      "model": "gpt-image-2.6-flare edit, medium, 1536x1024, transparent",
+      "result": "good"
+    },
+    "torso": {
+      "attempts": {
+        "paint/attempts/torso-1.png": "flat cut discs at the neck and tail, a twisted log",
+        "paint/attempts/torso-2.png": "rounded ends, but a lumpy grub: a trunk without legs, neck and tail does not read as a dragon"
+      }
     }
   }
 }
