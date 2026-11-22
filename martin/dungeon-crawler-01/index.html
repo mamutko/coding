@@ -417,7 +417,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 99;
+const VERSION = 100;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1040,9 +1040,10 @@ const bigRoomAt = d => d >= 3 && d % 2 === 1;
 // The lake room: one huge room (28-30 tiles a side) in the map's top-left corner, most of it an underground lake
 // whose far shores are the room's own north and west walls, out of sight and out of reach. A group of wraiths
 // hovers over the water (the only monsters that can cross it). First on depth 8: the first depth after the
-// first boss fight (depth 6) that has no big room. The map is 16 tiles larger that depth.
-const LAKE_AT = 8, LAKE_ROOM = [28, 30], LAKE_SHORE = 4, LAKE_WRAITHS = [8, 10];
-const lakeRoomAt = d => d === LAKE_AT;
+// first boss fight (depth 6) that has no big room; then every 4th depth after it (12, 16, 20, ...: all even, so never a
+// big room's or a dragon's depth). The map is 16 tiles larger on those depths.
+const LAKE_AT = 8, LAKE_EVERY = 4, LAKE_ROOM = [28, 30], LAKE_SHORE = 4, LAKE_WRAITHS = [8, 10];
+const lakeRoomAt = d => d >= LAKE_AT && (d - LAKE_AT) % LAKE_EVERY === 0;
 // Lone monsters: a foretaste of a type one depth before it starts to appear (its minD): one random normal room
 // of that depth holds a single one of it (depth 3: a wraith, depth 4: a Pit Demon).
 const LONE_AT = { 3: 'wraith', 4: 'demon' };

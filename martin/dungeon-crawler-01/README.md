@@ -201,7 +201,7 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     is on the ice.
     The bar also has a **Casting** picker for the three versions of the cast sound (Gathering frost, the game's, and
     the two not picked); a click there plays it with the hero's incantation.
-  - **The underground lake** (depth 8, `LAKE_AT`, which always has the lake room): the hero stands on the dry
+  - **The underground lake** (depth 8, `LAKE_AT`, the first depth with the lake room): the hero stands on the dry
     shore where it faces the middle of the lake (the dry tile one step back from the water nearest the room's
     diagonal), facing the water, with 15 fire bombs in the pack on key 4 (the longsword stays equipped). Monsters
     within 14 tiles that aren't the lake's wraiths are removed. The bar
@@ -524,7 +524,7 @@ and the picker shows no saved heroes.
 
 ## Lakes
 
-Still, dark, mirror-like underground water (`T_WATER`), so far only in the lake room (see
+Still, dark, mirror-like underground water (`T_WATER`), so far only in the lake room, on depth 8 and every 4th depth after it (see
 [Dungeon generation](#dungeon-generation)). The settings are `LAKE`: the water lies `drop` 8 px below the floor,
 reflects at 70 % (`refl`), and a reflection fades by 45 % (`fade`) over 120 px of height (`fadeH`). Its colour is
 *ink* (`WATER_LOOKS.ink`: deep `#030407`, tint `rgba(4,8,14,0.42)`); two more looks are kept for future lakes,
@@ -665,7 +665,7 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
 
 Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, above).
 
-- Map size `min(44 + 2d, 80)` square (16 tiles more at the lake room's depth, see below). Up to `min(9 + ⌊d/2⌋, 18)` rectangular rooms of 5–10 × 5–10 tiles,
+- Map size `min(44 + 2d, 80)` square (16 tiles more at the lake room's depths, see below). Up to `min(9 + ⌊d/2⌋, 18)` rectangular rooms of 5–10 × 5–10 tiles,
   kept at least 3 tiles apart.
 - Each room is joined to the nearest earlier room by an L-shaped corridor, so the whole level is connected.
   `2 + ⌊d/4⌋` extra random corridors add loops. A corridor is 1 tile wide, or 2 wide with 65 % chance
@@ -723,8 +723,9 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
   depth 3, 13 at depth 7), never champions, of the types unlocked at depth `d − 4` or earlier, skeletons always
   allowed and weighted ×3 (depth 3: skeletons only; depths 5 and 7: skeletons, ghouls, spiders; depth 9: also
   wraiths).
-- **The lake room** (`LAKE_AT`: depth 8, the first depth after the first boss fight at depth 6 that has no big
-  room; `lakeRoomAt`). See [Lakes](#lakes) for how it looks and behaves.
+- **The lake room** at depth 8 (`LAKE_AT`: the first depth after the first boss fight at depth 6 that has no big
+  room) and every 4th depth after it (`LAKE_EVERY`: 12, 16, 20, …; `lakeRoomAt`). These are all even depths, so a
+  lake level never has a big room (odd depths) or a dragon (13, 21, 29, …), but it does have a boss room. See [Lakes](#lakes) for how it looks and behaves.
   - **Placement.** A huge room, 28–30 tiles a side (`LAKE_ROOM`), in the map's top-left corner (`x = y = 2`). Its
     spot is kept free from the start (the start room and the others are never placed within 3 tiles of it), and
     it is placed first, right after the start room, so it always fits. Its "centre" (`cx`, `cy`: where corridors

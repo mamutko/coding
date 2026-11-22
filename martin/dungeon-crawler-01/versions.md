@@ -9,9 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v100 — a lake every 4 depths (2026-11-22)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 100`)*
+
+- The underground lake room, with its wraiths and its chest of 4 scrolls of frost, comes back every 4 depths: depth
+  8, 12, 16, 20, … (before only depth 8).
+
 ## v99 — frost scrolls in the dragon's chest (2026-11-22)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 99`)*
+Commit: cce1a33
 
 - The guardian's chest in a dragon's lair also holds 3–5 scrolls of frost.
 
