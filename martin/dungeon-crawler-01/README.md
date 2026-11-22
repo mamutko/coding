@@ -185,6 +185,14 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     - Four cave spiders and two Pit Demons (no champions) are placed in the room at least 5 tiles from the hero,
       asleep: their calm never ends, so only a hit wakes one. Until then they wander slowly.
     - Shows the draw time and the charge, with room to run.
+- **Crossbows:**
+  - **Crossbows** (`sbXbow`, depth 18): the kiting scenario's big room (the same `bigRoom` set-up: grown 1.5×, the
+    hero in the middle, only its sleepers) with two skeletons, two ghouls and two Pit Demons asleep. The test hero is
+    level 20 with +20 DEX and +40 VIT more, holding a common Gilded Arbalest (key 5), with a common Heavy Crossbow
+    (key 4) and War Bow (key 2) in the pack (all rolled at depth 18) and the longsword (key 1). The bar shows the
+    weapon's damage a shot with the hero's DEX, its reload, draw time and damage per second, the last arrow's damage
+    (before armor; *crit* when it was one) and how many shots each weapon has fired and their average. The tally
+    comes from a wrapper around the game's `releaseArrow`, active only in this scenario.
 - **Lakes:**
   - **The scroll of frost** (`sbFrost`): the underground lake scenario below, plus 6 scrolls of frost on key 4 and the
     15 fire bombs on key 5, and four monsters on dry floor 2–3.8 tiles from the hero, standing still until hit:
@@ -900,7 +908,7 @@ gets its own damage and crit roll, then its own armor reduction.
 
 **Ranged (bows).** A right click fires an arrow at the hovered monster, or toward the cursor. The hero first
 **draws the bow**, standing still, for `BOW_DRAW.base + BOW_DRAW.perCd × (cooldown − 0.6)` s (0.15 s for a Short
-Bow, 0.24 s for a War Bow; `drawTime`). The draw is part of the shot's cooldown, so the rate of fire is
+Bow, 0.24 s for a War Bow, 0.255 s for a Heavy Crossbow; `drawTime`). The draw is part of the shot's cooldown, so the rate of fire is
 unchanged. The arrow is aimed when it is loosed (`releaseArrow`): at the target monster where it is then, or at
 the clicked spot. The bow sound plays at release. A walk clicked meanwhile starts after the draw. Kiting (shoot,
 run, shoot again) stays possible; each shot just costs a little ground. Arrows travel
@@ -1054,6 +1062,8 @@ sources (`LOOT_PLUS`, below). Every type has its own icon.
 | Bone Bow | bow | 14–25, 0.9 s | 8 |
 | Composite Bow | bow | 18–31, 0.85 s | 11 |
 | War Bow | bow | 25–42, 0.9 s | 15 |
+| Heavy Crossbow | bow | 34–56, 0.95 s | 15 |
+| Gilded Arbalest | bow | 62–104, 1.4 s | 18 |
 | Leather Cap | helm | armor 3 | 1 |
 | Iron Helm | helm | armor 7 | 4 |
 | Horned Great Helm | helm | armor 13 | 8 |
@@ -1073,6 +1083,12 @@ sources (`LOOT_PLUS`, below). Every type has its own icon.
 | Heavy Greaves | boots | armor 13 | 14 |
 | Silver Ring, Ruby Ring, Grave Ring | ring | none | 1 |
 | Sapphire Amulet, Blood Amulet, Bone Talisman | amulet | none | 1 |
+
+**Crossbows.** The **Heavy Crossbow** (`crossbow`, depth 15) outdoes the War Bow (about 47 damage per second
+against 37), and the **Gilded Arbalest** (`arbalest`, depth 18) is the best ranged weapon: a long 1.4 s reload but
+62–104 a bolt (about 59 per second). Both are the `bow` kind in every way: they use DEX, fire the same arrows with
+the same reach, are drawn like a bow (the longer draw comes from the slower cooldown: 0.39 s for the arbalest) and
+drop from the bow group.
 
 **Choosing a drop** (`genItem`): the rarity is rolled first (see below). Then a **group** is drawn evenly from
 sword, axe, bow, helm, armor, gloves, boots, ring and amulet, and then a type of that group unlocked at the loot
@@ -2016,6 +2032,12 @@ walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycle
     (flood fill from the border, enclosed background too, plus the magenta key and despill).
   - `tools/raw/items3.png`: OpenAI `gpt-image-2` (medium, 1536 × 1024), a 3 × 2 sheet on magenta for the rest:
     war bow, composite bow, full plate, iron greaves, heavy sabatons (and a belt pouch, unused).
+  - `tools/raw/crossbows.png`: Google `gemini-3.1-flash-image` `edit` (1K, 3:2, ~$0.07) with six bow and weapon
+    icons from the atlas on magenta as the style reference, a 3 × 2 sheet on magenta of six crossbow designs
+    ("painted fantasy game inventory icons in exactly the same art style … no glow, no magic effects"). Cell 0 (dark
+    oak stock, blackened steel prod, a crank) is the Heavy Crossbow (`crossbow`, row 9), cell 2 (brass fittings, a
+    carved stock) the Gilded Arbalest (`arbalest`); the other four are unused.
+    (OpenAI's safety system refused the same request.)
   - The **quiver** icon (`quiver`) isn't used yet; it is meant for limited ammo (todo #15).
 - **Dirt and searched bones** (built by `tools/add_props.py`, ~$0.14 for the two used images, ~$0.26 with the
   rejected dirt and the replaced arch-door sheet):

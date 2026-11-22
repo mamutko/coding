@@ -9,15 +9,15 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v97 — frost scrolls in the dragon's chest (2026-11-22)
+## v99 — frost scrolls in the dragon's chest (2026-11-22)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 97`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 99`)*
 
 - The guardian's chest in a dragon's lair also holds 3–5 scrolls of frost.
 
-## v96 — the dragon in the game (2026-11-22)
+## v98 — the dragon in the game (2026-11-22)
 
-Commit: 87470f4
+Commit: 87470f4 (made on a branch alongside the crossbows, where it was numbered v96)
 
 - The dragon is the boss of depth 13 and every 8th depth after it (21, 29, …): there the boss room is its lair, 20–23
   tiles a side, with pillars, braziers, the guardian's chest and its gold hoard, and the dragon asleep on it.
@@ -25,9 +25,9 @@ Commit: 87470f4
   bombs, besides the guardian's chest.
 - The sandbox's dragon's lair scenario now starts in the game's own lair at depth 13.
 
-## v95 — the dragon, in the sandbox (2026-11-22)
+## v97 — the dragon, in the sandbox (2026-11-22)
 
-Commit: d747a1a
+Commit: d747a1a (numbered v95 on its branch)
 
 - A dragon boss made of parts: Nythrakar, the Crypt Wyrm, painted in the game's style (a walking body with its legs,
   a head with an opening jaw, a curving neck and tail with bone spikes and a spiked club, wings that fold and beat),
@@ -37,6 +37,17 @@ Commit: d747a1a
   scroll of frost work on whichever part they reach; the head takes ×1.5. The view draws back during the fight. Slain,
   it sinks from the tail to the head and unseals the guardian's chest.
 - Only in the sandbox for now: the new **The dragon's lair** scenario (depth 10).
+
+## v95–v96 — crossbows (2026-11-22)
+
+Commit: 9268974
+
+- Two crossbows, the strongest ranged weapons. They shoot like bows (DEX, same arrows and reach) and drop with the
+  bows, each with its own painted icon:
+  - the **Heavy Crossbow** (34–56 damage, 0.95 s, from depth 15), ahead of the War Bow;
+  - the **Gilded Arbalest** (62–104 damage, a long 1.4 s reload, from depth 18), the best of all.
+- A **Crossbows** sandbox scenario: depth 18, all three top ranged weapons on quick keys to compare, sleeping
+  monsters, and a bar with each weapon's damage, reload, last shot and a tally of shots.
 
 ## v94 — dialogue with characters (2026-11-21)
 
