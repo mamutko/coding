@@ -9,13 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v95 — the Heavy Crossbow (2026-11-22)
+## v95–v96 — crossbows (2026-11-22)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 95`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 96`)*
 
-- A new weapon, the **Heavy Crossbow** (34–56 damage, 0.95 s, from depth 15): the best ranged weapon, ahead of the
-  War Bow. It shoots like a bow (DEX, same arrows and reach) and drops with the bows. Its own painted icon.
-- The sandbox's **Kiting with a bow** scenario has one on key 4.
+- Two crossbows, the strongest ranged weapons. They shoot like bows (DEX, same arrows and reach) and drop with the
+  bows, each with its own painted icon:
+  - the **Heavy Crossbow** (34–56 damage, 0.95 s, from depth 15), ahead of the War Bow;
+  - the **Gilded Arbalest** (62–104 damage, a long 1.4 s reload, from depth 18), the best of all.
+- A **Crossbows** sandbox scenario: depth 18, all three top ranged weapons on quick keys to compare, sleeping
+  monsters, and a bar with each weapon's damage, reload, last shot and a tally of shots.
 
 ## v94 — dialogue with characters (2026-11-21)
 

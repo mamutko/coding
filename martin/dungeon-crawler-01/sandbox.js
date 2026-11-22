@@ -55,7 +55,9 @@
     <h2>Dialogue</h2>
     <button class="sc" id="sbDialogue"><b>Dialogue</b>Depth 6, in Old Tobias's stall, with 1000 gold, playing the demo story (story/demo.md) instead of the game's. Tobias starts talking as he comes near; Vesper the Sorcerer, in the same room, talks only when clicked; a champion skeleton asleep outside the room (9–13 tiles away) taunts you when you come within 6 tiles and see it. The game keeps running: lines move on by themselves (click the panel to hurry them), choices wait. Walk away mid-conversation to hear a reaction (a discount, a warning, a complaint); come back and it picks up where it stopped. The bar shows the story's properties; Reset story forgets everything.</button>
     <h2>Kiting</h2>
-    <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword, key 4 a Heavy Crossbow.</button>
+    <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
+    <h2>Crossbows</h2>
+    <button class="sc" id="sbXbow"><b>Crossbows</b>Depth 18, in the middle of the level's big room, with the three best ranged weapons: the Gilded Arbalest equipped (key 5: 62–104 a bolt, a long 1.4 s reload), the Heavy Crossbow (key 4) and the War Bow (key 2) to compare. Two skeletons, two ghouls and two Pit Demons sleep around you; a hit wakes one. The bar shows each weapon's damage, reload and draw, the last shot and a tally per weapon. Key 1 is your longsword.</button>
     <h2>Characters</h2>
     <button class="sc" id="sbLooks2"><b>Character viewer</b>Walk around an empty big room as any character that has a sprite sheet: the hero, the monsters and the Keepers of the Crypt. Pick the look in the bar; click to walk, and watch every direction.</button>
     <h2>Lakes</h2>
@@ -203,13 +205,12 @@
   function keeperButtons() { const k = G.objects.find(o => o.type === 'keeper'); $('sbKeepers').querySelectorAll('button').forEach(b => b.classList.toggle('on', k && +b.dataset.keeper === k.look)); }
   $('sbKeepers').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; const k = G.objects.find(o => o.type === 'keeper');
     if (k) { k.look = +b.dataset.keeper; if (marketOpen()) openMarket(k); } keeperButtons(); b.blur(); });
-  $('sbKite').onclick = () => {
-    for (let i = 0; i < 100; i++) { testHero(7); if (G.map.rooms.some(r => r.big === 'horde')) break; }
-    const h = G.hero, bow = genItem(7, 0, 'huntingbow', 'common', 7), room = G.map.rooms.find(r => r.big === 'horde') || G.map.rooms[1];
+  // a test hero at depth d in the middle of the level's big room, grown 1.5 times (regenerated until there is one),
+  // with only the given monsters in it, asleep, at least 5 tiles away
+  function bigRoom(d, types) {
+    for (let i = 0; i < 100; i++) { testHero(d); if (G.map.rooms.some(r => r.big === 'horde')) break; }
+    const h = G.hero, room = G.map.rooms.find(r => r.big === 'horde') || G.map.rooms[1];
     enlargeRoom(room, 1.5);   // the big room (16-20) to about 20-24 tiles a side
-    h.inv[h.inv.indexOf(null)] = h.equip.weapon; h.equip.weapon = bow; h.hotkeys[1] = { type: 'item', id: bow.id };
-    const xbow = genItem(15, 0, 'crossbow', 'common', 15); h.inv[h.inv.indexOf(null)] = xbow; h.hotkeys[3] = { type: 'item', id: xbow.id };   // the Heavy Crossbow, key 4
-    recalc(); refreshUI();
     // the hero in the middle of the big room, which holds only sleeping spiders and Pit Demons
     let best = null; for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++)
       if (floorAt(x, y)) { const dd = Math.hypot(x - room.cx, y - room.cy); if (!best || dd < best[2]) best = [x, y, dd]; }
@@ -218,10 +219,33 @@
     G.monsters = G.monsters.filter(m => !inRoom(m) && Math.hypot(m.x - h.x, m.y - h.y) > 22);
     const spots = []; for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++)
       if (floorAt(x, y) && Math.hypot(x + 0.5 - h.x, y + 0.5 - h.y) >= 5) spots.push([x, y]);
-    for (const t of ['spider', 'spider', 'spider', 'spider', 'demon', 'demon']) { if (!spots.length) break;
+    for (const t of types) { if (!spots.length) break;
       const [x, y] = spots.splice(Math.floor(Math.random() * spots.length), 1)[0];
-      const m = makeMonster(t, x + 0.5, y + 0.5, 7, false, false, true); m.calm = { walked: -1e9, t: 1e9 }; G.monsters.push(m); }
+      const m = makeMonster(t, x + 0.5, y + 0.5, d, false, false, true); m.calm = { walked: -1e9, t: 1e9 }; G.monsters.push(m); }
+  }
+  $('sbKite').onclick = () => {
+    bigRoom(7, ['spider', 'spider', 'spider', 'spider', 'demon', 'demon']);
+    const h = G.hero, bow = genItem(7, 0, 'huntingbow', 'common', 7);
+    h.inv[h.inv.indexOf(null)] = h.equip.weapon; h.equip.weapon = bow; h.hotkeys[1] = { type: 'item', id: bow.id }; recalc(); refreshUI();
     start('kite'); log('Test: the big room. Shoot a sleeper from afar and watch it charge.', '#c9a45c');
+  };
+  // Crossbows: the War Bow, the Heavy Crossbow and the Gilded Arbalest side by side at depth 18; the bar counts
+  // each weapon's shots and the damage its arrows carry (before armor), wrapped around the game's releaseArrow
+  const XB = {};   // weapon name -> { n: shots, sum: damage, last, crit }
+  const realRelease = releaseArrow;
+  releaseArrow = h => { const n = G.proj.length; realRelease(h); const a = G.proj[n];
+    if (mode === 'xbow' && a) { const w = weaponOf(h), r = XB[w.name] = XB[w.name] || { n: 0, sum: 0 };
+      r.n++; r.sum += a.dmg; r.last = a.dmg; r.crit = a.crit; XB.lastName = w.name; } };
+  $('sbXbow').onclick = () => {
+    bigRoom(18, ['skeleton', 'skeleton', 'ghoul', 'ghoul', 'demon', 'demon']);
+    const h = G.hero; h.lvl = 20; h.base.dex += 20; h.base.vit += 40;
+    const mkb = b => genItem(18, 0, b, 'common', 18), wb = mkb('warbow'), xb = mkb('crossbow'), ab = mkb('arbalest');
+    h.inv[h.inv.indexOf(null)] = h.equip.weapon; h.equip.weapon = ab;
+    h.inv[h.inv.indexOf(null)] = wb; h.inv[h.inv.indexOf(null)] = xb;
+    h.hotkeys[1] = { type: 'item', id: wb.id }; h.hotkeys[3] = { type: 'item', id: xb.id }; h.hotkeys[4] = { type: 'item', id: ab.id };
+    recalc(); h.hp = h.st.maxHp; refreshUI();
+    for (const k in XB) delete XB[k];
+    start('xbow'); log('Test: crossbows. Keys 2, 4 and 5 switch between the War Bow, the Heavy Crossbow and the Gilded Arbalest.', '#d9b45a');
   };
   $('sbLake').onclick = () => {
     testHero(LAKE_AT); const h = G.hero, r = G.map.lakeRoom, m = G.map;
@@ -324,6 +348,14 @@
         + (ch.length ? ` · <span class="burn">charging: ${ch.join(', ')}</span>` : '');
       return;
     }
+    if (mode === 'xbow') {
+      const h = G.hero, w = weaponOf(h), [dn, dx] = weaponDamageRange(h), r = XB[w.name];
+      const tally = ['War Bow', 'Heavy Crossbow', 'Gilded Arbalest'].filter(n => XB[n]).map(n => `${n} ${XB[n].n} × ${Math.round(XB[n].sum / XB[n].n)} avg`);
+      $('sbInfo').innerHTML = `<span class="mood">${w.name}</span>` + (w.kind === 'bow' ? ` · ${Math.round(dn)}–${Math.round(dx)} a shot · reload ${w.cd} s · draw ${drawTime(w).toFixed(2)} s · about ${Math.round((dn + dx) / 2 / w.cd)} / s` : '')
+        + (h.draw ? ' · <span class="choir">drawing</span>' : '') + (r ? ` · last ${Math.round(r.last)}${r.crit ? ' <span class="burn">crit</span>' : ''}` : '')
+        + (tally.length ? ' · shots: ' + tally.join(', ') : '');
+      return;
+    }
     if (mode === 'looks') {
       const h = G.hero, k = heroLook(h), md = META.characters[k];
       $('sbInfo').innerHTML = `<span class="mood">${lookName(k)}</span> · ${md.frames} frames × 8 directions · row ${['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'][h.dir]}`
@@ -358,7 +390,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
+  const SC = ['sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbXbow', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
   // the same, but the picker covers it); errors thrown later are listed there too
