@@ -9,9 +9,19 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v96 — the dragon in the game (2026-11-22)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 96`)*
+
+- The dragon is the boss of depth 13 and every 8th depth after it (21, 29, …): there the boss room is its lair, 20–23
+  tiles a side, with pillars, braziers, the guardian's chest and its gold hoard, and the dragon asleep on it.
+- Slain, it spills its hoard: 6 rare and magic items from 4 depths deeper, 5 big piles of gold, 4 potions and 3 fire
+  bombs, besides the guardian's chest.
+- The sandbox's dragon's lair scenario now starts in the game's own lair at depth 13.
+
 ## v95 — the dragon, in the sandbox (2026-11-22)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 95`)*
+Commit: d747a1a
 
 - A dragon boss made of parts: Nythrakar, the Crypt Wyrm, painted in the game's style (a walking body with its legs,
   a head with an opening jaw, a curving neck and tail with bone spikes and a spiked club, wings that fold and beat),

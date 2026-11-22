@@ -57,7 +57,7 @@
     <h2>Kiting</h2>
     <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
     <h2>Dragon</h2>
-    <button class="sc" id="sbDragon"><b>The dragon's lair</b>Depth 10, at the west end of the level's boss room grown to a lair of about 20–25 tiles a side: four pillars, braziers, a gold hoard, the sealed guardian's chest, and on the hoard Nythrakar, the Crypt Wyrm, asleep. Come within 4.5 tiles, or hit it, and it wakes with a roar: it walks after you, turns its whole long body, and bites, breathes fire (it sets you burning), sweeps its tail at you when you stand behind it, and beats its wings to throw you back. Strike any part of it; the head takes ×1.5. The bar's buttons make it attack at once, or bring it back to life.</button>
+    <button class="sc" id="sbDragon"><b>The dragon's lair</b>Depth 13, the first depth with a dragon: you stand at the west end of its lair (20–23 tiles a side, four pillars, braziers, the sealed guardian's chest), and on the gold hoard in the middle Nythrakar, the Crypt Wyrm, sleeps. Come within 4.5 tiles, or hit it, and it wakes with a roar: it walks after you, turns its whole long body, and bites, breathes fire (it sets you burning), sweeps its tail at you when you stand behind it, and beats its wings to throw you back. Strike any part of it; the head takes ×1.5. Slain, it spills its hoard: rare and magic items along its body, gold, potions and fire bombs. The bar's buttons make it attack at once, or start the scenario again.</button>
     <h2>Characters</h2>
     <button class="sc" id="sbLooks2"><b>Character viewer</b>Walk around an empty big room as any character that has a sprite sheet: the hero, the monsters and the Keepers of the Crypt. Pick the look in the bar; click to walk, and watch every direction.</button>
     <h2>Lakes</h2>
@@ -224,33 +224,16 @@
       const m = makeMonster(t, x + 0.5, y + 0.5, 7, false, false, true); m.calm = { walked: -1e9, t: 1e9 }; G.monsters.push(m); }
     start('kite'); log('Test: the big room. Shoot a sleeper from afar and watch it charge.', '#c9a45c');
   };
-  // The dragon's lair (sandbox only, todo #17): the boss room grown about 3.2 times, emptied and furnished again,
-  // with the dragon asleep on a hoard in its middle (see README, The dragon)
+  // The dragon's lair: the game's own (depth 13, the first dragon depth: see README, The dragon), the hero 2 tiles in
+  // from its west wall
   $('sbDragon').onclick = async () => {
     $('sbDragon').disabled = true; await loadDragonArt(); $('sbDragon').disabled = false;
-    const D = 10;
-    for (let i = 0; i < 60; i++) { testHero(D); if (G.map.bossRoom) break; }
+    testHero(DRAGON_FROM);
     const m = G.map, room = m.bossRoom, h = G.hero;
-    G.monsters = G.monsters.filter(mo => !mo.boss && !mo.bossRoom);
-    enlargeRoom(room, 3.2);
-    const inR = (x, y) => x >= room.x && x < room.x + room.w && y >= room.y && y < room.y + room.h;
-    for (const o of G.objects) if (inR(o.x, o.y)) m.block[o.y * m.w + o.x] = 0;
-    G.objects = G.objects.filter(o => !inR(o.x, o.y));
-    const put = (type, x, y, extra = {}) => { if (m.t[y * m.w + x] !== T_FLOOR || G.objects.some(o => o.x === x && o.y === y)) return null;
-      const o = Object.assign({ type, x, y, used: false, block: true }, extra); G.objects.push(o); if (o.block) m.block[y * m.w + x] = 1; return o; };
-    const wallAt = (x, y) => m.t[y * m.w + x] === T_WALL;
-    // braziers along the north and west walls (the walls the camera sees), the guardian's chest in the north wall's middle
-    for (let x = room.x + 2; x <= room.x + room.w - 3; x += 6) if (wallAt(x, room.y - 1)) put('brazier', x, room.y);
-    for (let y = room.y + 5; y <= room.y + room.h - 3; y += 6) if (wallAt(room.x - 1, y)) put('brazier', room.x, y);
-    put('chest', room.cx + 1, room.y, { boss: true });
-    // four pillars and two skull piles inside
-    for (const [fx, fy] of [[0.28, 0.28], [0.72, 0.28], [0.28, 0.72], [0.72, 0.72]]) put('pillar', room.x + Math.round(room.w * fx), room.y + Math.round(room.h * fy), { decor: true });
-    for (const [fx, fy] of [[0.15, 0.2], [0.85, 0.15]]) put('skullpile', room.x + Math.round(room.w * fx), room.y + Math.round(room.h * fy), { decor: true, block: false });
-    // the hero at the room's west end, the dragon asleep on the hoard in the middle, its head toward the hero
-    const hx = room.x + 2, hy = room.cy; h.x = hx + 0.5; h.y = hy + 0.5; h.path = []; G.camSnap = true;
-    m.hoard = { x: room.cx + 0.5, y: room.cy + 0.5, r: 3.3 };
-    const dragon = makeDragon(room.cx + 0.5, room.cy + 0.5, Math.atan2(h.y - room.cy, h.x - room.cx) + 0.6, D);
-    G.monsters = G.monsters.filter(mo => Math.hypot(mo.x - h.x, mo.y - h.y) > 28); G.monsters.push(dragon); m.boss = dragon;
+    let best = null; for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x + 1; x < room.x + 5; x++)
+      if (floorAt(x, y) && !m.block[y * m.w + x]) { const dd = Math.abs(y - room.cy) + Math.abs(x - room.x - 2); if (!best || dd < best[2]) best = [x, y, dd]; }
+    h.x = best[0] + 0.5; h.y = best[1] + 0.5; h.path = []; G.camSnap = true;
+    G.monsters = G.monsters.filter(mo => mo.parts || Math.hypot(mo.x - h.x, mo.y - h.y) > 28);
     start('dragon'); log('Test: the dragon\'s lair. Nythrakar sleeps on its hoard.', '#7fe08a');
   };
   $('sbDragonActs').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; b.blur();

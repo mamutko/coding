@@ -165,20 +165,13 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     - The champion: "Turn back"; *Then fall* makes it attack; *I carry the frost* (only with a scroll) makes it let
       you pass.
 - **Dragon:**
-  - **The dragon's lair** (depth 10, regenerated until the level has a boss room; from depth 6 every level has one):
-    waits for the dragon's art (`loadDragonArt`) before building. The boss room is grown to 3.2× its area with
-    `enlargeRoom` (about 20–25 tiles a side), its boss and guards are removed, and everything that stood in it is
-    cleared; then it is furnished again: a brazier every 6 tiles along the north wall (from 2 tiles in) and the west
-    wall (from 5 tiles in), wherever solid wall is behind it, the guardian's chest (`boss: true`, sealed while the
-    dragon lives) on the north wall next to the middle, four pillars (blocking decor) at 28 % and 72 % of the room's
-    width and height, and two skull piles (not blocking) near the north-west and north-east corners. The level's
-    `map.hoard` (`{ x, y, r: 3.3 }`, see [The dragon](#the-dragon)) lies in the room's middle, with the dragon asleep
-    on it (`makeDragon`, depth 10), facing the hero turned 0.6 rad; it is the level's boss (`map.boss`). The hero
-    starts 2 tiles in from the west wall on the room's middle row. Monsters within 28 tiles of the hero (other than the
-    dragon) are removed. The bar shows the dragon's state (asleep, walking, turning, biting, breathing fire, sweeping
-    its tail, beating its wings, roaring, frozen, slain), its life, whether the hero burns, the zoom and the frame
-    rate, and has buttons that make it attack at once (**Bite**, **Breath**, **Tail**, **Wings**, **Roar**; it wakes)
-    and **Again**, which builds the scenario anew.
+  - **The dragon's lair** (depth 13, the first dragon depth: the game's own lair, see [Dungeon
+    generation](#dungeon-generation)): waits for the dragon's art (`loadDragonArt`) before building. The hero starts on
+    the lair's floor 2 tiles in from its west wall, as near its middle row as a free tile allows; monsters within 28
+    tiles of the hero (other than the dragon) are removed. The bar shows the dragon's state (asleep, walking, turning,
+    biting, breathing fire, sweeping its tail, beating its wings, roaring, frozen, slain), its life, whether the hero
+    burns, the zoom and the frame rate, and has buttons that make it attack at once (**Bite**, **Breath**, **Tail**,
+    **Wings**, **Roar**; it wakes) and **Again**, which builds the scenario anew.
 - **Kiting:**
   - **Kiting with a bow** (depth 7, regenerated until the level has a big room): the test hero holds a common
     Hunting Bow (about 3 arrows per spider and 15 per Pit Demon there; the longsword in the pack, key 1).
@@ -708,6 +701,11 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
     in a corner or next to a doorway;
   - 1–2 ordinary monsters and a 50 % chance of an extra champion (without escorts; of a type allowed to be one);
   - no chests, urns, bones or gold piles.
+  **At a dragon depth** (13, 21, 29, …; see [The dragon](#the-dragon)) the boss room is **the dragon's lair**
+  instead: 20–23 tiles a side (if it doesn't fit in its 300 tries the whole level is generated again), with 6 braziers
+  and the guardian's chest on its edge, 4 pillars (blocking decor) at 28 % and 72 % of its width and height, 3 skull
+  piles inside, the gold hoard (`map.hoard`, radius 3.3) in its middle instead of the rune circle, and the dragon
+  asleep on it, facing a random way: no other boss, guards, champion or furnishings.
   The boss's type is drawn by weight from the types unlocked at depth `d + 1`, so it can be a type not yet
   seen at this depth (from depth 6 every type is already unlocked, so this only matters if bosses start earlier).
 - **Big room** at depths 3, 5, 7, … (every second depth from 3, `bigRoomAt`). If the big one doesn't fit, the
@@ -1341,8 +1339,9 @@ bind all things!": *gelu* frost, *cuncta* all things, *liga* bind), an AI voice 
 
 ## The dragon
 
-A big boss made of parts (`todo.md` #17), so far **only in the sandbox** ([The dragon's lair](#sandbox)): nothing in
-the game's own levels makes one. It is the crypt dragon painted for `dragon-prototype.html` (`art/characters/dragon/`;
+A big boss made of parts (`todo.md` #17): the boss of **depth 13 and every 8th depth after it** (21, 29, 37, …;
+`dragonAt`, `DRAGON_FROM`, `DRAGON_EVERY`), in a lair that takes the boss room's place (see [Dungeon
+generation](#dungeon-generation)); the sandbox's [The dragon's lair](#sandbox) starts there. It is the crypt dragon painted for `dragon-prototype.html` (`art/characters/dragon/`;
 the art: `assets/dragon.webp` and its layout `DRAGON_ART`, written into `index.html` and the prototype by
 `tools/dragon/build_assets.py`), and moves and attacks as the prototype's *Body leads* spine.
 
@@ -1355,8 +1354,8 @@ the art: `assets/dragon.webp` and its layout `DRAGON_ART`, written into `index.h
   attack walk, auto attack), an arrow strikes, a bow or a fire bomb is aimed at, and a frost blast reaches. A part
   struck flashes. A hit on the head deals ×1.5 (`DRAGON_HEAD`). A fire burns it when any part is in it (`inFire`).
 - **Numbers** (`DRAGON`): life 110, armor 20, XP 900 base, scaled by depth like a boss (life ×`MON_BASE` ×
-  `MON_SCALE`^(d−1) × the boss tier's 8; armor + 3 per depth + 4 × depth; XP ×1.17^(d−1); at depth 10: 2928 life,
-  87 armor); attacks before armor ×`MON_BASE`×`MON_SCALE`^(d−1): bite 16–24, breath 2.5–3.5 per 0.2 s, tail 11–16,
+  `MON_SCALE`^(d−1) × the boss tier's 8; armor + 3 per depth + 4 × depth; XP ×1.17^(d−1); at depth 13: 4114 life,
+  108 armor, 5922 XP); attacks before armor ×`MON_BASE`×`MON_SCALE`^(d−1): bite 16–24, breath 2.5–3.5 per 0.2 s, tail 11–16,
   wing buffet 5–8. Walks 1.9 tiles/s, turns at most 1.1 rad/s, stops 3.9 tiles (its middle) from the hero.
 - **Asleep** until the hero comes within 4.5 tiles of any part or it is hit (any hit starts pursuit): it lies with
   its head low (24 px) and its tail curled, eyes dim. Waking, it roars (1.7 s: head up to 125 px, jaws open, wings
@@ -1381,8 +1380,13 @@ the art: `assets/dragon.webp` and its layout `DRAGON_ART`, written into `index.h
 - **Frozen** by a scroll of frost (`frozenTick`, a boss's shorter freeze) it holds still; it has no ice tint yet
   (TODO).
 - **Death**: its nodes sink to the floor one after another from the tail tip to the head (0.12 s apart, 0.55 s each),
-  the body darkens, the eyes go out; it drops a boss's loot and unseals the guardian's chest. It stays where it fell
-  (slain dragons are never removed from `G.monsters`).
+  the body darkens, the eyes go out, and the guardian's chest unseals. It stays where it fell (slain dragons are never
+  removed from `G.monsters`).
+- **Its hoard spills** (`dragonLoot`, `DRAGON_LOOT`), never thinned by `LOOT`: 6 items of the boss's loot depth + 1
+  (depth + 4) with a boost of 0.6, the first 3 rare and each of the others rare or magic (even odds), dropped along its
+  body from the head to the middle of the tail; 5 gold piles of 60–110 × depth each, on the hoard; 4 potions (as any
+  monster's potion drop: 15 % iron skin); a stack of 3 fire bombs. The log says *"… is slain! Its hoard spills across
+  the floor, and the guardian's chest unseals."* (The guardian's chest gives its own loot as for any boss.)
 - **Drawing** (`dragonDrawables`, entries of kind 7 in render's depth-sorted list, each with its own key `x + y`):
   the body with its legs as one sprite at the torso's middle (8 directions from the heading, NE / E / SE mirrored; 8
   walk frames advancing with the distance walked plus 0.9 × the turning in rad/s, 6.67 frames per tile), the head as a
@@ -1394,6 +1398,8 @@ the art: `assets/dragon.webp` and its layout `DRAGON_ART`, written into `index.h
   things; the breath's flames are drawn additively after the sorted list (`dragonFire`). Hover and click boxes: each
   node's circle at its height. Its life shows in the target panel, not as a bar over it. The art loads only when
   needed (`loadDragonArt`).
+- **Arriving**: descending to a dragon depth logs *"Somewhere in the dark, something vast is breathing."* Its art
+  starts loading when a level of a dragon depth or the depth before it is built.
 - **The hoard**: a level's `map.hoard` (`{ x, y, r }`) is drawn on the floor (`drawHoard`, baked once): a golden
   glow and about 900 coins and 7 goblets in an ellipse of radius `r` tiles. A level with a hoard doesn't draw the
   boss room's rune circle.

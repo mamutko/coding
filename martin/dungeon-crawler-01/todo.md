@@ -47,9 +47,7 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
       with a hero skill.
 
 17. **Dragon** — a big dragon boss with a large, articulated body (planned, not started).
-    - **Where:** decided — **sandbox only** for now: the dragon lives in its own sandbox scenario (a lair the
-      test hero starts in) and does not appear in the game's depths. Placing it in the game (e.g. the boss of
-      every 8th depth from 16, where the level names cycle) can be decided later.
+    - **Where:** the boss of depth 13 and every 8th depth after it (v96; first sandbox only, v95).
     - **Why one big sprite doesn't fit the engine:**
       - *Depth sorting* — every drawable has one sort key (`x + y`) and is drawn whole. A dragon 6–8 tiles long
         would be drawn entirely in front of or behind the hero, walls and pillars, so the wrong part covers them.
@@ -109,7 +107,7 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
       3. Engine: the multi-part entity type (drawing, sort keys, hit areas, collision, shadow); then lair
          generation, AI and attacks, and a sandbox scenario starting in the lair.
       4. Polish: sounds, death sequence, balance, README and versions.
-    - **Decided:** sandbox only (above); a body of **articulated parts** (the recommended option below); it
+    - **Decided:** a body of **articulated parts** (the recommended option below); it
       **stays on the ground** (no flying, takeoff or landing).
     - **Step 1 is done:** `dragon-prototype.html` (see the README's file list), with placeholder shapes.
     - **Step 2 is done:** the crypt dragon (concept 2) painted in the game's style (`art/characters/dragon/`): the
@@ -118,5 +116,5 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
       tail; in the prototype as *Look: Painted*.
     - **Step 3 is done (v95):** the dragon in the game (`index.html`, README "The dragon") and the sandbox's
       **The dragon's lair** scenario. Left for step 4 (polish): real sounds (roar, breath, wings) instead of the
-      synthesised ones, an ice tint while frozen and flames on it while burning, balance, and whether and where it
-      appears in the game's own levels.
+      synthesised ones, an ice tint while frozen and flames on it while burning, balance, and the dragon in the
+      catalog (`tools/catalog`) and the balance simulation (`tools/simulation`).
