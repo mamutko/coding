@@ -109,5 +109,7 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
       3. Engine: the multi-part entity type (drawing, sort keys, hit areas, collision, shadow); then lair
          generation, AI and attacks, and a sandbox scenario starting in the lair.
       4. Polish: sounds, death sequence, balance, README and versions.
-    - **Open decisions:** articulated parts (recommended) or the rooted single sprite; whether
-      the dragon flies (adds takeoff and landing) or stays on the ground.
+    - **Decided:** sandbox only (above); a body of **articulated parts** (the recommended option below); it
+      **stays on the ground** (no flying, takeoff or landing).
+    - **Step 1 is done:** `dragon-prototype.html` (see the README's file list), with placeholder shapes. Next:
+      tune proportions and movement in it, then step 2 (concept art).

@@ -1,0 +1,929 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Crypt Dragon Prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=IM+Fell+English:ital@0;1&display=swap" rel="stylesheet">
+<style>
+  /* Layout: the scene fills the screen; a floating options panel (a collapsible bottom sheet on phones). One dark look, like the game. */
+  :root {
+    --bg: #040205; --panel: rgba(14, 12, 12, 0.9); --line: #39302a; --fg: #e8dcc4; --muted: #a49378; --gold: #d8b45a;
+    --on: #5a2a1c; --onfg: #ffe6d2; --ember: #f0a066;
+    --display: Cinzel, Georgia, serif; --body: "IM Fell English", Georgia, serif;
+    color-scheme: dark;
+  }
+  html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); overflow: hidden; }
+  body { font-family: var(--body); font-size: 15px; }
+  #cv { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #panel { position: fixed; top: calc(12px + env(safe-area-inset-top, 0px)); right: calc(12px + env(safe-area-inset-right, 0px));
+    width: 320px; max-height: calc(100% - 24px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); overflow: auto;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px 14px; box-sizing: border-box;
+    display: flex; flex-direction: column; gap: 10px; backdrop-filter: blur(3px); }
+  #panel header { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  h1 { font-family: var(--display); font-size: 17px; letter-spacing: 0.06em; margin: 0; color: var(--ember); font-weight: 700; }
+  .hint { margin: 0; color: var(--muted); font-size: 14px; line-height: 1.35; }
+  .desc { margin: 0; color: var(--fg); font-size: 13.5px; line-height: 1.35; font-style: italic; opacity: 0.85; }
+  .row { display: flex; flex-direction: column; gap: 4px; }
+  .lab { font-family: var(--display); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; }
+  .lab output { font-family: var(--body); letter-spacing: 0; text-transform: none; color: var(--fg); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .seg { display: flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+  .seg button { flex: 1; background: transparent; color: var(--fg); border: 0; border-left: 1px solid var(--line); padding: 6px 4px;
+    font: 14px var(--body); cursor: pointer; }
+  .seg button:first-child { border-left: 0; }
+  .seg button[aria-pressed="true"] { background: var(--on); color: var(--onfg); }
+  input[type=range] { width: 100%; accent-color: var(--ember); margin: 0; }
+  .checks { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; }
+  .checks label { display: flex; gap: 6px; align-items: center; cursor: pointer; }
+  input[type=checkbox] { accent-color: var(--ember); }
+  .btns { display: flex; flex-wrap: wrap; gap: 6px; }
+  .btn { background: #1c1a19; color: var(--fg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font: 14px var(--body); cursor: pointer; }
+  .btn:hover, .seg button:hover { filter: brightness(1.25); }
+  button:focus-visible, input:focus-visible { outline: 2px solid var(--ember); outline-offset: 1px; }
+  #toggle { display: none; }
+  #status { position: fixed; left: calc(12px + env(safe-area-inset-left, 0px)); top: calc(10px + env(safe-area-inset-top, 0px));
+    font: 15px var(--body); color: var(--ember); text-shadow: 0 0 4px #000, 0 0 2px #000; pointer-events: none; max-width: calc(100% - 360px); }
+  #status small { display: block; color: var(--muted); font-size: 13px; }
+  #boss { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); width: min(420px, calc(100% - 32px));
+    pointer-events: none; text-align: center; display: none; }
+  #boss .name { font: 15px var(--display); letter-spacing: 0.08em; color: #7fe08a; text-shadow: 0 0 4px #000; margin-bottom: 4px; }
+  #boss .bar { height: 8px; background: rgba(0,0,0,0.7); border: 1px solid #39302a; border-radius: 4px; overflow: hidden; }
+  #boss .fill { height: 100%; background: linear-gradient(#6fe07a, #2e8a3a); width: 100%; }
+  @media (max-width: 640px) {
+    #status { max-width: calc(100% - 24px); }
+    #panel { left: 0; right: 0; top: auto; bottom: 0; width: auto; max-height: 58%; border-radius: 12px 12px 0 0; border-bottom: 0;
+      padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+      padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+    #panel.closed > :not(header) { display: none; }
+    #toggle { display: inline-block; }
+    #boss { bottom: auto; top: calc(64px + env(safe-area-inset-top, 0px)); }
+  }
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div id="status">Loading…</div>
+<div id="boss"><div class="name">Vharzul the Ember Wyrm</div><div class="bar"><div class="fill" id="bossFill"></div></div></div>
+<div id="panel" class="closed">
+  <header><h1>Crypt Dragon</h1><button class="btn" id="toggle" aria-expanded="false">Options</button></header>
+  <p class="hint">Placeholder shapes, to tune how a big dragon made of parts moves and sorts. Tap the floor to walk, tap the dragon to strike it (the head takes ×1.5). Walk close to wake it.</p>
+  <div class="row"><div class="lab">The dragon</div>
+    <div class="seg" data-opt="mode"><button data-v="fight">Fights</button><button data-v="follow">Follows</button><button data-v="still">Stays</button></div>
+    <p class="desc" id="modeD"></p></div>
+  <div class="row"><div class="lab">Spine</div>
+    <div class="seg" data-opt="spine"><button data-v="body">Body leads</button><button data-v="snake">Snake</button></div>
+    <p class="desc" id="spineD"></p></div>
+  <div class="row"><div class="lab">Depth sorting</div>
+    <div class="seg" data-opt="sort"><button data-v="part">Per part</button><button data-v="one">One key</button></div>
+    <p class="desc" id="sortD"></p></div>
+  <div class="row"><div class="lab">Attacks</div>
+    <div class="btns"><button class="btn" data-act="bite">Bite</button><button class="btn" data-act="breath">Fire breath</button><button class="btn" data-act="tail">Tail sweep</button><button class="btn" data-act="buffet">Wing buffet</button><button class="btn" data-act="roar">Roar</button></div></div>
+  <div class="row"><label class="lab" for="size">Size <output id="sizeV"></output></label><input type="range" id="size" min="0.7" max="1.4" step="0.05"></div>
+  <div class="row"><label class="lab" for="speed">Walking speed <output id="speedV"></output></label><input type="range" id="speed" min="0.6" max="3.6" step="0.1"></div>
+  <div class="row"><label class="lab" for="fz">Camera in the fight <output id="fzV"></output></label><input type="range" id="fz" min="0.45" max="1" step="0.05"></div>
+  <div class="row"><div class="lab">Light</div>
+    <div class="seg" data-opt="light"><button data-v="game">Game</button><button data-v="dim">Dim</button><button data-v="off">Off</button></div></div>
+  <div class="checks">
+    <label><input type="checkbox" id="wings"> Wings</label>
+    <label><input type="checkbox" id="legs"> Legs</label>
+    <label><input type="checkbox" id="shadows"> Shadows</label>
+    <label><input type="checkbox" id="debug"> Show the spine</label>
+    <label><input type="checkbox" id="sound"> Sound</label>
+  </div>
+  <div class="btns">
+    <button class="btn" id="reset">Reset</button><button class="btn" id="kill">Slay it</button>
+    <button class="btn" id="zout" aria-label="Zoom out">−</button><button class="btn" id="zin" aria-label="Zoom in">+</button>
+  </div>
+</div>
+<script>
+// =====================================================================================
+//  Crypt Dragon prototype (todo #17, step 1): a big dragon built from separately sorted parts, with placeholder
+//  shapes, in a lair with pillars and braziers, next to the game's hero. Nothing here is loaded by the game.
+//   - The body is a spine of 19 nodes (head, 5 neck, shoulders, 2 torso, hips, 9 tail), each a circle on the floor
+//     (its collision and hit area) lifted to a height z. Every node, leg and wing panel is its own drawable with its
+//     own depth key (x + y), sorted with the walls, pillars and the hero, like everything in the game.
+//   - Body leads: the torso walks (centre + heading, turning slowly, bending into the turn); the neck reaches from the
+//     shoulders toward what the dragon looks at (a curve, so it curls); the tail is a drag chain behind the hips with a
+//     bend limit per joint and a slow sway. Snake: the head walks and every node follows its path at fixed spacing.
+//   - Legs: 4 feet planted on the floor; a foot steps (an arc, 0.32 s) when it falls more than a step behind its
+//     place under the shoulder or hip; diagonal pairs alternate. Two-bone IK, elbows back, knees forward.
+//   - Wings: flat panels between arm and finger bones, blended between folded and spread, flapped by rotating them
+//     about the body's axis.
+//   - Shadows of all parts go into one mask first (so overlaps don't double up), drawn at 45 % black.
+//   - Attacks: bite, fire breath (a cone), tail sweep (the tail whips toward the side the hero is on), wing buffet
+//     (knocks the hero back), roar (on waking). One health pool; the head takes ×1.5. Death: the body sinks node by
+//     node from the tail tip to the head.
+// =====================================================================================
+const TW = 96, TH = 48, HW = TW / 2, HH = TH / 2, WALLH = 72, SHADE_Y = 0.42, SHADE_X = 0.18;
+const P = HW * Math.SQRT2;       // px per tile in the ground plane
+const iso = (x, y) => [(x - y) * HW, (x + y) * HH];
+const S3 = (x, y, z) => [(x - y) * HW, (x + y) * HH - z];
+const MW = 26, MH = 24;
+const isWall = (x, y) => x <= 0 || y <= 0 || x >= MW - 1 || y >= MH - 1;
+
+const SRC = { floor: 'assets/floor.jpg', wall: 'assets/wall.jpg', dirt: 'assets/dirt.jpg', props: 'assets/props.webp', hero: 'assets/hero.webp' };
+const HERO_MD = { fw: 144, fh: 152, frames: 8, idle: 3, footY: 128, fpt: 5 };
+const PROPS = { brazier: [571, 0, 104, 167], banner: [1593, 0, 84, 206], pillar: [1679, 0, 98, 191], skullpile: [1425, 0, 166, 136] };
+const PROP_STYLE = { brazier: [0.62, 10], banner: [0.66, 6], pillar: [0.72, 8], skullpile: [0.42, 8] };
+const POST = [0.08, 0.46, 0.21, 0.5, 0.55];
+const PROP_SHADOW = { brazier: [0.2, 0.44, 0.2, 0.75, 0.7], banner: POST, pillar: POST, skullpile: [0.2, 0.58, 0.28, 0.5, 0.55] };
+const objects = [
+  { k: 'pillar', x: 7, y: 7 }, { k: 'pillar', x: 18, y: 7 }, { k: 'pillar', x: 7, y: 16 }, { k: 'pillar', x: 18, y: 16 },
+  { k: 'brazier', x: 5, y: 1, light: 4.2 }, { k: 'brazier', x: 12, y: 1, light: 4.2 }, { k: 'brazier', x: 20, y: 1, light: 4.2 },
+  { k: 'brazier', x: 1, y: 6, light: 4.2 }, { k: 'brazier', x: 1, y: 13, light: 4.2 }, { k: 'brazier', x: 1, y: 19, light: 4.2 },
+  { k: 'banner', x: 16, y: 1 }, { k: 'banner', x: 1, y: 10 }, { k: 'skullpile', x: 4, y: 4 }, { k: 'skullpile', x: 21, y: 4 }];
+const COLL = objects.map(o => ({ x: o.x + 0.5, y: o.y + 0.5, r: o.k === 'pillar' ? 0.42 : 0.36 }));
+const HOARD = { x: 13, y: 9.5, r: 3.3 };
+
+const O = { mode: 'fight', spine: 'body', sort: 'part', size: 1, speed: 1.9, fz: 0.7, light: 'game', wings: true, legs: true, shadows: true, debug: false, sound: true };
+const DESC = {
+  fight: 'Asleep on its hoard until you come near; then it roars, follows you and attacks.',
+  follow: 'Awake, follows you at a distance and never attacks: to watch the walk, the turns and the legs.',
+  still: 'Stays where it is; only the neck and head follow you.',
+  body: 'The torso walks and turns; the neck reaches toward you, the tail drags behind with a slow sway.',
+  snake: 'The head walks and every part follows its path: it cannot turn on the spot, so it circles.',
+  part: 'Every node, leg and wing panel is sorted on its own: the tail sorts at the tail, the head at the head.',
+  one: 'The whole dragon uses one key (its middle), as one big sprite would: walk around it to see the wrong parts cover the pillars and the hero.' };
+
+// The spine, head to tail tip: [kind, radius (tiles), spacing to the node before it (tiles)]
+const PROFILE = [['head', 0.40, 0],
+  ['neck', 0.27, 0.46], ['neck', 0.29, 0.40], ['neck', 0.31, 0.40], ['neck', 0.34, 0.40], ['neck', 0.38, 0.40],
+  ['shoulders', 0.62, 0.48], ['torso', 0.72, 0.55], ['torso', 0.70, 0.55], ['hips', 0.60, 0.55],
+  ['tail', 0.48, 0.50], ['tail', 0.42, 0.46], ['tail', 0.36, 0.44], ['tail', 0.31, 0.42], ['tail', 0.26, 0.40],
+  ['tail', 0.21, 0.38], ['tail', 0.17, 0.36], ['tail', 0.13, 0.34], ['tail', 0.09, 0.32]];
+const SH = 6, HIPS = 9, NECK_N = 5;
+const COL = { hi: '#a8603f', mid: '#5c261c', lo: '#1a0806', spike: '#8c7656', bone: '#2a120e', claw: '#d8c8a8' };
+// wing bones in the body's frame: [forward, outward, up] in tiles; root, elbow, wrist, 3 finger tips, trailing root
+const WING_SPREAD = [[0, 0, 0], [0.25, 1.05, 0.38], [0.45, 2.05, 0.6], [-0.25, 3.4, 0.28], [-1.05, 2.9, 0.05], [-1.75, 2.0, -0.05], [-2.0, 0.45, 0]];
+const WING_FOLD = [[0, 0, 0], [-0.3, 0.3, 0.45], [0.12, 0.4, 0.9], [-1.25, 0.5, 0.78], [-1.55, 0.48, 0.64], [-1.85, 0.42, 0.52], [-1.95, 0.3, 0.36]];
+const WING_PANELS = [[0, 1, 2, 3], [2, 3, 4], [2, 4, 5], [2, 5, 6, 0]];
+
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const lc = document.createElement('canvas'), lctx = lc.getContext('2d');   // lighting
+const sc = document.createElement('canvas'), sctx = sc.getContext('2d');   // the dragon's shadow mask
+let W = 0, H = 0, DPR = 1, Z = 1, ZB = 1, camX = 0, camY = 0, TF = [1, 0, 0, 1, 0, 0], time = 0, shake = 0;
+const IMG = {};
+const clamp = (v, a = 0, b = 1) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const ease = u => u * u * (3 - 2 * u);
+const wrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
+const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const rnd = Math.random;
+const toDev = (x, y, z = 0) => { const [X, Y] = S3(x, y, z); return [TF[0] * X + TF[4], TF[3] * Y + TF[5]]; };
+
+// ---------- sound (synthesised; quiet placeholders) ----------
+let AC = null, NOISE = null;
+function audio() {
+  if (AC) return AC;
+  try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+  NOISE = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate); const d = NOISE.getChannelData(0);
+  let b = 0; for (let i = 0; i < d.length; i++) { b = (b + 0.02 * (Math.random() * 2 - 1)) / 1.02; d[i] = b * 3.5; }   // brown noise
+  return AC;
+}
+function noise(dur, f0, f1, vol, q = 1, type = 'lowpass', attack = 0.05) {
+  if (!O.sound || !AC || AC.state !== 'running') return;
+  const t = AC.currentTime, s = AC.createBufferSource(), f = AC.createBiquadFilter(), g = AC.createGain();
+  s.buffer = NOISE; s.loop = true; f.type = type; f.Q.value = q;
+  f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + attack); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f).connect(g).connect(AC.destination); s.start(t); s.stop(t + dur + 0.05);
+}
+const SFX = {
+  roar: () => { noise(1.6, 900, 140, 0.9, 3, 'lowpass', 0.12); noise(1.4, 300, 90, 0.7, 6, 'bandpass', 0.2); },
+  bite: () => noise(0.18, 2400, 300, 0.6, 1, 'lowpass', 0.005),
+  breath: () => noise(1.5, 700, 1600, 0.45, 0.7, 'bandpass', 0.15),
+  flap: () => noise(0.32, 500, 120, 0.5, 1, 'lowpass', 0.06),
+  tail: () => noise(0.35, 1500, 400, 0.35, 2, 'bandpass', 0.08),
+  hit: () => noise(0.12, 1800, 400, 0.35, 1, 'lowpass', 0.004),
+  step: () => noise(0.16, 220, 60, 0.25, 1, 'lowpass', 0.01) };
+
+// ---------- the scene: floor, walls, props, the hoard ----------
+const PATS = new Map();
+function pats(c) {
+  if (PATS.has(c)) return PATS.get(c);
+  const floor = c.createPattern(IMG.floor, 'repeat'); floor.setTransform(new DOMMatrix([HW, HH, -HW, HH, 0, 0]).scale(3 / 512));
+  const dirt = c.createPattern(IMG.dirt, 'repeat'); dirt.setTransform(new DOMMatrix().scale(1.5 / 512));
+  const p = { floor, dirt }; PATS.set(c, p); return p;
+}
+function face(c, img, sx, sy, sw, sh, A, B, shade) {
+  const ux = B[0] - A[0], uy = B[1] - A[1];
+  c.save(); c.transform(ux / sw, uy / sw, 0, WALLH / sh, A[0], A[1] - WALLH);
+  c.drawImage(img, sx, sy, sw, sh, 0, 0, sw * 1.02, sh * 1.01);
+  if (shade) { c.fillStyle = `rgba(0,0,0,${shade})`; c.fillRect(0, 0, sw * 1.02, sh * 1.01); }
+  c.restore();
+}
+function drawWall(c, x, y) {
+  const L = iso(x, y + 1), B = iso(x + 1, y + 1), R = iso(x + 1, y);
+  const tsx = ((x * 131 + y * 71) % 4) * 128, tsy = ((x * 37 + y * 113) % 4) * 100;
+  const inY = y + 1 < MH && !isWall(x, y + 1), inX = x + 1 < MW && !isWall(x + 1, y);
+  if (inY) face(c, IMG.wall, tsx, tsy, 128, 75, L, B, SHADE_Y);
+  if (inX) face(c, IMG.wall, (tsx + 256) % 512, tsy, 128, 75, B, R, SHADE_X);
+  if (!inY && y + 1 < MH) face(c, IMG.dirt, tsx, tsy, 128, 75, L, B, SHADE_Y + 0.2);   // the room's outside: dirt
+  if (!inX && x + 1 < MW) face(c, IMG.dirt, (tsx + 256) % 512, tsy, 128, 75, B, R, SHADE_X + 0.2);
+  if (y === MH - 1) face(c, IMG.dirt, tsx, tsy, 128, 75, L, B, SHADE_Y + 0.2);
+  if (x === MW - 1) face(c, IMG.dirt, (tsx + 256) % 512, tsy, 128, 75, B, R, SHADE_X + 0.2);
+  c.save(); c.translate(0, -WALLH); c.transform(HW, HH, -HW, HH, 0, 0);
+  c.beginPath(); c.rect(x, y, 1, 1); c.fillStyle = pats(c).dirt; c.fill(); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fill();
+  c.lineWidth = 0.012; c.strokeStyle = 'rgba(255,240,220,0.05)'; c.stroke(); c.restore();
+}
+function softShadow(c, x, y, rx, ry, a, mid) {
+  c.save(); c.translate(x, y); c.scale(1, ry / rx);
+  const g = c.createRadialGradient(0, 0, 0, 0, 0, rx);
+  g.addColorStop(0, `rgba(0,0,0,${a})`); g.addColorStop(mid, `rgba(0,0,0,${a * 0.7})`); g.addColorStop(1, 'rgba(0,0,0,0)');
+  c.fillStyle = g; c.beginPath(); c.arc(0, 0, rx, 0, 7); c.fill(); c.restore();
+}
+function drawProp(c, o) {
+  const [px, py, pw, ph] = PROPS[o.k], [s, off] = PROP_STYLE[o.k], [sx, sy] = iso(o.x + 0.5, o.y + 0.5);
+  const w = pw * s, hh = ph * s, top = sy - hh + off, sh = PROP_SHADOW[o.k];
+  if (sh) softShadow(c, sx, top + hh - w * sh[0], w * sh[1], w * sh[2], sh[3], sh[4]);
+  c.drawImage(IMG.props, px, py, pw, ph, sx - w / 2, top, w, hh);
+  if (o.k === 'brazier') for (let i = 0; i < 2; i++) {
+    const t = (time * 0.9 + i * 0.5 + o.x * 0.13) % 1;
+    c.fillStyle = `rgba(255,${150 + i * 40},60,${1 - t})`; c.fillRect(sx - 6 + Math.sin(t * 9 + i) * 8, top + 10 - t * 40, 2, 2);
+  }
+}
+let HOARD_IMG = null;   // the gold hoard, baked once: coins on the floor in iso space
+function bakeHoard() {
+  const s = 2, rx = HOARD.r * P, ry = rx / 2, c = document.createElement('canvas'); c.width = Math.ceil(rx * 2 * s + 20); c.height = Math.ceil(ry * 2 * s + 20);
+  const g = c.getContext('2d'); g.setTransform(s, 0, 0, s, c.width / 2, c.height / 2);
+  const glow = g.createRadialGradient(0, 0, 0, 0, 0, rx); glow.addColorStop(0, 'rgba(150,105,30,0.55)'); glow.addColorStop(0.7, 'rgba(110,75,20,0.3)'); glow.addColorStop(1, 'rgba(90,60,15,0)');
+  g.save(); g.scale(1, 0.5); g.fillStyle = glow; g.beginPath(); g.arc(0, 0, rx, 0, 7); g.fill(); g.restore();
+  for (let i = 0; i < 900; i++) {
+    const a = rnd() * 7, r = Math.pow(rnd(), 0.75) * 0.97, x = Math.cos(a) * r * rx, y = Math.sin(a) * r * ry;
+    const l = 40 + rnd() * 30 - r * 18;
+    g.fillStyle = `hsl(${38 + rnd() * 10},${60 + rnd() * 25}%,${l}%)`; g.beginPath(); g.ellipse(x, y, 3.2, 1.7, rnd() * 0.6 - 0.3, 0, 7); g.fill();
+    if (rnd() < 0.35) { g.fillStyle = 'rgba(255,240,190,0.7)'; g.fillRect(x - 1, y - 1, 1.4, 0.8); }
+  }
+  for (let i = 0; i < 7; i++) {   // a few goblets and a chest-lid glint
+    const a = rnd() * 7, r = rnd() * 0.7, x = Math.cos(a) * r * rx, y = Math.sin(a) * r * ry;
+    g.fillStyle = '#c99a3a'; g.fillRect(x - 2, y - 7, 4, 7); g.fillStyle = '#f0d27a'; g.fillRect(x - 3.5, y - 9, 7, 2.2);
+  }
+  HOARD_IMG = { c, s };
+}
+
+// ---------- the hero ----------
+const START = [12.5, 20.2];
+const hero = { x: START[0], y: START[1], r: 0.28, dir: 4, anim: 0, moving: false, tx: null, ty: null, target: null, hp: 400, max: 400, cd: 0, swing: 0, hitDone: true, kb: null, flash: 0, dead: 0, aim: 0 };
+function dirOf(dx, dy) {
+  const X = (dx - dy) * HW, Y = (dx + dy) * HH, a = Math.atan2(X, Y);
+  return ((Math.round(-a / (Math.PI / 4)) % 8) + 8) % 8;
+}
+function pushOut(e, r) {   // walls, pillars and props
+  e.x = clamp(e.x, 1 + r, MW - 1 - r); e.y = clamp(e.y, 1 + r, MH - 1 - r);
+  for (const c of COLL) { const dx = e.x - c.x, dy = e.y - c.y, d = Math.hypot(dx, dy), m = c.r + r; if (d < m && d > 1e-6) { e.x = c.x + dx / d * m; e.y = c.y + dy / d * m; } }
+}
+function damageHero(n, from) {
+  if (hero.dead) return;
+  hero.hp -= n; hero.flash = 0.15; text(hero.x, hero.y, 80, '-' + Math.round(n), '#ff6a4a');
+  if (hero.hp <= 0) { hero.hp = 0; hero.dead = 2.5; hero.tx = null; hero.target = null; note('The hero falls. Back at the door in a moment.'); }
+}
+function knock(fromX, fromY, d) {
+  const dx = hero.x - fromX, dy = hero.y - fromY, l = Math.hypot(dx, dy) || 1;
+  hero.kb = { vx: dx / l * d / 0.3, vy: dy / l * d / 0.3, t: 0.3 }; hero.tx = null;
+}
+function updateHero(dt) {
+  hero.flash = Math.max(0, hero.flash - dt); hero.cd -= dt;
+  if (hero.dead) { hero.dead -= dt; if (hero.dead <= 0) { hero.dead = 0; hero.hp = hero.max; hero.x = START[0]; hero.y = START[1]; } return; }
+  if (hero.kb) { hero.x += hero.kb.vx * dt; hero.y += hero.kb.vy * dt; if ((hero.kb.t -= dt) <= 0) hero.kb = null; pushOut(hero, hero.r); hero.moving = false; return; }
+  if (hero.swing > 0) {
+    hero.swing -= dt;
+    if (!hero.hitDone && hero.swing <= 0.16) { hero.hitDone = true; heroHit(); }
+    hero.moving = false; return;
+  }
+  let gx = hero.tx, gy = hero.ty, stop = 0.05;
+  if (hero.target != null) {
+    const n = DR.n[hero.target]; if (DR.dead && DR.dead.t > 3) { hero.target = null; return; }
+    gx = n.x; gy = n.y; stop = n.r + 1.05;
+    if (Math.hypot(gx - hero.x, gy - hero.y) <= stop) {
+      hero.dir = dirOf(gx - hero.x, gy - hero.y); hero.aim = Math.atan2(gy - hero.y + gx - hero.x, gx - hero.x - (gy - hero.y));
+      if (hero.cd <= 0) { hero.swing = 0.24; hero.hitDone = false; hero.cd = 0.55; }
+      hero.moving = false; return;
+    }
+  }
+  if (gx == null) { hero.moving = false; return; }
+  const dx = gx - hero.x, dy = gy - hero.y, d = Math.hypot(dx, dy);
+  if (d <= stop) { hero.tx = null; hero.moving = false; return; }
+  const st = Math.min(d, 4.2 * dt), px = hero.x, py = hero.y;
+  hero.x += dx / d * st; hero.y += dy / d * st; pushOut(hero, hero.r);
+  const moved = Math.hypot(hero.x - px, hero.y - py); hero.anim += moved * HERO_MD.fpt;
+  hero.dir = dirOf(dx, dy); hero.moving = moved > 0.001;
+  if (moved < st * 0.2) { hero.stuck = (hero.stuck || 0) + dt; if (hero.stuck > 0.4) { hero.tx = null; hero.stuck = 0; } } else hero.stuck = 0;
+}
+function heroHit() {
+  const i = hero.target; if (i == null || DR.dead) return;
+  const n = DR.n[i]; if (Math.hypot(n.x - hero.x, n.y - hero.y) > n.r + 1.4) return;
+  const crit = rnd() < 0.12; let dmg = (24 + rnd() * 16) * (crit ? 1.75 : 1) * (i === 0 ? 1.5 : 1);
+  DR.hp -= dmg; n.flash = 0.18; DR.flash = 0.1; SFX.hit();
+  text(n.x, n.y, n.z + n.R + 10, (crit ? '✦' : '') + Math.round(dmg), i === 0 ? '#ffd35a' : '#ffffff');
+  for (let k = 0; k < 6; k++) FX.push({ type: 'spark', x: n.x, y: n.y, z: n.z, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, vz: 60 + rnd() * 80, t: 0, life: 0.5 });
+  if (DR.state === 'sleep') wake();
+  if (DR.hp <= 0) slay();
+}
+
+// ---------- the dragon ----------
+let DR = null;
+function makeDragon() {
+  const k = O.size;
+  const n = PROFILE.map(([kind, r, s]) => ({ kind, r: r * k, s: s * k, R: r * k * P, x: 0, y: 0, z: 0, flash: 0, key: 0 }));
+  DR = { n, cx: 13.2, cy: 9.2, th: 2.6, turn: 0, v: 0, na: 0, ha: 2.6, look: [0, 0], headZ: 24 * k, headZT: 24 * k, jaw: 0, jawT: 0,
+    lunge: 0, wingF: 0, wingT: 0, phi: 0, act: null, cd: 1.5, state: 'sleep', t: 0, hp: 1800, max: 1800, dead: null, flash: 0,
+    sway: n.map(() => 0), bend: n.map(() => 0), trail: [], legs: [], eyes: 0.15, sweepSide: 1, vel: [0, 0], breathOff: 0 };
+  // a lying pose: the torso along the heading, neck and tail curled round the hoard
+  const h = [Math.cos(DR.th), Math.sin(DR.th)];
+  if (O.spine === 'snake') {   // the head is the driver; the trail runs back from it, curled
+    DR.cx = 13.2 + h[0] * 2.4; DR.cy = 9.2 + h[1] * 2.4;
+    let x = DR.cx, y = DR.cy, a = DR.th + Math.PI; DR.trail = [[x, y]];
+    for (let i = 0; i < 260; i++) { a += i > 40 ? 0.012 : 0; x += Math.cos(a) * 0.05; y += Math.sin(a) * 0.05; DR.trail.push([x, y]); }
+  }
+  for (let i = HIPS + 1; i < n.length; i++) DR.bend[i] = 0.3;   // the tail starts curled
+  layout(0.0001, true);
+  for (let i = HIPS + 1; i < n.length; i++) DR.bend[i] = 0;
+  const L = [{ front: true, side: 1 }, { front: true, side: -1 }, { front: false, side: 1 }, { front: false, side: -1 }];
+  DR.legs = L.map(l => { const f = legFrame(l); return { ...l, foot: f.home.slice(), from: null, to: null, st: -1, group: l.front === (l.side > 0) ? 0 : 1 }; });
+  DR.look = [n[0].x + Math.cos(DR.ha) * 3, n[0].y + Math.sin(DR.ha) * 3];
+  if (O.mode !== 'fight') { DR.state = 'awake'; DR.eyes = 1; DR.headZ = DR.headZT = 72 * k; }
+}
+function bodyDir(i) {   // the body's forward direction at node i (toward the head)
+  const n = DR.n, a = n[Math.max(0, i - 1)], b = n[Math.min(n.length - 1, i + 1)], dx = a.x - b.x, dy = a.y - b.y, l = Math.hypot(dx, dy) || 1;
+  return [dx / l, dy / l];
+}
+function nodeIn(q) { pushOut(q, q.r * 0.7); }
+function layout(dt, init = false) {
+  const n = DR.n, k = O.size, br = Math.sin(DR.t * 1.6) * 1.5 * k;   // breathing
+  if (O.spine === 'snake') {
+    // every node at its arc distance along the head's trail
+    let i = 0, acc = 0, want = 0, tr = DR.trail;
+    n[0].x = tr[0][0]; n[0].y = tr[0][1];
+    for (let j = 1; j < n.length; j++) {
+      want += n[j].s;
+      while (i < tr.length - 1) {
+        const seg = Math.hypot(tr[i + 1][0] - tr[i][0], tr[i + 1][1] - tr[i][1]);
+        if (acc + seg >= want) { const u = (want - acc) / (seg || 1); n[j].x = lerp(tr[i][0], tr[i + 1][0], u); n[j].y = lerp(tr[i][1], tr[i + 1][1], u); break; }
+        acc += seg; i++;
+      }
+      if (i >= tr.length - 1) { n[j].x = tr[tr.length - 1][0]; n[j].y = tr[tr.length - 1][1]; }
+    }
+    DR.ha = DR.th;
+  } else {
+    const h = [Math.cos(DR.th), Math.sin(DR.th)], Lt = n[SH + 1].s + n[SH + 2].s + n[HIPS].s;
+    let x = DR.cx + h[0] * Lt / 2, y = DR.cy + h[1] * Lt / 2, a = DR.th + Math.PI;
+    n[SH].x = x; n[SH].y = y;
+    const bend = clamp(-DR.turn * 0.22, -0.25, 0.25);   // the torso bends into the turn
+    for (let i = SH + 1; i <= HIPS; i++) { a += bend; x += Math.cos(a) * n[i].s; y += Math.sin(a) * n[i].s; n[i].x = x; n[i].y = y; }
+    // the tail: a drag chain, each joint relaxing toward its wanted bend (sway, sweep) within a limit
+    for (let i = HIPS + 1; i < n.length; i++) {
+      const p = n[i - 1], q = n[i];
+      const cur = init ? a : Math.atan2(q.y - p.y, q.x - p.x);
+      let d = wrap(cur - a);
+      const want = DR.bend[i] + DR.sway[i], rate = DR.act && DR.act.type === 'tail' ? 14 : 2.2;
+      d += (want - d) * (init ? 1 : 1 - Math.exp(-dt * rate));
+      d = clamp(d, -0.55, 0.55);
+      const aa = a + d; q.x = p.x + Math.cos(aa) * q.s; q.y = p.y + Math.sin(aa) * q.s; nodeIn(q);
+      a = Math.atan2(q.y - p.y, q.x - p.x);
+    }
+    // the neck: from the shoulders toward the look point, within ±1.3 rad of the heading, along a curve (so it curls)
+    const s = n[SH], la = Math.atan2(DR.look[1] - s.y, DR.look[0] - s.x), da = clamp(wrap(la - DR.th), -1.3, 1.3);
+    DR.na += (da - DR.na) * (init ? 1 : 1 - Math.exp(-dt * 3.5));
+    let len = 0; for (let i = 1; i <= SH; i++) len += n[i].s;
+    const toLook = Math.hypot(DR.look[0] - s.x, DR.look[1] - s.y);
+    const reach = clamp(Math.min(len * 0.9, toLook - 1.0), len * 0.55, len * 0.9) + DR.lunge * 0.9 * k;
+    const na = DR.th + DR.na, hd = n[0];
+    hd.x = s.x + Math.cos(na) * reach; hd.y = s.y + Math.sin(na) * reach; nodeIn(hd);
+    const c1 = [s.x + h[0] * reach * 0.55, s.y + h[1] * reach * 0.55];
+    for (let i = 1; i <= NECK_N; i++) {
+      const t = 1 - i / (NECK_N + 1), u = 1 - t;
+      n[i].x = u * u * s.x + 2 * u * t * c1[0] + t * t * hd.x; n[i].y = u * u * s.y + 2 * u * t * c1[1] + t * t * hd.y;
+    }
+    // the head turns toward the look point, within ±0.9 rad of the neck's end
+    const nd = Math.atan2(hd.y - n[1].y, hd.x - n[1].x), ha = Math.atan2(DR.look[1] - hd.y, DR.look[0] - hd.x);
+    DR.ha = nd + clamp(wrap(ha - nd), -0.9, 0.9);
+  }
+  // heights: torso on its legs, the tail dropping to the floor, the neck rising to the head
+  for (let i = SH; i <= HIPS; i++) n[i].z = n[i].R + (i === HIPS ? 20 : 26) * k + br;
+  for (let i = HIPS + 1; i < n.length; i++) { const u = clamp((i - HIPS) / 3.5); n[i].z = lerp(n[HIPS].z, n[i].R * 0.95, ease(u)); }
+  n[0].z = DR.headZ;
+  for (let i = 1; i <= NECK_N; i++) { const t = 1 - i / (NECK_N + 1); n[i].z = lerp(n[SH].z, n[0].z, ease(t)) + Math.sin(Math.PI * t) * 12 * k; }
+  if (DR.dead) for (let i = 0; i < n.length; i++) {   // dying: each node sinks to the floor, from the tail tip to the head
+    const q = n[i], p = clamp((DR.dead.t - (n.length - 1 - i) * 0.12) / 0.55);
+    q.z = lerp(q.z, q.R * 0.7, ease(p)); q.dk = p;
+  }
+}
+function legFrame(l) {
+  const n = DR.n, i = l.front ? SH : HIPS, node = n[i], f = bodyDir(i), nr = [-f[1], f[0]];
+  return { node, f, nr,
+    attach: [node.x + nr[0] * l.side * node.r * 0.7, node.y + nr[1] * l.side * node.r * 0.7], az: node.z - node.R * 0.25,
+    home: [node.x + nr[0] * l.side * node.r * 1.05 + f[0] * (l.front ? 0.2 : 0.06) + DR.vel[0] * 0.28,
+           node.y + nr[1] * l.side * node.r * 1.05 + f[1] * (l.front ? 0.2 : 0.06) + DR.vel[1] * 0.28] };
+}
+function updateLegs(dt) {
+  const k = O.size, stepLen = 0.5 * k;
+  for (const L of DR.legs) {
+    const fr = legFrame(L);
+    if (L.st >= 0) {
+      L.st += dt / 0.32;
+      const u = ease(clamp(L.st)); L.foot = [lerp(L.from[0], L.to[0], u), lerp(L.from[1], L.to[1], u)];
+      if (L.st >= 1) { L.st = -1; if (DR.state !== 'sleep') SFX.step(); }
+      continue;
+    }
+    if (DR.dead) continue;
+    const off = Math.hypot(L.foot[0] - fr.home[0], L.foot[1] - fr.home[1]);
+    const otherStepping = DR.legs.some(o => o.group !== L.group && o.st >= 0), sameStepping = DR.legs.some(o => o !== L && o.group === L.group && o.st >= 0);
+    if ((off > stepLen && !otherStepping) || off > stepLen * 2.4 || (sameStepping && off > stepLen * 0.35 && !otherStepping)) {
+      L.st = 0; L.from = L.foot.slice(); L.to = fr.home.slice();
+    }
+  }
+}
+function wake() {
+  if (DR.dead || DR.state !== 'sleep') return;
+  DR.state = 'awake'; startAct('roar');
+}
+function startAct(type) {
+  if (DR.dead) return;
+  if (DR.state === 'sleep') DR.state = 'awake';
+  const h = hero, n = DR.n;
+  DR.act = { type, t: 0, hit: false, flaps: 0 };
+  if (type === 'tail') {   // whip toward the side the hero is on
+    const aBack = Math.atan2(n[HIPS + 1].y - n[HIPS].y, n[HIPS + 1].x - n[HIPS].x), toH = Math.atan2(h.y - n[HIPS].y, h.x - n[HIPS].x);
+    DR.sweepSide = wrap(toH - aBack) >= 0 ? 1 : -1; SFX.tail();
+  }
+  if (type === 'breath') DR.breathOff = -0.35;
+}
+const ACT_DUR = { roar: 1.7, bite: 0.95, breath: 2.3, tail: 1.15, buffet: 1.6 };
+function runAct(dt) {
+  const a = DR.act, k = O.size, n = DR.n, hd = n[0], t = (a.t += dt);
+  DR.headZT = 72 * k; DR.jawT = 0; DR.wingT = 0; DR.lunge += (0 - DR.lunge) * (1 - Math.exp(-dt * 8));
+  for (let i = HIPS + 1; i < n.length; i++) DR.bend[i] = 0;
+  if (a.type === 'roar') {
+    DR.headZT = 125 * k; DR.wingT = t > 0.2 && t < 1.4 ? 0.6 : 0; DR.jawT = t > 0.3 && t < 1.35 ? 1 : 0; DR.eyes = 1;
+    if (!a.hit && t > 0.3) { a.hit = true; SFX.roar(); shake = 0.9; }
+  } else if (a.type === 'bite') {
+    if (t < 0.45) { DR.headZT = 92 * k; DR.lunge = lerp(DR.lunge, -0.35, 0.2); DR.jawT = 0.4; }
+    else if (t < 0.62) { DR.headZT = 34 * k; DR.lunge = lerp(DR.lunge, 1, 0.35); DR.jawT = 1; }
+    else { DR.headZT = 60 * k; DR.jawT = 0; }
+    if (!a.hit && t >= 0.6) { a.hit = true; SFX.bite();
+      const fx = hd.x + Math.cos(DR.ha) * hd.r, fy = hd.y + Math.sin(DR.ha) * hd.r;
+      if (Math.hypot(hero.x - fx, hero.y - fy) < hd.r + 0.75) damageHero(55); }
+  } else if (a.type === 'breath') {
+    if (t < 0.5) { DR.headZT = 108 * k; DR.jawT = 0.3; }
+    else if (t < 1.95) {
+      DR.headZT = 70 * k; DR.jawT = 1; DR.breathOff = lerp(-0.35, 0.35, (t - 0.5) / 1.45);
+      if (!a.hit) { a.hit = true; SFX.breath(); }
+      const mx = hd.x + Math.cos(DR.ha) * hd.r * 1.5, my = hd.y + Math.sin(DR.ha) * hd.r * 1.5, mz = hd.z - 4 * k;
+      for (let i = 0; i < 70 * dt * 1.5; i++) {
+        const sp = 5.5 + rnd() * 1.5, aa = DR.ha + (rnd() - 0.5) * 0.5;
+        FX.push({ type: 'fire', x: mx, y: my, z: mz, vx: Math.cos(aa) * sp, vy: Math.sin(aa) * sp, vz: -mz / 0.75 * (0.6 + rnd() * 0.5), t: 0, life: 0.65 + rnd() * 0.25 });
+      }
+      const dx = hero.x - mx, dy = hero.y - my, d = Math.hypot(dx, dy), off = Math.abs(wrap(Math.atan2(dy, dx) - DR.ha));
+      if (d < 5.2 * k && off < 0.33 + 0.3 / Math.max(1, d)) { a.burn = (a.burn || 0) + dt; if (a.burn > 0.2) { a.burn = 0; damageHero(14); } }
+    } else { DR.headZT = 72 * k; DR.jawT = 0; DR.breathOff = 0; }
+  } else if (a.type === 'tail') {
+    const s = DR.sweepSide, j = t < 0.28 ? -0.16 : t < 0.62 ? 0.4 : 0;
+    for (let i = HIPS + 1; i < n.length; i++) DR.bend[i] = s * j;
+    if (t >= 0.32 && t < 0.62 && !a.hit) for (let i = HIPS + 2; i < n.length; i++) {
+      const q = n[i]; if (Math.hypot(hero.x - q.x, hero.y - q.y) < q.r + 0.5) { a.hit = true; damageHero(42); knock(q.x, q.y, 2.2); break; }
+    }
+  } else if (a.type === 'buffet') {
+    DR.headZT = 96 * k; DR.wingT = 1; DR.jawT = 0.3;
+    if (t > 0.2 && t < 1.4) {
+      const ph = (t - 0.2) / 0.6; DR.phi = 0.25 + 0.75 * Math.cos(ph * Math.PI * 2);
+      if (ph >= a.flaps + 0.5) { a.flaps++; SFX.flap();   // a downstroke: a gust that knocks the hero back
+        const s = n[SH], d = Math.hypot(hero.x - s.x, hero.y - s.y);
+        if (d < 4.4 * k) { damageHero(12); knock(s.x, s.y, 2.4 * (1 - d / (5 * k)) + 0.6); }
+        for (let i = 0; i < 26; i++) { const aa = rnd() * 7; FX.push({ type: 'dust', x: s.x + Math.cos(aa) * 1.5, y: s.y + Math.sin(aa) * 1.5, z: 4, vx: Math.cos(aa) * 4, vy: Math.sin(aa) * 4, vz: 10, t: 0, life: 0.8 }); }
+      }
+    } else DR.phi = 0.4;
+  }
+  if (t >= ACT_DUR[a.type]) { DR.act = null; DR.cd = 1.1 + rnd() * 1.3; DR.breathOff = 0; }
+}
+function decide() {
+  const n = DR.n, h = hero; if (h.dead) return;
+  const c = { x: DR.cx, y: DR.cy }, rel = Math.abs(wrap(Math.atan2(h.y - c.y, h.x - c.x) - DR.th)), dc = dist(h, c), dHead = dist(h, n[0]);
+  let tailD = 99; for (let i = HIPS + 1; i < n.length; i++) tailD = Math.min(tailD, dist(h, n[i]) - n[i].r);
+  if (O.spine === 'body' && rel > 1.8 && tailD < 1.8) startAct('tail');
+  else if (dHead < n[0].r + 1.05) startAct('bite');
+  else if (dc < 7.5 && dHead < 5.5 && rel < 0.9 && rnd() < 0.5) startAct('breath');
+  else if (dc < 4.6 && rnd() < 0.4) startAct('buffet');
+  else DR.cd = 0.35;
+}
+function drive(dt, still) {
+  const k = O.size, h = hero, sp = O.speed * k;
+  const snake = O.spine === 'snake';
+  const cx = DR.cx, cy = DR.cy, want = Math.atan2(h.y - cy, h.x - cx), err = wrap(want - DR.th), dc = Math.hypot(h.x - cx, h.y - cy);
+  const acting = !!DR.act, standoff = snake ? 1.5 : (O.mode === 'follow' ? 6.5 : 3.9) * k;
+  let turn = 0, v = 0;
+  if (!still && !h.dead) {
+    const tmax = (snake ? 2.4 : 1.1) * (acting ? (DR.act.type === 'tail' ? 0 : 0.3) : 1);
+    turn = clamp(err * 2, -tmax, tmax);
+    if (!acting) {
+      if (dc > standoff + 0.4) v = sp * Math.pow(Math.max(0, Math.cos(err)), 2);
+      else if (!snake && dc < standoff - 1.6 && Math.abs(err) < 0.6) v = -sp * 0.3;
+      if (snake && Math.abs(err) > 0.3 && dc > standoff) v = Math.max(v, sp * 0.45);   // a snake can only turn by moving
+    }
+  } else if (still && !h.dead && !snake) { turn = clamp(err * 1.2, -0.5, 0.5) * (Math.abs(err) > 1.2 ? 1 : 0); }
+  DR.turn += (turn - DR.turn) * (1 - Math.exp(-dt * 5)); DR.th = wrap(DR.th + DR.turn * dt);
+  DR.v += (v - DR.v) * (1 - Math.exp(-dt * 3));
+  const px = DR.cx, py = DR.cy;
+  DR.cx += Math.cos(DR.th) * DR.v * dt; DR.cy += Math.sin(DR.th) * DR.v * dt;
+  // keep the torso (or the head, for the snake) inside the room and off the pillars
+  if (snake) { const q = { x: DR.cx, y: DR.cy }; pushOut(q, DR.n[0].r * 0.8); DR.cx = q.x; DR.cy = q.y; }
+  else for (const i of [SH, HIPS, -1]) {
+    const hd = [Math.cos(DR.th), Math.sin(DR.th)], Lt = 1.65 * k * 0.5, o = i === SH ? Lt : i === HIPS ? -Lt : 0;
+    const q = { x: DR.cx + hd[0] * o, y: DR.cy + hd[1] * o }, ox = q.x, oy = q.y; pushOut(q, (i === -1 ? 0.72 : 0.62) * k);
+    DR.cx += q.x - ox; DR.cy += q.y - oy;
+  }
+  DR.vel = [(DR.cx - px) / dt, (DR.cy - py) / dt];
+  if (snake) {
+    const tr = DR.trail; if (Math.hypot(tr[0][0] - DR.cx, tr[0][1] - DR.cy) > 0.04) tr.unshift([DR.cx, DR.cy]); else tr[0] = [DR.cx, DR.cy];
+    if (tr.length > 400) tr.length = 400;
+  }
+}
+function slay() {
+  if (DR.dead) return; DR.hp = 0; DR.dead = { t: 0 }; DR.act = null; DR.state = 'dead'; DR.jawT = 0.6; DR.wingT = 0;
+  SFX.roar(); note('Vharzul is slain: it sinks from the tail to the head.');
+}
+function updateDragon(dt) {
+  const n = DR.n, k = O.size; DR.t += dt; DR.flash = Math.max(0, DR.flash - dt);
+  for (const q of n) q.flash = Math.max(0, q.flash - dt);
+  if (DR.dead) {
+    DR.dead.t += dt; DR.headZT = n[0].R * 0.7; DR.eyes = Math.max(0, DR.eyes - dt * (DR.dead.t > 2 ? 0.8 : 0));
+    DR.jawT = DR.dead.t > 2.2 ? 0.25 : 0.6;
+  } else if (DR.state === 'sleep') {
+    DR.headZT = 24 * k; DR.jawT = 0; DR.eyes = 0.15 + 0.1 * Math.max(0, Math.sin(DR.t * 0.7));
+    for (let i = HIPS + 1; i < n.length; i++) DR.sway[i] = 0;
+    if (O.mode === 'fight' && !hero.dead) { let d = 99; for (const q of n) d = Math.min(d, dist(hero, q) - q.r); if (d < 4.5) wake(); }
+  } else {
+    DR.eyes = 1;
+    DR.look = [hero.x, hero.y];
+    if (DR.breathOff) { const s = n[SH], a = Math.atan2(hero.y - s.y, hero.x - s.x) + DR.breathOff, d = Math.max(3, dist(hero, s)); DR.look = [s.x + Math.cos(a) * d, s.y + Math.sin(a) * d]; }
+    if (DR.act) runAct(dt);
+    else {
+      DR.headZT = 72 * k; DR.jawT = 0; DR.wingT = 0; DR.phi = 0; DR.lunge *= Math.exp(-dt * 8);
+      for (let i = HIPS + 1; i < n.length; i++) DR.bend[i] = 0;
+      DR.cd -= dt; if (O.mode === 'fight' && DR.cd <= 0) decide();
+    }
+    for (let i = HIPS + 1; i < n.length; i++) DR.sway[i] = 0.09 * Math.sin(DR.t * 1.1 - (i - HIPS) * 0.55) * ((i - HIPS) / 9 + 0.3);
+    drive(dt, O.mode === 'still');
+  }
+  if (DR.dead || DR.state === 'sleep') { DR.vel = [0, 0]; DR.v = 0; DR.turn *= 0.9; }
+  const r = DR.act && DR.act.type === 'bite' && DR.act.t > 0.45 && DR.act.t < 0.62 ? 16 : 6;
+  DR.headZ += (DR.headZT - DR.headZ) * (1 - Math.exp(-dt * r));
+  DR.jaw += (DR.jawT - DR.jaw) * (1 - Math.exp(-dt * 14));
+  DR.wingF += (DR.wingT - DR.wingF) * (1 - Math.exp(-dt * 5));
+  layout(dt);
+  updateLegs(dt);
+  // the hero can't walk through the dragon
+  if (!hero.dead) for (const q of n) { const dx = hero.x - q.x, dy = hero.y - q.y, d = Math.hypot(dx, dy), m = q.r + hero.r; if (d < m && d > 1e-6) { hero.x = q.x + dx / d * m; hero.y = q.y + dy / d * m; } }
+  pushOut(hero, hero.r);
+}
+
+// ---------- effects and texts ----------
+const FX = [], TEXTS = [];
+let NOTE = null;
+function note(s) { NOTE = { s, t: 3.5 }; }
+function text(x, y, z, s, col) { TEXTS.push({ x, y, z, s, col, t: 0 }); }
+function updateFx(dt) {
+  for (let i = FX.length - 1; i >= 0; i--) {
+    const f = FX[i]; f.t += dt; if (f.t >= f.life) { FX.splice(i, 1); continue; }
+    f.x += f.vx * dt; f.y += f.vy * dt; f.z = Math.max(f.type === 'fire' ? 6 : 0, f.z + f.vz * dt);
+    if (f.type === 'spark') f.vz -= 400 * dt;
+    if (f.type === 'fire' && (f.x < 1 || f.y < 1 || f.x > MW - 1 || f.y > MH - 1)) { f.vx *= -0.2; f.vy *= -0.2; }
+    if (f.type === 'fire') { f.vx *= Math.exp(-dt * 1.2); f.vy *= Math.exp(-dt * 1.2); }
+    if (f.type === 'dust') { f.vx *= Math.exp(-dt * 3); f.vy *= Math.exp(-dt * 3); }
+  }
+  for (let i = TEXTS.length - 1; i >= 0; i--) { const t = TEXTS[i]; t.t += dt; if (t.t > 0.9) TEXTS.splice(i, 1); }
+  if (NOTE && (NOTE.t -= dt) <= 0) NOTE = null;
+  shake = Math.max(0, shake - dt);
+}
+
+// ---------- drawing the dragon ----------
+function blob(c, x, y, R, q) {
+  const g = c.createRadialGradient(x - R * 0.35, y - R * 0.45, R * 0.08, x, y, R * 1.05);
+  g.addColorStop(0, COL.hi); g.addColorStop(0.55, COL.mid); g.addColorStop(1, '#30120c');   // a soft rim, so the nodes merge into one body
+  c.fillStyle = g; c.beginPath(); c.arc(x, y, R, 0, 7); c.fill();
+  shadeOver(c, q, () => { c.beginPath(); c.arc(x, y, R, 0, 7); });
+}
+function shadeOver(c, q, path) {   // a hit flash (white) or the darkening of death, over a shape
+  const fl = (q && q.flash > 0 ? q.flash / 0.18 * 0.55 : 0) + DR.flash * 2;
+  if (fl > 0) { path(); c.fillStyle = `rgba(255,240,220,${Math.min(0.7, fl)})`; c.fill(); }
+  const dk = q ? q.dk || 0 : DR.dead ? clamp(DR.dead.t / 2.5) : 0;
+  if (dk > 0) { path(); c.fillStyle = `rgba(10,4,3,${dk * 0.45})`; c.fill(); }
+}
+function capsule(c, a, b) {   // the body between two nodes: a quad along their tangents
+  const [ax, ay] = S3(a.x, a.y, a.z), [bx, by] = S3(b.x, b.y, b.z), dx = bx - ax, dy = by - ay, l = Math.hypot(dx, dy);
+  if (l < 1) return;
+  const nx = -dy / l, ny = dx / l, ra = a.R * 0.93, rb = b.R * 0.93;
+  const g = c.createLinearGradient(ax + nx * ra, ay + ny * ra, ax - nx * ra, ay - ny * ra);
+  const up = ny < 0;   // which side of the quad faces up (the light)
+  g.addColorStop(0, up ? COL.hi : COL.lo); g.addColorStop(0.45, COL.mid); g.addColorStop(1, up ? COL.lo : COL.hi);
+  const path = () => { c.beginPath(); c.moveTo(ax + nx * ra, ay + ny * ra); c.lineTo(bx + nx * rb, by + ny * rb); c.lineTo(bx - nx * rb, by - ny * rb); c.lineTo(ax - nx * ra, ay - ny * ra); c.closePath(); };
+  path(); c.fillStyle = g; c.fill(); shadeOver(c, a, path);
+}
+function drawNode(c, i) {
+  const n = DR.n, q = n[i];
+  if (i === 0) return drawHead(c, q);
+  capsule(c, q, n[i - 1]);
+  const [x, y] = S3(q.x, q.y, q.z);
+  blob(c, x, y, q.R, q);
+  if (i >= 1 && i < n.length - 2) {   // a dorsal spike on top
+    const f = bodyDir(i), [fx] = [(f[0] - f[1]) * HW], back = fx > 0 ? -1 : 1, R = q.R;
+    c.fillStyle = COL.spike; c.beginPath(); c.moveTo(x - R * 0.2, y - R * 0.82); c.lineTo(x + R * 0.2, y - R * 0.82); c.lineTo(x + back * R * 0.28, y - R * 1.28); c.closePath(); c.fill();
+    c.fillStyle = 'rgba(0,0,0,0.3)'; c.beginPath(); c.moveTo(x, y - R * 0.82); c.lineTo(x + R * 0.2, y - R * 0.82); c.lineTo(x + back * R * 0.28, y - R * 1.28); c.closePath(); c.fill();
+  }
+}
+function drawHead(c, q) {
+  const k = O.size, L = q.r, f = [Math.cos(DR.ha), Math.sin(DR.ha)], sd = [-f[1], f[0]];
+  const P3 = (u, v, w) => S3(q.x + f[0] * u + sd[0] * v, q.y + f[1] * u + sd[1] * v, q.z + w);
+  const poly = pts => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); };
+  const toward = f[0] + f[1] > 0, jaw = DR.jaw * 24 * k;
+  const horns = () => { c.strokeStyle = COL.spike; c.lineCap = 'round'; for (const s of [1, -1]) {
+    const a = P3(-0.2 * L, s * 0.45 * L, q.R * 0.55), m = P3(-0.9 * L, s * 0.7 * L, q.R * 1.05), b = P3(-1.55 * L, s * 0.62 * L, q.R * 1.15);
+    c.lineWidth = 5 * k; c.beginPath(); c.moveTo(a[0], a[1]); c.quadraticCurveTo(m[0], m[1], b[0], b[1]); c.stroke(); } };
+  const snout = () => {
+    const lower = [P3(0.15 * L, 0.5 * L, -5 * k), P3(1.5 * L, 0.2 * L, -4 * k - jaw), P3(1.5 * L, -0.2 * L, -4 * k - jaw), P3(0.15 * L, -0.5 * L, -5 * k)];
+    poly(lower); c.fillStyle = '#2c100b'; c.fill();
+    if (DR.jaw > 0.05) {   // the open mouth: dark red inside, teeth along the upper jaw
+      poly([P3(0.2 * L, 0.42 * L, 0), P3(1.5 * L, 0.18 * L, 0), P3(1.5 * L, 0.18 * L, -4 * k - jaw), P3(1.5 * L, -0.18 * L, -4 * k - jaw), P3(1.5 * L, -0.18 * L, 0), P3(0.2 * L, -0.42 * L, 0)]);
+      c.fillStyle = DR.act && DR.act.type === 'breath' && DR.act.t > 0.5 ? '#ffb040' : '#5a0d0a'; c.fill();
+      c.strokeStyle = COL.claw; c.lineWidth = 1.6 * k;
+      for (let j = 0; j < 5; j++) { const u = (0.4 + j * 0.25) * L; for (const s of [1, -1]) { const a = P3(u, s * (0.42 - j * 0.045) * L, 0), b = P3(u, s * (0.42 - j * 0.045) * L, -5 * k); c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke(); } }
+    }
+    const upper = [P3(0.1 * L, 0.6 * L, 8 * k), P3(1.6 * L, 0.24 * L, 3 * k), P3(1.6 * L, -0.24 * L, 3 * k), P3(0.1 * L, -0.6 * L, 8 * k)];
+    poly(upper); const [ux, uy] = P3(0.8 * L, 0, 6 * k); const g = c.createLinearGradient(ux, uy - 14 * k, ux, uy + 8 * k);
+    g.addColorStop(0, COL.hi); g.addColorStop(1, COL.lo); c.fillStyle = g; c.fill(); shadeOver(c, q, () => poly(upper));
+    const nos = P3(1.55 * L, 0, 6 * k); c.fillStyle = '#120403'; for (const s of [1, -1]) { const p = P3(1.5 * L, s * 0.12 * L, 6 * k); c.beginPath(); c.arc(p[0], p[1], 1.6 * k, 0, 7); c.fill(); }
+    void nos;
+  };
+  const [x, y] = S3(q.x, q.y, q.z);
+  if (!toward) snout(); else horns();
+  blob(c, x, y, q.R, q);
+  // eyes on the sides that face the camera
+  for (const s of [1, -1]) {
+    const vx = f[0] * 0.5 + sd[0] * s * 0.42, vy = f[1] * 0.5 + sd[1] * s * 0.42;
+    if (vx + vy < -0.12) continue;
+    const e = P3(0.5 * L, s * 0.42 * L, q.R * 0.3);
+    c.fillStyle = DR.eyes > 0.5 ? `rgba(255,210,80,${DR.eyes})` : `rgba(160,110,40,${0.4 + DR.eyes})`;
+    c.beginPath(); c.ellipse(e[0], e[1], 3.2 * k, (DR.eyes > 0.5 ? 2.2 : 0.8) * k, 0, 0, 7); c.fill();
+  }
+  if (toward) snout(); else horns();
+}
+function drawLeg(c, L) {
+  const k = O.size, fr = legFrame(L), lift = L.st >= 0 ? Math.sin(Math.PI * clamp(L.st)) * 16 * k : 0;
+  const Hh = [fr.attach[0] * P, fr.attach[1] * P, fr.az], F = [L.foot[0] * P, L.foot[1] * P, lift];
+  const L1 = 44 * k, L2 = 42 * k;
+  let dx = F[0] - Hh[0], dy = F[1] - Hh[1], dz = F[2] - Hh[2], d = Math.hypot(dx, dy, dz);
+  const u = [dx / d, dy / d, dz / d]; d = Math.min(d, L1 + L2 - 0.01);
+  const a = (L1 * L1 - L2 * L2 + d * d) / (2 * d), hgt = Math.sqrt(Math.max(0, L1 * L1 - a * a));
+  // which way the joint bends: elbows back (front legs), knees forward (hind legs), both a little outward
+  const fb = L.front ? -0.8 : 0.8;
+  let b = [fr.f[0] * fb + fr.nr[0] * L.side * 0.5, fr.f[1] * fb + fr.nr[1] * L.side * 0.5, 0.25];
+  const bd = b[0] * u[0] + b[1] * u[1] + b[2] * u[2]; b = [b[0] - u[0] * bd, b[1] - u[1] * bd, b[2] - u[2] * bd];
+  const bl = Math.hypot(...b) || 1; b = b.map(v => v / bl);
+  const K = [Hh[0] + u[0] * a + b[0] * hgt, Hh[1] + u[1] * a + b[1] * hgt, Hh[2] + u[2] * a + b[2] * hgt];
+  const Fe = [Hh[0] + u[0] * d, Hh[1] + u[1] * d, Hh[2] + u[2] * d];
+  const pH = S3(Hh[0] / P, Hh[1] / P, Hh[2]), pK = S3(K[0] / P, K[1] / P, K[2]), pF = S3(Fe[0] / P, Fe[1] / P, Fe[2]);
+  const R = fr.node.R;
+  c.lineCap = 'round'; c.lineJoin = 'round';
+  c.strokeStyle = COL.lo; c.lineWidth = R * 0.52; c.beginPath(); c.moveTo(pH[0], pH[1]); c.lineTo(pK[0], pK[1]); c.stroke();
+  c.lineWidth = R * 0.34; c.beginPath(); c.moveTo(pK[0], pK[1]); c.lineTo(pF[0], pF[1]); c.stroke();
+  c.strokeStyle = COL.mid; c.lineWidth = R * 0.3; c.beginPath(); c.moveTo(pH[0], pH[1] - 2); c.lineTo(pK[0], pK[1] - 2); c.stroke();
+  c.lineWidth = R * 0.18; c.beginPath(); c.moveTo(pK[0], pK[1] - 1.5); c.lineTo(pF[0], pF[1] - 1.5); c.stroke();
+  c.fillStyle = COL.lo; c.beginPath(); c.ellipse(pF[0], pF[1], R * 0.26, R * 0.14, 0, 0, 7); c.fill();
+  c.strokeStyle = COL.claw; c.lineWidth = 1.8 * k;   // claws
+  for (const s of [-0.5, 0, 0.5]) { const ax = fr.f[0] + fr.nr[0] * s, ay = fr.f[1] + fr.nr[1] * s, t = S3(Fe[0] / P + ax * 0.22 * k, Fe[1] / P + ay * 0.22 * k, F[2]);
+    c.beginPath(); c.moveTo(pF[0], pF[1]); c.lineTo(t[0], t[1]); c.stroke(); }
+}
+function wingPoints(side) {
+  const n = DR.n, s = n[SH], f = bodyDir(SH), nr = [-f[1], f[0]], k = O.size, fF = DR.wingF;
+  const dk = DR.dead ? clamp(DR.dead.t / 2) : 0;
+  const rx = s.x + nr[0] * side * s.r * 0.35, ry = s.y + nr[1] * side * s.r * 0.35, rz = s.z + s.R * 0.55 - dk * s.R * 0.5;
+  const phi = DR.phi * fF + (1 - fF) * 0.05 * Math.sin(DR.t * 1.6);
+  return WING_FOLD.map((p, i) => {
+    const q = WING_SPREAD[i], u = lerp(p[0], q[0], fF) * k, b0 = lerp(p[1], q[1], fF) * k, c0 = lerp(p[2], q[2], fF) * k * (1 - dk * 0.6);
+    const b = b0 * Math.cos(phi) - c0 * Math.sin(phi), cz = b0 * Math.sin(phi) + c0 * Math.cos(phi);
+    return { x: rx + f[0] * u + nr[0] * side * b, y: ry + f[1] * u + nr[1] * side * b, z: rz + cz * P };
+  });
+}
+function drawWingPanel(c, pts, pi) {
+  const ids = WING_PANELS[pi], q = ids.map(i => pts[i]), sp = q.map(p => S3(p.x, p.y, p.z));
+  // shade by the panel's tilt toward the light (up and toward the camera)
+  const a = q[0], b = q[1], d = q[2], ux = (b.x - a.x) * P, uy = (b.y - a.y) * P, uz = b.z - a.z, vx = (d.x - a.x) * P, vy = (d.y - a.y) * P, vz = d.z - a.z;
+  let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx; const nl = Math.hypot(nx, ny, nz) || 1; nx /= nl; ny /= nl; nz /= nl;
+  const lit = Math.abs(nz * 0.8 + (nx + ny) * 0.3), l = 18 + lit * 22;
+  c.beginPath(); sp.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath();
+  c.fillStyle = `hsla(8,48%,${l}%,0.93)`; c.fill();
+  shadeOver(c, null, () => { c.beginPath(); sp.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.closePath(); });
+  c.strokeStyle = COL.bone; c.lineCap = 'round'; c.lineWidth = 3.2 * O.size;
+  const bone = (i, j) => { const A = S3(pts[i].x, pts[i].y, pts[i].z), B = S3(pts[j].x, pts[j].y, pts[j].z); c.beginPath(); c.moveTo(A[0], A[1]); c.lineTo(B[0], B[1]); c.stroke(); };
+  if (pi === 0) { bone(0, 1); bone(1, 2); bone(2, 3); } else if (pi === 1) bone(2, 4); else if (pi === 2) bone(2, 5);
+}
+function dragonDrawables(dl) {
+  const n = DR.n, one = O.sort === 'one', K1 = (n[SH].x + n[SH].y + n[HIPS].x + n[HIPS].y) / 2;
+  const key = k => one ? K1 + k * 1e-4 : k;
+  for (let i = 0; i < n.length; i++) dl.push({ k: key(n[i].x + n[i].y), f: c => drawNode(c, i) });
+  if (O.legs) for (const L of DR.legs) {
+    const fr = legFrame(L); dl.push({ k: key((fr.attach[0] + fr.attach[1] + L.foot[0] + L.foot[1]) / 2 + 0.02), f: c => drawLeg(c, L) });
+  }
+  if (O.wings) for (const side of [1, -1]) {
+    const pts = wingPoints(side);
+    WING_PANELS.forEach((ids, pi) => { let kk = 0; for (const i of ids) kk += pts[i].x + pts[i].y; dl.push({ k: key(kk / ids.length), f: c => drawWingPanel(c, pts, pi) }); });
+  }
+}
+function drawDragonShadows() {
+  // all parts into one mask (overlaps don't double up), then drawn once at 45 %
+  const cw = cv.width, ch = cv.height;
+  sctx.setTransform(1, 0, 0, 1, 0, 0); sctx.clearRect(0, 0, cw, ch); sctx.setTransform(...TF);
+  const n = DR.n;
+  for (const q of n) { const [x, y] = iso(q.x, q.y), r = q.R * (1 + q.z / 240); softShadow(sctx, x, y, r, r * 0.5, 1, 0.6); }
+  if (O.legs) for (const L of DR.legs) { const [x, y] = iso(L.foot[0], L.foot[1]); softShadow(sctx, x, y, 14 * O.size, 7 * O.size, 1, 0.5); }
+  if (O.wings && DR.wingF > 0.05) for (const side of [1, -1]) {
+    const pts = wingPoints(side);
+    sctx.globalAlpha = DR.wingF * 0.7;
+    for (const ids of WING_PANELS) { sctx.beginPath(); ids.forEach((i, j) => { const [x, y] = iso(pts[i].x, pts[i].y); j ? sctx.lineTo(x, y) : sctx.moveTo(x, y); }); sctx.closePath(); sctx.fillStyle = '#000'; sctx.fill(); }
+    sctx.globalAlpha = 1;
+  }
+  ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 0.45; ctx.drawImage(sc, 0, 0); ctx.restore();
+}
+function drawHero(c) {
+  const md = HERO_MD, [sx, sy] = iso(hero.x, hero.y);
+  let alpha = 1, dy0 = 0; if (hero.dead) { const t = 2.5 - hero.dead; alpha = Math.max(0, 1 - t / 1.1); dy0 = Math.min(t, 1.1) * 14; }
+  softShadow(c, sx, sy + 2, 32, 15, 0.55 * alpha, 0.55);
+  const frame = hero.moving ? Math.floor(hero.anim) % md.frames : md.idle;
+  c.globalAlpha = alpha;
+  c.drawImage(IMG.hero, frame * md.fw, hero.dir * md.fh, md.fw, md.fh, sx - md.fw / 2, sy - md.footY + dy0, md.fw, md.fh);
+  if (hero.flash > 0) { c.globalAlpha = hero.flash / 0.15 * 0.5; c.globalCompositeOperation = 'lighter'; c.drawImage(IMG.hero, frame * md.fw, hero.dir * md.fh, md.fw, md.fh, sx - md.fw / 2, sy - md.footY, md.fw, md.fh); c.globalCompositeOperation = 'source-over'; }
+  c.globalAlpha = 1;
+  if (hero.swing > 0) {   // the swing's crescent
+    const u = 1 - hero.swing / 0.24; c.save(); c.translate(sx, sy - 40); c.scale(1, 0.55);
+    c.strokeStyle = `rgba(255,235,200,${0.75 * (1 - u)})`; c.lineWidth = 7; c.beginPath(); c.arc(0, 0, 66, hero.aim - 0.9 + u * 0.6, hero.aim - 0.3 + u * 1.2); c.stroke(); c.restore();
+  }
+}
+function drawFx(c) {
+  c.save(); c.globalCompositeOperation = 'lighter';
+  for (const f of FX) if (f.type === 'fire') {
+    const u = f.t / f.life, [x, y] = S3(f.x, f.y, f.z), r = (5 + 34 * u) * O.size;
+    const g = c.createRadialGradient(x, y, 0, x, y, r), a = (1 - u) * 0.55;
+    g.addColorStop(0, `rgba(255,${230 - u * 120},${150 - u * 130},${a})`); g.addColorStop(0.5, `rgba(255,${120 - u * 60},30,${a * 0.6})`); g.addColorStop(1, 'rgba(160,30,10,0)');
+    c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+  } else if (f.type === 'spark') { const [x, y] = S3(f.x, f.y, f.z); c.fillStyle = `rgba(255,190,120,${1 - f.t / f.life})`; c.fillRect(x - 1.5, y - 1.5, 3, 3); }
+  c.restore();
+  for (const f of FX) if (f.type === 'dust') { const u = f.t / f.life, [x, y] = S3(f.x, f.y, f.z); c.fillStyle = `rgba(140,120,95,${0.35 * (1 - u)})`; c.beginPath(); c.arc(x, y, 6 + 18 * u, 0, 7); c.fill(); }
+}
+function drawDebug(c) {
+  const n = DR.n;
+  c.save(); c.lineWidth = 1.5;
+  c.strokeStyle = 'rgba(90,220,255,0.8)'; c.beginPath(); n.forEach((q, i) => { const [x, y] = iso(q.x, q.y); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke();
+  for (const q of n) { const [x, y] = iso(q.x, q.y); c.beginPath(); c.ellipse(x, y, q.r * P, q.r * P / 2, 0, 0, 7); c.stroke(); }
+  c.font = '11px sans-serif'; c.fillStyle = '#9fe8ff'; c.textAlign = 'center';
+  for (const q of n) { const [x, y] = S3(q.x, q.y, q.z + q.R + 4); c.fillText((q.x + q.y).toFixed(1), x, y); }
+  if (O.legs) for (const L of DR.legs) { const fr = legFrame(L), [x, y] = iso(fr.home[0], fr.home[1]); c.strokeStyle = 'rgba(255,220,90,0.8)'; c.beginPath(); c.arc(x, y, 3, 0, 7); c.stroke(); }
+  if (O.spine === 'snake') { c.strokeStyle = 'rgba(255,255,255,0.25)'; c.beginPath(); DR.trail.forEach((p, i) => { const [x, y] = iso(p[0], p[1]); i ? c.lineTo(x, y) : c.moveTo(x, y); }); c.stroke(); }
+  c.restore();
+}
+
+// ---------- the frame ----------
+function resize() {
+  W = innerWidth; H = innerHeight; DPR = Math.min(2, devicePixelRatio || 1);
+  for (const c of [cv, lc, sc]) { c.width = Math.round(W * DPR); c.height = Math.round(H * DPR); }
+  PATS.clear();
+}
+function fighting() { return !DR.dead && DR.state !== 'sleep' && O.mode !== 'still' && Math.hypot(hero.x - DR.cx, hero.y - DR.cy) < 18; }
+function render() {
+  const cw = cv.width, ch = cv.height;
+  const zt = ZB * (fighting() ? O.fz : 1); Z += (zt - Z) * 0.04;
+  const [hx, hy] = iso(hero.x, hero.y); camX += (hx - camX) * 0.15; camY += (hy - 46 - camY) * 0.15;
+  const sh = shake > 0 ? shake * 6 : 0, sx = (rnd() - 0.5) * sh, sy = (rnd() - 0.5) * sh;
+  TF = [DPR * Z, 0, 0, DPR * Z, DPR * (W / 2 - camX * Z + sx), DPR * (H / 2 - camY * Z + sy)];
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = '#040205'; ctx.fillRect(0, 0, cw, ch);
+  ctx.setTransform(...TF);
+  // floor
+  ctx.save(); ctx.transform(HW, HH, -HW, HH, 0, 0); ctx.beginPath();
+  for (let y = 1; y < MH - 1; y++) for (let x = 1; x < MW - 1; x++) ctx.rect(x, y, 1.02, 1.02);
+  ctx.fillStyle = pats(ctx).floor; ctx.fill(); ctx.lineWidth = 0.012; ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.stroke(); ctx.restore();
+  // the hoard
+  const [gx, gy] = iso(HOARD.x, HOARD.y), hs = HOARD_IMG.s; ctx.drawImage(HOARD_IMG.c, gx - HOARD_IMG.c.width / hs / 2, gy - HOARD_IMG.c.height / hs / 2, HOARD_IMG.c.width / hs, HOARD_IMG.c.height / hs);
+  if (O.shadows) drawDragonShadows();
+  if (O.debug) drawDebug(ctx);
+  // the depth-sorted drawables: walls, props, the hero, every part of the dragon
+  const dl = [];
+  for (let y = 0; y < MH; y++) for (let x = 0; x < MW; x++) if (isWall(x, y)) dl.push({ k: x + y + 1, f: c => drawWall(c, x, y) });
+  for (const o of objects) dl.push({ k: o.x + o.y + 1, f: c => drawProp(c, o) });
+  dl.push({ k: hero.x + hero.y, f: drawHero });
+  dragonDrawables(dl);
+  dl.sort((a, b) => a.k - b.k);
+  for (const d of dl) d.f(ctx);
+  drawFx(ctx);
+  // lighting
+  if (O.light !== 'off') {
+    lctx.setTransform(1, 0, 0, 1, 0, 0); lctx.globalCompositeOperation = 'source-over'; lctx.clearRect(0, 0, cw, ch);
+    lctx.fillStyle = `rgba(3,1,5,${O.light === 'game' ? 0.93 : 0.72})`; lctx.fillRect(0, 0, cw, ch); lctx.globalCompositeOperation = 'destination-out';
+    const hole = (wx, wy, rad, str, lift) => {
+      const [X, Y] = toDev(wx, wy, lift), r = rad * HW * 1.42 * Z * DPR;
+      lctx.save(); lctx.translate(X, Y); lctx.scale(1, 0.62);
+      const gr = lctx.createRadialGradient(0, 0, 0, 0, 0, r); gr.addColorStop(0, `rgba(0,0,0,${str})`); gr.addColorStop(0.5, `rgba(0,0,0,${str * 0.8})`); gr.addColorStop(1, 'rgba(0,0,0,0)');
+      lctx.fillStyle = gr; lctx.beginPath(); lctx.arc(0, 0, r, 0, 7); lctx.fill(); lctx.restore();
+    };
+    hole(hero.x, hero.y, 7.2, 1, 30);
+    for (const o of objects) if (o.light) hole(o.x + 0.5, o.y + 0.5, o.light + Math.sin(time * 9 + o.x) * 0.15 + Math.sin(time * 13.7 + o.y) * 0.1, 0.95, 40);
+    hole(HOARD.x, HOARD.y, 3.4, 0.35, 0);
+    let fi = 0; for (const f of FX) if (f.type === 'fire' && (fi++ % 6 === 0)) hole(f.x, f.y, 2.2, 0.5 * (1 - f.t / f.life), f.z);
+    if (!DR.dead && DR.eyes > 0.5) hole(DR.n[0].x, DR.n[0].y, 1.3, 0.3, DR.n[0].z);
+    ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(lc, 0, 0);
+  }
+  // additive light: braziers, the eyes, the hoard's glints
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'lighter';
+  for (const o of objects) if (o.k === 'brazier') {
+    const [X, Y] = toDev(o.x + 0.5, o.y + 0.5, 50), r = 170 * Z * DPR;
+    const gr = ctx.createRadialGradient(X, Y, 0, X, Y, r); gr.addColorStop(0, 'rgba(255,120,40,0.16)'); gr.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = gr; ctx.fillRect(X - r, Y - r, 2 * r, 2 * r);
+  }
+  for (let i = 0; i < 5; i++) {
+    const s = Math.sin(time * 1.7 + i * 2.1); if (s < 0.85) continue;
+    const a = i * 1.9, rr = (i % 3) / 3 * HOARD.r, [X, Y] = toDev(HOARD.x + Math.cos(a) * rr, HOARD.y + Math.sin(a) * rr * 0.9, 2), r = 7 * Z * DPR * (s - 0.85) / 0.15;
+    ctx.fillStyle = 'rgba(255,240,190,0.8)'; ctx.fillRect(X - r, Y - 0.6 * DPR, 2 * r, 1.2 * DPR); ctx.fillRect(X - 0.6 * DPR, Y - r, 1.2 * DPR, 2 * r);
+  }
+  if (!DR.dead && DR.eyes > 0.5 && O.light !== 'off') {
+    const q = DR.n[0], [X, Y] = toDev(q.x + Math.cos(DR.ha) * q.r * 0.5, q.y + Math.sin(DR.ha) * q.r * 0.5, q.z + q.R * 0.3), r = 16 * Z * DPR;
+    const gr = ctx.createRadialGradient(X, Y, 0, X, Y, r); gr.addColorStop(0, 'rgba(255,190,60,0.45)'); gr.addColorStop(1, 'rgba(255,150,40,0)');
+    ctx.fillStyle = gr; ctx.fillRect(X - r, Y - r, 2 * r, 2 * r);
+  }
+  ctx.globalCompositeOperation = 'source-over';
+  // floating numbers
+  ctx.setTransform(...TF); ctx.textAlign = 'center'; ctx.font = 'bold 17px Georgia, serif';
+  for (const t of TEXTS) { const [x, y] = S3(t.x, t.y, t.z + t.t * 40); ctx.globalAlpha = 1 - Math.pow(t.t / 0.9, 3); ctx.fillStyle = '#000'; ctx.fillText(t.s, x + 1, y + 1); ctx.fillStyle = t.col; ctx.fillText(t.s, x, y); }
+  ctx.globalAlpha = 1;
+}
+function statusText() {
+  const st = DR.dead ? 'slain' : DR.state === 'sleep' ? 'asleep on its hoard' : DR.act ? { roar: 'roaring', bite: 'biting', breath: 'breathing fire', tail: 'sweeping its tail', buffet: 'beating its wings' }[DR.act.type] : O.mode === 'still' ? 'watching' : DR.v > 0.2 ? 'walking' : 'turning';
+  return `The dragon is ${st} · hero ${Math.ceil(hero.hp)} / ${hero.max}` + (NOTE ? `<small>${NOTE.s}</small>` : `<small>zoom ${Z.toFixed(2)}</small>`);
+}
+let lastStatus = '';
+function update(dt) {
+  time += dt;
+  updateDragon(dt); updateHero(dt); updateFx(dt);
+}
+
+// ---------- input and the panel ----------
+function screenToWorld(px, py, lift = 0) {
+  const X = (px - W / 2) / Z + camX, Y = (py - H / 2) / Z + camY + lift;
+  return [(X / HW + Y / HH) / 2, (Y / HH - X / HW) / 2];
+}
+function pickDragon(px, py) {   // the front-most node whose circle (at its height) holds the point, within a margin
+  const X = (px - W / 2) / Z + camX, Y = (py - H / 2) / Z + camY; let best = null, bk = -1e9;
+  DR.n.forEach((q, i) => { const [x, y] = S3(q.x, q.y, q.z); if (Math.hypot(X - x, Y - y) < q.R * 1.05 + 8 && q.x + q.y > bk) { bk = q.x + q.y; best = i; } });
+  return best;
+}
+function wakeAudio() { if (O.sound) { audio(); if (AC && AC.state === 'suspended') AC.resume(); } }
+cv.addEventListener('pointerdown', ev => {
+  wakeAudio(); if (hero.dead) return;
+  const i = DR.dead && DR.dead.t > 3 ? null : pickDragon(ev.clientX, ev.clientY);
+  if (i != null) { hero.target = i; hero.tx = null; return; }
+  const [fx, fy] = screenToWorld(ev.clientX, ev.clientY);
+  hero.target = null; hero.tx = clamp(fx, 1.2, MW - 1.2); hero.ty = clamp(fy, 1.2, MH - 1.2);
+});
+function syncUI() {
+  for (const seg of document.querySelectorAll('.seg')) for (const b of seg.children) b.setAttribute('aria-pressed', String(O[seg.dataset.opt] === b.dataset.v));
+  $('size').value = O.size; $('sizeV').textContent = '×' + O.size.toFixed(2) + ' (' + (7.8 * O.size).toFixed(1) + ' tiles long)';
+  $('speed').value = O.speed; $('speedV').textContent = O.speed.toFixed(1) + ' tiles/s (the hero 4.2)';
+  $('fz').value = O.fz; $('fzV').textContent = '×' + O.fz.toFixed(2);
+  $('modeD').textContent = DESC[O.mode]; $('spineD').textContent = DESC[O.spine]; $('sortD').textContent = DESC[O.sort];
+  for (const k of ['wings', 'legs', 'shadows', 'debug', 'sound']) $(k).checked = O[k];
+}
+for (const seg of document.querySelectorAll('.seg')) seg.addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  const k = seg.dataset.opt, was = O[k]; O[k] = b.dataset.v; syncUI();
+  if (k === 'spine' && was !== O[k]) makeDragon();
+  if (k === 'mode' && !DR.dead) { if (O.mode !== 'fight' && DR.state === 'sleep') { DR.state = 'awake'; DR.eyes = 1; } DR.act = null; }
+});
+for (const b of document.querySelectorAll('[data-act]')) b.onclick = () => { wakeAudio(); if (DR.dead) return; if (DR.state === 'sleep') DR.state = 'awake'; if (b.dataset.act === 'tail' && O.spine === 'snake') { note('The tail sweep needs the Body leads spine.'); return; } startAct(b.dataset.act); };
+$('size').oninput = e => { O.size = +e.target.value; syncUI(); makeDragon(); };
+$('speed').oninput = e => { O.speed = +e.target.value; syncUI(); };
+$('fz').oninput = e => { O.fz = +e.target.value; syncUI(); };
+for (const k of ['wings', 'legs', 'shadows', 'debug', 'sound']) $(k).onchange = e => { O[k] = e.target.checked; if (k === 'sound' && O[k]) wakeAudio(); };
+$('reset').onclick = () => { makeDragon(); hero.x = START[0]; hero.y = START[1]; hero.hp = hero.max; hero.dead = 0; hero.tx = null; hero.target = null; FX.length = 0; };
+$('kill').onclick = () => { wakeAudio(); if (DR.dead) { makeDragon(); return; } slay(); };
+$('zin').onclick = () => { ZB = Math.min(2, ZB * 1.15); };
+$('zout').onclick = () => { ZB = Math.max(0.3, ZB / 1.15); };
+$('toggle').onclick = () => { const p = $('panel'), open = p.classList.toggle('closed') === false; $('toggle').setAttribute('aria-expanded', String(open)); $('toggle').textContent = open ? 'Close' : 'Options'; };
+addEventListener('resize', resize);
+
+// ---------- start ----------
+function loadImg(src) { return new Promise((res, no) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => no(src); im.src = src; }); }
+Promise.all(Object.entries(SRC).map(([k, s]) => loadImg(s).then(im => { IMG[k] = im; }))).then(() => {
+  resize(); ZB = Z = W < 640 ? 0.62 : Math.min(1.2, Math.max(0.7, W / 1200));
+  bakeHoard(); makeDragon(); syncUI();
+  const [hx, hy] = iso(hero.x, hero.y); camX = hx; camY = hy - 46;
+  let last = performance.now();
+  const loop = now => {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    try { update(dt); render(); } catch (e) { if (!window.__err) { window.__err = e; console.error(e); } }
+    $('kill').textContent = DR.dead ? 'Revive' : 'Slay it';
+    const s = statusText(); if (s !== lastStatus) { $('status').innerHTML = s; lastStatus = s; }
+    const bb = $('boss'); bb.style.display = DR.state === 'sleep' || (DR.dead && DR.dead.t > 3) ? 'none' : 'block'; $('bossFill').style.width = (100 * Math.max(0, DR.hp) / DR.max) + '%';
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+}).catch(src => { $('status').textContent = 'Could not load ' + src; });
+</script>
+</body>
+</html>
