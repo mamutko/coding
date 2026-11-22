@@ -55,7 +55,7 @@
     <h2>Dialogue</h2>
     <button class="sc" id="sbDialogue"><b>Dialogue</b>Depth 6, in Old Tobias's stall, with 1000 gold, playing the demo story (story/demo.md) instead of the game's. Tobias starts talking as he comes near; Vesper the Sorcerer, in the same room, talks only when clicked; a champion skeleton asleep outside the room (9–13 tiles away) taunts you when you come within 6 tiles and see it. The game keeps running: lines move on by themselves (click the panel to hurry them), choices wait. Walk away mid-conversation to hear a reaction (a discount, a warning, a complaint); come back and it picks up where it stopped. The bar shows the story's properties; Reset story forgets everything.</button>
     <h2>Kiting</h2>
-    <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
+    <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword, key 4 a Heavy Crossbow.</button>
     <h2>Characters</h2>
     <button class="sc" id="sbLooks2"><b>Character viewer</b>Walk around an empty big room as any character that has a sprite sheet: the hero, the monsters and the Keepers of the Crypt. Pick the look in the bar; click to walk, and watch every direction.</button>
     <h2>Lakes</h2>
@@ -207,7 +207,9 @@
     for (let i = 0; i < 100; i++) { testHero(7); if (G.map.rooms.some(r => r.big === 'horde')) break; }
     const h = G.hero, bow = genItem(7, 0, 'huntingbow', 'common', 7), room = G.map.rooms.find(r => r.big === 'horde') || G.map.rooms[1];
     enlargeRoom(room, 1.5);   // the big room (16-20) to about 20-24 tiles a side
-    h.inv[h.inv.indexOf(null)] = h.equip.weapon; h.equip.weapon = bow; h.hotkeys[1] = { type: 'item', id: bow.id }; recalc(); refreshUI();
+    h.inv[h.inv.indexOf(null)] = h.equip.weapon; h.equip.weapon = bow; h.hotkeys[1] = { type: 'item', id: bow.id };
+    const xbow = genItem(15, 0, 'crossbow', 'common', 15); h.inv[h.inv.indexOf(null)] = xbow; h.hotkeys[3] = { type: 'item', id: xbow.id };   // the Heavy Crossbow, key 4
+    recalc(); refreshUI();
     // the hero in the middle of the big room, which holds only sleeping spiders and Pit Demons
     let best = null; for (let y = room.y; y < room.y + room.h; y++) for (let x = room.x; x < room.x + room.w; x++)
       if (floorAt(x, y)) { const dd = Math.hypot(x - room.cx, y - room.cy); if (!best || dd < best[2]) best = [x, y, dd]; }

@@ -17,6 +17,9 @@ Raw sheets (tools/raw):
               (scrolls.png from a prompt, scrolls2.png an edit with the item icons as a style reference); the
               one picked is frostscroll: scrolls.png cell 0, A1; the other eleven are in assets/unused/scrolls
               (see README, Scrolls).
+  crossbows.png  Google gemini-3.1-flash-image edit with six bow and weapon icons from the atlas as the style
+              reference, 3 x 2 cells on magenta: six crossbow designs; cell 0 (dark oak, blackened steel
+              prod, a crank) is the Heavy Crossbow (crossbow); the other five are unused.
 Then it rewrites assets/meta.json and the inline `const META = ...` line in index.html.
 """
 import ast, json, pathlib, re, sys
@@ -48,6 +51,7 @@ SHEETS = [
     ("firebombs.png", 3, 2, [(0, "firebomb1"), (1, "firebomb2"), (2, "firebomb3"), (3, "firebomb4"),
                              (4, "firebomb5"), (5, "firebomb6")]),
     ("scrolls.png", 3, 2, [(0, "frostscroll")]),
+    ("crossbows.png", 3, 2, [(0, "crossbow")]),
 ]
 
 

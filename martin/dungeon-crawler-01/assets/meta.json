@@ -378,6 +378,10 @@
   "frostscroll": [
    0,
    768
+  ],
+  "crossbow": [
+   96,
+   768
   ]
  },
  "props": {

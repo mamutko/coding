@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v95 — the Heavy Crossbow (2026-11-22)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 95`)*
+
+- A new weapon, the **Heavy Crossbow** (34–56 damage, 0.95 s, from depth 15): the best ranged weapon, ahead of the
+  War Bow. It shoots like a bow (DEX, same arrows and reach) and drops with the bows. Its own painted icon.
+- The sandbox's **Kiting with a bow** scenario has one on key 4.
+
 ## v94 — dialogue with characters (2026-11-21)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 94`)*
+Commit: c1cb7a7
 
 - A dialogue system: conversations written in Markdown (`story/*.md`), compiled and checked by
   `tools/story/build.js` into `story/story.js`. Lines, choices, conditions and effects in JavaScript, a property bag

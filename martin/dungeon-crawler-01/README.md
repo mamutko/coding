@@ -159,7 +159,8 @@ The picker (*Crypt Sandbox*) groups the scenarios:
       you pass.
 - **Kiting:**
   - **Kiting with a bow** (depth 7, regenerated until the level has a big room): the test hero holds a common
-    Hunting Bow (about 3 arrows per spider and 15 per Pit Demon there; the longsword in the pack, key 1).
+    Hunting Bow (about 3 arrows per spider and 15 per Pit Demon there; the longsword in the pack, key 1, and a
+    common Heavy Crossbow, key 4).
     - **The room** is the level's big room, grown to 1.5× its area (`enlargeRoom`, sandbox only):
       - its sides grow by √1.5 around its centre (from 16–20 to about 20–24 tiles), kept inside the map;
       - everything in the new rectangle becomes floor: walls, doors (their door objects are removed) and any
@@ -880,7 +881,7 @@ gets its own damage and crit roll, then its own armor reduction.
 
 **Ranged (bows).** A right click fires an arrow at the hovered monster, or toward the cursor. The hero first
 **draws the bow**, standing still, for `BOW_DRAW.base + BOW_DRAW.perCd × (cooldown − 0.6)` s (0.15 s for a Short
-Bow, 0.24 s for a War Bow; `drawTime`). The draw is part of the shot's cooldown, so the rate of fire is
+Bow, 0.24 s for a War Bow, 0.255 s for a Heavy Crossbow; `drawTime`). The draw is part of the shot's cooldown, so the rate of fire is
 unchanged. The arrow is aimed when it is loosed (`releaseArrow`): at the target monster where it is then, or at
 the clicked spot. The bow sound plays at release. A walk clicked meanwhile starts after the draw. Kiting (shoot,
 run, shoot again) stays possible; each shot just costs a little ground. Arrows travel
@@ -1034,6 +1035,7 @@ sources (`LOOT_PLUS`, below). Every type has its own icon.
 | Bone Bow | bow | 14–25, 0.9 s | 8 |
 | Composite Bow | bow | 18–31, 0.85 s | 11 |
 | War Bow | bow | 25–42, 0.9 s | 15 |
+| Heavy Crossbow | bow | 34–56, 0.95 s | 15 |
 | Leather Cap | helm | armor 3 | 1 |
 | Iron Helm | helm | armor 7 | 4 |
 | Horned Great Helm | helm | armor 13 | 8 |
@@ -1053,6 +1055,10 @@ sources (`LOOT_PLUS`, below). Every type has its own icon.
 | Heavy Greaves | boots | armor 13 | 14 |
 | Silver Ring, Ruby Ring, Grave Ring | ring | none | 1 |
 | Sapphire Amulet, Blood Amulet, Bone Talisman | amulet | none | 1 |
+
+**The Heavy Crossbow** (`crossbow`) is the best ranged weapon, ahead of the War Bow (about 47 damage per second
+against the War Bow's 37). It is a `bow` kind in every way: it uses DEX, fires the same arrows with the same reach,
+is drawn like a bow (its longer draw comes from its slower cooldown) and drops from the bow group.
 
 **Choosing a drop** (`genItem`): the rarity is rolled first (see below). Then a **group** is drawn evenly from
 sword, axe, bow, helm, armor, gloves, boots, ring and amulet, and then a type of that group unlocked at the loot
@@ -1924,6 +1930,11 @@ walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycle
     (flood fill from the border, enclosed background too, plus the magenta key and despill).
   - `tools/raw/items3.png`: OpenAI `gpt-image-2` (medium, 1536 × 1024), a 3 × 2 sheet on magenta for the rest:
     war bow, composite bow, full plate, iron greaves, heavy sabatons (and a belt pouch, unused).
+  - `tools/raw/crossbows.png`: Google `gemini-3.1-flash-image` `edit` (1K, 3:2, ~$0.07) with six bow and weapon
+    icons from the atlas on magenta as the style reference, a 3 × 2 sheet on magenta of six crossbow designs
+    ("painted fantasy game inventory icons in exactly the same art style … no glow, no magic effects"). Cell 0 (dark
+    oak stock, blackened steel prod, a crank) is the Heavy Crossbow (`crossbow`, row 9); the other five are unused.
+    (OpenAI's safety system refused the same request.)
   - The **quiver** icon (`quiver`) isn't used yet; it is meant for limited ammo (todo #15).
 - **Dirt and searched bones** (built by `tools/add_props.py`, ~$0.14 for the two used images, ~$0.26 with the
   rejected dirt and the replaced arch-door sheet):
