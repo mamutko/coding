@@ -9,9 +9,20 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v102 — the dragon on real legs, turning in 16 directions (2026-11-22)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 102`)*
+
+- The dragon's body is a still painted sprite in **16 directions** (was 8 with a walk cycle), with its lower legs
+  cut off; the torso lies along the heading snapped to those directions, so the neck and tail always join it where
+  the painting has them.
+- **Four IK legs** of painted bones and feet: each foot stays planted on the floor and steps (diagonal pairs taking
+  turns) when it falls behind, so the dragon no longer slides over its feet.
+- A smaller dragon atlas (324 KB, was 883 KB).
+
 ## v101 — a guardian's chests scenario (2026-11-22)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 101`)*
+Commit: f88a1b9
 
 - A sandbox scenario, **Guardian's chests**: the dragon's lair at depth 13 emptied of everything but six unsealed
   guardian's chests; open them, then play on through the rest of the level.

@@ -1,17 +1,21 @@
 """Builds the dragon's game art from the paintings in art/characters/dragon/: one atlas, assets/dragon.webp, and its
-layout, written into dragon-prototype.html and index.html between the markers `// dragon-art:start` and `// dragon-art:end` (as
+layout, written into index.html between the markers `// dragon-art:start` and `// dragon-art:end` (as
 `const DRAGON_ART = {...}`) and into assets/dragon.json.     python tools/dragon/build_assets.py
 
 What goes in (all at the game's own scale, 1 atlas px = 1 screen px at zoom 1 and size 1):
-- walk: the body with its legs, paint/walk/<DIR>.steady.png for S, SW, W, NW, N (E, NE, SE are drawn mirrored), 8 frames
-  each, cut to one box shared by all frames (guide scale 1.4 -> 1); `anchor` is the ground point under the torso
-  centre inside a frame; `z` the torso height the guide was drawn at (none: the anchor is on the floor).
+- body: the body without its lower legs, paint/body16.cut.png (tools/dragon/cut_body.py): 9 painted directions S, SSW,
+  SW, WSW, W, WNW, NW, NNW, N, i.e. headings PI/4 + i * PI/8 (i = 9 ... 15 are i = 16 - i mirrored), cut to one shared
+  box (guide scale 1.3 -> 1); `anchor` is the ground point under the torso centre, the torso drawn at its standing height.
+- limbs: the four leg bones of paint/limbs.png (front upper, front lower, hind upper, hind lower), upright, each cut to its
+  content (scale 7 -> 1), with `top` and `bottom`, its two joints, inside the piece; `len` the bone's length (px).
+- foot: paint/feet.png, 8 directions (S, SW ... SE, the way the body faces), one shared box (scale 5.95 -> 1); `anchor` is
+  the ankle's ground point, `ankle` the height (px) where the lower bone meets it.
 - head: paint/head.png (mouth closed) and paint/headopen.png, 8 directions each, one shared box (guide scale 2.4 ->
   1); `anchor` is the head node's ground point, the head drawn at height `z` (72) above it.
 - wing: paint/wing.png (the right wing, flat), cut to its guide's bone points plus a margin, at 1/3; `points` are the
   bone points (root, elbow, wrist, 3 finger tips, trailing root) inside that image, for mapping it onto the panels.
 - spike, club: the two pieces of paint/bits.png (the dorsal spike, the tail club pointing left).
-- scales: a patch of the body's flank (SW walk, frame 0), mirrored 2 x 2 so it tiles: the neck and tail's texture.
+- scales: a patch of the body's flank (the old walk painting, SW frame 0), mirrored 2 x 2 so it tiles: the neck and tail's texture.
 """
 import json, os, re
 from PIL import Image, ImageOps
@@ -28,11 +32,16 @@ def cells(path):
     return [im.crop(((f % 4) * CW, (f // 4) * CH, (f % 4) * CW + CW, (f // 4) * CH + CH)) for f in range(8)]
 
 
-def union_box(ims, pad=4):
+def solid_box(im, pad=4):
+    b = im.getchannel('A').point(lambda v: 255 if v > 16 else 0).getbbox()   # faint haze doesn't count
+    return (max(0, b[0] - pad), max(0, b[1] - pad), min(im.width, b[2] + pad), min(im.height, b[3] + pad))
+
+
+def union_box(ims, pad=4, w=CW, h=CH):
     solid = [im.getchannel('A').point(lambda v: 255 if v > 16 else 0) for im in ims]   # faint haze doesn't count
     boxes = [m.getbbox() for m in solid if m.getbbox()]
     return (max(0, min(b[0] for b in boxes) - pad), max(0, min(b[1] for b in boxes) - pad),
-            min(CW, max(b[2] for b in boxes) + pad), min(CH, max(b[3] for b in boxes) + pad))
+            min(w, max(b[2] for b in boxes) + pad), min(h, max(b[3] for b in boxes) + pad))
 
 
 def scaled(im, k):
@@ -41,20 +50,38 @@ def scaled(im, k):
 
 def main():
     guides = json.load(open(os.path.join(ART, 'guide', 'guides.json')))
-    walkg = json.load(open(os.path.join(ART, 'guide', 'walk', 'walk.json')))
     pieces, meta = [], {}
 
-    # the walk: 5 painted directions x 8 frames, one shared box
-    walk = {d: cells(os.path.join(ART, 'paint', 'walk', d + '.steady.png')) for d in ['S', 'SW', 'W', 'NW', 'N']}
-    box = union_box([c for cs in walk.values() for c in cs])
-    k = 1 / walkg['scale']
-    ax, ay = walkg['anchor']['S'][0]   # every frame's anchor is the same point of its cell
-    ax, ay = ax % CW, ay % CH
-    meta['walk'] = {'w': round((box[2] - box[0]) * k), 'h': round((box[3] - box[1]) * k), 'anchor': [round((ax - box[0]) * k, 1), round((ay - box[1]) * k, 1)],
-                    'fpt': walkg['fpt'], 'frames': 8, 'dirs': {}}
-    for d, cs in walk.items():
-        meta['walk']['dirs'][d] = [None] * 8
-        for f, c in enumerate(cs): pieces.append((('walk', d, f), scaled(c.crop(box), k)))
+    # the body: 9 painted directions (S ... N; the other 7 mirrored), legs cut off, one shared box
+    b16 = json.load(open(os.path.join(ART, 'guide', 'body16.json')))
+    bm, im = b16['body'], Image.open(os.path.join(ART, 'paint', 'body16.cut.png')).convert('RGBA')
+    bw, bh = bm['cell']
+    body = [im.crop(((i % 3) * bw, (i // 3) * bh, (i % 3) * bw + bw, (i // 3) * bh + bh)) for i in range(9)]
+    box = union_box(body, w=bw, h=bh)
+    k = 1 / bm['scale']
+    ax, ay = bm['anchor'][0]; ax, ay = ax % bw, ay % bh   # the same point of every cell
+    meta['body'] = {'w': round((box[2] - box[0]) * k), 'h': round((box[3] - box[1]) * k), 'anchor': [round((ax - box[0]) * k, 1), round((ay - box[1]) * k, 1)],
+                    'dirs': 16, 'painted': bm['dirs'], 'rects': [None] * 9}
+    for i, c in enumerate(body): pieces.append((('body', i), scaled(c.crop(box), k)))
+
+    # the leg bones, upright, top joint up: each cut to its content, with its two joints inside the piece
+    lm = b16['limbs']; k = 1 / lm['scale']
+    im = Image.open(os.path.join(ART, 'paint', 'limbs.png')).convert('RGBA')
+    meta['limbs'] = []
+    for j, pc in enumerate(lm['pieces']):
+        col = im.crop((j * 384, 0, j * 384 + 384, 1024)); bb = solid_box(col)
+        meta['limbs'].append({'name': pc['name'], 'len': pc['len'], 'top': [round((pc['top'][0] - j * 384 - bb[0]) * k, 1), round((pc['top'][1] - bb[1]) * k, 1)],
+                              'bottom': [round((pc['bottom'][0] - j * 384 - bb[0]) * k, 1), round((pc['bottom'][1] - bb[1]) * k, 1)]})
+        pieces.append((('limb', j), scaled(col.crop(bb), k)))
+
+    # the feet: 8 directions, one shared box; anchor = the ankle's ground point
+    fm = b16['feet']; k = 1 / fm['scale']
+    feet = cells(os.path.join(ART, 'paint', 'feet.png'))
+    box = union_box(feet)
+    ax, ay = fm['anchor'][0]; ax, ay = ax % CW, ay % CH
+    meta['foot'] = {'w': round((box[2] - box[0]) * k), 'h': round((box[3] - box[1]) * k), 'anchor': [round((ax - box[0]) * k, 1), round((ay - box[1]) * k, 1)],
+                    'ankle': fm['ankle'], 'rects': [None] * 8}
+    for i, c in enumerate(feet): pieces.append((('foot', i), scaled(c.crop(box), k)))
 
     # the head, mouth closed and open: 8 directions each, one shared box
     heads = {'closed': cells(os.path.join(ART, 'paint', 'head.png')), 'open': cells(os.path.join(ART, 'paint', 'headopen.png'))}
@@ -86,7 +113,7 @@ def main():
     meta['club'] = {'w': club.width, 'h': club.height, 'note': 'points left; the tail joins at the right edge'}
 
     # the scales: a flank patch, mirrored 2 x 2 so it tiles
-    p = Image.open(os.path.join(ART, 'paint', 'walk', 'SW.png')).convert('RGBA').crop((192, 176, 256, 224))
+    p = Image.open(os.path.join(ART, 'paint', 'attempts', 'walk', 'SW.png')).convert('RGBA').crop((192, 176, 256, 224))
     tile = Image.new('RGBA', (p.width * 2, p.height * 2))
     tile.paste(p, (0, 0)); tile.paste(ImageOps.mirror(p), (p.width, 0)); tile.paste(ImageOps.flip(p), (0, p.height)); tile.paste(ImageOps.flip(ImageOps.mirror(p)), (p.width, p.height))
     tile = scaled(tile, 0.75)
@@ -101,13 +128,15 @@ def main():
     for key, im in pieces: atlas.paste(im, rects[key][:2])
     for (kind, *rest), r in rects.items():
         r = list(r)
-        if kind == 'walk': meta['walk']['dirs'].setdefault(rest[0], [None] * 8); meta['walk']['dirs'][rest[0]][rest[1]] = r
+        if kind == 'body': meta['body']['rects'][rest[0]] = r
+        elif kind == 'limb': meta['limbs'][rest[0]]['rect'] = r
+        elif kind == 'foot': meta['foot']['rects'][rest[0]] = r
         elif kind == 'head': meta['head'][rest[0]].extend([None] * (8 - len(meta['head'][rest[0]]))); meta['head'][rest[0]][rest[1]] = r
         else: meta[kind]['rect'] = r
     atlas.save(os.path.join(PROJ, 'assets', 'dragon.webp'), quality=88, method=6)
     js = json.dumps(meta, separators=(',', ':'))
     open(os.path.join(PROJ, 'assets', 'dragon.json'), 'w').write(json.dumps(meta, indent=1))
-    for name in ('dragon-prototype.html', 'index.html'):   # the prototype and the game
+    for name in ('index.html',):
         page = os.path.join(PROJ, name); s = open(page).read()
         if 'dragon-art:start' not in s: raise SystemExit('no dragon-art markers in ' + name)
         s = re.sub(r'// dragon-art:start\n.*?// dragon-art:end', lambda m: '// dragon-art:start\nconst DRAGON_ART = ' + js + ';\n// dragon-art:end', s, flags=re.S)

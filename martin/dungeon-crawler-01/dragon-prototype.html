@@ -124,7 +124,7 @@ const S3 = (x, y, z) => [(x - y) * HW, (x + y) * HH - z];
 const MW = 26, MH = 24;
 const isWall = (x, y) => x <= 0 || y <= 0 || x >= MW - 1 || y >= MH - 1;
 
-const SRC = { floor: 'assets/floor.jpg', wall: 'assets/wall.jpg', dirt: 'assets/dirt.jpg', props: 'assets/props.webp', hero: 'assets/hero.webp', dragon: 'assets/dragon.webp' };
+const SRC = { floor: 'assets/floor.jpg', wall: 'assets/wall.jpg', dirt: 'assets/dirt.jpg', props: 'assets/props.webp', hero: 'assets/hero.webp', dragon: 'art/characters/dragon/prototype-atlas.webp' };
 const HERO_MD = { fw: 144, fh: 152, frames: 8, idle: 3, footY: 128, fpt: 5 };
 const PROPS = { brazier: [571, 0, 104, 167], banner: [1593, 0, 84, 206], pillar: [1679, 0, 98, 191], skullpile: [1425, 0, 166, 136] };
 const PROP_STYLE = { brazier: [0.62, 10], banner: [0.66, 6], pillar: [0.72, 8], skullpile: [0.42, 8] };

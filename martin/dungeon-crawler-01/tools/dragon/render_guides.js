@@ -3,12 +3,8 @@
 // cells of 384 x 512 on white. Writes art/characters/dragon/guide/<part>.png and guide/guides.json (cell size, scale,
 // and where in each cell the part's anchor lands, for drawing the paintings back in the game).
 //   node tools/dragon/render_guides.js            (from martin/dungeon-crawler-01; uses the pre-installed Playwright)
-//   node tools/dragon/render_guides.js walk       the body's walk cycle instead: guide/walk/<DIR>.png for S, SW, W, NW, N
-//                                                 and <DIR>.legs.png (the legs alone, for tools/dragon/steady_walk.py)
-//                                                 (E, NE, SE are mirrored), 8 frames each in 4 x 2 cells of 384 x 512
-// The walk: the torso (with short neck and tail stumps) and the 4 legs, ×1.4; diagonal pairs (front left + hind right,
-// then the other two) half a cycle apart; each foot is planted for 60 % of the cycle and swings forward (lifted up to
-// 16 px) for 40 %; the body travels WALK.cycle tiles per cycle (frames per tile = 8 / WALK.cycle) and bobs 2 px.
+//   node tools/dragon/render_guides.js body16          the body for the game: guide/body16.png, body16.full.png, limbs.png,
+//                                                 feet.png and body16.json (see "body16" below)
 // Parts: torso (shoulders to hips with short neck and tail stumps, ×1.6), head (jaw closed, ×2.4), headopen (jaw open, ×2.4).
 // Each part's middle is at its cell's middle; the anchor (its ground point) is below that, maybe outside the cell.
 const { chromium } = require('playwright');
@@ -18,7 +14,7 @@ const root = path.resolve(__dirname, '../..'), out = path.join(root, 'art/charac
   fs.mkdirSync(out, { recursive: true });
   const b = await chromium.launch(), p = await b.newPage();
   await p.goto('file://' + path.join(root, 'dragon-prototype.html')); await p.waitForFunction(() => typeof DR !== 'undefined' && DR);
-  if (process.argv[2] === 'walk') return walk(b, p);
+  if (process.argv[2] === 'body16') return body16(b, p);
   const res = await p.evaluate(() => {
     const CW = 384, CH = 512, DIRS = ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'];
     Object.assign(COL, { hi: '#e2e2e2', mid: '#9a9a9a', lo: '#454545', rim: '#5a5a5a', spike: '#c8c8c8', bone: '#555', claw: '#eee' });
@@ -57,51 +53,114 @@ const root = path.resolve(__dirname, '../..'), out = path.join(root, 'art/charac
   console.log('wrote', Object.keys(res.urls).join(', '), 'to', out);
   await b.close();
 })();
-const WALK = { cycle: 1.2, duty: 0.6, scale: 1.4, dirs: ['S', 'SW', 'W', 'NW', 'N'] };
-async function walk(b, p) {
-  fs.mkdirSync(path.join(out, 'walk'), { recursive: true });
-  const res = await p.evaluate(W => {
-    const CW = 384, CH = 512, ALL = ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'];
+// ---- body16: the body for separate legs, 16 directions; and the leg pieces (limbs, feet)
+// guide/body16.png: the torso (with short neck and tail stumps and the tops of the four legs, which the painted
+// thigh pieces cover) standing still, in the 9 directions S, SSW, SW, WSW, W, WNW, NW, NNW, N (the other 7 are
+// mirrored), heading th = PI/4 + i * PI/8, in 3 x 3 cells of 512 x 341, ×BODY.scale; anchor = the ground point
+// under the torso centre. guide/limbs.png: the leg bones upright, top joint up (front upper, front lower, hind upper,
+// hind lower), ×LEGS.scale, in 4 columns of 384 x 1024. guide/feet.png: a clawed foot in the 8 directions (S, SW, W ...
+// SE, the way the body faces), ×LEGS.scale, 4 x 2 cells of 384 x 512; anchor = the ankle's ground point.
+// The leg geometry (also in the game): the hip at the side of the shoulders or hips node (r × 0.7 out, R × 0.25
+// below its centre), upper bone LEG.l1, lower bone LEG.l2 (px), the knee bending back on the front legs, forward on
+// the hind legs; the foot 0.08 tile wide of the ground point under the hip and a little ahead.
+const BODY = { scale: 1.3, cw: 512, ch: 341, stub: 0.3 };
+// the leg bones: [front?, name, -, width at the top, at the bottom (× the shoulders' or hips' node R)]
+const LIMBS = [[true, 'front upper', 0, 0.8, 0.55], [true, 'front lower', 0, 0.55, 0.4], [false, 'hind upper', 0, 0.95, 0.58], [false, 'hind lower', 0, 0.56, 0.4]];
+const LEGS = { scale: 7, foot: 0.85 };
+async function body16(b, p) {
+  const res = await p.evaluate(([B, LG, LIMBS]) => {
+    function taper(gg, a, b, w0, w1) {   // a bone from a to b (screen), w0 wide at a, w1 at b, round ends, lit from the left
+      const dx = b[0] - a[0], dy = b[1] - a[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l;
+      const gr = gg.createLinearGradient(a[0] - Math.abs(nx) * w0, a[1], a[0] + Math.abs(nx) * w0, a[1]); gr.addColorStop(0, '#d8d8d8'); gr.addColorStop(0.45, '#9a9a9a'); gr.addColorStop(1, '#404040');
+      gg.fillStyle = Math.abs(nx) > 0.3 ? gr : '#9a9a9a'; gg.beginPath(); gg.moveTo(a[0] + nx * w0 / 2, a[1] + ny * w0 / 2); gg.lineTo(b[0] + nx * w1 / 2, b[1] + ny * w1 / 2); gg.lineTo(b[0] - nx * w1 / 2, b[1] - ny * w1 / 2); gg.lineTo(a[0] - nx * w0 / 2, a[1] - ny * w0 / 2); gg.closePath(); gg.fill();
+      gg.beginPath(); gg.arc(a[0], a[1], w0 / 2, 0, 7); gg.fill(); gg.beginPath(); gg.arc(b[0], b[1], w1 / 2, 0, 7); gg.fill();
+    }
     Object.assign(COL, { hi: '#e2e2e2', mid: '#9a9a9a', lo: '#454545', rim: '#5a5a5a', spike: '#c8c8c8', bone: '#555', claw: '#eee' });
     O.mode = 'still'; O.spine = 'body'; O.size = 1; O.look = 'shapes'; O.legs = true;
-    const meta = { cell: [CW, CH], cols: 4, rows: 2, frames: 8, scale: W.scale, cycle: W.cycle, fpt: 8 / W.cycle, duty: W.duty,
-      note: 'anchor = the ground point under the torso centre, the same in every cell of a direction', anchor: {} }, urls = {};
-    for (const d of W.dirs) {
-      const i = ALL.indexOf(d), c = document.createElement('canvas'); c.width = CW * 4; c.height = CH * 2;
-      const mc = document.createElement('canvas'); mc.width = c.width; mc.height = c.height; const mg = mc.getContext('2d'); mg.fillStyle = '#fff'; mg.fillRect(0, 0, mc.width, mc.height);
-      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
-      meta.anchor[d] = [];
-      for (let f = 0; f < 8; f++) {
-        makeDragon(); DR.state = 'awake'; DR.cx = 12; DR.cy = 11; DR.th = Math.PI / 4 + i * Math.PI / 4; DR.turn = 0; DR.vel = [0, 0]; DR.t = 0;
-        DR.look = [DR.cx + Math.cos(DR.th) * 9, DR.cy + Math.sin(DR.th) * 9]; DR.na = 0; DR.act = null; DR.flash = 0;
-        layout(0.0001, true);
-        const n = DR.n, bob = 2 * Math.abs(Math.sin(Math.PI * 2 * f / 8));
-        for (let k = SH - 1; k <= HIPS + 1; k++) n[k].z += bob;
-        for (const L of DR.legs) {
-          const fr = legFrame(L), ph = (f / 8 + (L.group ? 0.5 : 0)) % 1, D = W.cycle, st = D * W.duty;
-          let off, s = -1;
-          if (ph < W.duty) off = st / 2 - ph / W.duty * st; else { const u = (ph - W.duty) / (1 - W.duty); off = -st / 2 + u * st; s = u; }
-          L.foot = [fr.home[0] + fr.f[0] * off, fr.home[1] + fr.f[1] * off]; L.st = s;
-        }
-        const c0 = { x: (n[SH].x + n[HIPS].x) / 2, y: (n[SH].y + n[HIPS].y) / 2 }, zc = (n[SH].z + n[HIPS].z) / 2 * 0.6;
-        const [ox, oy] = S3(c0.x, c0.y, 0), cx = (f % 4) * CW + CW / 2, cy = Math.floor(f / 4) * CH + CH / 2 + zc * W.scale;
-        g.save(); g.beginPath(); g.rect((f % 4) * CW, Math.floor(f / 4) * CH, CW, CH); g.clip();
-        g.translate(cx, cy); g.scale(W.scale, W.scale); g.translate(-ox, -oy);
-        const dl = [];
-        for (let k = SH - 1; k <= HIPS + 1; k++) dl.push({ k: n[k].x + n[k].y, f: () => { const q = n[k], [x, y] = S3(q.x, q.y, q.z); blob(g, x, y, q.R, null); if (k > SH - 1) capsule(g, q, n[k - 1]); blob(g, x, y, q.R * 0.999, null); } });
-        for (const L of DR.legs) { const fr = legFrame(L); dl.push({ k: (fr.attach[0] + fr.attach[1] + L.foot[0] + L.foot[1]) / 2 + 0.02, f: () => drawLeg(g, L) }); }
-        dl.sort((a, b) => a.k - b.k).forEach(x => x.f());
-        g.restore();
-        // the legs alone, for the mask that keeps the rest of the body still (tools/dragon/steady_walk.py)
-        mg.save(); mg.translate(cx, cy); mg.scale(W.scale, W.scale); mg.translate(-ox, -oy); for (const L of DR.legs) drawLeg(mg, L); mg.restore();
-        meta.anchor[d].push([cx, cy]);
-      }
-      urls[d] = c.toDataURL('image/png'); urls[d + '.legs'] = mc.toDataURL('image/png');
+    const urls = {}, meta = { body: { cell: [B.cw, B.ch], cols: 3, rows: 3, scale: B.scale, dirs: ['S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW', 'N'], anchor: [] } };
+    function ik(L) {   // the leg's hip, knee and ankle in 3D (tiles * P, px), as drawLeg works them out
+      const fr = legFrame(L), H = [fr.attach[0] * P, fr.attach[1] * P, fr.az], F = [L.foot[0] * P, L.foot[1] * P, 0], L1 = 44, L2 = 42;
+      let dx = F[0] - H[0], dy = F[1] - H[1], dz = F[2] - H[2], d = Math.hypot(dx, dy, dz);
+      const u = [dx / d, dy / d, dz / d]; d = Math.min(d, L1 + L2 - 0.01);
+      const a = (L1 * L1 - L2 * L2 + d * d) / (2 * d), hg = Math.sqrt(Math.max(0, L1 * L1 - a * a)), fb = L.front ? -0.8 : 0.8;
+      let bb = [fr.f[0] * fb + fr.nr[0] * L.side * 0.5, fr.f[1] * fb + fr.nr[1] * L.side * 0.5, 0.25];
+      const bd = bb[0] * u[0] + bb[1] * u[1] + bb[2] * u[2]; bb = [bb[0] - u[0] * bd, bb[1] - u[1] * bd, bb[2] - u[2] * bd];
+      const bl = Math.hypot(...bb) || 1; bb = bb.map(v => v / bl);
+      const K = [H[0] + u[0] * a + bb[0] * hg, H[1] + u[1] * a + bb[1] * hg, H[2] + u[2] * a + bb[2] * hg];
+      const s = q => S3(q[0] / P, q[1] / P, q[2]);
+      return { H, K, F, pH: s(H), pK: s(K), pF: s(F), fr };
     }
+    // the body
+    const c = document.createElement('canvas'); c.width = B.cw * 3; c.height = 1024;
+    const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+    const full = document.createElement('canvas'); full.width = c.width; full.height = c.height;   // with whole legs, to check
+    const gf = full.getContext('2d'); gf.fillStyle = '#fff'; gf.fillRect(0, 0, c.width, c.height);
+    for (let i = 0; i < 9; i++) {
+      makeDragon(); DR.state = 'awake'; DR.cx = 12; DR.cy = 11; DR.th = Math.PI / 4 + i * Math.PI / 8; DR.turn = 0; DR.vel = [0, 0]; DR.t = 0;
+      DR.look = [DR.cx + Math.cos(DR.th) * 9, DR.cy + Math.sin(DR.th) * 9]; DR.na = 0; DR.act = null; DR.flash = 0;
+      layout(0.0001, true);
+      for (const L of DR.legs) L.foot = legFrame(L).home.slice();
+      const n = DR.n, c0 = { x: (n[SH].x + n[HIPS].x) / 2, y: (n[SH].y + n[HIPS].y) / 2 }, zc = (n[SH].z + n[HIPS].z) / 2 * 0.6;
+      const [ox, oy] = S3(c0.x, c0.y, 0), cx = (i % 3) * B.cw + B.cw / 2, cy = Math.floor(i / 3) * B.ch + B.ch / 2 + zc * B.scale;
+      for (const [gg, whole] of [[g, false], [gf, true]]) {
+        gg.save(); gg.beginPath(); gg.rect((i % 3) * B.cw, Math.floor(i / 3) * B.ch, B.cw, B.ch); gg.clip();
+        gg.translate(cx, cy); gg.scale(B.scale, B.scale); gg.translate(-ox, -oy);
+        const dl = [];
+        for (let k = SH - 1; k <= HIPS + 1; k++) dl.push({ k: n[k].x + n[k].y, f: () => { const q = n[k], [x, y] = S3(q.x, q.y, q.z); blob(gg, x, y, q.R, null); if (k > SH - 1) capsule(gg, q, n[k - 1]); blob(gg, x, y, q.R * 0.999, null); } });
+        for (const L of DR.legs) {
+          const r = ik(L), R = r.fr.node.R;
+          dl.push({ k: (r.fr.attach[0] + r.fr.attach[1] + L.foot[0] + L.foot[1]) / 2 + 0.02, f: () => {
+            if (whole) return LIMBS.forEach(([fr, a, b, w0, w1], j) => (fr === L.front) && taper(gg, j % 2 ? r.pK : r.pH, j % 2 ? r.pF : r.pK, w0 * R, w1 * R));
+            // the top of the leg: a shoulder / haunch muscle on the flank, which the painted upper bone covers
+            const e = [r.pH[0] + (r.pK[0] - r.pH[0]) * B.stub, r.pH[1] + (r.pK[1] - r.pH[1]) * B.stub];
+            blob(gg, e[0], e[1], R * (L.front ? 0.44 : 0.52), null);
+          } });
+        }
+        dl.sort((a, b) => a.k - b.k).forEach(x => x.f());
+        gg.restore();
+      }
+      meta.body.anchor.push([cx, cy]);
+    }
+    urls.body16 = c.toDataURL('image/png'); urls['body16.full'] = full.toDataURL('image/png');
+    // the limbs, upright: [length px, width px (× the node's R)]
+    const lc = document.createElement('canvas'); lc.width = 1536; lc.height = 1024; const l = lc.getContext('2d'); l.fillStyle = '#fff'; l.fillRect(0, 0, 1536, 1024);
+    meta.limbs = { scale: LG.scale, pieces: [] };
+    LIMBS.forEach(([front, name, , w0, w1], j) => {
+      const R = DR.n[front ? SH : HIPS].R, len = j % 2 ? 42 : 44, x = j * 384 + 192, y0 = 512 - len * LG.scale / 2, y1 = 512 + len * LG.scale / 2;
+      taper(l, [x, y0], [x, y1], w0 * R * LG.scale, w1 * R * LG.scale);
+      meta.limbs.pieces.push({ name, len, w0: +(w0 * R).toFixed(1), w1: +(w1 * R).toFixed(1), top: [x, y0], bottom: [x, y1] });
+    });
+    urls.limbs = lc.toDataURL('image/png');
+    // the feet: toes on the floor from the ankle's ground point, an ankle stub up to the lower bone
+    const fc = document.createElement('canvas'); fc.width = 1536; fc.height = 1024; const fg = fc.getContext('2d'); fg.fillStyle = '#fff'; fg.fillRect(0, 0, 1536, 1024);
+    meta.feet = { cell: [384, 512], scale: LG.scale * LG.foot, size: LG.foot, dirs: ['S', 'SW', 'W', 'NW', 'N', 'NE', 'E', 'SE'], anchor: [], ankle: 16 };
+    for (let i = 0; i < 8; i++) {
+      const th = Math.PI / 4 + i * Math.PI / 4, f = [Math.cos(th), Math.sin(th)], nr = [-f[1], f[0]];
+      const cx = (i % 4) * 384 + 192, cy = Math.floor(i / 4) * 512 + 330, sc = LG.scale * LG.foot;
+      const S = (x, y, z) => { const [a, bq] = S3(x, y, z); return [cx + a * sc, cy + bq * sc]; };
+      const parts = [];
+      for (const [a, len, w] of [[-0.55, 0.2, 8], [0, 0.24, 9], [0.55, 0.2, 8], [Math.PI, 0.09, 6]]) {
+        const dx = f[0] * Math.cos(a) + nr[0] * Math.sin(a), dy = f[1] * Math.cos(a) + nr[1] * Math.sin(a);
+        parts.push({ k: dx + dy, f: () => {
+          const p0 = S(0, 0, 4), p1 = S(dx * len, dy * len, 3), p2 = S(dx * (len + 0.08), dy * (len + 0.08), 0);
+          fg.lineCap = 'round'; fg.strokeStyle = '#5a5a5a'; fg.lineWidth = w * sc; fg.beginPath(); fg.moveTo(...p0); fg.lineTo(...p1); fg.stroke();
+          fg.strokeStyle = '#a0a0a0'; fg.lineWidth = w * sc * 0.55; fg.beginPath(); fg.moveTo(p0[0], p0[1] - 2 * sc); fg.lineTo(p1[0], p1[1] - 2 * sc); fg.stroke();
+          fg.strokeStyle = '#f0f0f0'; fg.lineWidth = w * sc * 0.35; fg.beginPath(); fg.moveTo(...p1); fg.lineTo(...p2); fg.stroke();   // the claw
+        } });
+      }
+      parts.push({ k: 0.01, f: () => {   // the pad and the ankle
+        const a = S(0, 0, 0); fg.fillStyle = '#6a6a6a'; fg.beginPath(); fg.ellipse(a[0], a[1] - 3 * sc, 11 * sc, 6 * sc, 0, 0, 7); fg.fill();
+        const t = S(0, 0, 16); fg.lineCap = 'round'; fg.strokeStyle = '#7a7a7a'; fg.lineWidth = 11 * sc; fg.beginPath(); fg.moveTo(a[0], a[1] - 4 * sc); fg.lineTo(...t); fg.stroke();
+        fg.strokeStyle = '#b0b0b0'; fg.lineWidth = 5 * sc; fg.beginPath(); fg.moveTo(a[0] - 2 * sc, a[1] - 5 * sc); fg.lineTo(t[0] - 2 * sc, t[1]); fg.stroke();
+      } });
+      parts.sort((a, b) => a.k - b.k).forEach(q => q.f());
+      meta.feet.anchor.push([cx, cy]);
+    }
+    urls.feet = fc.toDataURL('image/png');
     return { meta, urls };
-  }, WALK);
-  for (const [k, u] of Object.entries(res.urls)) fs.writeFileSync(path.join(out, 'walk', k + '.png'), Buffer.from(u.split(',')[1], 'base64'));
-  fs.writeFileSync(path.join(out, 'walk', 'walk.json'), JSON.stringify(res.meta, null, 1));
-  console.log('wrote walk guides', Object.keys(res.urls).join(', '));
+  }, [BODY, LEGS, LIMBS]);
+  for (const [k, u] of Object.entries(res.urls)) fs.writeFileSync(path.join(out, k + '.png'), Buffer.from(u.split(',')[1], 'base64'));
+  fs.writeFileSync(path.join(out, 'body16.json'), JSON.stringify(res.meta, null, 1));
+  console.log('wrote', Object.keys(res.urls).join(', '));
   await b.close();
 }

@@ -1,6 +1,6 @@
 {
   "name": "dragon",
-  "status": "all parts painted and in dragon-prototype.html (Look: Painted)",
+  "status": "in the game: 16-direction body (legs cut off) with painted IK legs; head, wings, neck, tail as before. dragon-prototype.html keeps the old walk atlas (prototype-atlas.webp).",
   "style_reference": "reference/game-style-refs.png (SW frames of the demon, spider, ghoul, hero and skeleton sheets, 3x, on light grey)",
   "model": "gemini-3.1-flash-image (google_media.py edit, 1K, 16:9)",
   "prompt_base": "A new character in exactly the same art style as these game sprites (same painterly dark-fantasy rendering, gritty desaturated palette, crimson accents, soft top-left light, crisp silhouette): a huge ground-bound dragon boss for the same isometric game. Full body, seen from above at the same 3/4 isometric camera angle as the sprites (about 30 degrees down), facing down-left. Long curving neck, heavy four-legged body standing on the ground, wings folded against its back, long tapering tail curling behind. Plain flat light grey background, no floor, no shadow, no text, the whole dragon in frame with margin. Design: <design>",
@@ -40,40 +40,6 @@
         "paint/attempts/torso-2.png": "rounded ends, but a lumpy grub: a trunk without legs, neck and tail does not read as a dragon"
       }
     },
-    "walk": {
-      "guides": "guide/walk/<DIR>.png + walk.json (node tools/dragon/render_guides.js walk)",
-      "SW": {
-        "file": "paint/walk/SW.png",
-        "prompt": "paint/walk/SW.prompt.txt",
-        "result": "good: steady body, legs follow the guide",
-        "steady": "paint/walk/SW.steady.png: python tools/dragon/steady_walk.py SW (master frame 0, grow 16, soft 6, line 0.55): the back, spike row and upper flanks identical in all 8 frames, only the legs and lower chest move"
-      },
-      "note": "the raw painting repaints the scales in every frame, so they twitched; every direction goes through steady_walk.py and the game uses <DIR>.steady.png",
-      "S": {
-        "file": "paint/walk/S.png",
-        "prompt": "paint/walk/S.prompt.txt",
-        "steady": "paint/walk/S.steady.png",
-        "match": "paint/walk/SW.png"
-      },
-      "W": {
-        "file": "paint/walk/W.png",
-        "prompt": "paint/walk/W.prompt.txt",
-        "steady": "paint/walk/W.steady.png",
-        "match": "paint/walk/SW.png"
-      },
-      "NW": {
-        "file": "paint/walk/NW.png",
-        "prompt": "paint/walk/NW.prompt.txt",
-        "steady": "paint/walk/NW.steady.png",
-        "match": "paint/walk/SW.png"
-      },
-      "N": {
-        "file": "paint/walk/N.png",
-        "prompt": "paint/walk/N.prompt.txt",
-        "steady": "paint/walk/N.steady.png",
-        "match": "paint/walk/SW.png"
-      }
-    },
     "headopen": {
       "file": "paint/headopen.png",
       "prompt": "paint/headopen.prompt.txt",
@@ -100,7 +66,83 @@
       ],
       "contents": "left: a dorsal bone spike; right: the tail club pointing left"
     },
-    "scales": "a flank patch of paint/walk/SW.png (192,176)-(256,224), mirrored 2 x 2 (tools/dragon/build_assets.py)"
+    "scales": "a flank patch of paint/walk/SW.png (192,176)-(256,224), mirrored 2 x 2 (tools/dragon/build_assets.py)",
+    "walk_superseded": {
+      "why": "the painted legs barely strode (the image model under-follows leg positions), so the body slid over its feet; and 8 directions turned in visible 45-degree jumps",
+      "was": {
+        "guides": "guide/attempts-walk/<DIR>.png + walk.json (node tools/dragon/render_guides.js walk)",
+        "SW": {
+          "file": "paint/attempts/walk/SW.png",
+          "prompt": "paint/attempts/walk/SW.prompt.txt",
+          "result": "good: steady body, legs follow the guide",
+          "steady": "paint/attempts/walk/SW.steady.png: python tools/dragon/steady_walk.py SW (master frame 0, grow 16, soft 6, line 0.55): the back, spike row and upper flanks identical in all 8 frames, only the legs and lower chest move"
+        },
+        "note": "the raw painting repaints the scales in every frame, so they twitched; every direction goes through steady_walk.py and the game uses <DIR>.steady.png",
+        "S": {
+          "file": "paint/attempts/walk/S.png",
+          "prompt": "paint/attempts/walk/S.prompt.txt",
+          "steady": "paint/attempts/walk/S.steady.png",
+          "match": "paint/attempts/walk/SW.png"
+        },
+        "W": {
+          "file": "paint/attempts/walk/W.png",
+          "prompt": "paint/attempts/walk/W.prompt.txt",
+          "steady": "paint/attempts/walk/W.steady.png",
+          "match": "paint/attempts/walk/SW.png"
+        },
+        "NW": {
+          "file": "paint/attempts/walk/NW.png",
+          "prompt": "paint/attempts/walk/NW.prompt.txt",
+          "steady": "paint/attempts/walk/NW.steady.png",
+          "match": "paint/attempts/walk/SW.png"
+        },
+        "N": {
+          "file": "paint/attempts/walk/N.png",
+          "prompt": "paint/attempts/walk/N.prompt.txt",
+          "steady": "paint/attempts/walk/N.steady.png",
+          "match": "paint/attempts/walk/SW.png"
+        }
+      }
+    },
+    "body16": {
+      "guides": "guide/body16.full.png (the body with whole legs, painted), guide/body16.png (the body with only shoulder/haunch knobs, the cut mask), guide/limbs.png, guide/feet.png, guide/body16.json (node tools/dragon/render_guides.js body16)",
+      "attempts": {
+        "paint/attempts/body16-1.png": "painted over the legless guide: a grub again (paint/attempts/body16-1.prompt.txt)"
+      },
+      "body": {
+        "file": "paint/body16.png",
+        "prompt": "paint/body16.prompt.txt",
+        "inputs": [
+          "guide/body16.full.png",
+          "reference/reference.png",
+          "paint/attempts/walk/SW.steady.png frame 0"
+        ],
+        "model": "gpt-image-2.6-flare edit, medium, 1536x1024, transparent",
+        "result": "good: a real dragon body in 9 consistent views",
+        "cut": "paint/body16.cut.png: python tools/dragon/cut_body.py (the knobbed body outline grown 5 px, softened 2 px, plus everything above its lower edge and the upper half)"
+      },
+      "limbs": {
+        "file": "paint/limbs.png",
+        "prompt": "paint/limbs.prompt.txt",
+        "inputs": [
+          "guide/limbs.png",
+          "paint/body16.png"
+        ],
+        "model": "gpt-image-2.6-flare edit, medium, 1536x1024, transparent",
+        "result": "good (a little lighter than the body)"
+      },
+      "feet": {
+        "file": "paint/feet.png",
+        "prompt": "paint/feet.prompt.txt",
+        "inputs": [
+          "guide/feet.png",
+          "paint/body16.png"
+        ],
+        "model": "gpt-image-2.6-flare edit, medium, 1536x1024, transparent",
+        "result": "good"
+      },
+      "spend_usd": 0.14
+    }
   },
   "decisions": {
     "where": "sandbox only",
