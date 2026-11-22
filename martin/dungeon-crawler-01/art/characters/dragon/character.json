@@ -1,6 +1,6 @@
 {
   "name": "dragon",
-  "status": "concept round 1: three candidates, none picked yet",
+  "status": "concept 2 (the crypt dragon) chosen; reference round 2 (game camera, transparent) awaiting approval",
   "style_reference": "reference/game-style-refs.png (SW frames of the demon, spider, ghoul, hero and skeleton sheets, 3x, on light grey)",
   "model": "gemini-3.1-flash-image (google_media.py edit, 1K, 16:9)",
   "prompt_base": "A new character in exactly the same art style as these game sprites (same painterly dark-fantasy rendering, gritty desaturated palette, crimson accents, soft top-left light, crisp silhouette): a huge ground-bound dragon boss for the same isometric game. Full body, seen from above at the same 3/4 isometric camera angle as the sprites (about 30 degrees down), facing down-left. Long curving neck, heavy four-legged body standing on the ground, wings folded against its back, long tapering tail curling behind. Plain flat light grey background, no floor, no shadow, no text, the whole dragon in frame with margin. Design: <design>",
@@ -10,5 +10,15 @@
     "concept-3.png": "a rust-and-ash coloured old dragon with a scarred, armoured hide like the Pit Demon's, broken horns, chains and grave dirt clinging to it, molten orange eyes."
   },
   "notes": "All three came out as side views, not the game's 30-degree camera; 2 and 3 also painted the reference sprites beside the dragon (a useful scale comparison). The camera angle is fixed when the parts are painted.",
-  "spend_usd": 0.21
+  "spend_usd": 0.28,
+  "chosen_concept": "reference/concept-2.png",
+  "reference_round_2": {
+    "model": "gpt-image-2.6-flare edit, medium, 1536x1024, transparent",
+    "input": "reference/concept-2.png",
+    "prompt": "Character reference sheet for an isometric 2D dark-fantasy game, of THIS SAME DRAGON (keep its design exactly: black scales with a soot-grey hide, pale bone skull-like face with long swept horns, a glowing pale-blue eye, a ragged row of bone spikes and frills down the neck and back, tattered black wing membranes with dark-red tears, long tapering tail ending in a bony club of spikes). Show it THREE times side by side, all seen from ABOVE at the same 30-degree downward isometric game camera: 1) facing down-left, 2) facing left in profile from above, 3) facing away up-right. Standing on four legs, neck in a gentle S curve, wings folded, tail stretched out behind. Same painterly style, transparent background, no text.",
+    "candidates": {
+      "round-2/candidate-1.png": "down-left, profile and back views as asked",
+      "round-2/candidate-2.png": "views 1 and 2 nearly the same; wings slightly open"
+    }
+  }
 }
