@@ -4,6 +4,7 @@
 // and where in each cell the part's anchor lands, for drawing the paintings back in the game).
 //   node tools/dragon/render_guides.js            (from martin/dungeon-crawler-01; uses the pre-installed Playwright)
 //   node tools/dragon/render_guides.js walk       the body's walk cycle instead: guide/walk/<DIR>.png for S, SW, W, NW, N
+//                                                 and <DIR>.legs.png (the legs alone, for tools/dragon/steady_walk.py)
 //                                                 (E, NE, SE are mirrored), 8 frames each in 4 x 2 cells of 384 x 512
 // The walk: the torso (with short neck and tail stumps) and the 4 legs, ×1.4; diagonal pairs (front left + hind right,
 // then the other two) half a cycle apart; each foot is planted for 60 % of the cycle and swings forward (lifted up to
@@ -67,6 +68,7 @@ async function walk(b, p) {
       note: 'anchor = the ground point under the torso centre, the same in every cell of a direction', anchor: {} }, urls = {};
     for (const d of W.dirs) {
       const i = ALL.indexOf(d), c = document.createElement('canvas'); c.width = CW * 4; c.height = CH * 2;
+      const mc = document.createElement('canvas'); mc.width = c.width; mc.height = c.height; const mg = mc.getContext('2d'); mg.fillStyle = '#fff'; mg.fillRect(0, 0, mc.width, mc.height);
       const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
       meta.anchor[d] = [];
       for (let f = 0; f < 8; f++) {
@@ -90,9 +92,11 @@ async function walk(b, p) {
         for (const L of DR.legs) { const fr = legFrame(L); dl.push({ k: (fr.attach[0] + fr.attach[1] + L.foot[0] + L.foot[1]) / 2 + 0.02, f: () => drawLeg(g, L) }); }
         dl.sort((a, b) => a.k - b.k).forEach(x => x.f());
         g.restore();
+        // the legs alone, for the mask that keeps the rest of the body still (tools/dragon/steady_walk.py)
+        mg.save(); mg.translate(cx, cy); mg.scale(W.scale, W.scale); mg.translate(-ox, -oy); for (const L of DR.legs) drawLeg(mg, L); mg.restore();
         meta.anchor[d].push([cx, cy]);
       }
-      urls[d] = c.toDataURL('image/png');
+      urls[d] = c.toDataURL('image/png'); urls[d + '.legs'] = mc.toDataURL('image/png');
     }
     return { meta, urls };
   }, WALK);

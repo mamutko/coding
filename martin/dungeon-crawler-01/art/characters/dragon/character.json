@@ -1,6 +1,6 @@
 {
   "name": "dragon",
-  "status": "body painted as a walking sprite (torso + legs); SW done, awaiting approval before S, W, NW, N (E, NE, SE mirrored)",
+  "status": "body walk SW painted and made steady (the back no longer twitches); awaiting approval before S, W, NW, N (E, NE, SE mirrored)",
   "style_reference": "reference/game-style-refs.png (SW frames of the demon, spider, ghoul, hero and skeleton sheets, 3x, on light grey)",
   "model": "gemini-3.1-flash-image (google_media.py edit, 1K, 16:9)",
   "prompt_base": "A new character in exactly the same art style as these game sprites (same painterly dark-fantasy rendering, gritty desaturated palette, crimson accents, soft top-left light, crisp silhouette): a huge ground-bound dragon boss for the same isometric game. Full body, seen from above at the same 3/4 isometric camera angle as the sprites (about 30 degrees down), facing down-left. Long curving neck, heavy four-legged body standing on the ground, wings folded against its back, long tapering tail curling behind. Plain flat light grey background, no floor, no shadow, no text, the whole dragon in frame with margin. Design: <design>",
@@ -45,8 +45,10 @@
       "SW": {
         "file": "paint/walk/SW.png",
         "prompt": "paint/walk/SW.prompt.txt",
-        "result": "good: steady body, legs follow the guide"
-      }
+        "result": "good: steady body, legs follow the guide",
+        "steady": "paint/walk/SW.steady.png: python tools/dragon/steady_walk.py SW (master frame 0, grow 16, soft 6, line 0.55): the back, spike row and upper flanks identical in all 8 frames, only the legs and lower chest move"
+      },
+      "note": "the raw painting repaints the scales in every frame, so they twitched; every direction goes through steady_walk.py and the game uses <DIR>.steady.png"
     }
   },
   "decisions": {
