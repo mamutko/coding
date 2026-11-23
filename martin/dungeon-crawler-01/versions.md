@@ -389,7 +389,7 @@ Commit: 7fe788b
   rooms joined by corridors (65 % of them wide), doors that swing open into the corridor, and stairs down in the
   room farthest from the start.
 - Props: chests, urns to break, bones to search, gold, braziers; full-height walls with a dirt texture on top;
-  props near the south and east walls kept in view.
+  props near the south-west and south-east walls kept in view.
 - Big rooms on every second depth from 3; a lone Pit Demon at depth 4.
 - Boss room from depth 3 (empty at 3, a boss from 6): entered only through doors, furnished by depth (throne,
   altar, candelabra, skull piles, banners, pillars, sarcophagi), a rune circle, four or more braziers, a guardian's

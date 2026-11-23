@@ -57,7 +57,7 @@
     <h2>Kiting</h2>
     <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
     <h2>Dragon</h2>
-    <button class="sc" id="sbDragon"><b>The dragon's lair</b>Depth 13, the first depth with a dragon: you stand at the west end of its lair (20–23 tiles a side, four pillars, braziers, the sealed guardian's chest), and on the gold hoard in the middle Nythrakar, the Crypt Wyrm, sleeps. Come within 4.5 tiles, or hit it, and it wakes with a roar: it walks after you, turns its whole long body, and bites, breathes fire (it sets you burning), sweeps its tail at you when you stand behind it, and beats its wings to throw you back. Strike any part of it; the head takes ×1.5. Slain, it spills its hoard: rare and magic items along its body, gold, potions and fire bombs. The bar's buttons make it attack at once, or start the scenario again.</button>
+    <button class="sc" id="sbDragon"><b>The dragon's lair</b>Depth 13, the first depth with a dragon: you stand at the north-west end of its lair (20–23 tiles a side, four pillars, braziers, the sealed guardian's chest), and on the gold hoard in the middle Nythrakar, the Crypt Wyrm, sleeps. Come within 4.5 tiles, or hit it, and it wakes with a roar: it walks after you, turns its whole long body, and bites, breathes fire (it sets you burning), sweeps its tail at you when you stand behind it, and beats its wings to throw you back. Strike any part of it; the head takes ×1.5. Slain, it spills its hoard: rare and magic items along its body, gold, potions and fire bombs. The bar's buttons make it attack at once, or start the scenario again.</button>
     <button class="sc" id="sbChest"><b>Guardian's chests</b>Depth 13, in the dragon's lair emptied of everything but six guardian's chests along its walls, all unsealed (no dragon, no guardians). Open them to see what a dragon's guardian's chest gives (a magic or rare item from 4 depths deeper, a normal chest's items, gold, and 3–5 scrolls of frost). Then play on: the rest of the level is the real game, with its monsters and the stairs down to depth 14.</button>
     <h2>Crossbows</h2>
     <button class="sc" id="sbXbow"><b>Crossbows</b>Depth 18, in the middle of the level's big room, with the three best ranged weapons: the Gilded Arbalest equipped (key 5: 62–104 a bolt, a long 1.4 s reload), the Heavy Crossbow (key 4) and the War Bow (key 2) to compare. Two skeletons, two ghouls and two Pit Demons sleep around you; a hit wakes one. The bar shows each weapon's damage, reload and draw, the last shot and a tally per weapon. Key 1 is your longsword.</button>
@@ -234,7 +234,7 @@
     start('kite'); log('Test: the big room. Shoot a sleeper from afar and watch it charge.', '#c9a45c');
   };
   // The dragon's lair: the game's own (depth 13, the first dragon depth: see README, The dragon), the hero 2 tiles in
-  // from its west wall
+  // from its north-west wall
   $('sbDragon').onclick = async () => {
     $('sbDragon').disabled = true; await loadDragonArt(); $('sbDragon').disabled = false;
     testHero(DRAGON_FROM);
@@ -246,8 +246,8 @@
     start('dragon'); log('Test: the dragon\'s lair. Nythrakar sleeps on its hoard.', '#7fe08a');
   };
   // Guardian's chests: the dragon's lair at depth 13 emptied of everything (dragon, monsters, pillars, braziers,
-  // skull piles, hoard) and given 6 unsealed guardian's chests (each with 3-5 scrolls of frost) along its north and west
-  // walls; the level has no boss, so none is sealed. The rest of the level is left as built.
+  // skull piles, hoard) and given 6 unsealed guardian's chests (each with 3-5 scrolls of frost) along its north-east and
+  // north-west walls; the level has no boss, so none is sealed. The rest of the level is left as built.
   $('sbChest').onclick = async () => {
     $('sbChest').disabled = true; await loadDragonArt(); $('sbChest').disabled = false;
     testHero(DRAGON_FROM);

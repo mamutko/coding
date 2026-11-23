@@ -1037,8 +1037,8 @@ const dragonAt = d => d >= DRAGON_FROM && (d - DRAGON_FROM) % DRAGON_EVERY === 0
 // Big rooms: from depth 3, every second depth (3, 5, 7, ...) has one: boss-room sized, with 2 grey banners and
 // a larger pack of easier monsters (see buildLevel).
 const bigRoomAt = d => d >= 3 && d % 2 === 1;
-// The lake room: one huge room (28-30 tiles a side) in the map's top-left corner, most of it an underground lake
-// whose far shores are the room's own north and west walls, out of sight and out of reach. A group of wraiths
+// The lake room: one huge room (28-30 tiles a side) in the map's north corner (x = y = 2), most of it an underground lake
+// whose far shores are the room's own north-east and north-west walls, out of sight and out of reach. A group of wraiths
 // hovers over the water (the only monsters that can cross it). First on depth 8: the first depth after the
 // first boss fight (depth 6) that has no big room; then every 4th depth after it (12, 16, 20, ...: all even, so never a
 // big room's or a dragon's depth). The map is 16 tiles larger on those depths.
@@ -1919,7 +1919,7 @@ function buildLevel(d) {
   const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? T_VOID : t[y * w + x];
   const rooms = [];
   const want = Math.min(9 + Math.floor(d / 2), 18) + (lakeRoomAt(d) ? 1 : 0);
-  // the lake room's spot (top-left corner) is kept free from the start, so it always fits
+  // the lake room's spot (the map's north corner) is kept free from the start, so it always fits
   const lakeR = lakeRoomAt(d) ? { x: 2, y: 2, w: ri(...LAKE_ROOM), h: ri(...LAKE_ROOM) } : null;
   for (let tries = 0; tries < 600 && rooms.length < want; tries++) {
     // after the start room come the big rooms of this depth: the boss room (bossRoomAt), then the big room
@@ -1927,7 +1927,7 @@ function buildLevel(d) {
     // 16-20 (about twice the boss room's area)
     const bigKinds = [lakeR && 'lake', bossRoomAt(d) && 'boss', bigRoomAt(d) && 'horde'].filter(Boolean);
     const big = rooms.length >= 1 && rooms.length <= bigKinds.length && (tries < 300 || bigKinds[rooms.length - 1] === 'lake') ? bigKinds[rooms.length - 1] : false;
-    if (big === 'lake') {   // its "centre" (where corridors lead) is on the dry shore near its south-east corner
+    if (big === 'lake') {   // its "centre" (where corridors lead) is on the dry shore near its south corner
       const r = lakeR; rooms.push({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.x + r.w - 3, cy: r.y + r.h - 3, big }); continue;
     }
     const [lo, hi] = big === 'horde' ? [16, 20] : big === 'boss' && dragonAt(d) ? [20, 23] : big ? [11, 14] : [5, 10], rw = ri(lo, hi), rh = ri(lo, hi), rx = ri(2, w - rw - 3), ry = ri(2, h - rh - 3);
@@ -1991,9 +1991,10 @@ function buildLevel(d) {
     if (near) t[y * w + x] = T_WALL;
   }
   // The lake room: an underground lake (T_WATER) fills all of it but a dry shore LAKE_SHORE tiles wide along its
-  // east and south walls, where every corridor comes in (the room is in the map's top-left corner, so nothing lies
-  // north or west of it). The shoreline is a quarter superellipse around the north-west corner, made irregular by
-  // a few sine waves; any dry pocket cut off from the shore is flooded too. The far shores are the north and west walls.
+  // south-east and south-west walls, where every corridor comes in (the room is in the map's north corner, so nothing
+  // lies north-west or north-east of it). The shoreline is a quarter superellipse around the north corner, made irregular
+  // by a few sine waves; any dry pocket cut off from the shore is flooded too. The far shores are the north-east and
+  // north-west walls.
   const lakeRoom = rooms.find(r => r.big === 'lake') || null;
   if (lakeRoom) {
     const r = lakeRoom, A = r.w - LAKE_SHORE - 0.5, B = r.h - LAKE_SHORE - 0.5, ph = [0, 0, 0, 0].map(() => rnd() * 7);
@@ -2027,8 +2028,8 @@ function buildLevel(d) {
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const v = at(x + dx, y + dy); if (v === T_DOOR) return true; }
     return false;
   };
-  // seen: a spot the camera can see. The walls are full height, so the south and east walls hide the last 2
-  // rows and columns of a room; props go on the north or west edge, or inside away from the south and east walls
+  // seen: a spot the camera can see. The walls are full height, so the south-west and south-east walls hide the last 2
+  // rows and columns of a room; props go on the north-east or north-west side, or inside away from the front walls
   // (monsters may stand anywhere)
   const freeInner = (r, edgeOnly, seen = false) => {
     const xe = seen ? Math.max(r.x + 1, r.x + r.w - 3) : r.x + r.w - 2, ye = seen ? Math.max(r.y + 1, r.y + r.h - 3) : r.y + r.h - 2;
@@ -2055,12 +2056,12 @@ function buildLevel(d) {
   };
   // a prop that faces down-right on screen (+x), like the throne: put it against a back wall so it faces into
   // the room, on the left back wall (x = r.x) as drawn, or on the right back wall (y = r.y) mirrored to face +y
-  // a blocking prop on r's north or west edge as close as possible to tile (tx, ty), on a spot that freeInner's edge rule allows
+  // a blocking prop on r's north-east or north-west side as close as possible to tile (tx, ty), on a spot that freeInner's edge rule allows
   // (no doorway nearby, solid wall behind it), so it never blocks a corridor mouth
   const placeNear = (type, r, tx, ty, extra = {}) => {
     let best = null, bd = 1e9;
     for (let y = r.y; y < r.y + r.h; y++) for (let x = r.x; x < r.x + r.w; x++) {
-      if (x !== r.x && y !== r.y || x > r.x + r.w - 3 || y > r.y + r.h - 3) continue;   // north or west edge, in view
+      if (x !== r.x && y !== r.y || x > r.x + r.w - 3 || y > r.y + r.h - 3) continue;   // north-east or north-west side, in view
       if (at(x, y) !== T_FLOOR || occ[y * w + x] || isOpening(x, y)) continue;
       let ok = true;
       for (const [dx, dy] of [[1,0],[-1,0],[0,1],[0,-1]]) { const nx = x + dx, ny = y + dy;
@@ -2101,7 +2102,7 @@ function buildLevel(d) {
   const kCands = normalRooms.filter(r => r !== far && r !== loneRoom), kBig = kCands.filter(r => r.w >= 7 && r.h >= 7);
   const keeperRoom = keeperAt(d) && kCands.length ? pick(kBig.length ? kBig : kCands) : null;
   // The keeper's room: the keeper stands on a round rug on the free tile nearest the room's middle that the camera
-  // sees; the stall's furnishings (decor, not interactive) go on the north and west edges: the table as close to
+  // sees; the stall's furnishings (decor, not interactive) go on the north-east and north-west sides: the table as close to
   // the keeper as possible, then a weapon rack, a shelf of potions, an open chest of trinkets, crates and sacks, a
   // barrel of swords and two lanterns on posts (each only where it fits).
   const furnishKeeper = r => {
@@ -2121,7 +2122,7 @@ function buildLevel(d) {
   };
   // The lake room: braziers (5), two bone piles and, half the time, a chest along the shore (dry tiles next to the
   // water that the camera sees, at least 5 tiles apart), and a loose group of wraiths over the water, around a
-  // point 45 % of the way from the north-west corner to the shore, on tiles with water all around.
+  // point 45 % of the way from the north corner to the shore, on tiles with water all around.
   const furnishLake = r => {
     const shore = [];
     for (let y = r.y; y <= r.y + r.h - 3; y++) for (let x = r.x; x <= r.x + r.w - 3; x++)

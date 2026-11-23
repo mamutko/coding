@@ -167,7 +167,7 @@ The picker (*Crypt Sandbox*) groups the scenarios:
 - **Dragon:**
   - **The dragon's lair** (depth 13, the first dragon depth: the game's own lair, see [Dungeon
     generation](#dungeon-generation)): waits for the dragon's art (`loadDragonArt`) before building. The hero starts on
-    the lair's floor 2 tiles in from its west wall, as near its middle row as a free tile allows; monsters within 28
+    the lair's floor 2 tiles in from its north-west wall, as near its middle row as a free tile allows; monsters within 28
     tiles of the hero (other than the dragon) are removed. The bar shows the dragon's state (asleep, walking, turning,
     biting, breathing fire, sweeping its tail, beating its wings, roaring, frozen, slain), its life, whether the hero
     burns, the zoom and the frame rate, and has buttons that make it attack at once (**Bite**, **Breath**, **Tail**,
@@ -176,8 +176,8 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     every boss-room monster removed, the level's boss cleared (`map.boss = null`, so no chest is sealed) and the hoard
     gone, and every object in the room taken away (braziers, pillars, skull piles, the chest). In their place up to 6
     guardian's chests (`boss: true`, each with 3–5 scrolls of frost: a dragon lair's chest), on every 3rd tile of the
-    north wall (from 2 tiles in) and then of the west wall (from 3 tiles in), where solid wall is behind them. The hero
-    starts 3 tiles in from the room's north-west corner. Nothing else on the level is changed, so after the chests the
+    north-east wall (from 2 tiles in) and then of the north-west wall (from 3 tiles in), where solid wall is behind
+    them. The hero starts 3 tiles in from the room's north corner. Nothing else on the level is changed, so after the chests the
     level plays as the real game (its other monsters, the stairs down to depth 14). The bar shows the music, as in the
     music scenarios.
 - **Kiting:**
@@ -458,10 +458,26 @@ are stored row by row: `map.t[y * map.w + x]`.
   - **+y** goes **down and left** (screen south-west): 48 px left and 24 px down per tile.
 - **`x + y` is the depth**: how far down the screen, i.e. how near the viewer. Smaller `x + y` is further back,
   larger is nearer, 24 px per tile. **`x − y`** is how far right, and plays no part in depth.
-- **Compass words** in the code and in this README are screen directions. *North* is up the screen: smaller
-  `x + y`, far back. *South* is down the screen: larger `x + y`, nearest. *East* is right: larger `x − y`. *West*
-  is left. A tile's corners are its **north** (top) corner `(x, y)`, **east** (right) corner `(x+1, y)`, **south**
+- **Compass words** in the code and in this README are always **screen directions**, never grid directions.
+  *North* is up the screen: smaller `x + y`, far back. *South* is down the screen: larger `x + y`, nearest. *East*
+  is right: larger `x − y`. *West* is left. So the grid's axes run diagonally: +x points south-east, +y south-west,
+  −x north-west, −y north-east.
+- **A tile's corners** are its **north** (top) corner `(x, y)`, **east** (right) corner `(x+1, y)`, **south**
   (bottom, *front*) corner `(x+1, y+1)` and **west** (left) corner `(x, y+1)`.
+- **A room's sides** run along the grid, so on screen they are the four diagonal sides of a diamond; there is no
+  "north wall" or "south wall", only corners there. For a room `r` (tiles `r.x … r.x + r.w − 1`,
+  `r.y … r.y + r.h − 1`):
+
+  | Side | Tiles | On screen |
+  |---|---|---|
+  | north-east | `y = r.y` | far back, upper right |
+  | north-west | `x = r.x` | far back, upper left |
+  | south-west | `y = r.y + r.h − 1` | front, lower left |
+  | south-east | `x = r.x + r.w − 1` | front, lower right |
+
+  Its corners: **north** `(r.x, r.y)` (top), **east** (right), **south** (bottom, nearest) and **west** (left). The
+  two back sides are the ones the camera sees fully, which is why props go there (see Dungeon generation); the
+  south-west and south-east walls are the full-height front walls that hide what stands right behind them.
 - **The faces the viewer sees** are a tile's two lower edges: the **south-west face**, along the `y + 1` edge,
   facing +y; and the **south-east face**, along the `x + 1` edge, facing +x. That is why walls draw only those two
   faces, and why something "in front of" a block from `x0…x1` × `y0…y1` stands at `x ≥ x1 + 1` or `y ≥ y1 + 1`.
@@ -479,7 +495,7 @@ are stored row by row: `map.t[y * map.w + x]`.
 - **Floor.** Every visible floor and doorway tile is added to one path in iso-transformed space
   (`transform(48, 24, −48, 24)`). It is filled with the floor texture pattern, which spans 3 tiles, and faint
   seams are stroked.
-- **Walls** are full-height blocks, 72 px tall (`WALLH`), south walls included, so the south and east walls of a
+- **Walls** are full-height blocks, 72 px tall (`WALLH`), front walls included, so the south-west and south-east walls of a
   room hide the floor right behind them (see Level generation for how props stay in view). Only the two faces
   facing the viewer (+y and +x) are drawn, and only where the neighbour on that side isn't a wall. A face that
   looks into a room or corridor (floor, open door or doorway in front of it, `roomSide`) shows the stone wall
@@ -775,28 +791,28 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
 - **The lake room** at depth 8 (`LAKE_AT`: the first depth after the first boss fight at depth 6 that has no big
   room) and every 4th depth after it (`LAKE_EVERY`: 12, 16, 20, …; `lakeRoomAt`). These are all even depths, so a
   lake level never has a big room (odd depths) or a dragon (13, 21, 29, …), but it does have a boss room. See [Lakes](#lakes) for how it looks and behaves.
-  - **Placement.** A huge room, 28–30 tiles a side (`LAKE_ROOM`), in the map's top-left corner (`x = y = 2`). Its
+  - **Placement.** A huge room, 28–30 tiles a side (`LAKE_ROOM`), in the map's north corner (`x = y = 2`, the start of its tile arrays). Its
     spot is kept free from the start (the start room and the others are never placed within 3 tiles of it), and
     it is placed first, right after the start room, so it always fits. Its "centre" (`cx`, `cy`: where corridors
-    lead, and what the connectivity checks use) is on its dry shore, 3 tiles in from its south-east corner. With
-    nothing north or west of it, every corridor reaches it through its east or south wall. Like the boss and big
+    lead, and what the connectivity checks use) is on its dry shore, 3 tiles in from its south corner. With
+    nothing north-west or north-east of it, every corridor reaches it through its south-east or south-west wall. Like the boss and big
     rooms it is entered only through doors. It is never the stairs', boss, big, keeper or lone monster's room.
   - **The scroll chest.** On the dry shore, among the braziers and bones (a shore tile next to the water, at least
     3 tiles from the other things placed there), a chest that holds **4 scrolls of frost and nothing else**
     (`scrolls: 4`; no gold, no item, no potion). Besides a dragon's guardian's chest, it is the only place where scrolls are found. The
     lake room's other chest (50 %, a big room's chest) is unchanged.
   - **The lake.** After the walls are built, its tiles become water (`T_WATER`) except a dry shore 4 tiles wide
-    (`LAKE_SHORE`) along the east and south walls. The shoreline is a quarter superellipse around the north-west
+    (`LAKE_SHORE`) along the south-east and south-west walls. The shoreline is a quarter superellipse around the north
     corner (`((lx + 0.5) / A)^2.4 + ((ly + 0.5) / B)^2.4 < 1 + n`, with `A`, `B` the room's sides minus 4.5 and `n` a
     sum of four sine waves of random phase, ±0.29 at most), and any dry pocket not connected to the shore is
-    flooded as well. The water covers 55–62 % of the room. Its far shores are the room's north and west walls,
+    flooded as well. The water covers 55–62 % of the room. Its far shores are the room's north-east and north-west walls,
     20 and more tiles from the nearest dry tile: out of sight (see Fog) and out of reach.
   - **On the shore:** 5 braziers, 2 bone piles and (50 %) a chest with the big room's better loot, on dry tiles
     next to the water that the camera sees, at least 5 (bones and chest: 3) tiles apart.
   - **In the water:** 4 broken pillars (decor, blocking, no shadow) 2–7 tiles from the shore with water all
     around them, at least 5 tiles apart. From the shore they are what the lake visibly reflects.
   - **A group of wraiths** (8–10, `LAKE_WRAITHS`, never champions, `lake: true`) hovering over the water: within
-    6.5 tiles of a point 45 % of the way from the north-west corner to the shore, on tiles with water all around,
+    6.5 tiles of a point 45 % of the way from the north corner to the shore, on tiles with water all around,
     at least 1.6 tiles apart. They wake and fight like any wraith; only wraiths can cross water (see
     [Movement & pathfinding](#movement--pathfinding)). The room has no other monsters.
 - **Lone monsters** (`LONE_AT`): a foretaste of a type one depth before it starts to appear. One random normal
@@ -816,12 +832,12 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
 - Props are only placed on dry floor (`T_FLOOR`), never on water, except the lake's pillars.
 - Blocking props are only placed on a room's edge, against solid wall, and never next to a doorway or
   corridor mouth, so they can't cut off a path.
-- **Props stay in view.** The full-height south and east walls hide about the last two rows and columns of a
-  room, so every prop (chests, urns, braziers, banners, bones, gold, furnishings) goes where the camera sees it:
-  edge props only on the north edge (`y = r.y`, not in its last 2 tiles) or the west edge (`x = r.x`, not in its
+- **Props stay in view.** The full-height south-west and south-east walls hide about the last two rows and columns
+  of a room, so every prop (chests, urns, braziers, banners, bones, gold, furnishings) goes where the camera sees it:
+  edge props only on the north-east side (`y = r.y`, not in its last 2 tiles) or the north-west side (`x = r.x`, not in its
   last 2 tiles); inner props on `x ≤ r.x + r.w − 3`, `y ≤ r.y + r.h − 3` (`freeInner(r, edgeOnly, true)`).
-  Green banners also use only the north and west edges. Monsters may stand anywhere. Loot dropped near a south
-  or east wall can land out of sight; its name label still shows when the hero is close.
+  Green banners also use only the north-east and north-west sides. Monsters may stand anywhere. Loot dropped near a
+  south-west or south-east wall can land out of sight; its name label still shows when the hero is close.
 - **Monsters per room** (normal rooms: not the start, boss, big or lone-demon room): an even draw from 1 to
   `cap = min(7, 3 + ⌊(d − 1)/2⌋)` (3 at depths 1–2, 4 at 3–4, 5 at 5–6, …), plus 1 with 50 % chance in a room
   of 64+ tiles. So a single monster stays possible at every depth. The type is drawn by weight from the types
@@ -1527,7 +1543,7 @@ constants are `KEEPER` in the code.
 - **The stall** (`furnishKeeper` in `buildLevel`):
   - the keeper stands on a round red rug, on the free tile nearest the room's middle that the camera sees, and
     blocks it (until it walks, see below);
-  - on the north and west edges, each only where it fits: a trestle table with wares (as near the keeper as
+  - on the north-east and north-west sides, each only where it fits: a trestle table with wares (as near the keeper as
     possible), a weapon rack, a shelf of potions, an open chest of trinkets, crates and sacks, a barrel of swords,
     and two lanterns on posts;
   - all furnishings are decor, not interactive. The keeper (light radius 3.4 tiles) and the lanterns (2.6) light the
