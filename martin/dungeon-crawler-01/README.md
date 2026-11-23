@@ -742,8 +742,9 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
   box in the sheet and the offset of its top-left corner from the tree's ground point, the centre of its tile):
   - **Roots**: a floor decal, drawn with the ground (after the grass, with the flat ground details), so everything
     walks over them. Toward their tips the painted roots **sink into the ground**: their colour fades out while the
-    same root shapes take over as soft shadow and highlight only, so farther out they show as bumps on whatever
-    grass is under them, fading out at the tips. Nothing reaches beyond the painted roots. The layer also holds the
+    same root shapes take over as soft shadow and highlight only (strongest across the transition, lighter where
+    the colour is gone), so farther out they show as faint bumps on whatever grass is under them, fading out at the
+    tips. Nothing reaches beyond the painted roots. The layer also holds the
     trunk's base (covered by the trunk layer), so no seam shows where the two meet. A soft contact shadow sits under
     the trunk (no separate ground shadow).
   - **Trunk**: depth-sorted like any prop on its tile (`k = x + y + 1`), so the hero is behind it when north of it
@@ -2212,8 +2213,10 @@ walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycle
   roots dwindle and fade smoothly into full transparency". The sparser of the two was used; its roots came out
   opaque, so `tools/add_bigtree.py` sinks them into the ground: over an ellipse around the ground point (radii
   420 × 150 raw px, about where the painted roots end), the roots' colour fades out from 40 % to 78 % of the way
-  out, while the same root shapes, blurred and embossed (light from the upper left), fade in as a shadow (up to
-  60 %) and highlight (up to 18 %) layer, which fades out at the tips (85 % to 110 %). The cut lines are set by
+  out, while the same root shapes, blurred and embossed (light from the upper left), come in as a shadow (up to
+  55 %) and highlight (up to 18 %) layer: in full from a third of the way through the fade (where the roots are
+  still half coloured, half transparent), easing off to 45 % of that where the colour is gone, and fading out at
+  the tips (85 % to 110 %). The cut lines are set by
   hand in the tool (`TREES`).
   - `tools/raw/crypt.png` (OpenAI, 1024²): "an old weathered stone CRYPT / mausoleum … on its LEFT visible wall … a
     large arched ENTRANCE … steps leading DOWN into complete darkness".

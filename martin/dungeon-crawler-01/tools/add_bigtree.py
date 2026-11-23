@@ -14,9 +14,10 @@ The picture is cut at hand-picked lines (TREES below, in the raw image's pixels)
   - above row `cut`, and beside the trunk above row `low` (low branches): the crown layer;
   - the rest (below `low`, outside the band, and everything below the ground point): the roots layer. The painted
     roots sink into the ground toward their tips: over an ellipse around the ground point, their colour fades out
-    (from f0 to f1 of the ellipse) while the same root shapes, blurred and embossed (light from the upper left), fade
-    in as transparent shadow and highlight only, so farther out they show as soft bumps on whatever grass they lie
-    on; the bumps fade out at the tips (t0 to t1). Nothing is added beyond the painted roots. A soft dark contact
+    (from f0 to f1 of the ellipse) while the same root shapes, blurred and embossed (light from the upper left), come
+    in as transparent shadow and highlight only: strongest across the transition (where the roots are half
+    transparent), lighter where the colour is gone, so farther out they show as soft bumps on whatever grass they
+    lie on; the bumps fade out at the tips (t0 to t1). Nothing is added beyond the painted roots. A soft dark contact
     shadow sits under the trunk.
 
 Writes:
@@ -97,9 +98,11 @@ def layers(spec):
     ra = R[..., 3] / 255
     bump = blur(ra0, 3)
     emb = shift(bump, -2, -3) - shift(bump, 2, 3)          # > 0: lit (faces the upper left), < 0: in shade
-    keep = sink * tips
+    # the shading comes in early, where the colour is only starting to fade (full by a third of the way), and
+    # eases off where the colour is gone (to 45 %), so the sunk roots stay light
+    keep = smooth(sink / 0.35) * (1 - 0.55 * smooth((sink - 0.5) / 0.5)) * tips
     hi = np.clip(emb * 3, 0, 1) * keep * 0.18
-    sh = np.clip(-emb * 3.5, 0, 1) * keep * 0.6
+    sh = np.clip(-emb * 3.5, 0, 1) * keep * 0.55
     # a soft contact shadow under the trunk
     dc = np.hypot((xx - spec["gx"]) / 190, (yy - spec["gy"] - 10) / 75)
     contact = (1 - smooth(dc)) * 0.45
