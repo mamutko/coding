@@ -2,10 +2,10 @@
 
 Usage:  python tools/add_bigtree.py            (run from the game folder; needs Pillow + NumPy)
 
-Raw image (tools/raw), see README "The surface", Big trees:
-  bigtree_oak.png      OpenAI gpt-image-2.6-flare (medium, 1024 x 1536, transparent background): a big old oak with
-                       a wide, sparse crown and a partly exposed root system. (bigtree_oak_alt.png: the other
-                       candidate, not used.)
+Raw images (tools/raw), see README "Assets": OpenAI gpt-image-2.6-flare (medium, 1024 x 1536, transparent
+background), each a big tree with a wide, sparse crown and a partly exposed root system:
+  bigtree_oak.png, bigtree_pine.png (Scots pine), bigtree_birch.png (silver birch), bigtree_maple.png (autumn
+  maple), bigtree_dead.png (a dead tree). bigtree_*_alt.png: the other candidate of each, not used.
 
 The picture is cut at hand-picked lines (TREES below, in the raw image's pixels):
   - the ground point (gx, gy): where the trunk meets the ground; the tree stands on its tile with it;
@@ -41,17 +41,30 @@ RAW = HERE / "raw"
 SCALE = 0.667          # the sheet keeps 1.5 x the game's size, so it stays sharp when zoomed in or on a 2x screen
 GAME_S = 0.445 / SCALE
 
+# Each tree: its raw file; the ground point (gx, gy); `cut` (about 300 raw px above the ground point: over the
+# hero's head) and `low` (the top of the root spread); the trunk band: (row, left x, right x), linearly interpolated
+# between rows; the roots' ellipse around (gx, gy + fy), radii rx, ry (the painted roots end at about 0.9 of it).
 TREES = {
     "oak": dict(file="bigtree_oak.png", gx=528, gy=1095, cut=800, low=1035,
-                # the trunk band: (row, left x, right x), linearly interpolated between rows
                 band=[(800, 440, 615), (900, 452, 610), (1000, 445, 615), (1060, 400, 650), (1095, 380, 680)],
-                # the roots' ellipse: around (gx, gy + fy), radii rx, ry (about where the painted roots end: 0.9);
-                # colour from f0 to f1 (then bumps only), bumps fading out from t0 to t1
-                rx=420, ry=150, fy=20, f0=0.22, f1=0.6, t0=0.7, t1=1.0,
-                # the cast shadow: light from the upper left (the art's light, taken as the moon's); a point h px above
-                # the ground point falls h * kx to the right and h * ky down; opacity, blur (raw px)
-                kx=0.55, ky=0.26, shadow=0.75, sblur=12),
+                rx=420, ry=150, fy=20),
+    "pine": dict(file="bigtree_pine.png", gx=540, gy=1330, cut=1030, low=1240,
+                 band=[(1030, 495, 590), (1240, 490, 600), (1300, 440, 650), (1330, 420, 670)],
+                 rx=420, ry=135, fy=40),
+    "birch": dict(file="bigtree_birch.png", gx=520, gy=1280, cut=980, low=1235,
+                  band=[(980, 488, 562), (1150, 483, 557), (1230, 440, 600), (1280, 400, 650)],
+                  rx=400, ry=130, fy=70),
+    "maple": dict(file="bigtree_maple.png", gx=520, gy=1170, cut=870, low=1120,
+                  band=[(870, 470, 575), (1000, 470, 570), (1100, 450, 590), (1170, 380, 660)],
+                  rx=430, ry=135, fy=50),
+    "dead": dict(file="bigtree_dead.png", gx=540, gy=1260, cut=960, low=1170,
+                 band=[(960, 440, 615), (1100, 445, 625), (1200, 380, 690), (1260, 340, 740)],
+                 rx=500, ry=165, fy=60),
 }
+# The same for every tree: the roots' colour fades from f0 to f1 of the ellipse (then bumps only), the bumps fade
+# out from t0 to t1; the cast shadow (light from the upper left, the art's light, taken as the moon's): a point h px
+# above the ground point falls h * kx to the right and h * ky down; its opacity and blur (raw px)
+COMMON = dict(f0=0.22, f1=0.6, t0=0.7, t1=1.0, kx=0.55, ky=0.26, shadow=0.6, sblur=26)
 
 
 def band_lr(band, y):
@@ -82,7 +95,7 @@ def smooth(t):
 
 def layers(spec):
     im = np.asarray(Image.open(RAW / spec["file"]).convert("RGBA")).astype(float)
-    im = np.pad(im, ((0, 300), (0, 560), (0, 0)))                         # room for the cast shadow (right, below)
+    im = np.pad(im, ((0, 420), (0, 820), (0, 0)))                         # room for the cast shadow (right, below)
     h, w = im.shape[:2]
     yy, xx = np.mgrid[0:h, 0:w]
     inband = np.zeros((h, w), bool)
@@ -145,6 +158,7 @@ def to_img(L):
 def main():
     parts, meta = [], {}
     for key, spec in TREES.items():
+        spec = dict(COMMON, **spec)
         ls = layers(spec)
         m = {"s": round(GAME_S, 4)}
         for name in ("roots", "trunk", "crown"):
@@ -156,14 +170,18 @@ def main():
             parts.append((key, name, img.crop((x0, y0, x1, y1))))
             m[name] = [0, 0, int(x1 - x0), int(y1 - y0), int(x0 - round(spec["gx"] * SCALE)), int(y0 - round(spec["gy"] * SCALE))]
         meta[key] = m
-    # pack side by side
-    W = sum(p[2].width for p in parts) + 2 * (len(parts) - 1)
-    H = max(p[2].height for p in parts)
+    # pack: one row per tree, its three layers side by side
+    rows = [[p for p in parts if p[0] == k] for k in TREES]
+    W = max(sum(p[2].width + 2 for p in r) for r in rows)
+    H = sum(max(p[2].height for p in r) + 2 for r in rows)
     sheet = Image.new("RGBA", (W, H), (0, 0, 0, 0))
-    x = 0
-    for key, name, img in parts:
-        sheet.paste(img, (x, 0)); meta[key][name][0] = x; x += img.width + 2
-    sheet.save(GAME / "assets" / "bigtrees.webp", "WEBP", quality=88, method=6)
+    y = 0
+    for r in rows:
+        x = 0
+        for key, name, img in r:
+            sheet.paste(img, (x, y)); meta[key][name][0] = x; meta[key][name][1] = y; x += img.width + 2
+        y += max(p[2].height for p in r) + 2
+    sheet.save(GAME / "assets" / "bigtrees.webp", "WEBP", quality=80, method=6)
     mj = json.loads((GAME / "assets" / "meta.json").read_text()); mj["bigtrees"] = meta
     (GAME / "assets" / "meta.json").write_text(json.dumps(mj, indent=1))
     html = (GAME / "index.html").read_text()

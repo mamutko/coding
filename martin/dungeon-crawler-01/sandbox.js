@@ -45,7 +45,7 @@
     <p>The current game (v${VERSION}) with a strong test hero (never saved), dropped straight into a situation. Sound starts when you pick one. A bar at the top shows what the scenario is about.</p>
     <p id="sbStatus" class="status">Loading the game…</p>
     <h2>Surface</h2>
-    <button class="sc" id="sbTrees"><b>Big trees</b>The surface with the new big oak (three layers: roots on the ground, the trunk sorted with you, the crown always on top and never fading). Three oaks stand around you on the lawn before the crypt, and half the forest's trees are big oaks. Walk around and under them: you show through the sparse crowns. <b>Layers</b> in the bar tints the three layers (roots red, trunk blue, crown green).</button>
+    <button class="sc" id="sbTrees"><b>Big trees</b>The surface with one of each of the five big trees (oak, Scots pine, silver birch, autumn maple, dead tree) standing around you on the lawn before the crypt; the forest beyond is the game's own. Each is three layers: roots and a soft moonlight shadow on the ground, the trunk sorted with you, the crown always on top and never fading. Walk around and under them: you show through the sparse crowns. <b>Layers</b> in the bar tints the three layers (roots red, trunk blue, crown green).</button>
     <button class="sc" id="sbSurface"><b>The surface</b>A new level-1 hero at depth 0, a few steps from the crypt's entrance. Walk the endless woods around it (the land is made as you go), then click the dark doorway to go down to depth 1.</button>
     <h2>Fire bombs</h2>
     <button class="sc" id="sbFirePack"><b>Fire bombs: pack fight</b>Depth 3, 15 fire bombs equipped, four skeletons and three ghouls rushing in. Right-click to throw at a monster or a spot (up to 7 tiles). Key 1 is your longsword, 2 the bombs. Mind the flames: they burn you too.</button>
@@ -105,7 +105,7 @@
   const isTest = () => G && G.hero && G.hero.saveId === 'sandbox';
   const realSave = saveHero, realDeath = showDeath;
   saveHero = () => isTest() ? false : realSave();
-  showDeath = () => { if (!isTest()) return realDeath(); SURF.bigTrees = 0; SURF.bigTreeAt = null; G.running = false; pick.hidden = false; bar.hidden = true; };
+  showDeath = () => { if (!isTest()) return realDeath(); SURF.bigTreeAt = null; G.running = false; pick.hidden = false; bar.hidden = true; };
   const floorAt = (x, y) => G.map.t[y * G.map.w + x] === T_FLOOR && !G.objects.some(o => o.x === x && o.y === y && !o.walk);
   function start(m = 'music') {
     STORY = m === 'dialogue' ? STORIES.demo : (typeof STORIES !== 'undefined' && STORIES.story) || STORY_EMPTY; $('sbStory').hidden = m !== 'dialogue';
@@ -165,11 +165,11 @@
   $('sbSplash').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; SOUND_LOOK.splash = +b.dataset.splash; soundButtons(); sfx('plunge'); b.blur(); });
   function lookButtons() { $('sbLooks').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.look === LOOK.fire)); }
   $('sbLooks').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; setLook('fire', +b.dataset.look); lookButtons(); b.blur(); });
-  // Big trees: the surface with big oaks (SURF.bigTrees, SURF.bigTreeAt: off again when leaving the scenario)
-  const bigOff = () => { SURF.bigTrees = 0; SURF.bigTreeAt = null; BIGTREE_LAYERS = false; };
-  $('sbTrees').onclick = async () => {
-    $('sbTrees').disabled = true; await loadBigTrees(); $('sbTrees').disabled = false;
-    SURF.bigTrees = 0.5; SURF.bigTreeAt = [[12, 23], [18, 24], [21, 19]];   // around the hero's start (15, 20), in world tiles
+  // Big trees: the surface with one big tree of each kind around the hero's start (SURF.bigTreeAt, off again when
+  // leaving the scenario)
+  const bigOff = () => { SURF.bigTreeAt = null; BIGTREE_LAYERS = false; };
+  $('sbTrees').onclick = () => {
+    SURF.bigTreeAt = [[12, 23, 'oak'], [18, 25, 'pine'], [21, 19, 'maple'], [8, 19, 'birch'], [24, 25, 'dead']];   // world tiles; the hero starts at (15, 20)
     newGame(null); G.hero.name = 'Tester'; G.hero.saveId = 'sandbox'; refreshUI();
     start('trees'); $('sbLayers').classList.toggle('on', BIGTREE_LAYERS); log('Test: big oaks on the surface.', '#c9a45c');
   };
@@ -376,10 +376,11 @@
       return;
     }
     if (mode === 'trees') {
-      const h = G.hero, oaks = G.objects.filter(o => o.type === 'bigtree');
+      const h = G.hero, oaks = G.objects.filter(o => o.type === 'bigtree'), kinds = {};
+      for (const o of oaks) kinds[o.look] = (kinds[o.look] || 0) + 1;
       let near = null; for (const o of oaks) { const d = Math.hypot(o.x + 0.5 - h.x, o.y + 0.5 - h.y); if (!near || d < near[1]) near = [o, d]; }
       const side = near ? (h.x + h.y < near[0].x + near[0].y + 1 ? 'behind its trunk' : 'in front of its trunk') : '';
-      $('sbInfo').innerHTML = `<span class="mood">Big trees</span> · ${oaks.length} big oaks in the window` + (near ? ` · nearest ${near[1].toFixed(1)} tiles, you are ${side}` : '')
+      $('sbInfo').innerHTML = `<span class="mood">Big trees</span> · ${oaks.length} trees in the window (${Object.entries(kinds).map(([k, n]) => n + ' ' + k).join(', ')})` + (near ? ` · nearest: ${near[0].look}, ${near[1].toFixed(1)} tiles, you are ${side}` : '')
         + (BIGTREE_LAYERS ? ' · layers tinted' : '') + (PERF.fps ? ` · ${PERF.fps} fps` : '');
       return;
     }
