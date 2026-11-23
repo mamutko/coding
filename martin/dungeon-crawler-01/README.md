@@ -1438,11 +1438,15 @@ the art: `assets/dragon.webp` and its layout `DRAGON_ART`, written into `index.h
   upright piece rotated onto its two joints on screen and stretched to their distance, so it foreshortens), the head as a
   sprite per direction of its facing, mouth open while the jaw is over half open, the neck and tail nodes as spheres
   and bands filled with the scale texture (scaled with each node; the bands' turned along the spine; between two
-  neck or tail nodes 2 more beads are drawn, `DG_RIBS` 3 per gap, interpolated in place, height and size, sorted by
-  depth, for a ribbed look: drawing only, the nodes that are hit, collide and sweep stay 19) and shaded like
+  neck or tail nodes one more bead is drawn, `DG_RIBS` 2 per gap, halfway in place, height and size, for a ribbed
+  look: drawing only, the nodes that are hit, collide and sweep stay 19; `dgBeads`). Every bead (not near the head or
+  the tail tip) has a bone spike. Along the neck and along the tail each bead lies under its neighbour on the body's
+  side, whatever their depth order: each node's drawable draws its beads by depth, and a bead drawn after that
+  neighbour redraws the neighbour (with its spike) over itself, clipped to its own circle, so where the chain turns
+  and the depth order flips no bead shows its whole rim and shaded like
   the painted leg bones (`dgSheen`, `DG_SHEEN`, `DG_SHINE`): the lit upper-left side's scales glint (white in
   `soft-light`, which lifts the light scale tops more than the dark gaps, plus a faint cool `screen` shine), and the
-  far side and the rim fall into shadow (up to 60 % black), a bone spike on each, the tail
+  far side and the rim fall into shadow (up to 60 % black), the tail
   club at the tip, and each of the 4 panels of each wing as the flat painted wing mapped onto it triangle by triangle
   (folded at rest, spread and flapped by its attacks). A hit or the hover brightens a part (the body and the legs
 together); dying, the body and the legs darken (`dgSprite` darkens a piece on a small canvas of its own, so only

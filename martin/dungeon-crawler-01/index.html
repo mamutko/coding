@@ -417,7 +417,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 106;
+const VERSION = 107;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1431,26 +1431,44 @@ function dgPiece(m, r, x, y, w, h, q, flip) {   // an atlas piece, flashed white
   const fl = dgFlash(m, q); if (fl > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = fl; ctx.drawImage(IMG.dragon, r[0], r[1], r[2], r[3], 0, 0, w, h); }
   ctx.restore();
 }
-// Between two neck or tail nodes the drawing adds DG_RIBS − 1 more beads (drawing only: the nodes that are hit, collide
-// and sweep stay as they are), so the neck and tail look ribbed.
-const DG_RIBS = 3;
+// The neck and tail's beads (drawing only: the 19 nodes that are hit, collide and sweep stay as they are): one at each
+// neck or tail node and DG_RIBS − 1 more in each gap between two of them, so they look ribbed; each with a bone spike
+// (not near the head or the tail tip). Along each chain every bead lies under its neighbour on the body's side
+// (`over`), whatever their depth order: a bead drawn after that neighbour redraws the neighbour over itself, clipped to
+// its own circle, so it never shows its whole rim in the middle of the neck or tail where the depth order turns.
+const DG_RIBS = 2;
+function dgBeads(m) {
+  if (m.beadsT === G.time && m.beads) return m.beads;
+  const n = m.parts, out = [], spiky = i => i >= 2 && i < n.length - 3;
+  const bead = (q, p, t, i) => ({ x: dgLerp(q.x, p.x, t), y: dgLerp(q.y, p.y, t), z: dgLerp(q.z, p.z, t), R: dgLerp(q.R, p.R, t), q, i, spike: spiky(i) && (t === 0 || spiky(i - 1)) });
+  const chain = (from, to, step) => {   // nodes from .. to; step +1: toward the body is up the list, -1: down
+    const list = [];
+    for (let i = from; i <= to; i++) {
+      if (i > from || (step < 0 && i - 1 > DG_HIPS)) for (let j = 1; j < DG_RIBS; j++) list.push(bead(n[i], n[i - 1], 1 - j / DG_RIBS, i));
+      if (i < n.length - 1) list.push(bead(n[i], n[i], 0, i));
+    }
+    list.forEach((b, k) => { b.over = list[k + step] || null; out.push(b); });
+  };
+  chain(1, DG_SH - 1, 1); chain(DG_HIPS + 1, n.length - 1, -1);
+  m.beads = out; m.beadsT = G.time; return out;
+}
+function dgBead(m, b) {
+  const [x, y] = dgS3(b.x, b.y, b.z);
+  dgBlob(m, x, y, b.R, b.q);
+  if (b.spike) {   // a bone spike on top, leaning toward the tail
+    const f = dgDir(m, b.i), back = (f[0] - f[1]) > 0, A = DRAGON_ART.spike, hh = Math.max(10, b.R * 0.95), w = A.w / A.h * hh;
+    dgPiece(m, A.rect, back ? x + w * 0.45 : x - w * 0.55, y - b.R * 0.72 - hh, w, hh, null, back);
+  }
+}
 function dgNode(m, i) {
-  const n = m.parts, q = n[i], p = n[i - 1];
+  const n = m.parts, q = n[i];
   if (i === 0) return dgHead(m, q);
-  const last = i === n.length - 1;
-  dgBand(m, q, p);
-  const beads = last ? [] : [[q, 1]];
-  if (i >= 2 && (i - 1 < DG_SH || i - 1 > DG_HIPS)) for (let j = 1; j < DG_RIBS; j++) {   // both ends neck or tail
-    const t = j / DG_RIBS; beads.push([{ x: dgLerp(q.x, p.x, t), y: dgLerp(q.y, p.y, t), z: dgLerp(q.z, p.z, t), R: dgLerp(q.R, p.R, t), dk: q.dk, flash: q.flash }, 0]);
+  dgBand(m, q, n[i - 1]);
+  for (const b of dgBeads(m).filter(b => b.i === i).sort((a, c) => a.x + a.y - c.x - c.y)) {
+    dgBead(m, b);
+    if (b.over) { const [x, y] = dgS3(b.x, b.y, b.z); ctx.save(); ctx.beginPath(); ctx.arc(x, y, b.R, 0, 7); ctx.clip(); dgBead(m, b.over); ctx.restore(); }
   }
-  beads.sort((a, b) => a[0].x + a[0].y - b[0].x - b[0].y);
-  for (const [b, own] of beads) { const [x, y] = dgS3(b.x, b.y, b.z); dgBlob(m, x, y, b.R, own ? q : b); }
-  if (last) return dgClub(m, q, p);
-  const [x, y] = dgS3(q.x, q.y, q.z);
-  if (i >= 2 && i < n.length - 3) {   // a bone spike on top, leaning toward the tail
-    const f = dgDir(m, i), back = (f[0] - f[1]) > 0, A = DRAGON_ART.spike, hh = Math.max(10, q.R * 0.95), w = A.w / A.h * hh;
-    dgPiece(m, A.rect, back ? x + w * 0.45 : x - w * 0.55, y - q.R * 0.72 - hh, w, hh, null, back);
-  }
+  if (i === n.length - 1) dgClub(m, q, n[i - 1]);
 }
 function dgClub(m, q, p) {   // the tail's bony club, pointing along the tail (over the last band and beads)
   const [x, y] = dgS3(q.x, q.y, q.z), [px, py] = dgS3(p.x, p.y, p.z), a = Math.atan2(y - py, x - px), A = DRAGON_ART.club, w = 58 * DRAGON.size, hh = A.h / A.w * w;
