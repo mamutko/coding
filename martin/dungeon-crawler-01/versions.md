@@ -9,9 +9,9 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v102–v104 — the dragon on real legs, turning in 32 directions (2026-11-23)
+## v102–v105 — the dragon on real legs, turning in 32 directions (2026-11-23)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 104`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 105`)*
 
 - The dragon's body is a still painted sprite in **32 directions** (17 painted, 15 mirrored; was 8 with a walk cycle), with its lower legs
   cut off; the torso lies along the heading snapped to those directions, so the neck and tail always join it where
@@ -19,8 +19,8 @@ Commit: *(the next version records it; until then, the latest commit that set `V
 - **Four IK legs** of painted bones and feet: each foot stays planted on the floor and steps (diagonal pairs taking
   turns) when it falls behind, so the dragon no longer slides over its feet.
 - **One shade:** every body view, leg bone and foot is brought to the same colour when the atlas is built, so the
-  dragon no longer changes shade as it turns; the neck and tail use a new scale texture painted to match the body
-  (it was a mirrored patch of the old walk painting), with softer shading so they read as one neck and one tail.
+  dragon no longer changes shade as it turns; the neck and tail keep their mirrored scale texture (it makes each node
+  look rounded) and get a sheen like the painted leg bones': the lit scales glint, the far side falls into shadow.
 - A smaller dragon atlas (444 KB, was 883 KB).
 
 ## v101 — a guardian's chests scenario (2026-11-22)

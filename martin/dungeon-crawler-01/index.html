@@ -417,7 +417,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 104;
+const VERSION = 105;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1109,7 +1109,7 @@ const dirOf = (dx, dy) => { const o = { dir: 0 }; setDir(o, dx, dy); return o.di
 const dgLerp = (a, b, t) => a + (b - a) * t, dgEase = u => u * u * (3 - 2 * u);
 const dgWrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
 // dragon-art:start
-const DRAGON_ART = {"body":{"w":279,"h":189,"anchor":[139.2,156.7],"dirs":32,"rects":[[1296,330,279,189],[1577,330,279,189],[0,523,279,189],[281,523,279,189],[562,523,279,189],[843,523,279,189],[1124,523,279,189],[1405,523,279,189],[1686,523,279,189],[0,714,279,189],[281,714,279,189],[562,714,279,189],[843,714,279,189],[1124,714,279,189],[1405,714,279,189],[1686,714,279,189],[0,905,279,189]]},"limbs":[{"name":"front upper","len":44,"top":[18.7,19.9],"bottom":[18.7,63.9],"rect":[400,905,39,79]},{"name":"front lower","len":42,"top":[14.0,13.4],"bottom":[14.0,55.4],"rect":[495,905,27,69]},{"name":"hind upper","len":44,"top":[21.9,22.0],"bottom":[21.9,66.0],"rect":[353,905,45,82]},{"name":"hind lower","len":42,"top":[13.9,12.9],"bottom":[13.9,54.9],"rect":[524,905,27,69]}],"foot":{"w":51,"h":41,"anchor":[23.4,26.4],"ankle":16,"rects":[[553,905,51,41],[606,905,51,41],[659,905,51,41],[712,905,51,41],[765,905,51,41],[818,905,51,41],[871,905,51,41],[924,905,51,41]]},"head":{"w":160,"h":191,"z":72,"anchor":[[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1]],"closed":[[676,0,160,191],[838,0,160,191],[1000,0,160,191],[1162,0,160,191],[1324,0,160,191],[1486,0,160,191],[1648,0,160,191],[1810,0,160,191]],"open":[[0,330,160,191],[162,330,160,191],[324,330,160,191],[486,330,160,191],[648,330,160,191],[810,330,160,191],[972,330,160,191],[1134,330,160,191]]},"wing":{"points":[[13.3,70.3],[146.3,38.7],[273.0,13.3],[444.0,102.0],[380.7,203.3],[266.7,292.0],[70.3,323.7]],"panels":[[0,1,2,3],[2,3,4],[2,4,5],[2,5,6,0]],"rect":[0,0,464,328]},"spike":{"w":52,"h":70,"rect":[441,905,52,70]},"club":{"w":70,"h":90,"note":"points left; the tail joins at the right edge","rect":[281,905,70,90]},"scales":{"w":208,"h":208,"res":2,"rect":[466,0,208,208]},"tone":{"mean":[69.0,67.3,67.6],"sd":[27.4,26.1,25.7]}};
+const DRAGON_ART = {"body":{"w":279,"h":189,"anchor":[139.2,156.7],"dirs":32,"rects":[[1134,330,279,189],[1415,330,279,189],[1696,330,279,189],[0,523,279,189],[281,523,279,189],[562,523,279,189],[843,523,279,189],[1124,523,279,189],[1405,523,279,189],[1686,523,279,189],[0,714,279,189],[281,714,279,189],[562,714,279,189],[843,714,279,189],[1124,714,279,189],[1405,714,279,189],[1686,714,279,189]]},"limbs":[{"name":"front upper","len":44,"top":[18.7,19.9],"bottom":[18.7,63.9],"rect":[47,905,39,79]},{"name":"front lower","len":42,"top":[14.0,13.4],"bottom":[14.0,55.4],"rect":[240,905,27,69]},{"name":"hind upper","len":44,"top":[21.9,22.0],"bottom":[21.9,66.0],"rect":[0,905,45,82]},{"name":"hind lower","len":42,"top":[13.9,12.9],"bottom":[13.9,54.9],"rect":[269,905,27,69]}],"foot":{"w":51,"h":41,"anchor":[23.4,26.4],"ankle":16,"rects":[[298,905,51,41],[351,905,51,41],[404,905,51,41],[457,905,51,41],[510,905,51,41],[563,905,51,41],[616,905,51,41],[669,905,51,41]]},"head":{"w":160,"h":191,"z":72,"anchor":[[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1],[80.0,174.1]],"closed":[[466,0,160,191],[628,0,160,191],[790,0,160,191],[952,0,160,191],[1114,0,160,191],[1276,0,160,191],[1438,0,160,191],[1600,0,160,191]],"open":[[1762,0,160,191],[0,330,160,191],[162,330,160,191],[324,330,160,191],[486,330,160,191],[648,330,160,191],[810,330,160,191],[972,330,160,191]]},"wing":{"points":[[13.3,70.3],[146.3,38.7],[273.0,13.3],[444.0,102.0],[380.7,203.3],[266.7,292.0],[70.3,323.7]],"panels":[[0,1,2,3],[2,3,4],[2,4,5],[2,5,6,0]],"rect":[0,0,464,328]},"spike":{"w":52,"h":70,"rect":[186,905,52,70]},"club":{"w":70,"h":90,"note":"points left; the tail joins at the right edge","rect":[1967,714,70,90]},"scales":{"w":96,"h":72,"rect":[88,905,96,72]},"tone":{"mean":[69.0,67.3,67.6],"sd":[27.4,26.1,25.7]}};
 // dragon-art:end
 let dragonArt = null;   // loading: a promise
 function loadDragonArt() {
@@ -1378,10 +1378,8 @@ function dragonLoot(m, rd) {
 }
 // ---- drawing (the painted crypt dragon: art/characters/dragon, assets/dragon.webp)
 let DG_SCALES = null;
-// the neck and tail's scales: a texture painted flat, tiling, stored at DRAGON_ART.scales.res × the game's scale; laid
-// along the spine (the scales' free edges toward the tail), as big as the body painting's at the torso and a little
-// smaller toward the head and the tail tip
-const dgScaleM = (x, y, ang, R) => new DOMMatrix().translate(x, y).rotate(ang * 180 / Math.PI + 90).scale(DRAGON.size / DRAGON_ART.scales.res * (0.7 + 0.3 * Math.min(1, R / 49)));
+// the neck and tail's scales: a flank patch of the old walk painting mirrored 2 × 2, tiling (its mirror symmetry
+// makes each node look rounded); scaled with each node
 function dgScalePat() {
   if (!DG_SCALES) { const r = DRAGON_ART.scales.rect, c = document.createElement('canvas'); c.width = r[2]; c.height = r[3]; c.getContext('2d').drawImage(IMG.dragon, r[0], r[1], r[2], r[3], 0, 0, r[2], r[3]); DG_SCALES = ctx.createPattern(c, 'repeat'); }
   return DG_SCALES;
@@ -1392,25 +1390,41 @@ function dgOver(m, q, path) {   // a hit flash and the darkening of death over a
   const dk = q ? q.dk || 0 : 0; if (dk > 0) { path(); ctx.fillStyle = `rgba(10,4,3,${dk * 0.45})`; ctx.fill(); }
 }
 function dgS3(x, y, z) { const [X, Y] = iso(x, y); return [X, Y - z]; }
-function dgBlob(m, x, y, R, q, ang = 0) {
-  const p = dgScalePat(); p.setTransform(dgScaleM(x, y, ang, R));
+// The neck and tail's shading, like the painted leg bones': the lit side's scales glint (white in 'soft-light', which
+// brightens the light scale tops more than the dark gaps), and the far side and the rim fall into shadow.
+function dgSheen(path, g, h) {   // g: the glint ('soft-light'); h: a faint cool shine over it ('screen')
+  ctx.save(); path(); ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = g; ctx.fill();
+  ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = h; ctx.fill(); ctx.restore();
+}
+const dgShine = (g, stops) => { for (const [t, a] of stops) g.addColorStop(t, `rgba(150,170,200,${a * DG_SHINE})`); return g; };
+function dgBlob(m, x, y, R, q) {
+  const p = dgScalePat(); p.setTransform(new DOMMatrix().translate(x, y).scale(R / 40));
   const path = () => { ctx.beginPath(); ctx.arc(x, y, R, 0, 7); };
   path(); ctx.fillStyle = p; ctx.fill();
-  const g = ctx.createRadialGradient(x - R * 0.35, y - R * 0.45, R * 0.1, x, y, R * 1.05);
-  g.addColorStop(0, 'rgba(225,230,240,0.14)'); g.addColorStop(0.6, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.38)');   // a soft rim, so the nodes merge
+  const s = ctx.createRadialGradient(x - R * 0.3, y - R * 0.35, 0, x - R * 0.3, y - R * 0.35, R * 0.95);
+  s.addColorStop(0, `rgba(255,255,255,${DG_SHEEN})`); s.addColorStop(0.5, `rgba(255,255,255,${DG_SHEEN * 0.35})`); s.addColorStop(1, 'rgba(255,255,255,0)');
+  dgSheen(path, s, dgShine(ctx.createRadialGradient(x - R * 0.3, y - R * 0.35, 0, x - R * 0.3, y - R * 0.35, R * 0.9), [[0, 1], [0.5, 0.4], [1, 0]]));
+  const g = ctx.createRadialGradient(x - R * 0.2, y - R * 0.25, R * 0.3, x, y, R * 1.05);
+  g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(0.6, 'rgba(0,0,0,0.12)'); g.addColorStop(1, 'rgba(0,0,0,0.6)');
   path(); ctx.fillStyle = g; ctx.fill(); dgOver(m, q, path);
 }
 function dgBand(m, a, b) {   // the body between two nodes: a quad along their tangents
   const [ax, ay] = dgS3(a.x, a.y, a.z), [bx, by] = dgS3(b.x, b.y, b.z), dx = bx - ax, dy = by - ay, l = Math.hypot(dx, dy);
   if (l < 1) return;
-  const nx = -dy / l, ny = dx / l, ra = a.R * 0.93, rb = b.R * 0.93, up = ny < 0;
+  let nx = -dy / l, ny = dx / l; if (ny > 0) { nx = -nx; ny = -ny; }   // n: toward the lit (upper) side
+  const ra = a.R * 0.93, rb = b.R * 0.93;
   const path = () => { ctx.beginPath(); ctx.moveTo(ax + nx * ra, ay + ny * ra); ctx.lineTo(bx + nx * rb, by + ny * rb); ctx.lineTo(bx - nx * rb, by - ny * rb); ctx.lineTo(ax - nx * ra, ay - ny * ra); ctx.closePath(); };
-  const p = dgScalePat(); p.setTransform(dgScaleM(ax, ay, Math.atan2(dy, dx), a.R));
+  const p = dgScalePat(); p.setTransform(new DOMMatrix().translate(ax, ay).rotate(Math.atan2(dy, dx) * 180 / Math.PI).scale(a.R / 40));
   path(); ctx.fillStyle = p; ctx.fill();
-  const g = ctx.createLinearGradient(ax + nx * ra, ay + ny * ra, ax - nx * ra, ay - ny * ra);
-  g.addColorStop(0, up ? 'rgba(225,230,240,0.14)' : 'rgba(0,0,0,0.45)'); g.addColorStop(0.45, 'rgba(0,0,0,0.05)'); g.addColorStop(1, up ? 'rgba(0,0,0,0.45)' : 'rgba(225,230,240,0.14)');
+  const x0 = ax + nx * ra, y0 = ay + ny * ra, x1 = ax - nx * ra, y1 = ay - ny * ra;   // across it, from the lit edge to the dark one
+  const s = ctx.createLinearGradient(x0, y0, x1, y1);
+  s.addColorStop(0, `rgba(255,255,255,${DG_SHEEN * 0.2})`); s.addColorStop(0.3, `rgba(255,255,255,${DG_SHEEN})`); s.addColorStop(0.65, `rgba(255,255,255,${DG_SHEEN * 0.1})`); s.addColorStop(1, 'rgba(255,255,255,0)');
+  dgSheen(path, s, dgShine(ctx.createLinearGradient(x0, y0, x1, y1), [[0, 0.2], [0.3, 1], [0.65, 0.1], [1, 0]]));
+  const g = ctx.createLinearGradient(x0, y0, x1, y1);
+  g.addColorStop(0, 'rgba(0,0,0,0.3)'); g.addColorStop(0.2, 'rgba(0,0,0,0)'); g.addColorStop(0.55, 'rgba(0,0,0,0.08)'); g.addColorStop(1, 'rgba(0,0,0,0.6)');
   path(); ctx.fillStyle = g; ctx.fill(); dgOver(m, a, path);
 }
+const DG_SHEEN = 1, DG_SHINE = 0.07;   // how strongly the lit scales glint ('soft-light'), and the cool shine on them
 function dgPiece(m, r, x, y, w, h, q, flip) {   // an atlas piece, flashed white when hit
   ctx.save(); ctx.translate(x, y); if (flip) ctx.scale(-1, 1);
   ctx.drawImage(IMG.dragon, r[0], r[1], r[2], r[3], 0, 0, w, h);
@@ -1422,8 +1436,8 @@ function dgNode(m, i) {
   if (i === 0) return dgHead(m, q);
   if (i === n.length - 1) return dgClub(m, q, n[i - 1]);
   dgBand(m, q, n[i - 1]);
-  const [x, y] = dgS3(q.x, q.y, q.z), [px, py] = dgS3(n[i - 1].x, n[i - 1].y, n[i - 1].z);
-  dgBlob(m, x, y, q.R, q, Math.atan2(py - y, px - x));
+  const [x, y] = dgS3(q.x, q.y, q.z);
+  dgBlob(m, x, y, q.R, q);
   if (i >= 2 && i < n.length - 3) {   // a bone spike on top, leaning toward the tail
     const f = dgDir(m, i), back = (f[0] - f[1]) > 0, A = DRAGON_ART.spike, hh = Math.max(10, q.R * 0.95), w = A.w / A.h * hh;
     dgPiece(m, A.rect, back ? x + w * 0.45 : x - w * 0.55, y - q.R * 0.72 - hh, w, hh, null, back);

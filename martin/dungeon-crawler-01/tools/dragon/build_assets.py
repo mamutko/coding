@@ -16,16 +16,16 @@ What goes in (all at the game's own scale, 1 atlas px = 1 screen px at zoom 1 an
 - wing: paint/wing.png (the right wing, flat), cut to its guide's bone points plus a margin, at 1/3; `points` are the
   bone points (root, elbow, wrist, 3 finger tips, trailing root) inside that image, for mapping it onto the panels.
 - spike, club: the two pieces of paint/bits.png (the dorsal spike, the tail club pointing left).
-- scales: paint/scales.tile.png (the body's scales painted flat and made to tile, tools/dragon/scale_tile.py), 8 scales
-  across at 13 px each (as big as the body painting's), stored at 2x (`res`): the neck and tail's texture.
-- tone: the body views, the leg bones, the feet and the scales are brought to one colour: the hide's pixels (luminance
+- scales: a patch of the old walk painting's flank (SW, frame 0), mirrored 2 x 2 so it tiles (the symmetry makes each
+  neck and tail node look rounded): their texture, left as painted.
+- tone: the body views, the leg bones and the feet are brought to one colour: the hide's pixels (luminance
   under 130; the pale bone of spikes and claws, over 180, is left as it is, blended between) get the per-channel mean
   and spread of all the body views' hide together (two passes, since the hide pixels change), so the body keeps its
-  shade as it turns and the parts match it; the scales, painted flat, get the mean and 0.6 of the spread.
+  shade as it turns and the parts match it.
 """
 import json, os, re
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.join(HERE, '..', '..')
@@ -51,7 +51,6 @@ def union_box(ims, pad=4, w=CW, h=CH):
             min(w, max(b[2] for b in boxes) + pad), min(h, max(b[3] for b in boxes) + pad))
 
 
-SCALES = {'n': 8, 'px': 13, 'sd': 0.6}
 HIDE = (130, 180)   # luminance: below the first, scaled hide; above the second, bone (spikes, claws), left alone
 
 
@@ -143,18 +142,18 @@ def main():
     meta['spike'] = {'w': spike.width, 'h': spike.height}
     meta['club'] = {'w': club.width, 'h': club.height, 'note': 'points left; the tail joins at the right edge'}
 
-    # the scales: the flat painted texture, tiling (tools/dragon/scale_tile.py), at 2x the game's scale: SCALES.n scales
-    # across of SCALES.px each, as big as the body painting's
-    t = Image.open(os.path.join(ART, 'paint', 'scales.tile.png')).convert('RGBA')
-    tile = t.resize((SCALES['n'] * SCALES['px'] * 2,) * 2, Image.LANCZOS)
-    pieces.append((('scales',), tile)); meta['scales'] = {'w': tile.width, 'h': tile.height, 'res': 2}
+    # the scales: a flank patch of the old walk painting (SW, frame 0), mirrored 2 x 2 so it tiles: the neck and tail's
+    # texture (its mirror symmetry makes each node look rounded)
+    p = Image.open(os.path.join(ART, 'paint', 'attempts', 'walk', 'SW.png')).convert('RGBA').crop((192, 176, 256, 224))
+    tile = Image.new('RGBA', (p.width * 2, p.height * 2))
+    tile.paste(p, (0, 0)); tile.paste(ImageOps.mirror(p), (p.width, 0)); tile.paste(ImageOps.flip(p), (0, p.height)); tile.paste(ImageOps.flip(ImageOps.mirror(p)), (p.width, p.height))
+    tile = scaled(tile, 0.75)
+    pieces.append((('scales',), tile)); meta['scales'] = {'w': tile.width, 'h': tile.height}
 
-    # one shade: every body view, leg bone, foot and the neck and tail's scales to the body views' pooled statistics
+    # one shade: every body view, leg bone and foot to the body views' pooled statistics
     pool = np.concatenate([hide_px(im) for key, im in pieces if key[0] == 'body'])
     mu, sd = pool.mean(0), pool.std(0)
     pieces = [(key, tone(tone(im, mu, sd), mu, sd) if key[0] in ('body', 'limb', 'foot') else im) for key, im in pieces]
-    # the scales are painted flat (the game shades the neck and tail), so they get the mean but only SCALES.sd of the spread
-    pieces = [(key, tone(tone(im, mu, sd * SCALES['sd']), mu, sd * SCALES['sd']) if key[0] == 'scales' else im) for key, im in pieces]
     meta['tone'] = {'mean': [round(float(v), 1) for v in mu], 'sd': [round(float(v), 1) for v in sd]}
 
     # pack: shelves, tallest first

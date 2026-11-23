@@ -66,17 +66,6 @@
       ],
       "contents": "left: a dorsal bone spike; right: the tail club pointing left"
     },
-    "scales": {
-      "file": "paint/scales.png",
-      "prompt": "paint/scales.prompt.txt",
-      "inputs": [
-        "a flank crop of paint/body16.png (W view)"
-      ],
-      "model": "gpt-image-2.6-flare edit, medium, 1024x1024",
-      "result": "good: flat, even; made to tile by tools/dragon/scale_tile.py (paint/scales.tile.png)",
-      "spend_usd": 0.043,
-      "replaces": "the 2 x 2 mirrored flank patch of the old walk painting, which read bluish and kaleidoscopic next to the body"
-    },
     "walk_superseded": {
       "why": "the painted legs barely strode (the image model under-follows leg positions), so the body slid over its feet; and 8 directions turned in visible 45-degree jumps",
       "was": {
@@ -165,7 +154,17 @@
         "cut": "paint/body32.cut.png: python tools/dragon/cut_body.py body32"
       }
     },
-    "tone": "tools/dragon/build_assets.py brings every body view, leg bone and foot to the body views' pooled hide colour statistics (the second body painting was ~10 % brighter), and the scales to their mean"
+    "tone": "tools/dragon/build_assets.py brings every body view, leg bone and foot to the body views' pooled hide colour statistics (the second body painting was ~10 % brighter); the neck and tail's mirrored scale patch is left as painted and shaded in the game like the leg bones",
+    "scales_attempt": {
+      "file": "paint/attempts/scales.png",
+      "prompt": "paint/attempts/scales.prompt.txt",
+      "inputs": [
+        "a flank crop of paint/body16.png (W view)"
+      ],
+      "model": "gpt-image-2.6-flare edit, medium, 1024x1024",
+      "result": "rejected: too clean and flat on the neck and tail nodes; the mirrored patch makes them look rounded, so it stays",
+      "spend_usd": 0.043
+    }
   },
   "decisions": {
     "where": "sandbox only",
