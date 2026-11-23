@@ -917,7 +917,7 @@ gets its own damage and crit roll, then its own armor reduction.
 
 **Ranged (bows).** A right click fires an arrow at the hovered monster, or toward the cursor. The hero first
 **draws the bow**, standing still, for `BOW_DRAW.base + BOW_DRAW.perCd × (cooldown − 0.6)` s (0.15 s for a Short
-Bow, 0.24 s for a War Bow, 0.255 s for a Heavy Crossbow; `drawTime`). The draw is part of the shot's cooldown, so the rate of fire is
+Bow, 0.24 s for a War Bow, 0.33 s for a Heavy Crossbow; `drawTime`). The draw is part of the shot's cooldown, so the rate of fire is
 unchanged. The arrow is aimed when it is loosed (`releaseArrow`): at the target monster where it is then, or at
 the clicked spot. The bow sound plays at release. A walk clicked meanwhile starts after the draw. Kiting (shoot,
 run, shoot again) stays possible; each shot just costs a little ground. Arrows travel
@@ -1071,7 +1071,7 @@ sources (`LOOT_PLUS`, below). Every type has its own icon.
 | Bone Bow | bow | 14–25, 0.9 s | 8 |
 | Composite Bow | bow | 18–31, 0.85 s | 11 |
 | War Bow | bow | 25–42, 0.9 s | 15 |
-| Heavy Crossbow | bow | 34–56, 0.95 s | 15 |
+| Heavy Crossbow | bow | 34–56, 1.2 s | 15 |
 | Gilded Arbalest | bow | 62–104, 1.4 s | 18 |
 | Leather Cap | helm | armor 3 | 1 |
 | Iron Helm | helm | armor 7 | 4 |
@@ -1093,11 +1093,13 @@ sources (`LOOT_PLUS`, below). Every type has its own icon.
 | Silver Ring, Ruby Ring, Grave Ring | ring | none | 1 |
 | Sapphire Amulet, Blood Amulet, Bone Talisman | amulet | none | 1 |
 
-**Crossbows.** The **Heavy Crossbow** (`crossbow`, depth 15) outdoes the War Bow (about 47 damage per second
-against 37), and the **Gilded Arbalest** (`arbalest`, depth 18) is the best ranged weapon: a long 1.4 s reload but
-62–104 a bolt (about 59 per second). Both are the `bow` kind in every way: they use DEX, fire the same arrows with
-the same reach, are drawn like a bow (the longer draw comes from the slower cooldown: 0.39 s for the arbalest) and
-drop from the bow group.
+**Crossbows.** The **Heavy Crossbow** (`crossbow`, depth 15) is a side-grade to the War Bow of the same depth: bigger
+hits (34–56) but a slower 1.2 s reload, so about the same damage per second (37). Armor takes a share of every hit,
+not a fixed amount, so the bigger hits don't pierce armor better; the crossbow finishes a monster in fewer shots, the
+bow wastes less on nearly dead ones and stands still less while kiting. The **Gilded Arbalest** (`arbalest`, depth
+18) is the best ranged weapon: a long 1.4 s reload but 62–104 a bolt (about 59 per second). Both are the `bow` kind in
+every way: they use DEX, fire the same arrows with the same reach, are drawn like a bow (the longer draw comes from
+the slower cooldown: 0.33 s for the crossbow, 0.39 s for the arbalest) and drop from the bow group.
 
 **Choosing a drop** (`genItem`): the rarity is rolled first (see below). Then a **group** is drawn evenly from
 sword, axe, bow, helm, armor, gloves, boots, ring and amulet, and then a type of that group unlocked at the loot

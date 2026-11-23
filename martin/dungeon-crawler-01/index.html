@@ -417,7 +417,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 107;
+const VERSION = 108;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -847,7 +847,7 @@ const BASES = {
   bonebow:      { name: 'Bone Bow', slot: 'weapon', kind: 'bow', min: 14, max: 25, cd: 0.9, lvl: 8 },
   compositebow: { name: 'Composite Bow', slot: 'weapon', kind: 'bow', min: 18, max: 31, cd: 0.85, lvl: 11 },
   warbow:       { name: 'War Bow', slot: 'weapon', kind: 'bow', min: 25, max: 42, cd: 0.9, lvl: 15 },
-  crossbow:     { name: 'Heavy Crossbow', slot: 'weapon', kind: 'bow', min: 34, max: 56, cd: 0.95, lvl: 15 },
+  crossbow:     { name: 'Heavy Crossbow', slot: 'weapon', kind: 'bow', min: 34, max: 56, cd: 1.2, lvl: 15 },   // a side-grade to the War Bow: bigger hits, slower reload, the same damage per second
   arbalest:     { name: 'Gilded Arbalest', slot: 'weapon', kind: 'bow', min: 62, max: 104, cd: 1.4, lvl: 18 },   // the best ranged weapon: slow to reload, hits hardest
   leathercap:   { name: 'Leather Cap', slot: 'head', armor: 3, lvl: 1 },
   ironhelm:     { name: 'Iron Helm', slot: 'head', armor: 7, lvl: 4 },

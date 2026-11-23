@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v108 — the Heavy Crossbow reloads in 1.2 s (2026-11-23)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 108`)*
+
+- The Heavy Crossbow reloads in 1.2 s instead of 0.95 s: the same damage per second as the War Bow (about 37), with
+  bigger, slower shots, a choice rather than a strict upgrade. (Made alongside the dragon, where it was numbered
+  v101: 45eb234.)
+
 ## v102–v107 — the dragon on real legs, turning in 32 directions (2026-11-23)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 107`)*
+Commit: 4177fdb
 
 - The dragon's body is a still painted sprite in **32 directions** (17 painted, 15 mirrored; was 8 with a walk cycle), with its lower legs
   cut off; the torso lies along the heading snapped to those directions, so the neck and tail always join it where
