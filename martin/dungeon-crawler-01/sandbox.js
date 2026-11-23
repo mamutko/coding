@@ -45,6 +45,7 @@
     <p>The current game (v${VERSION}) with a strong test hero (never saved), dropped straight into a situation. Sound starts when you pick one. A bar at the top shows what the scenario is about.</p>
     <p id="sbStatus" class="status">Loading the game…</p>
     <h2>Surface</h2>
+    <button class="sc" id="sbTrees"><b>Big trees</b>The surface with the new big oak (three layers: roots on the ground, the trunk sorted with you, the crown always on top and never fading). Three oaks stand around you on the lawn before the crypt, and half the forest's trees are big oaks. Walk around and under them: you show through the sparse crowns. <b>Layers</b> in the bar tints the three layers (roots red, trunk blue, crown green).</button>
     <button class="sc" id="sbSurface"><b>The surface</b>A new level-1 hero at depth 0, a few steps from the crypt's entrance. Walk the endless woods around it (the land is made as you go), then click the dark doorway to go down to depth 1.</button>
     <h2>Fire bombs</h2>
     <button class="sc" id="sbFirePack"><b>Fire bombs: pack fight</b>Depth 3, 15 fire bombs equipped, four skeletons and three ghouls rushing in. Right-click to throw at a monster or a spot (up to 7 tiles). Key 1 is your longsword, 2 the bombs. Mind the flames: they burn you too.</button>
@@ -79,6 +80,7 @@
     + '<span id="sbCast" class="sbSounds" hidden>Casting:' + [[1, 'Gathering frost'], [2, 'Rising hum'], [3, 'Crystal riser']].map(([n, l]) => `<button data-cast="${n}">${l}</button>`).join('') + '</span>'
     + '<span id="sbDragonActs" class="sbSounds" hidden>' + [['bite', 'Bite'], ['breath', 'Breath'], ['tail', 'Tail'], ['buffet', 'Wings'], ['roar', 'Roar'], ['again', 'Again']].map(([k, l]) => `<button data-dact="${k}">${l}</button>`).join('') + '</span>'
     + '<span id="sbStory" class="sbSounds" hidden><button id="sbStoryReset" title="Forget the story: properties, who was met, conversations put aside">Reset story</button></span>'
+    + '<span id="sbTreeBar" class="sbSounds" hidden><button id="sbLayers" title="Tint the big trees\' three layers: roots red, trunk blue, crown green">Layers</button></span>'
     + '<button id="sbNext" title="Start the next play of this track now">Next loop</button><button id="sbBack">Scenarios</button>';
   let mode = 'music';   // what the bar shows: 'music' or 'fire'
   // on the normal title screen (after Normal game, or a real hero's death) its Scenarios button (index.html) brings
@@ -103,10 +105,11 @@
   const isTest = () => G && G.hero && G.hero.saveId === 'sandbox';
   const realSave = saveHero, realDeath = showDeath;
   saveHero = () => isTest() ? false : realSave();
-  showDeath = () => { if (!isTest()) return realDeath(); G.running = false; pick.hidden = false; bar.hidden = true; };
+  showDeath = () => { if (!isTest()) return realDeath(); SURF.bigTrees = 0; SURF.bigTreeAt = null; G.running = false; pick.hidden = false; bar.hidden = true; };
   const floorAt = (x, y) => G.map.t[y * G.map.w + x] === T_FLOOR && !G.objects.some(o => o.x === x && o.y === y && !o.walk);
   function start(m = 'music') {
     STORY = m === 'dialogue' ? STORIES.demo : (typeof STORIES !== 'undefined' && STORIES.story) || STORY_EMPTY; $('sbStory').hidden = m !== 'dialogue';
+    $('sbTreeBar').hidden = m !== 'trees';
     mode = m; $('sbDragonActs').hidden = m !== 'dragon'; $('sbLooks').hidden = m !== 'fire'; $('sbKeepers').hidden = m !== 'market'; $('sbDrips').hidden = $('sbSplash').hidden = m !== 'lake'; $('sbCast').hidden = true; soundButtons(); $('sbLookPick').hidden = m !== 'looks'; bar.classList.toggle('top', m === 'looks' || m === 'dialogue'); $('sbNext').hidden = m !== 'music' && m !== 'surface'; lookButtons();
     audio(); pick.hidden = true; bar.hidden = false;
     G.running = true; G.camSnap = true; G.deathShown = false;
@@ -162,6 +165,15 @@
   $('sbSplash').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; SOUND_LOOK.splash = +b.dataset.splash; soundButtons(); sfx('plunge'); b.blur(); });
   function lookButtons() { $('sbLooks').querySelectorAll('button').forEach(b => b.classList.toggle('on', +b.dataset.look === LOOK.fire)); }
   $('sbLooks').addEventListener('click', e => { const b = e.target.closest('button'); if (!b) return; setLook('fire', +b.dataset.look); lookButtons(); b.blur(); });
+  // Big trees: the surface with big oaks (SURF.bigTrees, SURF.bigTreeAt: off again when leaving the scenario)
+  const bigOff = () => { SURF.bigTrees = 0; SURF.bigTreeAt = null; BIGTREE_LAYERS = false; };
+  $('sbTrees').onclick = async () => {
+    $('sbTrees').disabled = true; await loadBigTrees(); $('sbTrees').disabled = false;
+    SURF.bigTrees = 0.5; SURF.bigTreeAt = [[12, 23], [18, 24], [21, 19]];   // around the hero's start (15, 20), in world tiles
+    newGame(null); G.hero.name = 'Tester'; G.hero.saveId = 'sandbox'; refreshUI();
+    start('trees'); $('sbLayers').classList.toggle('on', BIGTREE_LAYERS); log('Test: big oaks on the surface.', '#c9a45c');
+  };
+  $('sbLayers').onclick = e => { BIGTREE_LAYERS = !BIGTREE_LAYERS; e.target.classList.toggle('on', BIGTREE_LAYERS); e.target.blur(); };
   $('sbSurface').onclick = () => {
     newGame(null); G.hero.name = 'Tester'; G.hero.saveId = 'sandbox'; refreshUI();
     start('surface'); log('Test: the surface. The crypt is right ahead.', '#c9a45c');
@@ -354,13 +366,21 @@
     start(); log('Test: a Pit Demon level. Its boss room is close by.', '#7fe08a');
   };
   $('sbNormal').onclick = () => { STORY = (typeof STORIES !== 'undefined' && STORIES.story) || STORY_EMPTY; audio(); setLook('fire', 1); SOUND_LOOK.drip = SOUND_LOOK.splash = SOUND_LOOK.cast = 1; if (G && G.hero) G.hero.look = null; pick.hidden = true; bar.hidden = true; };   // the normal game: the settled look (Blaze)
-  $('sbBack').onclick = () => { G.running = false; pick.hidden = false; bar.hidden = true; };
+  $('sbBack').onclick = () => { bigOff(); G.running = false; pick.hidden = false; bar.hidden = true; };
   $('sbNext').onclick = () => { if (MUSIC.cur) MUSIC.cur.loopAt = 0; };
   setInterval(() => {
     if (bar.hidden || !G) return;
     if (mode === 'surface') {
       const h = G.hero, sv = G.surf, c = MUSIC.cur, tune = c ? ` · music ${MUSIC_FILES[c.name]}${c.n ? ' (play ' + c.n + ')' : ''}` : ' · no music';
       $('sbInfo').innerHTML = (sv && G.map.surface ? `<span class="mood">The surface</span> · world tile ${Math.floor(h.x + sv.ox)}, ${Math.floor(h.y + sv.oy)} · super tile ${sv.cx}, ${sv.cy}` : `<span class="mood">${depthName(G.depth)}</span> · depth ${G.depth}`) + tune;
+      return;
+    }
+    if (mode === 'trees') {
+      const h = G.hero, oaks = G.objects.filter(o => o.type === 'bigtree');
+      let near = null; for (const o of oaks) { const d = Math.hypot(o.x + 0.5 - h.x, o.y + 0.5 - h.y); if (!near || d < near[1]) near = [o, d]; }
+      const side = near ? (h.x + h.y < near[0].x + near[0].y + 1 ? 'behind its trunk' : 'in front of its trunk') : '';
+      $('sbInfo').innerHTML = `<span class="mood">Big trees</span> · ${oaks.length} big oaks in the window` + (near ? ` · nearest ${near[1].toFixed(1)} tiles, you are ${side}` : '')
+        + (BIGTREE_LAYERS ? ' · layers tinted' : '') + (PERF.fps ? ` · ${PERF.fps} fps` : '');
       return;
     }
     if (mode === 'dialogue') {
@@ -433,7 +453,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbDragon', 'sbChest', 'sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbXbow', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
+  const SC = ['sbTrees', 'sbDragon', 'sbChest', 'sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbXbow', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
   // the same, but the picker covers it); errors thrown later are listed there too

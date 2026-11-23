@@ -45,6 +45,8 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `assets/floor.jpg`, `assets/wall.jpg` | 512 px seamless floor and wall textures. |
 | `assets/grass_a.jpg`, `assets/grass_b.jpg` | 512 px seamless grass textures of the surface (lush dark green; patchy olive meadow). See [The surface](#the-surface-depth-0). |
 | `assets/surface.webp` | The surface's sprites: four trees (oak, fir, dead tree, birch; each with its crown cut), four bushes, four ground details (flowers, rocks, mushrooms, a grass tuft) and the crypt. Coordinates in `META.surface`. |
+| `assets/bigtrees.webp` | The big trees' layers (roots, trunk, crown of the big oak), each cropped. Coordinates in `META.bigtrees`. Loaded on demand (only the sandbox's Big trees scenario uses them for now). See [The surface](#the-surface-depth-0), Big trees. |
+| `tools/add_bigtree.py`, `tools/raw/bigtree_oak.png` | Cuts the big oak into its three layers, fades the roots, adds the buried-root bumps, and writes `assets/bigtrees.webp` and `META.bigtrees` (into `assets/meta.json` and the inline `META`). `bigtree_oak_alt.png` is the other candidate, not used. |
 | `tools/add_surface.py`, `tools/raw/grass_a.png`, `grass_b.png`, `trees.png`, `bushes.png`, `crypt.png` | Builds the two grass textures and `assets/surface.webp` from the raw AI images, and writes `META.surface` into `assets/meta.json` and the inline `META`. |
 | `assets/unused/` | AI images and sounds made but not used by the game, kept for later: `keepers-creepy.png` (the first, rejected Keepers of the Crypt); `scrolls/frostscroll-A2`–`A6`, `B1`–`B6` (the eleven scroll of frost designs not picked, keyed, 192 px); `incantations/` (the incantation in six Google voices: Algenib, the male one in use, Charon, Enceladus, Fenrir, Gacrux, Orus; and `incantations/female/`, the female candidates: Kore, Leda, Aoede, Despina, Erinome, Pulcherrima, Sulafat, Vindemiatrix). The five unused fire bomb designs are in `assets/items.webp` (`firebomb2`–`firebomb6`) and `tools/raw/firebombs.png`. Not loaded, and left out of the sandbox artifact. |
 | `assets/dirt.jpg` | 512 px seamless dirt texture for wall tops and wall faces toward solid ground (from `add_props.py`). |
@@ -130,6 +132,12 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     distance walked, so a slow walk steps through every frame (at 0.05× a stride takes about 8 s). On narrow screens, where the bar normally sits low above the HUD, this scenario keeps it at the top of
     the screen (over the HUD's top row), so it never covers the character. **Normal game** puts the hero's own look back.
 - **Surface:**
+  - **Big trees**: the surface (as below) with big oaks (see [The surface](#the-surface-depth-0), Big trees): `SURF.bigTrees` 0.5 (half the
+    forest's trees are big oaks) and three fixed ones around the hero's start (`SURF.bigTreeAt`: world tiles
+    (12, 23), (18, 24), (21, 19); the hero starts at (15, 20)). Both go back to off when the picker comes back. The
+    bar shows how many big oaks are in the window, the nearest one's distance and whether the hero is in front of or
+    behind its trunk, and the frame rate. **Layers** tints the three layers (`BIGTREE_LAYERS`: roots red, trunk blue,
+    crown green) to check the cut.
   - **The surface** (depth 0): a new level-1 hero (never saved) a few steps from the crypt's entrance. The bar shows
     the world tile and super tile the hero is on, then the level's name once below, and the music track and play
     number. **Next loop** starts the next play at once (the other surface track).
@@ -724,9 +732,29 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
     - A crown turns see-through (40 %, eased) while the hero stands under it.
   - Trees and bushes have soft ground shadows. Ground details lie flat, except the grass tuft, which is sorted like
     a bush.
+  - **Big trees** (`drawBigTree`): see below.
   - **The crypt** (`drawCrypt`): its picture (98 px per tile of its width, `CRYPT_FIT`) is placed with its front
     corner on the footprint's south corner. It is sorted by its west–east diagonal, `x + y + cryptN` (see
     [Rendering](#rendering), Depth sorting), so the hero is drawn in front of it anywhere along its front walls.
+- **Big trees** (only in the sandbox's Big trees scenario for now; `SURF.bigTrees` and `SURF.bigTreeAt` are off in
+  the game). A big tree is a surface object of type `bigtree` (look `oak`), drawn from three layers in
+  `assets/bigtrees.webp` (`META.bigtrees.oak`: `s`, the sheet's scale to game pixels, 0.667; and for each layer its
+  box in the sheet and the offset of its top-left corner from the tree's ground point, the centre of its tile):
+  - **Roots**: a floor decal, drawn with the ground (after the grass, with the flat ground details), so everything
+    walks over them. The exposed roots fade out toward their tips, and around them lie the **buried roots**: only
+    soft shadow and highlight, so they show as bumps on whatever grass is under them. A soft contact shadow sits
+    under the trunk (no separate ground shadow).
+  - **Trunk**: depth-sorted like any prop on its tile (`k = x + y + 1`), so the hero is behind it when north of it
+    and in front of it when south of it. It reaches up to where the crown starts, higher than the hero's head when
+    the hero stands right in front of it.
+  - **Crown**: drawn after everything (in `drawCrowns`, after the small trees' crowns, big crowns back to front),
+    always whole: it never fades. It is sparse, so the hero (and anything under it) shows through its gaps.
+  - **Size:** the crown is about 4.5 tiles wide (scale 0.9–1.1 in the forest, 1 for the fixed ones), the trunk
+    about 0.6 tiles thick. It blocks only its own tile. In the forest a big oak needs the 5 × 5 tiles around it
+    free, and keeps them free of other things (`chunkThings`). Fixed big oaks clear things within 2 tiles.
+  - **Culling:** its layers are drawn from farther outside the view than other things (roots 5 tiles, trunk 6,
+    crown 12 below and 6 above), since they reach far across the screen.
+  - The minimap shows a big tree as a tree. The sheet loads on demand (`loadBigTrees`).
 - **Light:** a moonlit night: the darkness is a thin blue-black (62 % instead of 93 %), the hero's light reaches 9
   tiles (7.2 below), and a faint light glows at the crypt's door.
 - **The minimap** shows the grass, trees and bushes as dots, and the crypt.
@@ -2174,6 +2202,16 @@ walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycle
   - `tools/raw/trees.png` (OpenAI, 1536 × 1024): a 4 × 1 sheet of an oak, a fir, a dead tree and a birch on magenta,
     "each crown clearly above a visible bare trunk section". Cut by columns (the crowns reach past their cells).
   - `tools/raw/bushes.png` (OpenAI, 1536 × 1024): 4 × 2, four bushes and four ground details.
+- **The big oak** (`tools/raw/bigtree_oak.png`, OpenAI `gpt-image-2.6-flare` medium, 1024 × 1536, transparent
+  background, 2 candidates ~$0.14): "A single large old oak tree for an isometric dark-fantasy RPG, … CROWN: very
+  wide and expansive … but SPARSE and OPEN: leaves grow in separate loose clusters with many clear gaps … TRUNK:
+  sturdy, appropriately proportioned … ROOTS: … partly exposed root system spreading out over the ground … Some
+  roots are thick, exposed and brown … farther out they sink into the earth and become only subtle soft bumps … All
+  roots dwindle and fade smoothly into full transparency". The sparser of the two was used; its roots came out
+  opaque, so the fade and the buried-root bumps are made by `tools/add_bigtree.py`: the roots' alpha fades over an
+  ellipse around the ground point; the root shapes, spread 1.45 × outward from it and blurred, are embossed (light
+  from the upper left) into a shadow (up to 55 %) and highlight (up to 16 %) layer under them. The cut lines are
+  set by hand in the tool (`TREES`).
   - `tools/raw/crypt.png` (OpenAI, 1024²): "an old weathered stone CRYPT / mausoleum … on its LEFT visible wall … a
     large arched ENTRANCE … steps leading DOWN into complete darkness".
 - **Keepers of the Crypt** (`tools/raw/keepers.png`, OpenAI `gpt-image-2` medium 1536 × 1024, ~$0.08): a 4 × 1
