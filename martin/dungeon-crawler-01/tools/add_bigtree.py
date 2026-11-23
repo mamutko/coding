@@ -38,7 +38,7 @@ GAME = HERE.parent
 RAW = HERE / "raw"
 
 # raw image -> sheet scale, and sheet -> game scale: the crown (970 raw px) comes out about 4.5 tiles (430 px) wide
-SCALE = 0.667          # the sheet keeps 1.5 x the game's size, so it stays sharp when zoomed in or on a 2x screen
+SCALE = 0.5            # the sheet keeps 1.12 x the game's size (15 trees: a smaller sheet; still sharp at zoom 1)
 GAME_S = 0.445 / SCALE
 
 # Each tree: its raw file; the ground point (gx, gy); `cut` (about 300 raw px above the ground point: over the
@@ -61,10 +61,76 @@ TREES = {
                  band=[(960, 440, 615), (1100, 445, 625), (1200, 380, 690), (1260, 340, 740)],
                  rx=500, ry=165, fy=60),
 }
+# The variants: their cut lines are found from the picture (auto_fit below); each name is also its raw file's
+# (bigtree_<name>.png)
+for _n in ("oak2", "oak3", "pine2", "pine3", "birch2", "birch3", "maple2", "maple3", "dead2", "dead3"):
+    TREES[_n] = dict(file=f"bigtree_{_n}.png", auto=True)
+# ground points set by hand where the fit is fooled: oak2's trunk forks low, birch2 has two trunks
+TREES["oak2"].update(fix=dict(gx=515, gy=1100))
+TREES["birch2"].update(fix=dict(gx=520, gy=1262, band=[(962, 449, 602), (1060, 463, 589), (1150, 466, 581), (1210, 466, 578), (1262, 420, 625)]))   # both trunks in the band
 # The same for every tree: the roots' colour fades from f0 to f1 of the ellipse (then bumps only), the bumps fade
 # out from t0 to t1; the cast shadow (light from the upper left, the art's light, taken as the moon's): a point h px
 # above the ground point falls h * kx to the right and h * ky down; its opacity and blur (raw px)
 COMMON = dict(f0=0.22, f1=0.6, t0=0.7, t1=1.0, kx=0.55, ky=0.26, shadow=0.6, sblur=26)
+
+
+def run_at(a, y, cx):
+    """The opaque run (alpha > 150) on row y that is nearest to column cx: (left, right), or None."""
+    r = np.nonzero(a[y] > 150)[0]
+    if not len(r):
+        return None
+    i = int(np.argmin(abs(r - cx)))
+    l = i
+    while l > 0 and r[l - 1] == r[l] - 1:
+        l -= 1
+    k = i
+    while k < len(r) - 1 and r[k + 1] == r[k] + 1:
+        k += 1
+    return int(r[l]), int(r[k])
+
+
+def auto_fit(file, fix=None):
+    """Cut lines for a tree from its picture: the trunk's width (the narrow part of the trunk above the roots), the
+    ground point (30 px below where the trunk, followed down, flares out to over 1.6 x that width), the crown cut 300 px above it, the trunk band (the trunk's run on each row, 14 px wider each side), and
+    the root ellipse (the spread of the opaque pixels below the trunk)."""
+    a = np.asarray(Image.open(RAW / file).convert("RGBA"))[..., 3].astype(int)
+    ys, xs = np.nonzero(a > 20)
+    ymax = int(ys.max())
+    rows = a[ymax - 380:ymax - 280] > 150
+    cx = int(np.nonzero(rows)[1].mean())
+    widths = []
+    for y in range(ymax - 450, ymax - 150, 10):
+        r = run_at(a, y, cx)
+        if r:
+            widths.append(r[1] - r[0]); cx = (r[0] + r[1]) // 2
+    tw = float(np.percentile(widths, 30))
+    # down the trunk from 400 px above the lowest root tip until the run around the trunk keeps being wider than
+    # 1.6 x the trunk (the roots flaring out): the ground point is 30 px below that
+    gy = None
+    for y in range(ymax - 400, ymax - 40, 4):
+        r = run_at(a, y, cx)
+        if r:
+            cx = (r[0] + r[1]) // 2
+        if all((lambda q: q and q[1] - q[0] > 1.6 * tw)(run_at(a, y + d, cx)) for d in (0, 8, 16)):
+            gy = y + 30; break
+    gy = gy or ymax - 200
+    r = run_at(a, gy - 40, cx)
+    gx = (r[0] + r[1]) // 2 if r else cx
+    if fix:
+        gx, gy = fix["gx"], fix["gy"]
+        if "band" in fix:
+            return dict(gx=gx, gy=gy, cut=gy - 300, low=gy - 50, band=fix["band"], rx=440, ry=max((ymax - gy - 20) / 0.9, 100), fy=20)
+    cut = gy - 300
+    band = []
+    for y in list(range(cut, gy, 40)) + [gy]:
+        rr = run_at(a, y, gx)
+        l, rt = (rr if rr and rr[1] - rr[0] < 3.2 * tw else (gx - tw / 2, gx + tw / 2))
+        band.append((y, int(min(l, gx - tw / 2) - 14), int(max(rt, gx + tw / 2) + 14)))
+    band[-1] = (gy, band[-1][1] - 30, band[-1][2] + 30)          # the flare
+    ry_, rx_ = np.nonzero(a[gy - 30:] > 40)
+    rx = max(abs(rx_ - gx).max() / 0.9, 150)
+    ry = max((ymax - (gy + 20)) / 0.9, 100)
+    return dict(gx=int(gx), gy=int(gy), cut=int(cut), low=int(gy - 50), band=band, rx=int(rx), ry=int(ry), fy=20)
 
 
 def band_lr(band, y):
@@ -158,6 +224,9 @@ def to_img(L):
 def main():
     parts, meta = [], {}
     for key, spec in TREES.items():
+        if spec.get("auto"):
+            spec = dict(spec, **auto_fit(spec["file"], spec.get("fix")))
+            print(key, {k: spec[k] for k in ("gx", "gy", "cut", "rx", "ry")})
         spec = dict(COMMON, **spec)
         ls = layers(spec)
         m = {"s": round(GAME_S, 4)}
@@ -181,7 +250,7 @@ def main():
         for key, name, img in r:
             sheet.paste(img, (x, y)); meta[key][name][0] = x; meta[key][name][1] = y; x += img.width + 2
         y += max(p[2].height for p in r) + 2
-    sheet.save(GAME / "assets" / "bigtrees.webp", "WEBP", quality=80, method=6)
+    sheet.save(GAME / "assets" / "bigtrees.webp", "WEBP", quality=74, method=6)
     mj = json.loads((GAME / "assets" / "meta.json").read_text()); mj["bigtrees"] = meta
     (GAME / "assets" / "meta.json").write_text(json.dumps(mj, indent=1))
     html = (GAME / "index.html").read_text()

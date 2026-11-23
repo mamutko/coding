@@ -9,9 +9,19 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v116 — tree variants, groves, and shadows for the small things (2026-11-23)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 116`)*
+
+- Two more variants of each tree kind (15 trees): a low-forked and a tall oak, a leaning and a twin-trunked pine, a
+  twin and a young birch, a golden and a half-bare red maple, a broken snag and a leaning dead oak.
+- The forest grows in groves: one kind tends to dominate an area (a pine wood, a maple grove, a stand of dead trees),
+  mixing at the edges, and woods and meadows are larger, with gradual edges.
+- Bushes, flowers, rocks, mushrooms and grass tufts cast soft shadows to the lower right, like the trees.
+
 ## v114–v115 — five big trees replace the surface's trees (2026-11-23)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 115`)*
+Commit: 7d99831
 
 - The surface's forest is made of big trees in five kinds: oak, Scots pine, silver birch, autumn maple and a dead
   tree, all AI-painted to the oak's brief (wide sparse crowns, partly exposed roots sinking into the ground, a soft
