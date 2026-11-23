@@ -9,15 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v114 — five big trees replace the surface's trees (2026-11-23)
+## v114–v115 — five big trees replace the surface's trees (2026-11-23)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 114`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 115`)*
 
 - The surface's forest is made of big trees in five kinds: oak, Scots pine, silver birch, autumn maple and a dead
   tree, all AI-painted to the oak's brief (wide sparse crowns, partly exposed roots sinking into the ground, a soft
   moonlight shadow) and cut into the same three layers. The four small trees are retired.
 - Trees stand farther apart (each keeps the 7 × 7 tiles around it), so the crowns don't close into a canopy.
 - The trees' cast shadows are softer.
+- The birch's roots join its trunk without a visible cut (their fade starts at the trunk's base).
 - The sandbox's Big trees scenario shows one of each kind around the hero.
 
 ## v110–v113 — big oaks in three layers (sandbox) (2026-11-23)
