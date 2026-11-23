@@ -12,10 +12,12 @@ The picture is cut at hand-picked lines (TREES below, in the raw image's pixels)
   - the trunk band: a polygon around the trunk, from row `cut` (above where the hero's head reaches when standing
     right in front of the trunk) down to the ground point. Inside it: the trunk layer;
   - above row `cut`, and beside the trunk above row `low` (low branches): the crown layer;
-  - the rest (below `low`, outside the band, and everything below the ground point): the roots layer. Its alpha
-    fades out over an ellipse around the ground point, and under it go the "buried roots": the root shapes blurred,
-    spread outward and embossed (light from the upper left) as transparent shadow and highlight only, so they show
-    as soft bumps on whatever grass they lie on. A soft dark contact shadow sits under the trunk.
+  - the rest (below `low`, outside the band, and everything below the ground point): the roots layer. The painted
+    roots sink into the ground toward their tips: over an ellipse around the ground point, their colour fades out
+    (from f0 to f1 of the ellipse) while the same root shapes, blurred and embossed (light from the upper left), fade
+    in as transparent shadow and highlight only, so farther out they show as soft bumps on whatever grass they lie
+    on; the bumps fade out at the tips (t0 to t1). Nothing is added beyond the painted roots. A soft dark contact
+    shadow sits under the trunk.
 
 Writes:
   assets/bigtrees.webp     the three layers of each tree, each cropped to its pixels, at SCALE of the raw picture
@@ -39,8 +41,9 @@ TREES = {
     "oak": dict(file="bigtree_oak.png", gx=528, gy=1095, cut=800, low=1035,
                 # the trunk band: (row, left x, right x), linearly interpolated between rows
                 band=[(800, 440, 615), (900, 452, 610), (1000, 445, 615), (1060, 400, 650), (1095, 380, 680)],
-                # the roots' fade: an ellipse around (gx, gy + fy) with radii rx, ry; alpha 1 inside f0, 0 at 1
-                rx=430, ry=185, fy=40, f0=0.55),
+                # the roots' ellipse: around (gx, gy + fy), radii rx, ry (about where the painted roots end: 0.9);
+                # colour from f0 to f1 (then bumps only), bumps fading out from t0 to t1
+                rx=420, ry=150, fy=20, f0=0.4, f1=0.78, t0=0.85, t1=1.1),
 }
 
 
@@ -80,27 +83,23 @@ def layers(spec):
         inband[y, int(l):int(r) + 1] = True
     crown = (yy < spec["cut"]) | ((yy < spec["low"]) & ~inband)
     trunk = inband & ~crown
-    roots = ~crown & ~trunk
+    roots = ~crown   # the trunk's base too: under the trunk layer, it hides the seam where the two layers meet
     out = {}
     for name, m in (("crown", crown), ("trunk", trunk)):
         L = im.copy(); L[..., 3] *= m; out[name] = L
-    # roots: faded over the ellipse
+    # roots: the painted colour fades out over the ellipse, and the same shapes fade in as bumps (emboss only)
     gx, gy = spec["gx"], spec["gy"] + spec["fy"]
     d = np.hypot((xx - gx) / spec["rx"], (yy - gy) / spec["ry"])
-    fade = 1 - smooth((d - spec["f0"]) / (1 - spec["f0"]))
-    R = im.copy(); R[..., 3] *= roots * fade
+    sink = smooth((d - spec["f0"]) / (spec["f1"] - spec["f0"]))          # 0: on the ground, 1: sunk into it
+    tips = 1 - smooth((d - spec["t0"]) / (spec["t1"] - spec["t0"]))
+    ra0 = roots * im[..., 3] / 255                                        # the painted roots, unfaded
+    R = im.copy(); R[..., 3] *= roots * (1 - sink)
     ra = R[..., 3] / 255
-    # buried roots: the root shapes spread outward (scaled 1.45 x about the ground point), blurred, embossed
-    rim = Image.fromarray((ra * 255).astype(np.uint8))
-    big = rim.resize((int(w * 1.45), int(h * 1.45)), Image.BILINEAR)
-    ox, oy = int(gx * 0.45), int(gy * 0.45)
-    spread = np.asarray(big.crop((ox, oy, ox + w, oy + h))).astype(float) / 255
-    bump = blur(np.maximum(spread * 0.8, blur(ra, 2)), 5)
-    emb = shift(bump, -3, -4) - shift(bump, 3, 4)          # > 0: lit (faces the upper left), < 0: in shade
-    d2 = np.hypot((xx - gx) / (spec["rx"] * 1.35), (yy - gy) / (spec["ry"] * 1.35))
-    keep = 1 - smooth((d2 - 0.4) / 0.6)
-    hi = np.clip(emb * 2.5, 0, 1) * keep * 0.16
-    sh = np.clip(-emb * 3.2, 0, 1) * keep * 0.55
+    bump = blur(ra0, 3)
+    emb = shift(bump, -2, -3) - shift(bump, 2, 3)          # > 0: lit (faces the upper left), < 0: in shade
+    keep = sink * tips
+    hi = np.clip(emb * 3, 0, 1) * keep * 0.18
+    sh = np.clip(-emb * 3.5, 0, 1) * keep * 0.6
     # a soft contact shadow under the trunk
     dc = np.hypot((xx - spec["gx"]) / 190, (yy - spec["gy"] - 10) / 75)
     contact = (1 - smooth(dc)) * 0.45

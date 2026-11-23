@@ -741,9 +741,11 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
   `assets/bigtrees.webp` (`META.bigtrees.oak`: `s`, the sheet's scale to game pixels, 0.667; and for each layer its
   box in the sheet and the offset of its top-left corner from the tree's ground point, the centre of its tile):
   - **Roots**: a floor decal, drawn with the ground (after the grass, with the flat ground details), so everything
-    walks over them. The exposed roots fade out toward their tips, and around them lie the **buried roots**: only
-    soft shadow and highlight, so they show as bumps on whatever grass is under them. A soft contact shadow sits
-    under the trunk (no separate ground shadow).
+    walks over them. Toward their tips the painted roots **sink into the ground**: their colour fades out while the
+    same root shapes take over as soft shadow and highlight only, so farther out they show as bumps on whatever
+    grass is under them, fading out at the tips. Nothing reaches beyond the painted roots. The layer also holds the
+    trunk's base (covered by the trunk layer), so no seam shows where the two meet. A soft contact shadow sits under
+    the trunk (no separate ground shadow).
   - **Trunk**: depth-sorted like any prop on its tile (`k = x + y + 1`), so the hero is behind it when north of it
     and in front of it when south of it. It reaches up to where the crown starts, higher than the hero's head when
     the hero stands right in front of it.
@@ -2208,10 +2210,11 @@ walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycle
   sturdy, appropriately proportioned … ROOTS: … partly exposed root system spreading out over the ground … Some
   roots are thick, exposed and brown … farther out they sink into the earth and become only subtle soft bumps … All
   roots dwindle and fade smoothly into full transparency". The sparser of the two was used; its roots came out
-  opaque, so the fade and the buried-root bumps are made by `tools/add_bigtree.py`: the roots' alpha fades over an
-  ellipse around the ground point; the root shapes, spread 1.45 × outward from it and blurred, are embossed (light
-  from the upper left) into a shadow (up to 55 %) and highlight (up to 16 %) layer under them. The cut lines are
-  set by hand in the tool (`TREES`).
+  opaque, so `tools/add_bigtree.py` sinks them into the ground: over an ellipse around the ground point (radii
+  420 × 150 raw px, about where the painted roots end), the roots' colour fades out from 40 % to 78 % of the way
+  out, while the same root shapes, blurred and embossed (light from the upper left), fade in as a shadow (up to
+  60 %) and highlight (up to 18 %) layer, which fades out at the tips (85 % to 110 %). The cut lines are set by
+  hand in the tool (`TREES`).
   - `tools/raw/crypt.png` (OpenAI, 1024²): "an old weathered stone CRYPT / mausoleum … on its LEFT visible wall … a
     large arched ENTRANCE … steps leading DOWN into complete darkness".
 - **Keepers of the Crypt** (`tools/raw/keepers.png`, OpenAI `gpt-image-2` medium 1536 × 1024, ~$0.08): a 4 × 1
