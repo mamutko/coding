@@ -16,10 +16,16 @@ What goes in (all at the game's own scale, 1 atlas px = 1 screen px at zoom 1 an
 - wing: paint/wing.png (the right wing, flat), cut to its guide's bone points plus a margin, at 1/3; `points` are the
   bone points (root, elbow, wrist, 3 finger tips, trailing root) inside that image, for mapping it onto the panels.
 - spike, club: the two pieces of paint/bits.png (the dorsal spike, the tail club pointing left).
-- scales: a patch of the body's flank (the old walk painting, SW frame 0), mirrored 2 x 2 so it tiles: the neck and tail's texture.
+- scales: paint/scales.tile.png (the body's scales painted flat and made to tile, tools/dragon/scale_tile.py), 8 scales
+  across at 13 px each (as big as the body painting's), stored at 2x (`res`): the neck and tail's texture.
+- tone: the body views, the leg bones, the feet and the scales are brought to one colour: the hide's pixels (luminance
+  under 130; the pale bone of spikes and claws, over 180, is left as it is, blended between) get the per-channel mean
+  and spread of all the body views' hide together (two passes, since the hide pixels change), so the body keeps its
+  shade as it turns and the parts match it; the scales, painted flat, get the mean and 0.6 of the spread.
 """
 import json, os, re
-from PIL import Image, ImageOps
+import numpy as np
+from PIL import Image
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROJ = os.path.join(HERE, '..', '..')
@@ -43,6 +49,26 @@ def union_box(ims, pad=4, w=CW, h=CH):
     boxes = [m.getbbox() for m in solid if m.getbbox()]
     return (max(0, min(b[0] for b in boxes) - pad), max(0, min(b[1] for b in boxes) - pad),
             min(w, max(b[2] for b in boxes) + pad), min(h, max(b[3] for b in boxes) + pad))
+
+
+SCALES = {'n': 8, 'px': 13, 'sd': 0.6}
+HIDE = (130, 180)   # luminance: below the first, scaled hide; above the second, bone (spikes, claws), left alone
+
+
+def hide_px(im):
+    a = np.asarray(im).astype(np.float32); px = a[..., :3][a[..., 3] > 200]
+    return px[px.mean(1) < HIDE[0]]
+
+
+def tone(im, mu, sd):
+    """The piece's hide brought to the target colour statistics (per channel mean and spread, the same for every body
+    view and part), so the body doesn't change shade as it turns and the legs, feet, neck and tail match it."""
+    a = np.asarray(im).astype(np.float32); h = hide_px(im)
+    m0, s0 = h.mean(0), h.std(0) + 1e-3
+    rgb = a[..., :3]; L = rgb.mean(2, keepdims=True)
+    w = np.clip((HIDE[1] - L) / (HIDE[1] - HIDE[0]), 0, 1)
+    a[..., :3] = rgb + w * ((rgb - m0) * (sd / s0) + mu - rgb)
+    return Image.fromarray(a.clip(0, 255).astype(np.uint8), 'RGBA')
 
 
 def scaled(im, k):
@@ -117,12 +143,19 @@ def main():
     meta['spike'] = {'w': spike.width, 'h': spike.height}
     meta['club'] = {'w': club.width, 'h': club.height, 'note': 'points left; the tail joins at the right edge'}
 
-    # the scales: a flank patch, mirrored 2 x 2 so it tiles
-    p = Image.open(os.path.join(ART, 'paint', 'attempts', 'walk', 'SW.png')).convert('RGBA').crop((192, 176, 256, 224))
-    tile = Image.new('RGBA', (p.width * 2, p.height * 2))
-    tile.paste(p, (0, 0)); tile.paste(ImageOps.mirror(p), (p.width, 0)); tile.paste(ImageOps.flip(p), (0, p.height)); tile.paste(ImageOps.flip(ImageOps.mirror(p)), (p.width, p.height))
-    tile = scaled(tile, 0.75)
-    pieces.append((('scales',), tile)); meta['scales'] = {'w': tile.width, 'h': tile.height}
+    # the scales: the flat painted texture, tiling (tools/dragon/scale_tile.py), at 2x the game's scale: SCALES.n scales
+    # across of SCALES.px each, as big as the body painting's
+    t = Image.open(os.path.join(ART, 'paint', 'scales.tile.png')).convert('RGBA')
+    tile = t.resize((SCALES['n'] * SCALES['px'] * 2,) * 2, Image.LANCZOS)
+    pieces.append((('scales',), tile)); meta['scales'] = {'w': tile.width, 'h': tile.height, 'res': 2}
+
+    # one shade: every body view, leg bone, foot and the neck and tail's scales to the body views' pooled statistics
+    pool = np.concatenate([hide_px(im) for key, im in pieces if key[0] == 'body'])
+    mu, sd = pool.mean(0), pool.std(0)
+    pieces = [(key, tone(tone(im, mu, sd), mu, sd) if key[0] in ('body', 'limb', 'foot') else im) for key, im in pieces]
+    # the scales are painted flat (the game shades the neck and tail), so they get the mean but only SCALES.sd of the spread
+    pieces = [(key, tone(tone(im, mu, sd * SCALES['sd']), mu, sd * SCALES['sd']) if key[0] == 'scales' else im) for key, im in pieces]
+    meta['tone'] = {'mean': [round(float(v), 1) for v in mu], 'sd': [round(float(v), 1) for v in sd]}
 
     # pack: shelves, tallest first
     W, x, y, sh, rects = 2048, 0, 0, 0, {}

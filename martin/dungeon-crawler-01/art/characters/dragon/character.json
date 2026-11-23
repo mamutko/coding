@@ -66,7 +66,17 @@
       ],
       "contents": "left: a dorsal bone spike; right: the tail club pointing left"
     },
-    "scales": "a flank patch of paint/walk/SW.png (192,176)-(256,224), mirrored 2 x 2 (tools/dragon/build_assets.py)",
+    "scales": {
+      "file": "paint/scales.png",
+      "prompt": "paint/scales.prompt.txt",
+      "inputs": [
+        "a flank crop of paint/body16.png (W view)"
+      ],
+      "model": "gpt-image-2.6-flare edit, medium, 1024x1024",
+      "result": "good: flat, even; made to tile by tools/dragon/scale_tile.py (paint/scales.tile.png)",
+      "spend_usd": 0.043,
+      "replaces": "the 2 x 2 mirrored flank patch of the old walk painting, which read bluish and kaleidoscopic next to the body"
+    },
     "walk_superseded": {
       "why": "the painted legs barely strode (the image model under-follows leg positions), so the body slid over its feet; and 8 directions turned in visible 45-degree jumps",
       "was": {
@@ -154,7 +164,8 @@
         "result": "good: the 8 in-between views match body16",
         "cut": "paint/body32.cut.png: python tools/dragon/cut_body.py body32"
       }
-    }
+    },
+    "tone": "tools/dragon/build_assets.py brings every body view, leg bone and foot to the body views' pooled hide colour statistics (the second body painting was ~10 % brighter), and the scales to their mean"
   },
   "decisions": {
     "where": "sandbox only",
