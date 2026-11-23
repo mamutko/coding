@@ -431,6 +431,47 @@ and the picker shows no saved heroes.
 
 ## Rendering
 
+### Coordinates
+
+The world is a grid of square tiles. A position `(x, y)` is in tile units: tile `(x, y)` covers `x … x+1` and
+`y … y+1`, and a character's position is the point under its feet. The map's tile arrays (`map.t`, `map.block`, …)
+are stored row by row: `map.t[y * map.w + x]`.
+
+```
+                screen
+          up (north, far back)
+                 /\
+   −x  ←       /    \       → −y
+             /  tile  \
+  (x, y+1) ◇  (x, y)   ◇ (x+1, y)
+             \        /
+   +y  ↙       \    /       ↘ +x
+                 \/
+            (x+1, y+1)
+        down (south, nearest)
+```
+
+- **Both axes grow toward the viewer, down the screen**, the usual convention for isometric tile games (it comes
+  from screen coordinates, where y grows downward). The projection is `iso(x, y) = ((x − y) · 48, (x + y) · 24)`
+  (`HW` = 48, `HH` = 24):
+  - **+x** goes **down and right** (screen south-east): 48 px right and 24 px down per tile;
+  - **+y** goes **down and left** (screen south-west): 48 px left and 24 px down per tile.
+- **`x + y` is the depth**: how far down the screen, i.e. how near the viewer. Smaller `x + y` is further back,
+  larger is nearer, 24 px per tile. **`x − y`** is how far right, and plays no part in depth.
+- **Compass words** in the code and in this README are screen directions. *North* is up the screen: smaller
+  `x + y`, far back. *South* is down the screen: larger `x + y`, nearest. *East* is right: larger `x − y`. *West*
+  is left. A tile's corners are its **north** (top) corner `(x, y)`, **east** (right) corner `(x+1, y)`, **south**
+  (bottom, *front*) corner `(x+1, y+1)` and **west** (left) corner `(x, y+1)`.
+- **The faces the viewer sees** are a tile's two lower edges: the **south-west face**, along the `y + 1` edge,
+  facing +y; and the **south-east face**, along the `x + 1` edge, facing +x. That is why walls draw only those two
+  faces, and why something "in front of" a block from `x0…x1` × `y0…y1` stands at `x ≥ x1 + 1` or `y ≥ y1 + 1`.
+- **Draw order** follows depth: things further back are drawn first (the painter's algorithm), sorted by `x + y`.
+  See **Depth sorting** below.
+- **Back from the screen:** `screenToIso` undoes the camera and `isoToWorld` undoes the projection, giving the
+  world point under the pointer (for clicks and hovering).
+
+### Projection, camera and layers
+
 - **Isometric projection.** Tiles are 96 × 48 px diamonds. A world point `(x, y)` (in tile units) maps to screen
   `((x − y)·48, (x + y)·24)`. The camera follows the hero smoothly (25 % lerp per frame) and keeps them centred,
   with the view aimed 46 px above the feet. It snaps when the hero teleports (new level). The canvas renders at
