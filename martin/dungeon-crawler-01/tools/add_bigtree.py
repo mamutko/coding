@@ -18,7 +18,10 @@ The picture is cut at hand-picked lines (TREES below, in the raw image's pixels)
     in as transparent shadow and highlight only: strongest across the transition (where the roots are half
     transparent), lighter where the colour is gone, so farther out they show as soft bumps on whatever grass they
     lie on; the bumps fade out at the tips (t0 to t1). Nothing is added beyond the painted roots. A soft dark contact
-    shadow sits under the trunk.
+    shadow sits under the trunk, and the tree's cast shadow lies on the ground toward the lower right (light from
+    the upper left, the art's light, taken as the moon's): the trunk's and crown's silhouette sheared onto the
+    ground (kx, ky) and blurred, a soft dappled shade that fades toward its far end. Big trees are never mirrored,
+    so the shadow and the bump shading keep the scene's light.
 
 Writes:
   assets/bigtrees.webp     the three layers of each tree, each cropped to its pixels, at SCALE of the raw picture
@@ -44,7 +47,10 @@ TREES = {
                 band=[(800, 440, 615), (900, 452, 610), (1000, 445, 615), (1060, 400, 650), (1095, 380, 680)],
                 # the roots' ellipse: around (gx, gy + fy), radii rx, ry (about where the painted roots end: 0.9);
                 # colour from f0 to f1 (then bumps only), bumps fading out from t0 to t1
-                rx=420, ry=150, fy=20, f0=0.4, f1=0.78, t0=0.85, t1=1.1),
+                rx=420, ry=150, fy=20, f0=0.22, f1=0.6, t0=0.7, t1=1.0,
+                # the cast shadow: light from the upper left (the art's light, taken as the moon's); a point h px above
+                # the ground point falls h * kx to the right and h * ky down; opacity, blur (raw px)
+                kx=0.55, ky=0.26, shadow=0.75, sblur=12),
 }
 
 
@@ -76,6 +82,7 @@ def smooth(t):
 
 def layers(spec):
     im = np.asarray(Image.open(RAW / spec["file"]).convert("RGBA")).astype(float)
+    im = np.pad(im, ((0, 300), (0, 560), (0, 0)))                         # room for the cast shadow (right, below)
     h, w = im.shape[:2]
     yy, xx = np.mgrid[0:h, 0:w]
     inband = np.zeros((h, w), bool)
@@ -101,11 +108,22 @@ def layers(spec):
     # the shading comes in early, where the colour is only starting to fade (full by a third of the way), and
     # eases off where the colour is gone (to 45 %), so the sunk roots stay light
     keep = smooth(sink / 0.35) * (1 - 0.55 * smooth((sink - 0.5) / 0.5)) * tips
-    hi = np.clip(emb * 3, 0, 1) * keep * 0.18
-    sh = np.clip(-emb * 3.5, 0, 1) * keep * 0.55
+    hi = np.clip(emb * 3, 0, 1) * keep * 0.13
+    sh = np.clip(-emb * 3.5, 0, 1) * keep * 0.4
     # a soft contact shadow under the trunk
     dc = np.hypot((xx - spec["gx"]) / 190, (yy - spec["gy"] - 10) / 75)
     contact = (1 - smooth(dc)) * 0.45
+    # the tree's cast shadow on the ground: the trunk's and crown's silhouette sheared onto the ground plane (a point
+    # h px above the ground point lands h * kx to the right and h * ky below it), blurred, so the sparse crown casts
+    # a soft, dappled shade; it fades toward its far end
+    sil = Image.fromarray(np.clip(im[..., 3] * (crown | trunk), 0, 255).astype(np.uint8))
+    kx, ky, g0x, g0y = spec["kx"], spec["ky"], spec["gx"], spec["gy"]
+    # output (X, Y) -> source: h = (Y - gy) / ky, x = X - h * kx, y = gy - h
+    cast = sil.transform((w, h), Image.AFFINE, (1, -kx / ky, kx / ky * g0y, 0, -1 / ky, g0y + g0y / ky), Image.BILINEAR)
+    cast = np.asarray(cast.filter(ImageFilter.GaussianBlur(spec["sblur"]))).astype(float) / 255
+    far = np.clip((yy - g0y) / (ky * (g0y - 150)), 0, 1)                 # 0 at the ground point, 1 under the crown's top
+    cast = np.clip(cast * 1.6, 0, 1) * (1 - 0.45 * far) * (yy >= g0y - 60) * spec["shadow"]
+    contact = np.maximum(contact, cast)
     # bumps and contact shadow under the roots (premultiplied "over")
     def over(top_rgb, top_a, base_rgb, base_a):
         a = top_a + base_a * (1 - top_a)

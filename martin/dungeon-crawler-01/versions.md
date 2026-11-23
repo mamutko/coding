@@ -9,9 +9,9 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v110–v112 — big oaks in three layers (sandbox) (2026-11-23)
+## v110–v113 — big oaks in three layers (sandbox) (2026-11-23)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 112`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 113`)*
 
 - A big oak for the surface, AI-painted with a wide, sparse crown and a partly exposed root system, cut into three
   layers: the roots lie on the ground (sinking into it toward their tips: brown near the trunk, then only faint
@@ -19,6 +19,8 @@ Commit: *(the next version records it; until then, the latest commit that set `V
   the hero, and the crown is always on top and never fades (the hero shows through its gaps).
 - For now only in the sandbox's new **Big trees** scenario (three oaks around the hero, and half the forest's trees
   big oaks); the game's surface is unchanged.
+- Each big oak casts a soft shadow toward the lower right, baked into its ground layer: the art is lit from the
+  upper left, taken as the moon's direction. Big oaks are never mirrored, so their light stays consistent.
 
 ## v109 — the hero in front of the crypt, items in front of walls (2026-11-23)
 

@@ -746,7 +746,12 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
     the colour is gone), so farther out they show as faint bumps on whatever grass is under them, fading out at the
     tips. Nothing reaches beyond the painted roots. The layer also holds the
     trunk's base (covered by the trunk layer), so no seam shows where the two meet. A soft contact shadow sits under
-    the trunk (no separate ground shadow).
+    the trunk, and the tree's **cast shadow** lies on the ground toward the lower right: the renderer itself has no
+    light direction (its lights are round pools around the hero, braziers and lanterns, and characters' shadows are
+    round ellipses under them), but all the painted art is lit from the upper left, so that is taken as the moon's
+    direction. The shadow is the trunk's and crown's silhouette sheared onto the ground (a point h px above the ground
+    point lands 0.55 h to the right and 0.26 h below it), blurred and fading toward its far end. Big trees are never
+    mirrored (unlike the small trees), so the shadow and the roots' shading keep that light.
   - **Trunk**: depth-sorted like any prop on its tile (`k = x + y + 1`), so the hero is behind it when north of it
     and in front of it when south of it. It reaches up to where the crown starts, higher than the hero's head when
     the hero stands right in front of it.
@@ -755,7 +760,7 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
   - **Size:** the crown is about 4.5 tiles wide (scale 0.9–1.1 in the forest, 1 for the fixed ones), the trunk
     about 0.6 tiles thick. It blocks only its own tile. In the forest a big oak needs the 5 × 5 tiles around it
     free, and keeps them free of other things (`chunkThings`). Fixed big oaks clear things within 2 tiles.
-  - **Culling:** its layers are drawn from farther outside the view than other things (roots 5 tiles, trunk 6,
+  - **Culling:** its layers are drawn from farther outside the view than other things (roots and shadow 8 tiles, trunk 6,
     crown 12 below and 6 above), since they reach far across the screen.
   - The minimap shows a big tree as a tree. The sheet loads on demand (`loadBigTrees`).
 - **Light:** a moonlit night: the darkness is a thin blue-black (62 % instead of 93 %), the hero's light reaches 9
@@ -2212,11 +2217,12 @@ walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycle
   roots are thick, exposed and brown … farther out they sink into the earth and become only subtle soft bumps … All
   roots dwindle and fade smoothly into full transparency". The sparser of the two was used; its roots came out
   opaque, so `tools/add_bigtree.py` sinks them into the ground: over an ellipse around the ground point (radii
-  420 × 150 raw px, about where the painted roots end), the roots' colour fades out from 40 % to 78 % of the way
-  out, while the same root shapes, blurred and embossed (light from the upper left), come in as a shadow (up to
-  55 %) and highlight (up to 18 %) layer: in full from a third of the way through the fade (where the roots are
-  still half coloured, half transparent), easing off to 45 % of that where the colour is gone, and fading out at
-  the tips (85 % to 110 %). The cut lines are set by
+  420 × 150 raw px, about where the painted roots end), the roots' colour fades out (from 22 % to 60 % of the way
+  out), while the same root shapes, blurred and embossed (light from the upper
+  left), come in as a shadow (up to 40 %) and highlight (up to 13 %) layer: in full from a third of the way through
+  the fade (where the roots are still half coloured, half transparent), easing off to 45 % of that where the colour
+  is gone, and fading out at the tips (70 % to 100 %). The cast shadow (see Big trees above) is made there too:
+  the silhouette sheared, blurred 12 raw px, at up to 75 %. The cut lines are set by
   hand in the tool (`TREES`).
   - `tools/raw/crypt.png` (OpenAI, 1024²): "an old weathered stone CRYPT / mausoleum … on its LEFT visible wall … a
     large arched ENTRANCE … steps leading DOWN into complete darkness".
