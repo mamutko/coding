@@ -513,9 +513,14 @@ are stored row by row: `map.t[y * map.w + x]`.
   plank joints and wear, made once on a canvas). Depth keys: closed `x + y + 1.4` (front) or `+ 0.6` (back),
   open `+ 0.5`.
 - **Searched bones** are drawn with their own sprite (`bonesused`): the same bones scattered flatter and wider.
-- **Depth sorting.** Walls, doors, props, monsters, the hero and projectiles are sorted by `x + y`. A wall or prop on
-  tile `(tx, ty)` uses `tx + ty + 1`; entities use their foot position. Stairs, bones, gold and floor items
-  are drawn flat right after the floor.
+- **Depth sorting.** Everything upright is drawn back to front, sorted by depth `x + y` (see
+  [Coordinates](#coordinates)): walls, doors, props, monsters, the hero, projectiles, fire flames, the dragon's
+  parts and the icons of items on the floor. A wall or prop on tile `(tx, ty)` uses `tx + ty + 1`, the depth of the
+  tile's west–east diagonal; characters, projectiles and items use their own position (`fi.x + fi.y` for an item).
+  A square prop N tiles a side (the crypt) uses its own west–east diagonal, `x + y + N`: whatever stands in front of
+  either of its front faces is deeper than that, whatever stands behind it shallower (a single depth only works for a
+  square footprint: on a rectangle the two front faces start at different depths). Flat things are drawn
+  unsorted right after the floor: stairs, bones, gold, rugs, ground decals, and the items' floor glow.
 - **Fog / exploration.** Tiles within ~6.8 tiles of the hero become "seen". Unseen tiles more than ~13 tiles
   away are not drawn.
 - **Lighting.** An offscreen canvas is filled with 93 % near-black. Elliptical radial "holes" are then cut
@@ -720,7 +725,8 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
   - Trees and bushes have soft ground shadows. Ground details lie flat, except the grass tuft, which is sorted like
     a bush.
   - **The crypt** (`drawCrypt`): its picture (98 px per tile of its width, `CRYPT_FIT`) is placed with its front
-    corner on the footprint's south corner. It is sorted by its front corner.
+    corner on the footprint's south corner. It is sorted by its west–east diagonal, `x + y + cryptN` (see
+    [Rendering](#rendering), Depth sorting), so the hero is drawn in front of it anywhere along its front walls.
 - **Light:** a moonlit night: the darkness is a thin blue-black (62 % instead of 93 %), the hero's light reaches 9
   tiles (7.2 below), and a faint light glows at the crypt's door.
 - **The minimap** shows the grass, trees and bushes as dots, and the crypt.

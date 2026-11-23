@@ -417,7 +417,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 108;
+const VERSION = 109;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -4873,14 +4873,17 @@ function render() {
   for (const o of G.objects) if (o.type === 'door' && o.x >= x0 && o.x <= x1 && o.y >= y0 && o.y <= y1 && (m.seen[o.y * m.w + o.x] || nearHero(o.x, o.y))) dl.push({ k: doorKey(o), t: 5, o });
   for (const o of G.objects) {
     if (o.surf) { if ((o.type === 'decal' && o.look !== 'tuft') || o.type === 'cryptdoor') continue;
-      const big = o.type === 'crypt' ? SURF.cryptN : 1;   // the crypt sorts by its front corner
-      if (o.x + big >= x0 && o.x <= x1 + 1 && o.y + big >= y0 && o.y <= y1 + 1) dl.push({ k: o.x + o.y + 2 * big - 1, t: 1, o }); continue; }
+      // a square footprint (the crypt: SURF.cryptN tiles a side; others 1) sorts by its west-east diagonal, the depth
+      // of its middle: whatever stands in front of either front face is deeper, whatever is behind it is shallower
+      const big = o.type === 'crypt' ? SURF.cryptN : 1;
+      if (o.x + big >= x0 && o.x <= x1 + 1 && o.y + big >= y0 && o.y <= y1 + 1) dl.push({ k: o.x + o.y + big, t: 1, o }); continue; }
     if (o.type !== 'stairs' && o.type !== 'bones' && o.type !== 'gold' && o.type !== 'mrug' && o.type !== 'door' && o.x >= x0 && o.x <= x1 && o.y >= y0 && o.y <= y1) dl.push({ k: o.type === 'keeper' || o.type === 'npc' ? o.fx + o.fy : o.x + o.y + 1, t: 1, o });   // a keeper (or story NPC) sorts like a character
   }
   for (const mo of G.monsters) if (mo.parts) { if (Math.abs(mo.x - h.x) < 30 && Math.abs(mo.y - h.y) < 30) dragonDrawables(mo, dl); }
     else if (mo.x >= x0 && mo.x <= x1 + 1 && mo.y >= y0 && mo.y <= y1 + 1) dl.push({ k: mo.x + mo.y, t: 2, e: mo });
   dl.push({ k: h.x + h.y, t: 3, e: h });
   for (const p of G.proj) dl.push({ k: p.x + p.y, t: 4, p });
+  for (const fi of G.items) if (fi.x >= x0 && fi.x <= x1 + 1 && fi.y >= y0 && fi.y <= y1 + 1) dl.push({ k: fi.x + fi.y, t: 8, fi });   // an item's icon stands up
   for (const f of G.fires) for (const q of f.parts) if (q.x > x0 - 1 && q.x < x1 + 2 && q.y > y0 - 1 && q.y < y1 + 2) dl.push({ k: q.x + q.y, t: 6, q, f });
   dl.sort((a, b) => a.k - b.k);
   // a lake in view: its water layer first (reflections of the depth-sorted things above), then the floor around it
@@ -4920,19 +4923,6 @@ function render() {
     if (o.x < x0 || o.x > x1 || o.y < y0 || o.y > y1) continue;
     drawProp(o);
   }
-  for (const fi of G.items) {
-    if (fi.x < x0 || fi.x > x1 + 1 || fi.y < y0 || fi.y > y1 + 1) continue;
-    const it = fi.item, [sx, sy] = iso(fi.x, fi.y), col = it.slot === 'use' ? POTIONS[it.pot].glow : isBomb(it) ? BOMB.glow : (it.rarity === 'rare' ? '230,200,74' : it.rarity === 'magic' ? '111,140,255' : '216,210,196');
-    // the floor glow: magic / rare items by affix tier (tier 3 also pulses)
-    const tr = itemTier(it), gR = [30, 26, 33, 40][tr], gA = [0.45, 0.4, 0.55, 0.7][tr] * (tr === 3 ? 0.8 + 0.2 * Math.sin(fi.t * 4) : 1);
-    const gr = ctx.createRadialGradient(sx, sy, 0, sx, sy, gR); gr.addColorStop(0, `rgba(${col},${gA})`); gr.addColorStop(1, `rgba(${col},0)`);
-    ctx.fillStyle = gr; ctx.beginPath(); ctx.ellipse(sx, sy, gR, gR / 2, 0, 0, 7); ctx.fill();
-    const s = 44, bob = Math.sin(fi.t * 2.5) * 2, [ix, iy] = META.items[iconKey(it.base)];
-    const hov = G.hover && G.hover.r === fi, flt = [potionFilter(it), hov ? 'brightness(1.5)' : ''].filter(Boolean).join(' ');
-    drawSprite(IMG.items, ix, iy, 96, 96, sx - s / 2, sy - s + 6 + bob, s, s,
-      { filter: flt, bright: hov ? 1.5 : 1, tint: potionFilter(it) ? POTIONS[it.pot].color : null });
-    G.pick.push({ kind: 'item', r: fi, x: sx - s / 2 - 4, y: sy - s, w: s + 8, h: s + 10 });
-  }
 
   for (const d of dl) {
     if (d.t === 0) drawWall(d.x, d.y);
@@ -4942,6 +4932,7 @@ function render() {
     else if (d.t === 5) drawDoor(d.o);
     else if (d.t === 6) drawFirePart(d.q, d.f);
     else if (d.t === 7) d.f();   // a part of the dragon
+    else if (d.t === 8) drawItem(d.fi);
     else drawProj(d.p);
   }
   for (const mo of G.monsters) if (mo.parts) dragonFire(mo);
@@ -5065,6 +5056,16 @@ function wallTop(pts, h) {   // a horizontal dirt top at height h over the world
   ctx.beginPath(); for (const [px, py] of pts) ctx.lineTo(px, py); ctx.closePath();
   ctx.fillStyle = dirtPat; ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fill();
   ctx.lineWidth = 0.012; ctx.strokeStyle = 'rgba(255,240,220,0.05)'; ctx.stroke(); ctx.restore();
+}
+// An item on the floor: its icon, standing up and bobbing, sorted by its spot like a character (its glow is drawn
+// flat with the floor)
+function drawItem(fi) {
+  const it = fi.item, [sx, sy] = iso(fi.x, fi.y);
+  const s = 44, bob = Math.sin(fi.t * 2.5) * 2, [ix, iy] = META.items[iconKey(it.base)];
+  const hov = G.hover && G.hover.r === fi, flt = [potionFilter(it), hov ? 'brightness(1.5)' : ''].filter(Boolean).join(' ');
+  drawSprite(IMG.items, ix, iy, 96, 96, sx - s / 2, sy - s + 6 + bob, s, s,
+    { filter: flt, bright: hov ? 1.5 : 1, tint: potionFilter(it) ? POTIONS[it.pot].color : null });
+  G.pick.push({ kind: 'item', r: fi, x: sx - s / 2 - 4, y: sy - s, w: s + 8, h: s + 10 });
 }
 function drawWall(x, y) {
   const L = iso(x, y + 1), B = iso(x + 1, y + 1), R = iso(x + 1, y), T = iso(x, y);
