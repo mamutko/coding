@@ -9,9 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v101 — the Heavy Crossbow reloads in 1.2 s (2026-11-23)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 101`)*
+
+- The Heavy Crossbow reloads in 1.2 s instead of 0.95 s: the same damage per second as the War Bow (about 37), with
+  bigger, slower shots, a choice rather than a strict upgrade.
+
 ## v100 — a lake every 4 depths (2026-11-22)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 100`)*
+Commit: f5decf4
 
 - The underground lake room, with its wraiths and its chest of 4 scrolls of frost, comes back every 4 depths: depth
   8, 12, 16, 20, … (before only depth 8).
