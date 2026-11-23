@@ -1437,7 +1437,9 @@ the art: `assets/dragon.webp` and its layout `DRAGON_ART`, written into `index.h
   the painted upper bone from the hip to the knee and the lower bone from the knee to the ankle (`dgBone`: each
   upright piece rotated onto its two joints on screen and stretched to their distance, so it foreshortens), the head as a
   sprite per direction of its facing, mouth open while the jaw is over half open, the neck and tail nodes as spheres
-  and bands filled with the scale texture (scaled with each node; the bands' turned along the spine) and shaded like
+  and bands filled with the scale texture (scaled with each node; the bands' turned along the spine; between two
+  neck or tail nodes 2 more beads are drawn, `DG_RIBS` 3 per gap, interpolated in place, height and size, sorted by
+  depth, for a ribbed look: drawing only, the nodes that are hit, collide and sweep stay 19) and shaded like
   the painted leg bones (`dgSheen`, `DG_SHEEN`, `DG_SHINE`): the lit upper-left side's scales glint (white in
   `soft-light`, which lifts the light scale tops more than the dark gaps, plus a faint cool `screen` shine), and the
   far side and the rim fall into shadow (up to 60 % black), a bone spike on each, the tail

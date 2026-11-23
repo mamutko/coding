@@ -417,7 +417,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 105;
+const VERSION = 106;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1431,21 +1431,29 @@ function dgPiece(m, r, x, y, w, h, q, flip) {   // an atlas piece, flashed white
   const fl = dgFlash(m, q); if (fl > 0) { ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = fl; ctx.drawImage(IMG.dragon, r[0], r[1], r[2], r[3], 0, 0, w, h); }
   ctx.restore();
 }
+// Between two neck or tail nodes the drawing adds DG_RIBS − 1 more beads (drawing only: the nodes that are hit, collide
+// and sweep stay as they are), so the neck and tail look ribbed.
+const DG_RIBS = 3;
 function dgNode(m, i) {
-  const n = m.parts, q = n[i];
+  const n = m.parts, q = n[i], p = n[i - 1];
   if (i === 0) return dgHead(m, q);
-  if (i === n.length - 1) return dgClub(m, q, n[i - 1]);
-  dgBand(m, q, n[i - 1]);
+  const last = i === n.length - 1;
+  dgBand(m, q, p);
+  const beads = last ? [] : [[q, 1]];
+  if (i >= 2 && (i - 1 < DG_SH || i - 1 > DG_HIPS)) for (let j = 1; j < DG_RIBS; j++) {   // both ends neck or tail
+    const t = j / DG_RIBS; beads.push([{ x: dgLerp(q.x, p.x, t), y: dgLerp(q.y, p.y, t), z: dgLerp(q.z, p.z, t), R: dgLerp(q.R, p.R, t), dk: q.dk, flash: q.flash }, 0]);
+  }
+  beads.sort((a, b) => a[0].x + a[0].y - b[0].x - b[0].y);
+  for (const [b, own] of beads) { const [x, y] = dgS3(b.x, b.y, b.z); dgBlob(m, x, y, b.R, own ? q : b); }
+  if (last) return dgClub(m, q, p);
   const [x, y] = dgS3(q.x, q.y, q.z);
-  dgBlob(m, x, y, q.R, q);
   if (i >= 2 && i < n.length - 3) {   // a bone spike on top, leaning toward the tail
     const f = dgDir(m, i), back = (f[0] - f[1]) > 0, A = DRAGON_ART.spike, hh = Math.max(10, q.R * 0.95), w = A.w / A.h * hh;
     dgPiece(m, A.rect, back ? x + w * 0.45 : x - w * 0.55, y - q.R * 0.72 - hh, w, hh, null, back);
   }
 }
-function dgClub(m, q, p) {   // the tail's bony club, pointing along the tail
+function dgClub(m, q, p) {   // the tail's bony club, pointing along the tail (over the last band and beads)
   const [x, y] = dgS3(q.x, q.y, q.z), [px, py] = dgS3(p.x, p.y, p.z), a = Math.atan2(y - py, x - px), A = DRAGON_ART.club, w = 58 * DRAGON.size, hh = A.h / A.w * w;
-  dgBand(m, q, p);
   ctx.save(); ctx.translate(x, y); ctx.rotate(a + Math.PI); if (Math.cos(a + Math.PI) < 0) ctx.scale(1, -1);   // its spikes kept up
   ctx.drawImage(IMG.dragon, A.rect[0], A.rect[1], A.rect[2], A.rect[3], -w * 0.55, -hh / 2, w, hh);
   ctx.restore();
