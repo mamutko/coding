@@ -74,7 +74,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `story/story.js` | The game's dialogue (`STORIES.story`), written from `story.md`; loaded by `index.html`. |
 | `story/demo.md`, `story/demo.js` | The demo story showing every dialogue feature (description and dialogue, `STORIES.demo`), played in the sandbox's Dialogue scenario. |
 | `tools/story/check.js` | Checks the dialogue files: `node tools/story/check.js`. |
-| `tools/story/voice.js` | Makes the dialogue's voice clips and their index: see [Voice-over](#voice-over). |
+| `tools/story/voice.js` | Makes the dialogue's voice clips and their index, through the voice-over skill's `make_voices.py`: see [Voice-over](#voice-over). |
 | `story/story.voices.js` | **Generated** by `tools/story/voice.js`: the story's voice clips (`VOICE_CLIPS`, "speaker\|text" → [file, seconds]); loaded by `index.html`. |
 | `assets/voice/<story>/` | The dialogue's voice clips (`<speaker>-<hash>.mp3`, mono, 64 kbit/s), made by `tools/story/voice.js`. |
 | `todo.md` | Numbered list of ideas for future work (not yet implemented). |
@@ -1875,16 +1875,19 @@ A line is spoken aloud when the story has a clip for it: characters' lines, and 
 (the hero's side) in the hero's voice. Lines with `{…}` in them change with the game and aren't voiced, which is
 also why voiced characters never use the hero's name.
 
-- **Making the clips:** `node tools/story/voice.js` lists every line of a speaker with a voice (`voices` in the
-  dialogue file) whose clip is missing, with the cost. `node tools/story/voice.js --go --tts <openai_media.py>`
-  makes them with OpenAI's speech model (`gpt-4o-mini-tts`, about $0.015 a minute, roughly $0.001 a line, through
+- **Making the clips:** `node tools/story/voice.js` collects every line of a speaker with a voice (`voices` in the
+  dialogue file) and hands them to the repo's **voice-over skill** (`.claude/skills/voice-over/`, its
+  `tools/make_voices.py`, which has the general workflow and learnings). Without options it lists the clips that
+  are missing, with the cost. `node tools/story/voice.js --go --tts <openai_media.py>` makes them with OpenAI's
+  speech model (`gpt-4o-mini-tts`, about $0.015 a minute, roughly $0.001 a line, through
   the ai-media-generation skill's script, which holds its own key), each hero line once per hero voice (`m`, `f`),
   cuts the silence around the voice (`ffmpeg silenceremove`: 0.05 s before, 0.15 s after; a clip that comes back
   nearly silent is made again, up to 3 times), saves it mono at 64 kbit/s as
   `assets/voice/<story>/<speaker>-<hash>.mp3`, removes clips no line uses any more, and writes the index
   `story/<story>.voices.js` (`VOICE_CLIPS["speaker|text"] = [file, seconds]`; the hero's speaker is `hero:m` or
   `hero:f`). The hash covers the voice, style, speed and text, so **after changing a line or a voice, run it
-  again**: the new line gets its clip and the old one goes. `--index` only rewrites the index.
+  again**: the new line gets its clip and the old one goes. `--verify --stt <google_media.py>` also transcribes
+  the new clips and flags any whose words differ; `--index-only` only rewrites the index.
 - **Playing:** a line with a clip plays it on the voices bus (the **Voices** slider, with the incantations' reverb)
   0.25 s after it appears (`voicePlay`; `VOICE_T`), and stays up at least until 0.6 s after the clip ends;
   choices under it appear once it is spoken. A **voiced choice** is first said by the hero, shown as the current

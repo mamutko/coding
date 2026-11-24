@@ -9,9 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v123 — the voice-over skill (2026-11-24)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 123`)*
+
+- The clip making moved into the repo's new voice-over skill (`make_voices.py`); `tools/story/voice.js` collects
+  the lines and calls it, and can now also check new clips' words by transcribing them (`--verify`).
+
 ## v121–v122 — dying instead of dying at once, slower potions and swaps (2026-11-24)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 122`)*
+Commit: 2d3d509
 
 - At 0 life or below the hero is **dying**, not dead: 2 s to heal back above 0 (a potion), or the hero dies.
   While dying: a throbbing crimson vignette, a heartbeat, the hero glowing red, a draining red ring round the hero's

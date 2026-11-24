@@ -97,6 +97,7 @@ When creating a new project:
   - the project is a presentation or a quiz (presentation skill)
   - the project needs users to be able to sign-up and login (user-accounts skill)
   - the project has animated characters or AI-generated sprite sheets (sprite-animation skill)
+  - the project has spoken dialogue, voiced characters or narration (voice-over skill)
 - when the user wants to see changes right away or side by side (a live Claude artifact of the project,
   optionally with test scenarios), see the artifact-sandbox skill; a project whose README lists a sandbox
   artifact gets it rebuilt and republished after every change
