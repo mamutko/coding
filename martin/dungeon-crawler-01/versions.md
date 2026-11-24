@@ -9,9 +9,21 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v118 — story descriptions in free writing, dialogue written by hand (2026-11-24)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 118`)*
+
+- A story is now two files: `story/<name>.md`, a free description at any level of detail (exact lines, a sentence
+  for a scene, or its logic in technical terms), and `story/<name>.js`, the dialogue the game plays, written from
+  the description with judgement and kept in step with it. The Markdown compiler is gone.
+- The dialogue files are readable by hand: items `{ say, text }`, `{ choose }`, `{ do }`, `{ go }`, with conditions
+  and effects as short JavaScript strings that the game turns into functions when it loads.
+- `tools/story/check.js` checks the dialogue files (speakers, jump targets, unreached nodes, JavaScript).
+- The demo's description is rewritten at mixed levels of detail; the demo plays exactly as before.
+
 ## v116–v117 — tree variants, groves, and shadows for the small things (2026-11-23)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 117`)*
+Commit: 62a6700
 
 - Two more variants of each tree kind (15 trees): a low-forked and a tall oak, a leaning and a twin-trunked pine, a
   twin and a young birch, a golden and a half-bare red maple, a broken snag and a leaning dead oak.

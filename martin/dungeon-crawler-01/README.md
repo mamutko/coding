@@ -70,10 +70,10 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `tools/catalog/` | `build.js` (reads the game's data in a headless browser and writes `catalog.html`) and `template.html` (the catalog page, edit this one). |
 | `tools/simulation/` | Balance simulation: `simulate.js` runs simulated heroes through the real game and reports how hero and monsters compare per depth. How to use it: [`tools/simulation/README.md`](tools/simulation/README.md); dated results with conclusions: `results-YYYY-MM-DD.md`. |
 | `manifest.webmanifest`, `assets/icons/`, `tools/make_icons.py` | Web app manifest and home-screen icons (made from the hero sprite by `make_icons.py`): see [Home screen app](#home-screen-app). |
-| `story/story.md` | The game's story, in the dialogue format (nothing written yet). See [Dialogue](#dialogue). |
-| `story/demo.md` | A demo story showing every dialogue feature, played in the sandbox's Dialogue scenario. |
-| `story/story.js` | **Generated** from `story/*.md` by `tools/story/build.js` (`STORIES`); loaded by `index.html`. |
-| `tools/story/build.js` | Compiles and checks the story files: `node tools/story/build.js`. |
+| `story/story.md` | The game's story, described in free writing (nothing written yet). See [Dialogue](#dialogue). |
+| `story/story.js` | The game's dialogue (`STORIES.story`), written from `story.md`; loaded by `index.html`. |
+| `story/demo.md`, `story/demo.js` | The demo story showing every dialogue feature (description and dialogue, `STORIES.demo`), played in the sandbox's Dialogue scenario. |
+| `tools/story/check.js` | Checks the dialogue files: `node tools/story/check.js`. |
 | `todo.md` | Numbered list of ideas for future work (not yet implemented). |
 | `versions.md` | What each version added, newest first, and how to get any version back from git history: see [Version](#version). |
 | `backup/index.NN.html` | Old snapshots of `index.html`, numbered `01`, `02`, … in the order they were made; not used by the game and not described by this README. `index.01.html` is an early version of the game; `index.02.html` is v20, the last version before game time followed real time (see [Main loop](#main-loop)), kept to compare performance; it has a `<base href="../">` so it loads `assets/` from the game folder. |
@@ -96,7 +96,7 @@ it. They live in `sandbox.js`, apart from the game; the game itself never uses t
   `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music Sandbox" --skip assets/meta.json assets/dragon.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*' --inline 'assets/*.webp' 'assets/*.jpg'`.
   It removes the document wrapper (the viewer adds its own) and the manifest and touch-icon links, inlines
   `sandbox.js` in place of the loader block (the artifact's address carries no query string) and `story/story.js`
-  in place of its `<script src>`, embeds the 33
+  and `story/demo.js` in place of their `<script src>`, embeds the 33
   images (`assets/*.webp`, `*.jpg`, the cast's, the dragon's and the trees' included) in the page as data URIs (about 13 MB, a 13.6 MB page of the 16 MB allowed; the claude.ai app on a phone failed
   to load them as separate files, every one and every retry), copies the other assets (sounds and music, minus
   `meta.json`, inlined as `META`, `dragon.json`, inlined as `DRAGON_ART`, and the unused icon sizes) and writes `files.json` for publishing; the
@@ -155,7 +155,7 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     magic Ruby Ring and 3 fire bombs, besides the bow and 12 health potions. Monsters within 16 tiles are removed.
 - **Dialogue:**
   - **Dialogue** (depth 6, regenerated until it has a keeper): plays the demo story (`STORIES.demo`, from
-    `story/demo.md`) instead of the game's, with a fresh story state. The keeper is Old Tobias (`look` 4), and the
+    `story/demo.js`) instead of the game's, with a fresh story state. The keeper is Old Tobias (`look` 4), and the
     test hero, with 1000 gold, stands in his room about 5 tiles from him, so he walks up and starts talking.
     **Vesper the Sorcerer** (a story NPC, the cast's sorcerer sheet, loaded on demand) stands on the room's free
     tile farthest from both; he talks only when clicked. A **champion skeleton**, asleep (its calm never ends, so it
@@ -1652,62 +1652,106 @@ constants are `KEEPER` in the code.
 ## Dialogue
 
 Characters talk to the hero through **conversations**: lines, choices that depend on what the hero has done and
-carries, and effects that change the game. The **story** is written in Markdown (`story/story.md`; nothing is
-written yet: the game's own story comes later) and compiled into JavaScript the game loads (`story/story.js`).
-`story/demo.md` is a worked example of every feature, played in the sandbox's **Dialogue** scenario (see
-[Sandbox](#sandbox)). Voice-over is planned (**TODO**: a recorded clip per line, played on the Voices bus).
+carries, and effects that change the game. Each story has two files, which relate the way this README relates to
+the code:
 
-### Story files
+- **`story/<name>.md`, the description:** free writing, by the author, about who the characters are, what they say
+  and why, and what follows from it. It can be as detailed as a scene needs: lines word for word where the words
+  matter, a sentence ("Tobias greets the hero.") where they don't, and, where a scene's logic is intricate, a
+  description of it in technical terms (a state machine, the values it keeps). It has no fixed form and isn't read
+  by any program.
+- **`story/<name>.js`, the dialogue:** what the game plays, every line, condition and effect, in the format below.
+  It is written from the description with judgement: lines given word for word are kept exactly, scenes only
+  summarised are written out, the state the conditions need is named. When the description changes, the dialogue
+  is **updated in place** (lines already written stay as they are unless the change touches them), and a change
+  asked for directly ("make Tobias ruder") goes into both files, each at its own level of detail. Lines written for
+  a summarised scene are not copied back into the description. Tools that show a dialogue (a graph of its nodes,
+  say) can be built on this file.
 
-- **`story/*.md`** are the sources. **`node tools/story/build.js`** (from the game folder) compiles every one into
-  `story/story.js`: `var STORIES = { story: {…}, demo: {…} }`, one entry per file named after it. Conditions,
-  effects and `{…}` text become functions there. The build checks everything and writes nothing if anything is
-  wrong, listing each mistake with its file and line: an unknown speaker, character or jump target, a node nothing
-  jumps to, a setting it doesn't know, JavaScript that doesn't parse, or a line that is none of the forms below.
-  **After editing a story file, rebuild `story.js` and commit both.**
-- `index.html` loads `story/story.js` with a `<script src>` before its own script and plays `STORIES.story`
-  (`STORY`). Without the file (or with an empty story) nothing changes in the game. The sandbox's Dialogue
-  scenario switches `STORY` to `STORIES.demo`; every other scenario and **Normal game** switch it back.
+There are two stories: `story` (`story/story.md` and `story/story.js`; nothing is written yet: the game's own story
+comes later) and `demo` (`story/demo.md` and `story/demo.js`), a worked example of every feature written at mixed
+levels of detail, played in the sandbox's **Dialogue** scenario (see [Sandbox](#sandbox)). Voice-over is planned
+(**TODO**: a recorded clip per line, played on the Voices bus).
+
+### Dialogue files
+
+- Each `story/*.js` file adds its story to `STORIES` (`var STORIES = STORIES || {}; STORIES.demo = { chars, convs }`).
+  `index.html` loads `story/story.js` and `story/demo.js` with `<script src>` before its own script and plays
+  `STORIES.story` (`STORY`). Without the files (or with an empty story) nothing changes in the game. The sandbox's
+  Dialogue scenario switches `STORY` to `STORIES.demo`; every other scenario and **Normal game** switch it back.
+- Conditions, effects and `{…}` text are **JavaScript in strings**; when the game loads, `storyPrep` turns them into
+  functions of the scope (below) and the items into the runtime's own form. JavaScript that doesn't parse is
+  logged and counts as false (as empty for an effect).
+- **`node tools/story/check.js`** (from the game folder) checks every dialogue file and changes nothing: each item
+  is one of the forms below, keys are known, speakers and `who` are known characters, jump targets exist, every
+  node is jumped to, and the JavaScript parses. Each mistake is listed with its file and place (conversation, node,
+  item number). **Run it after every change to a dialogue file.**
 
 ### The format
 
-A story file is ordinary Markdown, so it reads well on GitHub. Each line is one of these forms:
+```js
+var STORIES = STORIES || {};
+STORIES.demo = {
+  chars: {                                    // characters, by id: settings and their own reactions
+    tobias: { name: 'Old Tobias', starts: 4, nodes: {
+      '@leave': [ { say: 'tobias', text: 'Walking off in the middle of a sentence. Charming.' } ],
+      '@back':  [ { say: 'tobias', text: 'Back, are you? Good. Where was I…' } ],
+    } },
+  },
+  convs: [                                    // conversations, in order (the order breaks priority ties)
+    { id: 'tobias-again', who: 'tobias', when: "met('tobias')", repeat: true, starts: 'click', nodes: {
+      start: [
+        { say: 'tobias', text: 'Back for more, {name}?' },
+        { say: 'tobias', if: 'N.discount', text: 'My offer stands: ten percent off everything.' },
+        { choose: [
+          { text: 'Show me your wares.', do: 'market()' },
+          { text: 'Surely an old friend gets a better price? (100 gold)', if: 'gold >= 100 && !N.discount', to: 'bribe' },
+          { text: 'Nothing. Goodbye.', to: 'end' },
+        ] },
+      ],
+      bribe: [
+        { do: 'gold -= 100; N.discount = 0.2' },
+        { say: 'tobias', text: "For an old friend? Twenty percent. Don't tell the others." },
+      ],
+    } },
+  ],
+};
+```
 
-| Form | Meaning |
+A **node** is a named list of items; a conversation starts at `start`, and `@leave` and `@back` are the reactions
+to walking away and coming back (a conversation's own, else its character's). The **items**:
+
+| Item | Meaning |
 |---|---|
-| `# Title` | The document's title (ignored). |
-| `> text` | A note for the writer (ignored). So are `<!-- comments -->` and blank lines. |
-| `## Character: id` | A character's section: its settings (below), and optionally its own `### @leave` and `### @back` nodes. |
-| `## Conversation: id` | A conversation. Its settings come first, then its lines (the `start` node). |
-| `## Anything else` | A chapter heading: ends the section, nothing else. |
-| `- key: value` | A setting, right after the section's heading (see below). |
-| `### name` | A node of the conversation: a named place to jump to. `### @leave` and `### @back` are the reactions to walking away and coming back. |
-| `**Speaker:** text` | A line. The speaker is a character's id or name (or its first word: `Tobias` for *Old Tobias*), or `Hero` / `You`. |
-| ``1. text → target `do: code` `` | A choice. Numbered lines in a row form one set of choices; the target and the `do:` are optional (`->` works too). Without a target the conversation goes on after the choices. |
-| `` `do: code` `` | An effect: JavaScript run when the conversation reaches it. A fenced code block (```` ``` ````) is a longer effect. |
-| `→ target` | A jump: a node of this conversation, another conversation's id (it continues there), or `end`. |
+| `{ say: who, text }` | A line. `who` is a character's id or `'hero'`. |
+| `{ choose: [ { text, if, do, to }, … ] }` | A set of choices. `do` runs when it is picked, `to` jumps; without a `to` the conversation goes on after the choices. A line right before a set of choices shows with them. |
+| `{ do: code }` | An effect: JavaScript run when the conversation reaches it. |
+| `{ go: target }` | A jump: a node of this conversation, another conversation's id (it continues there), or `'end'`. |
 
-Any line, choice, effect or jump can start with a **condition**, `` `if expression` ``: it is skipped (a choice
-isn't offered) when the expression is false. **Text** can hold `{expression}`: `{name}` is the hero's name,
-`{depth}` the depth, `{N.price}` anything else (`\{` is a plain brace).
+Any item (and any choice) can have a **condition**, `if: expression`: it is skipped (a choice isn't offered) when the
+expression is false. **Text** can hold `{expression}`: `{name}` is the hero's name, `{depth}` the depth, `{N.price}`
+anything else (`\\{` in the string is a plain brace).
 
-**Character settings:**
+**Character settings** (`chars.<id>`):
 - `name:` the name shown (default: the character's game name: a keeper's name, a monster's own name such as
   *Blighted Skeleton Warrior*, else the id);
 - `sprite:` the sheet its portrait is cut from (default: the sheet it is drawn with);
-- `starts: near N` (it starts a conversation itself when the hero is within N tiles and in sight) or `starts: click`
+- `starts:` a number N (it starts a conversation itself when the hero is within N tiles and in sight) or `'click'`
   (it waits for a click: the default);
 - `talk:` the distance it talks at (3.5 tiles): a click walks the hero this close, and farther away the panel dims;
-- `leave:` beyond this distance the hero has walked away (6 tiles).
+- `leave:` beyond this distance the hero has walked away (6 tiles);
+- `nodes:` its own `@leave` and `@back` (the only nodes a character has).
 
 **Conversation settings:**
+- `id:` its name (required): for jumps, `seen()` and the sandbox's info bar;
 - `who:` the character it belongs to (required);
-- `` when: `expression` ``: it can only start while this holds;
+- `when:` an expression: it can only start while this holds;
 - `priority:` a number (default 0): of the conversations that can start, the highest priority plays, then the first
-  in the file;
-- `repeat`: it can play again (without it a conversation plays once);
+  in the list;
+- `repeat: true`: it can play again (without it a conversation plays once);
 - `starts:` like the character's, for this conversation only (e.g. a first meeting that starts by itself, later
-  ones on a click).
+  ones on a click);
+- `nodes:` `start`, any named nodes, and optionally its own `@leave` and `@back`.
 
 **Who is who.** A game entity answers to the first of its story ids that the story uses:
 - the Keepers of the Crypt: `aldric`, `borin`, `mirela`, `tobias`;
@@ -1717,27 +1761,7 @@ isn't offered) when the expression is false. **Text** can hold `{expression}`: `
 - monsters: their own `storyId` if one is set, then `boss` (any boss) or `champion` (any champion), then the type
   (`skeleton`, `ghoul`, `spider`, `wraith`, `demon`).
 
-A character needs a `## Character:` section only for settings or its own reactions.
-
-**Example** (from `story/demo.md`):
-
-```
-## Conversation: tobias-again
-- who: tobias
-- when: `met('tobias')`
-- repeat
-- starts: click
-
-**Tobias:** Back for more, {name}?
-**Tobias:** `if N.discount` My offer stands: ten percent off everything.
-1. Show me your wares. `do: market()`
-2. `if gold >= 100 && !N.discount` Surely an old friend gets a better price? (100 gold) → bribe
-3. Nothing. Goodbye. → end
-
-### bribe
-`do: gold -= 100; N.discount = 0.2`
-**Tobias:** For an old friend? Twenty percent. Don't tell the others.
-```
+A character needs an entry in `chars` only for settings or its own reactions (the checker knows the game's ids).
 
 ### The scope: what conditions and effects can use
 

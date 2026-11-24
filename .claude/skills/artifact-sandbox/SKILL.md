@@ -61,7 +61,7 @@ Put `<out-dir>` in the session's scratchpad (it is build output, never committed
   web-app manifest and apple-touch-icon links; sets `--title`; and replaces the loader block with `sandbox.js`
   inlined, because **the artifact's address carries no query string** (only a plain `#name` hash). Other local
   scripts the page loads (`<script src="file.js"></script>`, not http) are inlined in place too, since the viewer
-  can fail to serve separate files (e.g. dungeon-crawler-01's compiled `story/story.js`).
+  can fail to serve separate files (e.g. dungeon-crawler-01's `story/story.js`).
   A project whose `<body>` has attributes must set them from a script instead (the build stops otherwise).
 - `assets/...` — copies of the files under `assets/` (or the `--assets` folders), minus `--skip` patterns
   (files the page doesn't load: data already inlined, unused icon sizes) and minus `--inline` ones.

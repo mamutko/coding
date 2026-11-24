@@ -398,7 +398,8 @@
     <label>Look <select id="dbgLook"></select></label>
     <div id="dbgFps">– fps</div><div id="dbgMusic">music: –</div></div>
 
-<script src="story/story.js"></script>   <!-- the dialogue (STORIES), compiled from story/*.md: see README, Dialogue -->
+<script src="story/story.js"></script>   <!-- the dialogue (STORIES.story), written from story/story.md: see README, Dialogue -->
+<script src="story/demo.js"></script>   <!-- the sandbox's demo dialogue (STORIES.demo), from story/demo.md -->
 <script>
 'use strict';
 // =====================================================================================
@@ -417,7 +418,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 117;
+const VERSION = 118;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2904,15 +2905,45 @@ $('market').addEventListener('click', e => {
 // =====================================================================================
 //  Dialogue (see README, Dialogue)
 // =====================================================================================
-// Conversations come from STORY (story/story.js, compiled from story/story.md by tools/story/build.js). The game
-// keeps running while one plays: lines advance on their own after a reading time (a click on the panel shows the
-// whole line, a second one moves on), choices wait. One conversation plays at a time (DLG.c).
-const DLG_DEF = { starts: 'click', talk: 3.5, leave: 6 };   // a character's defaults (its ## Character: section overrides them)
+// Conversations come from STORY (story/story.js, the dialogue written from the description in story/story.md). The
+// game keeps running while one plays: lines advance on their own after a reading time (a click on the panel shows
+// the whole line, a second one moves on), choices wait. One conversation plays at a time (DLG.c).
+const DLG_DEF = { starts: 'click', talk: 3.5, leave: 6 };   // a character's defaults (its entry in the story's chars overrides them)
 const DLG_T = { cps: 55, min: 1.6, per: 0.045, max: 7, fade: 0.45, cool: 6, hist: 40, scan: 14, lost: 1.6 };
 // cps: letters shown per second; a line then stays min + per · letters s (at most max); fade: the panel's fade out;
 // cool: s before a character starts a conversation of its own again; hist: lines kept; scan: tiles searched for a
 // character that may start talking; lost: beyond leave × lost (after a reaction that went on talking) it stops quietly
 const STORY_EMPTY = { chars: {}, convs: [] };
+// A story file's conditions (if, when) and effects (do) are JavaScript in strings, and text can hold {expression}:
+// they become functions of the scope (storyScope: `with` puts its names in reach) once, when the game loads. The
+// items ({ say, text }, { do }, { go }, { choose: [...] }) become the runtime's { t: 'say' | 'do' | 'go' | 'choice' }.
+function storyFn(src, what, kind) {
+  const body = kind === 'expr' ? 'return (' + src + ');' : kind === 'text' ? 'return `' + src + '`;' : src + '\n';
+  try { return new Function('S', 'with (S) { ' + body + ' }'); }
+  catch (e) { console.error('story: bad JavaScript in ' + what + ':', src, e); return () => kind === 'text' ? src : false; }
+}
+function storyText(s, what) {   // {expr} inside text: a template; \{ is a plain brace
+  if (typeof s !== 'string' || !/(^|[^\\]){/.test(s)) return typeof s === 'string' ? s.replace(/\\{/g, '{') : s;
+  const t = s.replace(/[`$]/g, c => '\\' + c).replace(/(^|[^\\]){([^}]*)}/g, (m, a, e) => a + '${' + e + '}').replace(/\\\\{/g, '{');
+  return storyFn(t, what, 'text');
+}
+function storyItem(it, where) {
+  const c = it.if != null ? storyFn(it.if, where + ' if', 'expr') : null;
+  if (it.say != null) return { t: 'say', who: it.say, text: storyText(it.text, where), if: c };
+  if (it.choose) return { t: 'choice', if: c, opts: it.choose.map((o, k) => ({ text: storyText(o.text, where + ' choice ' + (k + 1)),
+    if: o.if != null ? storyFn(o.if, where + ' choice if', 'expr') : null, do: o.do != null ? storyFn(o.do, where + ' choice do') : null, to: o.to })) };
+  if (it.go != null) return { t: 'go', to: it.go, if: c };
+  if (it.do != null) return { t: 'do', f: storyFn(it.do, where + ' do'), if: c };
+  console.error('story: an item that is none of say, do, go, choose in ' + where, it); return { t: 'do', f: () => {} };
+}
+function storyPrep(st) {
+  if (!st || st.prepped) return st;
+  const nodes = (ns, where) => { const r = {}; for (const k in ns || {}) r[k] = ns[k].map((it, i) => storyItem(it, where + ' ' + k + ' #' + (i + 1))); return r; };
+  for (const id in st.chars = st.chars || {}) st.chars[id].nodes = nodes(st.chars[id].nodes, id);
+  for (const v of st.convs = st.convs || []) { v.nodes = nodes(v.nodes, v.id); if (v.when != null) v.when = storyFn(v.when, v.id + ' when', 'expr'); }
+  st.prepped = true; return st;
+}
+if (typeof STORIES !== 'undefined') for (const k in STORIES) storyPrep(STORIES[k]);
 let STORY = (typeof STORIES !== 'undefined' && STORIES.story) || STORY_EMPTY;
 const DLG = { c: null, cool: {} };
 const KEEPER_IDS = [null, 'aldric', 'borin', 'mirela', 'tobias'];

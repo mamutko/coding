@@ -1,135 +1,97 @@
 # Dialogue demo (sandbox only)
 
-> A showcase of the dialogue system, played in the sandbox's "Dialogue" scenario. It is not part of the game's story
-> (that is story.md). The format is described in README.md, Dialogue. Build story.js with `node tools/story/build.js`.
->
-> What it shows: a keeper who starts talking as you come near, a sorcerer who only talks when clicked, a monster
-> that taunts you; choices that depend on what you carry and on what you said before; consequences (a discount at
-> the market, gold for scrolls, a guard that lets you pass); reactions to walking away (a discount offer, an
-> important warning, a plain complaint) and picking the conversation up again when you come back.
+A showcase of the dialogue system, played in the sandbox's **Dialogue** scenario. It isn't part of the game's
+story (that is `story.md`). This file describes the demo; the dialogue itself, with every line, condition and
+effect, is `demo.js`, written from this description (see README.md, Dialogue).
 
-## Character: tobias
-- name: Old Tobias
-- starts: near 4
-- talk: 3.5
-- leave: 6
+The demo is written at different levels of detail on purpose, to show what a description can be: some lines are
+given word for word, some scenes only say what happens, and one part describes its logic in technical terms.
 
-### @leave
-**Tobias:** `if N.offered` Walking off in the middle of a sentence. Charming.
-**Tobias:** `if !N.offered` Wait, wait! Ten percent off, just for you. Come back and see.
-`if !N.offered` `do: N.discount = Math.max(N.discount || 0, 0.1); N.offered = true`
+What it shows: a character who starts talking as you come near, one who only talks when clicked, a monster that
+speaks up; choices that depend on what you carry and on what you said before; consequences (a discount at the
+market, gold for scrolls, a guard that lets you pass); reactions to walking away and picking the conversation up
+again when you come back.
 
-### @back
-**Tobias:** Back, are you? Good. Where was I…
+## The cast
 
-## Conversation: tobias-first
-- who: tobias
-- when: `!met('tobias')`
+- **Old Tobias**, the Keeper of the Crypt at the market stall. A miser with a dry humour, fond of regulars. He
+  calls out to the hero on his own as they come within about 4 tiles.
+- **Vesper the Sorcerer** (drawn with the cast's sorcerer sheet). Aloof, speaks in portents. She waits to be
+  clicked.
+- **The champion** guarding the way: grim, few words. It speaks up when the hero comes within 6 tiles and only
+  counts them as gone beyond 12.
 
-**Tobias:** Ah, a customer! Rare finds for rare folk. And whom do I have the pleasure of, hm?
-**Hero:** {name}.
-**Tobias:** {name}. A fine name for a long way down.
-→ ask
+## Tobias
 
-### ask
-**Tobias:** `if !N.asked` Well? Don't just stand there dripping on my rug.
-`do: N.asked = true`
-1. Who are you? → who
-2. `if !P.heardOfDragon` What lives at the bottom of all this? → dragon
-3. Show me your wares. `do: market()`
-4. Goodbye. → bye
+### Meeting him
 
-### who
-**Tobias:** Old Tobias. I sell to the living and I buy from the dead. Neither haggles much.
-→ ask
+Tobias greets the hero as a rare customer and asks their name. The hero gives it, and he remarks on it with a
+little gallows humour about how deep the crypt goes.
 
-### dragon
-**Tobias:** At the bottom? They say a wyrm sleeps there, curled around more gold than the crown ever saw.
-**Tobias:** Nobody I sold a torch to has come back up to say otherwise.
-`do: P.heardOfDragon = true`
-→ ask
+Then he waits for the hero to say something. The first time he grumbles: *"Well? Don't just stand there dripping on
+my rug."* The hero can:
 
-### bye
-**Tobias:** `if N.discount` Remember: ten percent off. My word is good. Mostly.
-**Tobias:** Mind the stairs.
+- ask who he is: he sells to the living and buys from the dead, and neither haggles much;
+- ask what lives at the bottom of the crypt (only until they have heard it): a dragon sleeping on a hoard, and
+  nobody he sold a torch to came back to say otherwise. From then on the hero **has heard of the dragon**;
+- ask for his wares: the market opens;
+- say goodbye: he says *"Mind the stairs."*, reminding them of his discount first if they have one.
 
-## Conversation: tobias-again
-- who: tobias
-- when: `met('tobias')`
-- repeat
-- starts: click
+After each answer they come back to these choices.
 
-**Tobias:** Back for more, {name}?
-**Tobias:** `if N.discount` My offer stands: ten percent off everything.
-1. Show me your wares. `do: market()`
-2. `if P.heardOfDragon && !N.toldMore` Tell me more about the wyrm. → more
-3. `if gold >= 100 && !N.discount` Surely an old friend gets a better price? (100 gold) → bribe
-4. Nothing. Goodbye. → end
+### Every later visit
 
-### more
-**Tobias:** Only what the drunks say: it hates the cold. Ice in its lungs, fire in its belly.
-`do: N.toldMore = true; P.dragonHatesCold = true`
-**Tobias:** Buy a scroll of frost or two. Or don't. I'm not your mother.
+On a click. He welcomes the hero back by name and repeats his offer if they have a discount. Choices:
 
-### bribe
-`do: gold -= 100; N.discount = 0.2`
-**Tobias:** For an old friend? Twenty percent. Don't tell the others.
+- his wares;
+- *"Tell me more about the wyrm."* (only once they have heard of the dragon, and only once): it hates the cold,
+  "ice in its lungs, fire in its belly"; buy a frost scroll or two. The hero now **knows the dragon hates cold**;
+- a better price for an old friend, for 100 gold (only with 100 gold and no discount yet): he takes the gold and
+  gives **20 % off**, "don't tell the others";
+- goodbye.
 
-## Character: vesper
-- name: Vesper the Sorcerer
-- sprite: sorcerer
-- starts: click
-- talk: 3.5
-- leave: 6
+### Walking away
 
-### @leave
-**Vesper:** `if N.warned` Go, then. The cold waits for no one, and neither do I.
-**Vesper:** `if !N.warned` Stop! One more thing, and listen well: the ice cracks under the dead first. Never stand where a corpse lies.
-`if !N.warned` `do: N.warned = true; P.knowsIceCracks = true`
+If the hero walks off mid-conversation the first time, he calls after them: *"Wait, wait! Ten percent off, just for
+you. Come back and see."*, and they have **10 % off** from then on. Any later time he is just sarcastic about it.
+When they come back he picks up where he left off: *"Back, are you? Good. Where was I…"*
 
-### @back
-**Vesper:** You return. The stars said you might.
+## Vesper
 
-## Conversation: vesper-meet
-- who: vesper
-- repeat
+On a click, any number of times. She greets the hero by name (more curtly once they have met), then remarks on
+whether they carry a frost scroll: she can smell it, or it's a pity, since "the deep belongs to those who carry
+winter". Choices:
 
-**Vesper:** `if !met('vesper')` Stand still. Let me look at you, {name}.
-**Vesper:** `if met('vesper')` Again, {name}? Speak.
-**Vesper:** `if has('frost')` You carry frost. I can smell it on your pack.
-**Vesper:** `if !has('frost')` No frost on you. Pity. The deep belongs to those who carry winter.
-1. `if gold >= 200` Teach me to read the frost. (200 gold) → teach
-2. `if met('tobias') && !N.tobias` Do you know Old Tobias? → tobias
-3. `if P.dragonHatesCold` Tobias says the wyrm hates the cold. → dragon
-4. Farewell. → end
+- to be taught to read the frost, for 200 gold (only with the gold): she gives **two frost scrolls** and a warning
+  not to stand on water when it thaws;
+- whether she knows Old Tobias (only once the hero has met him, and only once): an old crow who would sell his own
+  shadow; ask him nicely and he may lower his prices, rudely and he may lower them further;
+- that Tobias says the dragon hates the cold (only if he told them): it does, and frozen it can't breathe fire for
+  a while. The hero now **knows freezing stops the dragon's fire**;
+- farewell.
 
-### teach
-`do: gold -= 200; give('frost', 2); N.taught = (N.taught || 0) + 1`
-**Vesper:** Two scrolls. Speak the words as written, and do not stand on the water when it thaws.
+Walking away: the first time she calls out an important warning, *the ice cracks under the dead first; never stand
+where a corpse lies*, and the hero **knows the ice cracks**. Later she just lets them go coldly. Coming back she
+says the stars said they might.
 
-### tobias
-`do: N.tobias = true`
-**Vesper:** That old crow? He would sell his own shadow if it held still long enough.
-**Vesper:** Ask him nicely and he may lower his prices. Ask him rudely and he may lower them further.
+## The champion's challenge
 
-### dragon
-**Vesper:** It does. Freeze it, and it cannot breathe its fire. For a little while.
-`do: P.dragonFreezes = true`
+Played until it is settled, one way or the other.
 
-## Character: champion
-- starts: near 6
-- leave: 12
+**Champion:** Turn back, [the hero's name]. None pass while I stand.
 
-## Conversation: guard
-- who: champion
-- when: `!N.done`
+1. *"Then fall."* — it attacks, and the challenge is settled.
+2. *"I carry the frost. Would you rather stand frozen?"* (only with a frost scroll) — **Champion:** …The cold. I
+   remember the cold. **Champion:** Pass, then. And may it find you before I do. — Settled, and the champion is
+   **spared** (it remembers).
+3. *"I will go around."* — nothing settled; it challenges them again next time.
 
-**Champion:** Turn back, {name}. None pass while I stand.
-1. Then fall. `do: attack(); N.done = true`
-2. `if has('frost')` I carry the frost. Would you rather stand frozen? → frost
-3. I will go around. → end
+## The state this demo keeps
 
-### frost
-**Champion:** …The cold. I remember the cold.
-**Champion:** Pass, then. And may it find you before I do.
-`do: N.done = true; N.spared = true`
+In technical terms, for the curious:
+
+- About the hero, across characters: `heardOfDragon`, `dragonHatesCold`, `dragonFreezes`, `knowsIceCracks`.
+- Tobias remembers: whether he has made his walk-away offer, the discount (0.1 or 0.2, never lowered by the
+  offer), whether he grumbled already, whether he told more about the dragon.
+- Vesper remembers: whether she warned the hero, whether she spoke of Tobias, how many times she taught them.
+- The champion remembers: settled, spared.
