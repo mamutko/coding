@@ -426,7 +426,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 125;
+const VERSION = 126;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2760,7 +2760,7 @@ function damageHero(raw, m) {   // m: the attacking monster, or null for fire (n
   sfx('hurt');
   if (h.hp <= 0) { h.dyingCause = m ? 'You have fallen' : 'You burned to death'; if (h.dyingT == null) startDying(h); }   // below 0 life stacks up; death comes DYING_T s later (see update)
 }
-function startDying(h) { h.dyingT = 0; sfx('heartbeat'); log('You are dying! Heal within ' + DYING_T + ' seconds.', '#ff5a4a'); }
+function startDying(h) { h.dyingT = 0; sfx('heartbeat'); log('You are dying! Heal yourself, quickly!', '#ff5a4a'); }
 
 // =====================================================================================
 //  Loot & interactions

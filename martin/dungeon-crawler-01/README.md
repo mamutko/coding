@@ -442,7 +442,7 @@ and the picker shows no saved heroes.
   reach its half-way point (0.3 s, see [Actions](#actions)) in time, so it saves the hero only if started within
   about the first 1.7 s. There is no floor: however far below 0 the life goes, a heal must bring it back above 0.
   While dying:
-  - "You are dying! Heal within 2 seconds." is logged;
+  - "You are dying! Heal yourself, quickly!" is logged (it doesn't name the time left);
   - a heartbeat (a low *lub-dub*, `sfx('heartbeat')`) sounds every 0.4 s;
   - a crimson vignette (`#dying`, over the game view and under the HUD) closes in on the screen, throbbing with
     a heartbeat that quickens as time runs out (`dyingPulse`: opacity 0.55–1 and a slight scale);

@@ -9,9 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v126 — the dying message names no time (2026-11-24)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 126`)*
+
+- When the hero drops to 0 life the log says "You are dying! Heal yourself, quickly!" instead of naming the seconds
+  left.
+
 ## v125 — fuller item comparison (2026-11-24)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 125`)*
+Commit: 670b47f
 
 - A pack weapon is compared with the last equipped weapon of its class (melee or ranged), not just the equipped one.
 - The comparison lists every difference, bonuses from affixes included, as + / −, with the other item's name in
