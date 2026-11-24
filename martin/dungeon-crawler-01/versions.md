@@ -9,12 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v123 — the voice-over skill (2026-11-24)
+## v123–v124 — the voice-over skill; a shorter walk-away distance (2026-11-24)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 123`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 124`)*
 
 - The clip making moved into the repo's new voice-over skill (`make_voices.py`); `tools/story/voice.js` collects
   the lines and calls it, and can now also check new clips' words by transcribing them (`--verify`).
+- Characters count the hero as walking away 1.2 tiles beyond the closest point of the conversation (was 2), so
+  stepping away ends a talk sooner; the panel dims at 0.6 tiles.
+- Fix: a character that walks up to the hero (`walkUp`) did so for the whole conversation, following the hero, so
+  walking away never worked; it now walks up once and stays where it arrives.
 
 ## v121–v122 — dying instead of dying at once, slower potions and swaps (2026-11-24)
 

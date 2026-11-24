@@ -426,7 +426,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 123;
+const VERSION = 124;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2927,7 +2927,7 @@ $('market').addEventListener('click', e => {
 // Conversations come from STORY (story/story.js, the dialogue written from the description in story/story.md). The
 // game keeps running while one plays: lines advance on their own after a reading time (a click on the panel shows
 // the whole line, a second one moves on), choices wait. One conversation plays at a time (DLG.c).
-const DLG_DEF = { hail: 0, walkUp: false, wander: false, leave: 2 };   // a character's defaults (its entry in the story's chars overrides them)
+const DLG_DEF = { hail: 0, walkUp: false, wander: false, leave: 1.2 };   // a character's defaults (its entry in the story's chars overrides them)
 const DLG_T = { cps: 55, min: 1.6, per: 0.045, max: 7, fade: 0.15, cool: 6, hist: 40, scan: 14, lost: 1.6, meet: 1.4,
   wander: { r: 3, speed: 0.7, pause: [2, 6], walk: 5 } };
 // cps: letters shown per second; a line then stays min + per · letters s (at most max); fade: the panel's fade out;
@@ -3235,7 +3235,8 @@ function updateNpc(o, dt) {
   o.moving = false; if (G.dead) return;
   const h = G.hero, c = dlgWith(o), def = charDef(o.char), W = DLG_T.wander;
   if (!o.home) o.home = [o.fx, o.fy];
-  if (c) { o.goal = null; if (!(c.walkUp && npcStep(o, h.x, h.y, DLG_T.meet, KEEPER.speed, dt))) npcSettle(o); return; }
+  if (c) { o.goal = null;   // walks up once (until it first arrives), never follows the hero
+    if (!(c.walkUp && npcStep(o, h.x, h.y, DLG_T.meet, KEEPER.speed, dt))) { if (c.walkUp) c.walkUp = false; npcSettle(o); } return; }
   if (!def.wander) return npcSettle(o);
   if (o.goal) {
     o.goal.t += dt;
@@ -5474,7 +5475,7 @@ function updateKeeper(o, dt) {
   const h = G.hero, r = o.room, m = G.map; o.moving = false;
   if (G.dead) return;
   const dx = h.x - o.fx, dy = h.y - o.fy, d = Math.hypot(dx, dy), c = dlgWith(o);
-  if (c && c.walkUp && o.state === 'done' && d > KEEPER.meet + 0.3) { o.state = 'come'; o.walkT = 0; m.block[o.y * m.w + o.x] = 0; }   // hailed: comes over
+  if (c && c.walkUp) { c.walkUp = false; if (o.state === 'done' && d > KEEPER.meet + 0.3) { o.state = 'come'; o.walkT = 0; m.block[o.y * m.w + o.x] = 0; } }   // hailed: comes over (once)
   if (o.state === 'wait') {
     if (r && h.x >= r.x && h.x < r.x + r.w && h.y >= r.y && h.y < r.y + r.h && d > KEEPER.meet + 0.2) {
       o.state = 'come'; o.walkT = 0; m.block[o.y * m.w + o.x] = 0;

@@ -1772,12 +1772,13 @@ conversation too, so that, say, a first meeting is hailed and later ones wait fo
 - `sprite:` the sheet its portrait is cut from (default: the sheet it is drawn with);
 - `hail:` a distance N: it **hails** the hero, starting a conversation itself, when the hero comes within N tiles
   and in its sight. 0 (the default): it waits for a click;
-- `walkUp: true`: when it hails, it **walks up** to the hero (to 1.4 tiles, `DLG_T.meet`) while it talks (story
-  NPCs and keepers; a monster stays where it is);
+- `walkUp: true`: when it hails, it **walks up** to the hero (to 1.4 tiles, `DLG_T.meet`) while it talks, once:
+  where it first arrives it stays, so it never follows a hero who walks away (story NPCs and keepers; a monster
+  stays where it is);
 - `wander: true`: a story NPC **walks about** when it isn't talking: walks of up to 5 s at 0.7 tiles/s to a spot
   within 3 tiles of where it was placed (inside its room, if it has one), with pauses of 2–6 s between them
   (`DLG_T.wander`). Without it, it stands where it is;
-- `leave:` how far the hero can move off before it counts as walking away (2 tiles; see below);
+- `leave:` how far the hero can move off before it counts as walking away (1.2 tiles; see below);
 - `nodes:` its own `@leave` and `@back` (the only nodes a character has).
 
 Besides these, each kind of character has its own ways, which aren't settings: a keeper always faces the hero and
@@ -1855,7 +1856,7 @@ next to the gold. More hooks are added as the story needs them.
   story NPC stops wandering while it talks.
 - **Walking away** is measured from the closest the hero has been to the character during the conversation
   (`c.near`; the character walking up counts too): up to half of `leave` farther the conversation goes on
-  normally, then the panel dims, and more than `leave` (2 tiles) farther the character **reacts**: its `@leave` node plays (the
+  normally, then the panel dims, and more than `leave` (1.2 tiles) farther the character **reacts**: its `@leave` node plays (the
   conversation's own, else the character's). It can complain, call out a fact it didn't get to tell, offer a
   discount, or change the bags. When the reaction ends, the conversation is **put aside** where it stopped:
   `hero.story.susp[id] = { conv, node, i, hist }`, the line or choices that were showing and the history so far. A
