@@ -1964,7 +1964,8 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
     fill an empty slot the box says "Fills an empty slot.".
   - **How:** the other item's name in plain text (no rarity colour), then **every difference**, each as + (green)
     or − (red), unchanged values left out (or "No differences."): for weapons a change of type ("Bow (ranged) →
-    Sword (melee)"), the damage range's low and high ends, attacks per second and base DPS; armor (the base armor
+    Sword (melee)"), the damage range's low and high ends (one sign when both move the same way, "+6–8 Damage",
+    else each its own, "+2 / −3 Damage"), attacks per second and base DPS; armor (the base armor
     and armor affixes together); then each bonus, whether from affixes or built in (the Leather Boots' speed), in
     the order Strength, Dexterity, Vitality, Life, Life regen, Critical chance, Damage, Move speed.
   A hover tooltip (here and on the HUD's quick keys) follows only the real mouse (`pointermove` with

@@ -426,7 +426,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 126;
+const VERSION = 127;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -3696,7 +3696,10 @@ function compareHtml(it) {
   if (it.slot === 'weapon') {
     if (it.kind !== cur.kind) rows.push(`${KIND_INFO[cur.kind].label} → ${KIND_INFO[it.kind].label}`);
     const dmn = it.min - cur.min, dmx = it.max - cur.max;
-    if (dmn || dmx) rows.push(`Damage ${dmn ? fmt(dmn) : '±0'} – ${dmx ? fmt(dmx) : '±0'}`);
+    if (dmn || dmx) {   // one sign for both ends when they agree ("+6–8"), else each end with its own ("+2 / −3")
+      const same = dmn >= 0 && dmx >= 0 || dmn <= 0 && dmx <= 0, up = dmn + dmx > 0;
+      rows.push(same ? `<span class="${up ? 'up' : 'dn'}">${up ? '+' : '−'}${Math.abs(dmn)}–${Math.abs(dmx)}</span> Damage` : `${fmt(dmn)} / ${fmt(dmx)} Damage`);
+    }
     row('Attacks per second', 1 / it.cd - 1 / cur.cd, 2);
     row('Base DPS', weaponDps(it) - weaponDps(cur), 1);
   }

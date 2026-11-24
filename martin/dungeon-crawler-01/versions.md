@@ -9,9 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v127 — damage difference as "+6–8" (2026-11-24)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 127`)*
+
+- The item comparison shows a damage difference as "+6–8 Damage" (one sign for both ends) instead of
+  "Damage +6 – +8".
+
 ## v126 — the dying message names no time (2026-11-24)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 126`)*
+Commit: 3553794
 
 - When the hero drops to 0 life the log says "You are dying! Heal yourself, quickly!" instead of naming the seconds
   left.
