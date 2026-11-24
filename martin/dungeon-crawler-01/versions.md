@@ -9,12 +9,12 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v127 — damage difference as "+6–8" (2026-11-24)
+## v127–v128 — item comparison as a table (2026-11-24)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 127`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 128`)*
 
-- The item comparison shows a damage difference as "+6–8 Damage" (one sign for both ends) instead of
-  "Damage +6 – +8".
+- The item comparison is a table, labels on the left: damage as "+6–8", attacks per second as a change in
+  percent, no computed values (the base DPS row is gone).
 
 ## v126 — the dying message names no time (2026-11-24)
 

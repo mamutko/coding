@@ -1962,12 +1962,15 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
     each class is kept by `recalc` in `h.lastWeapon` (`{ melee, ranged }`, item ids; saved with the hero). Other
     gear is compared with the item it would replace (for a ring, the ring slot equipping would fill); when it would
     fill an empty slot the box says "Fills an empty slot.".
-  - **How:** the other item's name in plain text (no rarity colour), then **every difference**, each as + (green)
-    or − (red), unchanged values left out (or "No differences."): for weapons a change of type ("Bow (ranged) →
-    Sword (melee)"), the damage range's low and high ends (one sign when both move the same way, "+6–8 Damage",
-    else each its own, "+2 / −3 Damage"), attacks per second and base DPS; armor (the base armor
-    and armor affixes together); then each bonus, whether from affixes or built in (the Leather Boots' speed), in
-    the order Strength, Dexterity, Vitality, Life, Life regen, Critical chance, Damage, Move speed.
+  - **How:** the other item's name in plain text (no rarity colour), then **every difference** as a table, the
+    label on the left and the change on the right as + (green) or − (red), unchanged values left out (or "No
+    differences."). No computed values (such as damage per second): only the items' own numbers. For weapons:
+    **Type** when it changes ("Bow (ranged) → Sword (melee)"), **Damage** (one sign when both ends of the range
+    move the same way, "+6–8", else each its own, "+2 / −3") and **Attacks per second** as a change in percent
+    (old reload ÷ new reload − 1, rounded: "−7 %"); then **Armor** (the base armor and armor affixes together);
+    then each bonus, whether from affixes or built in (the Leather Boots' speed), in the order Strength, Dexterity,
+    Vitality, Life, Life regen / s, Critical chance, Damage bonus (the "% Damage" affix), Move speed, the percent
+    ones with a "%" after the number.
   A hover tooltip (here and on the HUD's quick keys) follows only the real mouse (`pointermove` with
   `pointerType` mouse, not the mouse events browsers make up from touches), closes as soon as the mouse is no
   longer over the element that opened it (`tipHover`), and closes on any touch. So on a device with both a mouse

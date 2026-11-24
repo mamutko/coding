@@ -188,6 +188,7 @@
   #tooltip .st { color: #9fb2ff; }
   #tooltip .cmp { margin-top: 6px; padding-top: 5px; border-top: 1px solid #33281a; color: var(--ink-dim); font-size: 13px; }
   #tooltip .up { color: #7fd17f; } #tooltip .dn { color: #e06a5a; } #tooltip .cmpName { color: var(--ink); }
+  #tooltip .cmpT { border-collapse: collapse; margin-top: 3px; } #tooltip .cmpT td { padding: 1px 0; } #tooltip .cmpT td:first-child { padding-right: 14px; }
   /* action box (a click or tap on an item in the equipment overlay): the tooltip takes clicks and shows
      action buttons; the mouse hints are hidden */
   #tooltip.pinned { pointer-events: auto; }
@@ -426,7 +427,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 127;
+const VERSION = 128;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -3690,23 +3691,24 @@ function compareTarget(it) {
 function compareHtml(it) {
   if (it.slot === 'use') return '';
   const tg = compareTarget(it); if (!tg) return it.slot === 'weapon' || it.slot === 'ring' && G.hero.equip.ring1 && G.hero.equip.ring2 ? '' : '<div class="cmp">Fills an empty slot.</div>';
-  const [cur, label] = tg, rows = [];
-  const fmt = (d, dec = 0) => `<span class="${d > 0 ? 'up' : 'dn'}">${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(dec)}</span>`;
-  const row = (name, d, dec = 0, suffix = '') => { if (Math.abs(d) >= (dec ? 0.5 * 10 ** -dec : 0.5)) rows.push(`${fmt(d, dec)}${suffix} ${name}`); };
+  const [cur, label] = tg, rows = [];   // [label, value html]: a table, labels on the left
+  const sgn = (d, txt, pct = '') => `<span class="${d > 0 ? 'up' : 'dn'}">${d > 0 ? '+' : '−'}${txt}${pct}</span>`;
+  const row = (name, d, pct = '') => { const v = Math.round(d); if (v) rows.push([name, sgn(v, Math.abs(v), pct)]); };
   if (it.slot === 'weapon') {
-    if (it.kind !== cur.kind) rows.push(`${KIND_INFO[cur.kind].label} → ${KIND_INFO[it.kind].label}`);
+    if (it.kind !== cur.kind) rows.push(['Type', `${KIND_INFO[cur.kind].label} → ${KIND_INFO[it.kind].label}`]);
     const dmn = it.min - cur.min, dmx = it.max - cur.max;
     if (dmn || dmx) {   // one sign for both ends when they agree ("+6–8"), else each end with its own ("+2 / −3")
       const same = dmn >= 0 && dmx >= 0 || dmn <= 0 && dmx <= 0, up = dmn + dmx > 0;
-      rows.push(same ? `<span class="${up ? 'up' : 'dn'}">${up ? '+' : '−'}${Math.abs(dmn)}–${Math.abs(dmx)}</span> Damage` : `${fmt(dmn)} / ${fmt(dmx)} Damage`);
+      rows.push(['Damage', same ? sgn(up ? 1 : -1, Math.abs(dmn) + '–' + Math.abs(dmx)) : `${dmn ? sgn(dmn, Math.abs(dmn)) : '±0'} / ${dmx ? sgn(dmx, Math.abs(dmx)) : '±0'}`]);
     }
-    row('Attacks per second', 1 / it.cd - 1 / cur.cd, 2);
-    row('Base DPS', weaponDps(it) - weaponDps(cur), 1);
+    row('Attacks per second', (cur.cd / it.cd - 1) * 100, ' %');   // as a change in percent
   }
   const st = (x, k) => (x.stats || {})[k] || 0;
   row('Armor', (it.armor || 0) + st(it, 'armor') - (cur.armor || 0) - st(cur, 'armor'));   // base armor and armor affixes together
-  for (const k in STAT_LABEL) if (k !== 'armor') row(STAT_LABEL[k], st(it, k) - st(cur, k));
-  return `<div class="cmp">${label}: <span class="cmpName">${cur.name}</span>` + (rows.length ? rows.map(r => '<br>' + r).join('') : '<br>No differences.') + '</div>';
+  for (const k in STAT_LABEL) if (k !== 'armor') { const pct = STAT_LABEL[k].startsWith('% ');   // "% Damage" -> Damage bonus, +5 %
+    row(k === 'dmg' ? 'Damage bonus' : STAT_LABEL[k].replace(/^% /, ''), st(it, k) - st(cur, k), pct ? ' %' : ''); }
+  return `<div class="cmp">${label}: <span class="cmpName">${cur.name}</span>` + (rows.length
+    ? '<table class="cmpT">' + rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`).join('') + '</table>' : '<br>No differences.') + '</div>';
 }
 function showRefTip(ref, cmp = true) {   // cmp false: the action box adds the comparison itself, below its buttons
   const t = $('tooltip');
