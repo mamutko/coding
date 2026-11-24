@@ -4,7 +4,7 @@
 var STORIES = STORIES || {};
 STORIES.demo = {
   chars: {
-    tobias: { name: 'Old Tobias', starts: 4, talk: 3.5, leave: 6, nodes: {
+    tobias: { name: 'Old Tobias', hail: 4, walkUp: true, nodes: {
       '@leave': [
         { say: 'tobias', if: 'N.offered', text: 'Walking off in the middle of a sentence. Charming.' },
         { say: 'tobias', if: '!N.offered', text: 'Wait, wait! Ten percent off, just for you. Come back and see.' },
@@ -14,7 +14,7 @@ STORIES.demo = {
         { say: 'tobias', text: 'Back, are you? Good. Where was I…' },
       ],
     } },
-    vesper: { name: 'Vesper the Sorcerer', sprite: 'sorcerer', starts: 'click', talk: 3.5, leave: 6, nodes: {
+    vesper: { name: 'Vesper the Sorcerer', sprite: 'sorcerer', wander: true, nodes: {
       '@leave': [
         { say: 'vesper', if: 'N.warned', text: 'Go, then. The cold waits for no one, and neither do I.' },
         { say: 'vesper', if: '!N.warned', text: 'Stop! One more thing, and listen well: the ice cracks under the dead first. Never stand where a corpse lies.' },
@@ -24,11 +24,11 @@ STORIES.demo = {
         { say: 'vesper', text: 'You return. The stars said you might.' },
       ],
     } },
-    champion: { starts: 6, leave: 12 },
+    champion: { hail: 6, leave: 3 },
   },
 
   convs: [
-    // Tobias, the first meeting: he starts it himself as the hero comes near
+    // Tobias, the first meeting: he hails the hero as they come near and walks over
     { id: 'tobias-first', who: 'tobias', when: "!met('tobias')", nodes: {
       start: [
         { say: 'tobias', text: 'Ah, a customer! Rare finds for rare folk. And whom do I have the pleasure of, hm?' },
@@ -62,8 +62,8 @@ STORIES.demo = {
       ],
     } },
 
-    // Tobias, every later visit: on a click
-    { id: 'tobias-again', who: 'tobias', when: "met('tobias')", repeat: true, starts: 'click', nodes: {
+    // Tobias, every later visit: on a click (hail: 0 overrides his hailing)
+    { id: 'tobias-again', who: 'tobias', when: "met('tobias')", repeat: true, hail: 0, nodes: {
       start: [
         { say: 'tobias', text: 'Back for more, {name}?' },
         { say: 'tobias', if: 'N.discount', text: 'My offer stands: ten percent off everything.' },
@@ -85,7 +85,7 @@ STORIES.demo = {
       ],
     } },
 
-    // Vesper: only on a click, any number of times
+    // Vesper: she wanders about the room and talks only on a click, any number of times
     { id: 'vesper-meet', who: 'vesper', repeat: true, nodes: {
       start: [
         { say: 'vesper', if: "!met('vesper')", text: 'Stand still. Let me look at you, {name}.' },
@@ -114,7 +114,7 @@ STORIES.demo = {
       ],
     } },
 
-    // The champion guarding the way: it speaks up when the hero comes within 6 tiles
+    // The champion guarding the way: it hails the hero when they come within 6 tiles
     { id: 'guard', who: 'champion', when: '!N.done', nodes: {
       start: [
         { say: 'champion', text: 'Turn back, {name}. None pass while I stand.' },

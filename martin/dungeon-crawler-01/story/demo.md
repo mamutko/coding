@@ -14,12 +14,13 @@ again when you come back.
 
 ## The cast
 
-- **Old Tobias**, the Keeper of the Crypt at the market stall. A miser with a dry humour, fond of regulars. He
-  calls out to the hero on his own as they come within about 4 tiles.
-- **Vesper the Sorcerer** (drawn with the cast's sorcerer sheet). Aloof, speaks in portents. She waits to be
-  clicked.
-- **The champion** guarding the way: grim, few words. It speaks up when the hero comes within 6 tiles and only
-  counts them as gone beyond 12.
+- **Old Tobias**, the Keeper of the Crypt at the market stall. A miser with a dry humour, fond of regulars. The
+  first time, he hails the hero as they come within about 4 tiles and comes over; after that he waits to be
+  approached.
+- **Vesper the Sorcerer** (drawn with the cast's sorcerer sheet). Aloof, speaks in portents. She paces about the
+  room, lost in thought, and never calls out: the hero has to go up to her.
+- **The champion** guarding the way: grim, few words. It stands its ground and challenges the hero when they come
+  within 6 tiles, and doesn't count them as gone until they are a few tiles farther off.
 
 ## Tobias
 
@@ -41,7 +42,7 @@ After each answer they come back to these choices.
 
 ### Every later visit
 
-On a click. He welcomes the hero back by name and repeats his offer if they have a discount. Choices:
+When the hero comes up to him. He welcomes the hero back by name and repeats his offer if they have a discount. Choices:
 
 - his wares;
 - *"Tell me more about the wyrm."* (only once they have heard of the dragon, and only once): it hates the cold,

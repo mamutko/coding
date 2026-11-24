@@ -418,7 +418,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 118;
+const VERSION = 119;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2908,11 +2908,14 @@ $('market').addEventListener('click', e => {
 // Conversations come from STORY (story/story.js, the dialogue written from the description in story/story.md). The
 // game keeps running while one plays: lines advance on their own after a reading time (a click on the panel shows
 // the whole line, a second one moves on), choices wait. One conversation plays at a time (DLG.c).
-const DLG_DEF = { starts: 'click', talk: 3.5, leave: 6 };   // a character's defaults (its entry in the story's chars overrides them)
-const DLG_T = { cps: 55, min: 1.6, per: 0.045, max: 7, fade: 0.45, cool: 6, hist: 40, scan: 14, lost: 1.6 };
+const DLG_DEF = { hail: 0, walkUp: false, wander: false, leave: 2 };   // a character's defaults (its entry in the story's chars overrides them)
+const DLG_T = { cps: 55, min: 1.6, per: 0.045, max: 7, fade: 0.15, cool: 6, hist: 40, scan: 14, lost: 1.6, meet: 1.4,
+  wander: { r: 3, speed: 0.7, pause: [2, 6], walk: 5 } };
 // cps: letters shown per second; a line then stays min + per · letters s (at most max); fade: the panel's fade out;
 // cool: s before a character starts a conversation of its own again; hist: lines kept; scan: tiles searched for a
-// character that may start talking; lost: beyond leave × lost (after a reaction that went on talking) it stops quietly
+// character that may start talking; lost: beyond leave × lost (after a reaction that went on talking) it stops
+// quietly; meet: how close a character that walks up to the hero comes; wander: a wandering character's walks (within
+// r tiles of where it was placed and inside its room, at speed tiles/s, pausing pause s between walks of at most walk s)
 const STORY_EMPTY = { chars: {}, convs: [] };
 // A story file's conditions (if, when) and effects (do) are JavaScript in strings, and text can hold {expression}:
 // they become functions of the scope (storyScope: `with` puts its names in reach) once, when the game loads. The
@@ -2956,6 +2959,8 @@ function storyIds(e) {
   return [e.storyId, e.boss && 'boss', e.champ && 'champion', e.type].filter(Boolean);
 }
 const charDef = id => Object.assign({}, DLG_DEF, STORY.chars[id] || {});
+const convSet = (v, def, k) => v[k] != null ? v[k] : def[k];   // a conversation's own hail / walkUp, else its character's
+const dlgWith = e => { const c = DLG.c; return c && !c.done && c.npc === e ? c : null; };   // the conversation e is in, if any
 const heroStory = () => { const h = G.hero; return h.story || (h.story = { P: {}, N: {}, seen: {}, met: {}, susp: {} }); };
 const npcBag = id => { const s = heroStory(); return s.N[id] || (s.N[id] = {}); };
 function npcName(e, id) {
@@ -3009,25 +3014,27 @@ const dlgText = (t, c) => typeof t === 'function' ? String(dlgTry(t, c, '')) : t
 const dlgNodes = c => c.nodes || (c.nodes = Object.assign({}, (STORY.chars[c.char] || {}).nodes || {}, c.conv.nodes));
 function dlgNew(e, id, conv) {
   const c = { npc: e, char: id, conv, def: charDef(id), name: npcName(e, id), node: 'start', i: 0, hist: [], wait: null, phase: 'talk', armed: true };
+  c.near = e && G.hero ? dlgDist(e) : 0;   // the closest the hero has been during the conversation (walking away is measured from it)
   c.scope = storyScope(c); return c;
 }
 // Conversations a character could start now: not yet played (or repeat), whose when holds; how: 'near' leaves out
 // the ones that wait for a click. Highest priority first, then in file order.
 function dlgPick(e, id, how) {
   const S = heroStory(), def = charDef(id), probe = dlgNew(e, id, { id: '?', nodes: {} });
-  return STORY.convs.filter(v => v.who === id && (v.repeat || !S.seen[v.id]) && (how === 'click' || (v.starts != null ? v.starts : def.starts) !== 'click')
+  return STORY.convs.filter(v => v.who === id && (v.repeat || !S.seen[v.id]) && (how === 'click' || convSet(v, def, 'hail') > 0)
     && (!v.when || dlgTry(v.when, Object.assign(probe, { conv: v }))))
     .map((v, i) => [v, i]).sort((a, b) => (b[0].priority || 0) - (a[0].priority || 0) || a[1] - b[1]).map(a => a[0]);
 }
-function dlgStart(e, id, conv) {
+function dlgStart(e, id, conv, hailed) {
   if (DLG.c && !DLG.c.done) dlgSuspend(DLG.c, true);
-  const c = DLG.c = dlgNew(e, id, conv); dlgPortrait(c); dlgRun(c);
+  const c = DLG.c = dlgNew(e, id, conv); c.walkUp = hailed && convSet(conv, c.def, 'walkUp'); dlgPortrait(c); dlgRun(c);
 }
-function dlgResume(e, id, sp) {
+function dlgResume(e, id, sp, hailed) {
   const conv = STORY.convs.find(v => v.id === sp.conv), S = heroStory();
   if (!conv) { delete S.susp[id]; return false; }   // the story changed since
   if (DLG.c && !DLG.c.done) dlgSuspend(DLG.c, true);
   const c = DLG.c = dlgNew(e, id, conv); c.hist = sp.hist.slice(); c.counted = true; c.resume = { node: sp.node, i: sp.i };
+  c.walkUp = hailed && convSet(conv, c.def, 'walkUp');
   delete S.susp[id]; dlgPortrait(c);
   if (dlgNodes(c)['@back']) { c.node = '@back'; c.phase = 'back'; } else { c.node = sp.node; c.i = sp.i; }
   dlgRun(c); return true;
@@ -3102,13 +3109,6 @@ function dlgTalk(e) {
   }
   return false;
 }
-// The reach of a click on a character with something to say: its talk distance (else null: walk up to it)
-function dlgReach(o) {
-  if (!STORY.convs.length || !(o.type === 'keeper' || o.type === 'npc')) return null;
-  const S = heroStory();
-  for (const id of storyIds(o)) if (S.susp[id] || dlgPick(o, id, 'click').length) return Math.max(0.75, charDef(id).talk - 0.3);
-  return null;
-}
 function dlgSkip() {   // a click on the panel: the whole line at once, then the next one
   const c = DLG.c; if (!c || c.done || !c.wait) return;
   const w = c.wait, rev = w.n / DLG_T.cps;
@@ -3120,14 +3120,15 @@ function updateDialogue(dt) {
   if (c) {
     if (c.done) { c.fadeT -= dt; if (c.fadeT <= 0) DLG.c = null; dlgShow(); return; }
     if (G.dead || !dlgAlive(c.npc)) { dlgEnd(c, true); return; }
-    const d = dlgDist(c.npc);
-    if (c.phase === 'talk') {
-      if (d <= c.def.talk) c.armed = true;
-      if (d > c.def.leave && c.armed) dlgLeave(c);
-      else if (d > c.def.leave * DLG_T.lost) dlgSuspend(c, true);
+    const d = dlgDist(c.npc); c.near = Math.min(c.near, d);
+    if (c.phase === 'talk') {   // walking away: farther than leave beyond the closest the hero has been
+      if (d <= c.near + c.def.leave / 2) c.armed = true;
+      if (d > c.near + c.def.leave && c.armed) dlgLeave(c);
+      else if (d > c.near + c.def.leave * DLG_T.lost) dlgSuspend(c, true);
     }
     if (c.done) return;
-    c.far = d > c.def.talk;
+    c.far = d > c.near + c.def.leave / 2;
+    dlgFace(c);
     const w = c.wait;
     if (w && !w.opts) { w.t += dt; if (w.t >= w.dur) { c.wait = null; dlgRun(c); } } else if (w) w.t += dt;
     dlgShow(); return;
@@ -3142,13 +3143,59 @@ function updateDialogue(dt) {
     for (const id of storyIds(e)) {
       if (DLG.cool[id] > G.time) continue;
       const def = charDef(id), sp = S.susp[id], [ex, ey] = e.fx != null ? [e.fx, e.fy] : [e.x, e.y];
-      if (sp) { if (def.starts !== 'click' && d <= def.starts && los(h.x, h.y, ex, ey) && dlgResume(e, id, sp)) return; continue; }
+      if (sp) { const v = STORY.convs.find(x => x.id === sp.conv), st = v ? convSet(v, def, 'hail') : def.hail;
+        if (st > 0 && d <= st && los(h.x, h.y, ex, ey) && dlgResume(e, id, sp, true)) return; continue; }
       for (const v of dlgPick(e, id, 'near')) {
-        const st = v.starts != null ? v.starts : def.starts;
-        if (d <= st && los(h.x, h.y, ex, ey)) { dlgStart(e, id, v); return; }
+        if (d <= convSet(v, def, 'hail') && los(h.x, h.y, ex, ey)) { dlgStart(e, id, v, true); return; }
       }
     }
   }
+}
+// While a conversation plays, the hero, when standing (not walking or fighting), faces the character, and the
+// character, when not walking, faces the hero (a keeper always does)
+function dlgFace(c) {
+  const h = G.hero, e = c.npc, [ex, ey] = e.fx != null ? [e.fx, e.fy] : [e.x, e.y];
+  if (!h.moving && !h.swing && !h.draw && !h.kb) setDir(h, ex - h.x, ey - h.y);
+  if (!e.moving && !(e.b && (e.dead || e.windup > 0 || e.lunge > 0))) setDir(e, h.x - ex, h.y - ey);
+}
+// A step of a walking character (a keeper or a story NPC) toward (tx, ty), stopping stop tiles short, never leaving
+// its room or walking into a wall or a blocking prop; false if it can't (or needn't) move. Its tile doesn't block
+// while it walks; npcSettle blocks it again where it stops.
+function npcStep(o, tx, ty, stop, speed, dt) {
+  const m = G.map, r = o.room, dx = tx - o.fx, dy = ty - o.fy, d = Math.hypot(dx, dy), step = Math.min(speed * dt, d - stop);
+  if (step <= 0.001) return false;
+  const nx = o.fx + dx / d * step, ny = o.fy + dy / d * step;
+  if (r && !(nx >= r.x + 0.35 && nx <= r.x + r.w - 0.35 && ny >= r.y + 0.35 && ny <= r.y + r.h - 0.35)) return false;
+  const at = o.y * m.w + o.x, was = m.block[at]; m.block[at] = 0;   // (its own tile doesn't stop it)
+  if (!canStand(nx, ny, 0.25) || G.objects.some(q => q !== o && q.block && q.type !== 'door' && Math.hypot(q.x + 0.5 - nx, q.y + 0.5 - ny) < 0.7)
+    || Math.hypot(G.hero.x - nx, G.hero.y - ny) < 0.6) { m.block[at] = was; return false; }
+  o.walking = true;
+  o.fx = nx; o.fy = ny; o.x = Math.floor(nx); o.y = Math.floor(ny); setDir(o, dx, dy);
+  o.anim += step * (META.characters[o.type === 'npc' ? o.sheet : 'keeper' + o.look].fpt || 2); o.moving = true; return true;
+}
+function npcSettle(o) {
+  if (!o.walking) return; o.walking = false; const m = G.map;
+  if (Math.floor(G.hero.x) !== o.x || Math.floor(G.hero.y) !== o.y) m.block[o.y * m.w + o.x] = 1;
+}
+// A story NPC: in a conversation it walks up to the hero (if it hailed with walkUp) and faces the hero; otherwise,
+// with wander, it strolls about near where it was placed, pausing between walks; else it stands where it is
+function updateNpc(o, dt) {
+  o.moving = false; if (G.dead) return;
+  const h = G.hero, c = dlgWith(o), def = charDef(o.char), W = DLG_T.wander;
+  if (!o.home) o.home = [o.fx, o.fy];
+  if (c) { o.goal = null; if (!(c.walkUp && npcStep(o, h.x, h.y, DLG_T.meet, KEEPER.speed, dt))) npcSettle(o); return; }
+  if (!def.wander) return npcSettle(o);
+  if (o.goal) {
+    o.goal.t += dt;
+    if (o.goal.t < W.walk && npcStep(o, o.goal.x, o.goal.y, 0.05, W.speed, dt)) return;
+    o.goal = null; o.pause = W.pause[0] + rnd() * (W.pause[1] - W.pause[0]); npcSettle(o); return;
+  }
+  if ((o.pause = (o.pause == null ? rnd() * W.pause[1] : o.pause) - dt) > 0) return;
+  for (let k = 0; k < 12; k++) {   // a free floor spot near home
+    const a = rnd() * Math.PI * 2, rr = 1 + rnd() * (W.r - 1), x = o.home[0] + Math.cos(a) * rr, y = o.home[1] + Math.sin(a) * rr;
+    if (canStand(x, y, 0.3)) { o.goal = { x, y, t: 0 }; return; }
+  }
+  o.pause = W.pause[0];
 }
 // ---- The panel (#dlg): portrait, name, the lines so far (scrolls), the current line as it is spoken, the choices
 const dlgEl = { box: $('dlg'), hist: $('dlgHist'), line: $('dlgLine'), who: $('dlgName'), opts: $('dlgChoices') };
@@ -3849,8 +3896,8 @@ function pointerDown(e) {
     if (ref && ref.kind === 'item') lastItemTap = { fi: ref.r, t: now, x: mouse.x, y: mouse.y };
     if (ref && ref.kind !== 'mon') {
       h.intent = ref; const [cx, cy] = ref.kind === 'item' ? [ref.r.x, ref.r.y] : objCenter(ref.r);
-      const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door'), talk = ref.kind === 'obj' && dlgReach(ref.r);   // a character to talk to: from its talk distance
-      if (dist(h, { x: cx, y: cy }) <= (talk || (blk ? 1.5 : 0.75))) { act(ref); h.intent = null; h.path = []; }
+      const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door');   // a blocking one (a character too): from the next tile
+      if (dist(h, { x: cx, y: cy }) <= (blk ? 1.5 : 0.75)) { act(ref); h.intent = null; h.path = []; }
       else pathTo(h, cx, cy, blk);
       mouse.holdWalk = false;
     } else {
@@ -4037,14 +4084,14 @@ function update(dt) {
   if (h.moving) { const lk = heroLook(h); h.anim += stepD * (META.characters[lk].fpt || 2) / lookScale(lk); if (stepD < 1e-4) { h.stuckT += dt; if (h.stuckT > 0.3) { h.path = []; h.stuckT = 0; } } else h.stuckT = 0; }
   if (h.intent) {
     const ref = h.intent, [cx, cy] = ref.kind === 'item' ? [ref.r.x, ref.r.y] : objCenter(ref.r);
-    const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door'), talk = ref.kind === 'obj' && dlgReach(ref.r);
+    const blk = ref.kind === 'obj' && (ref.r.block || ref.r.type === 'door');
     const dd = dist(h, { x: cx, y: cy });
-    if (dd <= (talk || (blk ? 1.5 : 0.75))) { setDir(h, cx - h.x, cy - h.y); h.path = []; h.intent = null; act(ref); }
+    if (dd <= (blk ? 1.5 : 0.75)) { setDir(h, cx - h.x, cy - h.y); h.path = []; h.intent = null; act(ref); }
     else if (!h.path.length) { if (dd <= 1.7) { h.intent = null; act(ref); } else h.intent = null; }
   }
   if (G.map.surface) shiftSurface();
   updateLake(dt); updateIce(dt);
-  for (const o of G.objects) if (o.type === 'keeper') updateKeeper(o, dt);
+  for (const o of G.objects) if (o.type === 'keeper') updateKeeper(o, dt); else if (o.type === 'npc') updateNpc(o, dt);
   updateDialogue(dt);
   // mark explored
   const m = G.map;
@@ -5358,7 +5405,8 @@ function drawProp(o) {
 function updateKeeper(o, dt) {
   const h = G.hero, r = o.room, m = G.map; o.moving = false;
   if (G.dead) return;
-  const dx = h.x - o.fx, dy = h.y - o.fy, d = Math.hypot(dx, dy);
+  const dx = h.x - o.fx, dy = h.y - o.fy, d = Math.hypot(dx, dy), c = dlgWith(o);
+  if (c && c.walkUp && o.state === 'done' && d > KEEPER.meet + 0.3) { o.state = 'come'; o.walkT = 0; m.block[o.y * m.w + o.x] = 0; }   // hailed: comes over
   if (o.state === 'wait') {
     if (r && h.x >= r.x && h.x < r.x + r.w && h.y >= r.y && h.y < r.y + r.h && d > KEEPER.meet + 0.2) {
       o.state = 'come'; o.walkT = 0; m.block[o.y * m.w + o.x] = 0;

@@ -9,9 +9,9 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v118 — story descriptions in free writing, dialogue written by hand (2026-11-24)
+## v118–v119 — story descriptions in free writing; characters that hail, walk up, wander and face you (2026-11-24)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 118`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 119`)*
 
 - A story is now two files: `story/<name>.md`, a free description at any level of detail (exact lines, a sentence
   for a scene, or its logic in technical terms), and `story/<name>.js`, the dialogue the game plays, written from
@@ -19,7 +19,14 @@ Commit: *(the next version records it; until then, the latest commit that set `V
 - The dialogue files are readable by hand: items `{ say, text }`, `{ choose }`, `{ do }`, `{ go }`, with conditions
   and effects as short JavaScript strings that the game turns into functions when it loads.
 - `tools/story/check.js` checks the dialogue files (speakers, jump targets, unreached nodes, JavaScript).
-- The demo's description is rewritten at mixed levels of detail; the demo plays exactly as before.
+- The demo's description is rewritten at mixed levels of detail.
+- A click on a character walks the hero all the way up to it; while they talk, the hero and the character turn to
+  face each other.
+- New character settings, which a conversation can override: `hail` (the distance it calls out from; 0 waits for a
+  click, replacing `starts`) and `walkUp` (it comes over as it hails); and `wander` (a story NPC strolls about).
+  `talk` is gone. In the demo, Tobias hails and walks over, Vesper wanders.
+- Walking away is measured from the closest the hero has been during the conversation, and `leave` defaults to 2
+  tiles (was 6). The panel fades out quickly (0.15 s, was 0.45).
 
 ## v116–v117 — tree variants, groves, and shadows for the small things (2026-11-23)
 

@@ -54,7 +54,7 @@
     <h2>Market</h2>
     <button class="sc" id="sbMarket"><b>Keeper of the Crypt</b>Depth 6, in a keeper's furnished room, a few steps from the keeper (who walks up to you), with 3000 gold and things to sell or trade (a helm, an axe, a magic ring, potions, fire bombs). Click the keeper to open the market. Switch between the four keepers in the bar.</button>
     <h2>Dialogue</h2>
-    <button class="sc" id="sbDialogue"><b>Dialogue</b>Depth 6, in Old Tobias's stall, with 1000 gold, playing the demo story (story/demo.js) instead of the game's. Tobias starts talking as he comes near; Vesper the Sorcerer, in the same room, talks only when clicked; a champion skeleton asleep outside the room (9–13 tiles away) taunts you when you come within 6 tiles and see it. The game keeps running: lines move on by themselves (click the panel to hurry them), choices wait. Walk away mid-conversation to hear a reaction (a discount, a warning, a complaint); come back and it picks up where it stopped. The bar shows the story's properties; Reset story forgets everything.</button>
+    <button class="sc" id="sbDialogue"><b>Dialogue</b>Depth 6, in Old Tobias's stall, with 1000 gold, playing the demo story (story/demo.js) instead of the game's. Tobias hails you as you come near and walks over; Vesper the Sorcerer wanders about the same room and talks only when clicked (you walk up to her); a champion skeleton asleep outside the room (9–13 tiles away) taunts you when you come within 6 tiles and see it. The game keeps running: lines move on by themselves (click the panel to hurry them), choices wait. Walk away mid-conversation to hear a reaction (a discount, a warning, a complaint); come back and it picks up where it stopped. The bar shows the story's properties; Reset story forgets everything.</button>
     <h2>Kiting</h2>
     <button class="sc" id="sbKite"><b>Kiting with a bow</b>Depth 7, a common hunting bow, in the middle of the level's big room, grown to 1.5 times its size (about 20–24 tiles a side): four cave spiders and two Pit Demons sleep around you (only a hit wakes them). Shoot one from more than 2.5 tiles away and it charges for 2 s, trailing dust. Key 1 is your longsword.</button>
     <h2>Dragon</h2>
@@ -205,7 +205,7 @@
     // Vesper: the free room tile farthest from both the keeper and the hero (but not by a wall's door)
     let vb = null; for (let y = kr.y + 1; y < kr.y + kr.h - 1; y++) for (let x = kr.x + 1; x < kr.x + kr.w - 1; x++) {
       if (!free(x, y)) continue; const sc = Math.min(Math.hypot(x - k.x, y - k.y), Math.hypot(x + 0.5 - h.x, y + 0.5 - h.y) * 1.3); if (!vb || sc > vb[2]) vb = [x, y, sc]; }
-    if (vb) { G.objects.push({ type: 'npc', char: 'vesper', sheet: 'sorcerer', x: vb[0], y: vb[1], fx: vb[0] + 0.5, fy: vb[1] + 0.5, dir: 0, anim: 0, moving: false, block: true });
+    if (vb) { G.objects.push({ type: 'npc', char: 'vesper', sheet: 'sorcerer', x: vb[0], y: vb[1], fx: vb[0] + 0.5, fy: vb[1] + 0.5, dir: 0, anim: 0, moving: false, block: true, room: kr });
       m.block[vb[1] * m.w + vb[0]] = 1; }
     G.monsters = G.monsters.filter(mo => Math.hypot(mo.x - h.x, mo.y - h.y) > 22 && !mo.champ && !mo.boss);   // (other champions would taunt too)
     // the champion: on a floor tile outside the room 9-13 tiles from the hero, the shortest walk away

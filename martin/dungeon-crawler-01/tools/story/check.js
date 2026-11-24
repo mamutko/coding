@@ -7,8 +7,8 @@
 //   node tools/story/check.js
 const fs = require('fs'), path = require('path'), vm = require('vm');
 const ROOT = path.resolve(__dirname, '..', '..'), DIR = path.join(ROOT, 'story');
-const CHAR_KEYS = ['name', 'sprite', 'starts', 'talk', 'leave', 'nodes'];
-const CONV_KEYS = ['id', 'who', 'when', 'priority', 'starts', 'repeat', 'nodes'];
+const CHAR_KEYS = ['name', 'sprite', 'hail', 'walkUp', 'wander', 'leave', 'nodes'];
+const CONV_KEYS = ['id', 'who', 'when', 'priority', 'hail', 'walkUp', 'repeat', 'nodes'];
 const ITEM_KEYS = { say: ['say', 'text', 'if'], do: ['do', 'if'], go: ['go', 'if'], choose: ['choose', 'if'] };
 const OPT_KEYS = ['text', 'if', 'do', 'to'];
 // Ids the game gives its own entities (README, Dialogue: who is who): usable without an entry in chars
@@ -35,7 +35,11 @@ for (const key in STORIES) {
     js(where + ' text', s.replace(/[`$]/g, c => '\\' + c).replace(/(^|[^\\]){([^}]*)}/g, (m, a, e) => a + '${' + e + '}'), 'text');
   };
   const keys = (where, o, allowed) => { for (const k in o) if (!allowed.includes(k)) err(where, 'unknown key "' + k + '"'); };
-  const starts = (where, v) => { if (v != null && v !== 'click' && !(typeof v === 'number' && v > 0)) err(where, "starts: 'click' or a distance in tiles"); };
+  const sets = (where, o) => {   // hail, walkUp, wander, leave, repeat
+    if (o.hail != null && !(typeof o.hail === 'number' && o.hail >= 0)) err(where, 'hail: a distance in tiles (0: it waits for a click)');
+    for (const k of ['walkUp', 'wander', 'repeat']) if (o[k] != null && typeof o[k] !== 'boolean') err(where, k + ': true or false');
+    if (o.leave != null && !(typeof o.leave === 'number' && o.leave > 0)) err(where, 'leave: a distance in tiles');
+  };
   if (!st || typeof st !== 'object') { err('top', 'not an object'); continue; }
   const chars = st.chars || {}, convs = st.convs || [];
   if (!Array.isArray(convs)) { err('top', 'convs should be a list'); continue; }
@@ -60,15 +64,14 @@ for (const key in STORIES) {
     });
   };
   for (const id in chars) {
-    const c = chars[id]; keys(id, c, CHAR_KEYS); starts(id, c.starts);
-    for (const k of ['talk', 'leave']) if (c[k] != null && typeof c[k] !== 'number') err(id, k + ': a number');
+    const c = chars[id]; keys(id, c, CHAR_KEYS); sets(id, c);
     const jumps = [];
     for (const n in c.nodes || {}) { if (n !== '@leave' && n !== '@back') err(id, 'a character has only @leave and @back nodes, not ' + n); items(id + ' ' + n, c.nodes[n], jumps); }
     for (const [w, to] of jumps) if (to !== 'end' && !convIds.has(to)) err(w, 'unknown jump target ' + to + ' (another conversation or end)');
   }
   for (const v of convs) {
     total++;
-    const where = v.id || 'a conversation without an id'; keys(where, v, CONV_KEYS); starts(where, v.starts);
+    const where = v.id || 'a conversation without an id'; keys(where, v, CONV_KEYS); sets(where, v);
     if (!v.who) err(where, 'no who'); else if (!ids.has(v.who)) err(where, 'who: no character ' + v.who);
     if (v.when != null) js(where + ' when', v.when, 'expr');
     if (v.priority != null && typeof v.priority !== 'number') err(where, 'priority: a number');

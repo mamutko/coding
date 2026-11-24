@@ -157,15 +157,16 @@ The picker (*Crypt Sandbox*) groups the scenarios:
   - **Dialogue** (depth 6, regenerated until it has a keeper): plays the demo story (`STORIES.demo`, from
     `story/demo.js`) instead of the game's, with a fresh story state. The keeper is Old Tobias (`look` 4), and the
     test hero, with 1000 gold, stands in his room about 5 tiles from him, so he walks up and starts talking.
-    **Vesper the Sorcerer** (a story NPC, the cast's sorcerer sheet, loaded on demand) stands on the room's free
-    tile farthest from both; he talks only when clicked. A **champion skeleton**, asleep (its calm never ends, so it
+    **Vesper the Sorcerer** (a story NPC, the cast's sorcerer sheet, loaded on demand, given the keeper's `room`)
+    starts on the room's free tile farthest from both and wanders about the room; she talks only when clicked. A
+    **champion skeleton**, asleep (its calm never ends, so it
     doesn't move until the story or a hit wakes it), waits on the floor tile 9–13 tiles from the hero outside the
     room that is the shortest walk away; it taunts the hero within 6 tiles and in sight. Other monsters within 22
     tiles, and every other champion and boss on the level, are removed. What the demo shows:
-    - Tobias: a first meeting that starts by itself (asking about the depths sets `P.heardOfDragon`); walking away
+    - Tobias: a first meeting where he hails the hero and walks over (asking about the depths sets `P.heardOfDragon`); walking away
       mid-conversation gets "Wait, wait! Ten percent off" (his `N.discount`, which the market then applies), the
       second time a complaint; coming back gets "Back, are you?" and the conversation picks up where it stopped.
-      Later conversations wait for a click; a bribe of 100 gold raises the discount to 20 %, and a question he
+      Later conversations wait for a click (`hail: 0` on them); a bribe of 100 gold raises the discount to 20 %, and a question he
       answers only once you've heard of the wyrm sets `P.dragonHatesCold`.
     - Vesper: lines that depend on whether you carry a scroll of frost; a lesson for 200 gold that gives 2 scrolls;
       a choice only after you've met Tobias, and one only after Tobias told you about the cold; walking away the
@@ -1582,8 +1583,8 @@ the piece darkens). Its shadow: every part's
 On every third depth (3, 6, 9, …) a **Keeper of the Crypt**, a living human merchant, keeps a stall in a quiet room of
 its own. It is an NPC: it never fights and nothing attacks it. Hovering shows its name; clicking it walks the hero up
 to it and opens the **market** (`openMarket`). If the story has a conversation for the keeper (ids `aldric`,
-`borin`, `mirela`, `tobias`; see [Dialogue](#dialogue)), the click starts that instead (from the keeper's talking
-distance), and the conversation can open the market (`market()`); a keeper can also start talking by itself. The
+`borin`, `mirela`, `tobias`; see [Dialogue](#dialogue)), the click starts that instead (the hero walks all the way
+up to it first), and the conversation can open the market (`market()`); a keeper can also start talking by itself. The
 constants are `KEEPER` in the code.
 
 - **The four keepers** (`KEEPERS`), one drawn at random for each stall (`look`):
@@ -1611,7 +1612,9 @@ constants are `KEEPER` in the code.
     5, Old Tobias 5.5) and stops 1.4 tiles from the hero (`KEEPER.meet`). It also stops where its next step would
     leave its room (0.35 tiles in from the edge), run into a wall or a blocking prop, or after 8 s
     (`KEEPER.walkMax`). From then on it stays where it stopped (`state` `wait` → `come` → `done`) and only turns
-    to keep facing the hero; it never follows the hero and never leaves its room.
+    to keep facing the hero; it never follows the hero and never leaves its room. The one exception: when the story
+    has it hail the hero with `walkUp` (see [Dialogue](#dialogue)), it comes over again (`done` → `come`) the
+    same way.
   - Its tile doesn't block while it walks; where it stops it blocks again (unless the hero stands on that tile).
     Its tile (`x`, `y`) follows its position, so the market's reach (3 tiles), its light (3.4 tiles) and the
     walk-up click all use where it is now. The keeper's look switch in the sandbox changes the walking sprite too.
@@ -1693,13 +1696,13 @@ levels of detail, played in the sandbox's **Dialogue** scenario (see [Sandbox](#
 var STORIES = STORIES || {};
 STORIES.demo = {
   chars: {                                    // characters, by id: settings and their own reactions
-    tobias: { name: 'Old Tobias', starts: 4, nodes: {
+    tobias: { name: 'Old Tobias', hail: 4, walkUp: true, nodes: {
       '@leave': [ { say: 'tobias', text: 'Walking off in the middle of a sentence. Charming.' } ],
       '@back':  [ { say: 'tobias', text: 'Back, are you? Good. Where was I…' } ],
     } },
   },
   convs: [                                    // conversations, in order (the order breaks priority ties)
-    { id: 'tobias-again', who: 'tobias', when: "met('tobias')", repeat: true, starts: 'click', nodes: {
+    { id: 'tobias-again', who: 'tobias', when: "met('tobias')", repeat: true, hail: 0, nodes: {
       start: [
         { say: 'tobias', text: 'Back for more, {name}?' },
         { say: 'tobias', if: 'N.discount', text: 'My offer stands: ten percent off everything.' },
@@ -1732,15 +1735,25 @@ Any item (and any choice) can have a **condition**, `if: expression`: it is skip
 expression is false. **Text** can hold `{expression}`: `{name}` is the hero's name, `{depth}` the depth, `{N.price}`
 anything else (`\\{` in the string is a plain brace).
 
-**Character settings** (`chars.<id>`):
+**Character settings** (`chars.<id>`): the character's defaults. `hail` and `walkUp` are usually set per
+conversation too, so that, say, a first meeting is hailed and later ones wait for a click.
 - `name:` the name shown (default: the character's game name: a keeper's name, a monster's own name such as
   *Blighted Skeleton Warrior*, else the id);
 - `sprite:` the sheet its portrait is cut from (default: the sheet it is drawn with);
-- `starts:` a number N (it starts a conversation itself when the hero is within N tiles and in sight) or `'click'`
-  (it waits for a click: the default);
-- `talk:` the distance it talks at (3.5 tiles): a click walks the hero this close, and farther away the panel dims;
-- `leave:` beyond this distance the hero has walked away (6 tiles);
+- `hail:` a distance N: it **hails** the hero, starting a conversation itself, when the hero comes within N tiles
+  and in its sight. 0 (the default): it waits for a click;
+- `walkUp: true`: when it hails, it **walks up** to the hero (to 1.4 tiles, `DLG_T.meet`) while it talks (story
+  NPCs and keepers; a monster stays where it is);
+- `wander: true`: a story NPC **walks about** when it isn't talking: walks of up to 5 s at 0.7 tiles/s to a spot
+  within 3 tiles of where it was placed (inside its room, if it has one), with pauses of 2–6 s between them
+  (`DLG_T.wander`). Without it, it stands where it is;
+- `leave:` how far the hero can move off before it counts as walking away (2 tiles; see below);
 - `nodes:` its own `@leave` and `@back` (the only nodes a character has).
+
+Besides these, each kind of character has its own ways, which aren't settings: a keeper always faces the hero and
+walks up to the hero once, the first time the hero is in its room (see
+[Keepers of the Crypt](#keepers-of-the-crypt-the-market)); a monster follows its own monster behaviour (asleep,
+pursuing, …).
 
 **Conversation settings:**
 - `id:` its name (required): for jumps, `seen()` and the sandbox's info bar;
@@ -1749,8 +1762,7 @@ anything else (`\\{` in the string is a plain brace).
 - `priority:` a number (default 0): of the conversations that can start, the highest priority plays, then the first
   in the list;
 - `repeat: true`: it can play again (without it a conversation plays once);
-- `starts:` like the character's, for this conversation only (e.g. a first meeting that starts by itself, later
-  ones on a click);
+- `hail:`, `walkUp:` like the character's, for this conversation only (they override the character's);
 - `nodes:` `start`, any named nodes, and optionally its own `@leave` and `@back`.
 
 **Who is who.** A game entity answers to the first of its story ids that the story uses:
@@ -1792,30 +1804,34 @@ next to the gold. More hooks are added as the story needs them.
 ### How a conversation plays
 
 - **One at a time** (`DLG.c`). **The game keeps running**: monsters move, fires burn, the hero walks.
-- **Starting:** a character with `starts: near N` starts its first conversation that can start (by `when`,
-  `repeat` and priority, leaving out those that wait for a click) when the hero comes within N tiles and in its
-  line of sight (`updateDialogue` looks at the keepers, story NPCs and the monsters within 14 tiles). A **click**
-  on a character walks the hero to its `talk` distance, then picks up a conversation put aside with it, or starts
-  any conversation it has. A click on a keeper with nothing to say opens the market, as before. After a
+- **Starting:** a character **hails** the hero with its first conversation that can start and hails (by `when`,
+  `repeat` and priority, leaving out those with `hail` 0) when the hero comes within that conversation's `hail`
+  distance and in its line of sight (`updateDialogue` looks at the keepers, story NPCs and the monsters within 14
+  tiles); with `walkUp` it walks over as it talks. A **click** on a character walks the hero all the way up to it
+  (the next tile), then picks up a conversation put aside with it, or starts any conversation it has. A click on a keeper with nothing to say opens the market, as before. After a
   conversation ends (or is put aside) its character waits 6 s before starting one of its own again (`DLG_T.cool`).
 - **Lines** appear letter by letter (55 a second, `DLG_T.cps`) and stay `1.6 s + 0.045 s × letters` (at most 7 s)
   after that, then the conversation goes on by itself. A click on the panel shows the whole line at once; a second
   click moves on. A line followed by choices shows them together, once the line is fully shown; the choices wait
   for a click (numbers 1–9 are the quick keys, so choices are clicked or tapped). The chosen text goes into the
   history as the hero's line.
-- **Walking away:** within `talk` (3.5 tiles) the conversation goes on normally; between `talk` and `leave` it still
-  goes on, with the panel dimmed. Beyond `leave` (6 tiles) the character **reacts**: its `@leave` node plays (the
+- **Facing:** while a conversation plays, the hero turns to face the character whenever it stands (not walking,
+  attacking or thrown back), and the character turns to face the hero whenever it isn't walking (`dlgFace`). A
+  story NPC stops wandering while it talks.
+- **Walking away** is measured from the closest the hero has been to the character during the conversation
+  (`c.near`; the character walking up counts too): up to half of `leave` farther the conversation goes on
+  normally, then the panel dims, and more than `leave` (2 tiles) farther the character **reacts**: its `@leave` node plays (the
   conversation's own, else the character's). It can complain, call out a fact it didn't get to tell, offer a
   discount, or change the bags. When the reaction ends, the conversation is **put aside** where it stopped:
   `hero.story.susp[id] = { conv, node, i, hist }`, the line or choices that were showing and the history so far. A
-  reaction that jumps (`→ node`) goes on talking instead; it then stops quietly if the hero goes beyond
-  `leave × 1.6`. `→ end` in a reaction ends the conversation for good. Without a `@leave` node the conversation
+  reaction that jumps (`→ node`) goes on talking instead; it then stops quietly if the hero goes `leave × 1.6`
+  beyond the closest point. `→ end` in a reaction ends the conversation for good. Without a `@leave` node the conversation
   is put aside quietly.
-- **Coming back:** the next time the conversation is picked up (the hero comes within `starts: near N` again, or
-  clicks the character), its `@back` node plays first ("Back, are you? Where was I…"), then the line or choices
+- **Coming back:** the next time the conversation is picked up (the character hails the hero again, or the hero
+  clicks it), its `@back` node plays first ("Back, are you? Where was I…"), then the line or choices
   that were showing come again and it goes on. The history is kept.
 - **The end:** when a conversation runs out of lines (or jumps to `end`, or `end()` / `market()`), the panel fades
-  out (0.45 s). The hero's death, the character's (a slain monster) or its disappearance end it at once. Going down
+  out quickly (0.15 s, `DLG_T.fade`; so does a conversation put aside). The hero's death, the character's (a slain monster) or its disappearance end it at once. Going down
   the stairs puts it aside quietly.
 
 ### The panel
