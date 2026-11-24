@@ -187,7 +187,7 @@
   #tooltip .ty { color: var(--ink-dim); font-style: italic; margin-bottom: 4px; }
   #tooltip .st { color: #9fb2ff; }
   #tooltip .cmp { margin-top: 6px; padding-top: 5px; border-top: 1px solid #33281a; color: var(--ink-dim); font-size: 13px; }
-  #tooltip .up { color: #7fd17f; } #tooltip .dn { color: #e06a5a; }
+  #tooltip .up { color: #7fd17f; } #tooltip .dn { color: #e06a5a; } #tooltip .cmpName { color: var(--ink); }
   /* action box (a click or tap on an item in the equipment overlay): the tooltip takes clicks and shows
      action buttons; the mouse hints are hidden */
   #tooltip.pinned { pointer-events: auto; }
@@ -426,7 +426,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 124;
+const VERSION = 125;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1687,7 +1687,7 @@ function newGame(entry) {
 // entry = { id, name, depth, lvl, saved: <ms timestamp>, hero: { ...the SAVED_FIELDS of the hero } }.
 // A hero is saved when created and on arrival at each new depth; the level layout is never saved.
 const SAVE_KEY = 'crypt-of-endless-night.save';
-const SAVED_FIELDS = ['name', 'lvl', 'xp', 'base', 'equip', 'inv', 'gold', 'hotkeys', 'kills', 'hp', 'look', 'story'];   // story: see Dialogue
+const SAVED_FIELDS = ['name', 'lvl', 'xp', 'base', 'equip', 'inv', 'gold', 'hotkeys', 'kills', 'hp', 'look', 'story', 'lastWeapon'];   // story: see Dialogue; lastWeapon: see compareTarget
 // Older saves kept health potions as a counter (hero.potions) with a { type: 'potion' } quick key: turn them
 // into a stack in the pack (first free cell; dropped at the start if the pack is full) and a 'use' key.
 function migrateHero(h) {
@@ -1724,6 +1724,7 @@ function saveHero() {
 const REGEN = 0;
 const xpNeed = l => Math.round(72 * Math.pow(l, 1.7));   // 40 % less than the original 120 · L^1.7
 function recalc() {
+  { const w = G.hero.equip.weapon; if (w && !isBomb(w)) (G.hero.lastWeapon || (G.hero.lastWeapon = {}))[weaponClass(w)] = w.id; }   // for comparing (compareTarget)
   const h = G.hero, s = { str: h.base.str, dex: h.base.dex, vit: h.base.vit, hp: 0, regen: 0, armor: 0, crit: 0, dmg: 0, speed: 0 };
   // where the bonuses come from (for the attribute breakdown): reg = regular item properties (base armor, a
   // type's built-in bonus such as the Leather Boots' speed), mag = magic affixes
@@ -3628,13 +3629,14 @@ function inspect(el) {
     if (h.hotkeys[i]) acts.push([h.hotkeys[i].type === 'use' ? 'Use' : 'Equip', () => useHotkey(i)], ['Clear key', () => { h.hotkeys[i] = null; refreshUI(); }]);
   } else {
     const it = refItem(ref); if (!it) { hideTip(); return; }
-    showRefTip(ref);
+    showRefTip(ref, false);
     if (ref.startsWith('inv:')) { const i = +ref.slice(4); acts.push([it.slot === 'use' ? 'Use' : 'Equip', () => queueItem(ref)], ['Drop', () => { dropFromInv(i); }]); }
     else acts.push(['Unequip', () => queueItem(ref)]);
   }
   const it = ref && refItem(ref), bindable = it && (it.slot === 'weapon' || it.slot === 'use');
   let html = '<div class="tActs">' + acts.map((a, k) => `<button data-a="${k}">${a[0]}</button>`).join('') + '<button data-a="x">Close</button></div>';
   if (bindable) html += '<div class="tKeys">Quick key:' + Array.from({ length: 10 }, (_, k) => `<button data-k="${k}">${k === 9 ? 0 : k + 1}</button>`).join('') + '</div>';
+  if (it && ref.startsWith('inv:')) html += compareHtml(it);   // the comparison below the buttons
   t.insertAdjacentHTML('beforeend', html); t.classList.add('pinned'); t.classList.remove('hidden');
   t.querySelectorAll('button').forEach(b => b.addEventListener('click', e => {
     e.stopPropagation();
@@ -3664,19 +3666,52 @@ function itemLines(it) {
   void b; return s;
 }
 function weaponDps(it) { return it ? (it.min + it.max) / 2 / it.cd : 0; }
-function showRefTip(ref) {
+// Weapon classes for comparing: melee (swords, axes), ranged (bows, crossbows), throw (fire bombs)
+const weaponClass = it => isBomb(it) ? 'throw' : RANGED[it.kind] ? 'ranged' : 'melee';
+const CLASS_NAME = { melee: 'melee', ranged: 'ranged', throw: 'throwing' };
+// What a pack item is compared with: a weapon with the last equipped weapon of its class (h.lastWeapon, kept by
+// recalc; the equipped weapon when it is of that class), or the equipped weapon when there is none; other gear
+// with the item it would replace (rings: the ring slot equipFromInv would fill). [item, label] or null.
+function compareTarget(it) {
+  const h = G.hero;
+  if (it.slot === 'weapon') {
+    if (isBomb(it)) return null;
+    const cls = weaponClass(it), eq = h.equip.weapon;
+    if (eq && eq !== it && !isBomb(eq) && weaponClass(eq) === cls) return [eq, 'Equipped'];
+    const f = h.lastWeapon && h.lastWeapon[cls] != null ? findOwned(h.lastWeapon[cls]) : null;
+    if (f && f.item !== it) return [f.item, 'Last ' + CLASS_NAME[cls] + ' weapon'];
+    return eq && eq !== it && !isBomb(eq) ? [eq, 'Equipped'] : null;
+  }
+  const slot = it.slot === 'ring' ? (!h.equip.ring1 ? 'ring1' : !h.equip.ring2 ? 'ring2' : 'ring1') : it.slot, cur = h.equip[slot];
+  return cur && cur !== it ? [cur, 'Equipped'] : null;
+}
+// Every difference between a pack item and what it is compared with: damage, speed and DPS for weapons, armor,
+// and each bonus (affixes and built-in ones), as + / − in green / red. The other item's name in plain text.
+function compareHtml(it) {
+  if (it.slot === 'use') return '';
+  const tg = compareTarget(it); if (!tg) return it.slot === 'weapon' || it.slot === 'ring' && G.hero.equip.ring1 && G.hero.equip.ring2 ? '' : '<div class="cmp">Fills an empty slot.</div>';
+  const [cur, label] = tg, rows = [];
+  const fmt = (d, dec = 0) => `<span class="${d > 0 ? 'up' : 'dn'}">${d > 0 ? '+' : '−'}${Math.abs(d).toFixed(dec)}</span>`;
+  const row = (name, d, dec = 0, suffix = '') => { if (Math.abs(d) >= (dec ? 0.5 * 10 ** -dec : 0.5)) rows.push(`${fmt(d, dec)}${suffix} ${name}`); };
+  if (it.slot === 'weapon') {
+    if (it.kind !== cur.kind) rows.push(`${KIND_INFO[cur.kind].label} → ${KIND_INFO[it.kind].label}`);
+    const dmn = it.min - cur.min, dmx = it.max - cur.max;
+    if (dmn || dmx) rows.push(`Damage ${dmn ? fmt(dmn) : '±0'} – ${dmx ? fmt(dmx) : '±0'}`);
+    row('Attacks per second', 1 / it.cd - 1 / cur.cd, 2);
+    row('Base DPS', weaponDps(it) - weaponDps(cur), 1);
+  }
+  const st = (x, k) => (x.stats || {})[k] || 0;
+  row('Armor', (it.armor || 0) + st(it, 'armor') - (cur.armor || 0) - st(cur, 'armor'));   // base armor and armor affixes together
+  for (const k in STAT_LABEL) if (k !== 'armor') row(STAT_LABEL[k], st(it, k) - st(cur, k));
+  return `<div class="cmp">${label}: <span class="cmpName">${cur.name}</span>` + (rows.length ? rows.map(r => '<br>' + r).join('') : '<br>No differences.') + '</div>';
+}
+function showRefTip(ref, cmp = true) {   // cmp false: the action box adds the comparison itself, below its buttons
   const t = $('tooltip');
   const it = refItem(ref); if (!it) { hideTip(); return; }
   let s = itemLines(it);
   if (it.slot === 'use') s += `<div class="ty mh" style="margin-top:4px">Click for actions · double-click to use · right-click or Shift+click to drop · 1–0 to bind</div>`;
   else if (ref.startsWith('inv:')) {
-    const h = G.hero; const slot = it.slot === 'ring' ? 'ring1' : it.slot; const cur = h.equip[slot];
-    if (cur) {
-      s += `<div class="cmp">Equipped: <span style="color:${rarityHex(cur.rarity)}">${cur.name}</span>`;
-      if (it.slot === 'weapon') { const d = weaponDps(it) - weaponDps(cur); s += `<br>Base DPS <span class="${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '+' : ''}${d.toFixed(1)}</span>`; }
-      if (it.armor || cur.armor) { const d = (it.armor || 0) - (cur.armor || 0); s += `<br>Armor <span class="${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '+' : ''}${d}</span>`; }
-      s += '</div>';
-    }
+    if (cmp) s += compareHtml(it);
     s += `<div class="ty mh" style="margin-top:4px">Click for actions · double-click to equip · right-click or Shift+click to drop${it.slot === 'weapon' ? ' · 1–0 to bind' : ''}</div>`;
   } else s += `<div class="ty mh" style="margin-top:4px">Click for actions · double-click to unequip${it.slot === 'weapon' ? ' · 1–0 to bind' : ''}</div>`;
   t.innerHTML = s; t.classList.remove('hidden');

@@ -1936,7 +1936,8 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
   - **a click or tap opens the action box:** the item's tooltip, without the mouse hints, placed centred on the
     element, below it if it fits, otherwise above it, with buttons: **Equip** (pack item) or **Use** (pack
     potion), **Drop** (pack item), **Unequip** (equipped item), **Equip** / **Use** and **Clear key** (bound
-    quick key), always **Close**, and for weapons and potions a **Quick key: 1–0** row to bind it. A button acts
+    quick key), always **Close**, and for weapons and potions a **Quick key: 1–0** row to bind it. For a pack item
+    the comparison (see *Comparing* below) comes last, below the buttons. A button acts
     and closes the box; a click or tap anywhere outside it also closes it. While the box is open, hovering other
     items doesn't show their tooltips.
   - **a mouse double-click acts without the box:** queues equipping a pack item (or using a potion), unequipping
@@ -1951,9 +1952,21 @@ If it doesn't fit the screen it is scaled down to fit (see HUD, Phones).
     on every `pointerdown`; hover handlers ignore touch input (emulated mouse events would otherwise show, move
     or hide the tooltip). The HUD hotbar is not part of the overlay and still acts on a click or tap (see *HUD taps* under Controls).
 - **Tooltips** (on mouse hover): name in rarity colour, type, damage and attacks per second or
-  armor, and every bonus. For pack items it also compares with the equipped item in that slot: base DPS
-  difference for weapons, armor difference otherwise. A potion's tooltip shows its name in its colour, "Potion ·
+  armor, and every bonus. For pack items the comparison follows (see *Comparing* below), then the hint line. A potion's tooltip shows its name in its colour, "Potion ·
   instant use", its effect and the stack count. A hint line lists the mouse actions.
+- **Comparing** (`compareHtml`, in a pack item's tooltip and action box; not for potions, scrolls or fire bombs):
+  - **What it is compared with** (`compareTarget`): a weapon with the **last equipped weapon of its class**,
+    melee (swords, axes) or ranged (bows, crossbows): the equipped weapon if it is of that class ("Equipped:"),
+    otherwise the last one of that class the hero equipped, if still owned and not the item itself ("Last melee
+    weapon:" / "Last ranged weapon:"); with neither, the equipped weapon of the other class. The last weapon of
+    each class is kept by `recalc` in `h.lastWeapon` (`{ melee, ranged }`, item ids; saved with the hero). Other
+    gear is compared with the item it would replace (for a ring, the ring slot equipping would fill); when it would
+    fill an empty slot the box says "Fills an empty slot.".
+  - **How:** the other item's name in plain text (no rarity colour), then **every difference**, each as + (green)
+    or − (red), unchanged values left out (or "No differences."): for weapons a change of type ("Bow (ranged) →
+    Sword (melee)"), the damage range's low and high ends, attacks per second and base DPS; armor (the base armor
+    and armor affixes together); then each bonus, whether from affixes or built in (the Leather Boots' speed), in
+    the order Strength, Dexterity, Vitality, Life, Life regen, Critical chance, Damage, Move speed.
   A hover tooltip (here and on the HUD's quick keys) follows only the real mouse (`pointermove` with
   `pointerType` mouse, not the mouse events browsers make up from touches), closes as soon as the mouse is no
   longer over the element that opened it (`tipHover`), and closes on any touch. So on a device with both a mouse

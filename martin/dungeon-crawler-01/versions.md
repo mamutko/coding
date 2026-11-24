@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v125 — fuller item comparison (2026-11-24)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 125`)*
+
+- A pack weapon is compared with the last equipped weapon of its class (melee or ranged), not just the equipped one.
+- The comparison lists every difference, bonuses from affixes included, as + / −, with the other item's name in
+  plain text; for all gear, and in the action box below the buttons.
+
 ## v123–v124 — the voice-over skill; a shorter walk-away distance (2026-11-24)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 124`)*
+2bf2194
 
 - The clip making moved into the repo's new voice-over skill (`make_voices.py`); `tools/story/voice.js` collects
   the lines and calls it, and can now also check new clips' words by transcribing them (`--verify`).
