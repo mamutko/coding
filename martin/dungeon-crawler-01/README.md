@@ -732,11 +732,13 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
     with smoothing, so the patches fade into each other. Both textures span 4 tiles, so they line up again after
     the window moves.
   - **Trees** (`drawBigTree`): see below.
-  - **Bushes and ground details** (flowers, rocks, mushrooms, grass tufts) cast soft shadows to the lower right, like
-    the trees (`drawSurfShadow`, `CAST`): each sprite's silhouette is sheared onto the ground (a point h px above its
-    foot lands 0.55 h to the right and 0.26 h below it), drawn at a quarter size and scaled back up to soften it,
-    once per sprite and mirroring (`castShadow`, cached), and laid on the ground at 42 % (bushes) or 36 % (ground
-    details). Bushes keep a small round contact shadow too. Ground details lie flat, except the grass tuft, which is
+  - **Bushes and ground details** (flowers, rocks, mushrooms, grass tufts) cast soft, short shadows to the lower
+    right, like the trees but hugging their objects so they sit on the ground (`drawSurfShadow`, `CAST`): each
+    sprite's silhouette is sheared onto the ground (a point h px above its foot lands 0.32 h to the right and 0.15 h
+    below it), drawn at a sixth of its size and scaled back up to soften it, once per sprite and mirroring
+    (`castShadow`, cached), and laid tucked 4 px up under its object at 40 % (bushes) or 34 % (ground details). Each
+    also has a faint round contact shade under it (bushes 22 × 9 px at 30 %, ground details at least 16 × 6 px at
+    22 %, × scale). Ground details lie flat, except the grass tuft, which is
     sorted like a bush.
   - **The crypt** (`drawCrypt`): its picture (98 px per tile of its width, `CRYPT_FIT`) is placed with its front
     corner on the footprint's south corner. It is sorted by its west–east diagonal, `x + y + cryptN` (see

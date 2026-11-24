@@ -417,7 +417,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 116;
+const VERSION = 117;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1898,20 +1898,22 @@ function drawSurfaceGround(x0, x1, y0, y1) {
 }
 const SURF_SHADOW = { bush: [22, 9, 0.3] };   // a bush's small contact shadow (its cast shadow: drawSurfShadow)
 // Cast shadows of the surface's small things (bushes, flowers, rocks, mushrooms, grass tufts), falling to the lower
-// right like the trees' (light from the upper left, see The surface, Trees): a point h px above the sprite's foot
-// lands h · kx to the right and h · ky below it. Each sprite's silhouette is sheared onto the ground and softened
-// (drawn at a quarter size and scaled back up) once, and cached per sprite and mirroring.
-const CAST = { kx: 0.55, ky: 0.26, alpha: { bush: 0.42, decal: 0.36 } };
+// right like the trees' (light from the upper left, see The surface, Trees), but short, so they hug their objects: a
+// point h px above the sprite's foot lands h · kx to the right and h · ky below it. Each sprite's silhouette is sheared
+// onto the ground and softened (drawn at a sixth of its size and scaled back up) once, and cached per sprite and
+// mirroring; it is laid tucked `tuck` px up under its object, with a faint round contact shade (`contact`: width,
+// height, opacity, × scale) under it too.
+const CAST = { kx: 0.32, ky: 0.15, soft: 6, tuck: 4, alpha: { bush: 0.4, decal: 0.34 }, contact: [16, 6, 0.22] };
 const castCache = new Map();
 function castShadow(key, flip) {
   const ck = key + (flip ? '|f' : ''); let c = castCache.get(ck); if (c) return c;
-  const [px, py, pw, ph] = META.surface[key], pad = 12, W = Math.ceil(pw + ph * CAST.kx + 2 * pad), H = Math.ceil(ph * CAST.ky + 2 * pad);
+  const [px, py, pw, ph] = META.surface[key], pad = 18, W = Math.ceil(pw + ph * CAST.kx + 2 * pad), H = Math.ceil(ph * CAST.ky + 2 * pad);
   const full = document.createElement('canvas'); full.width = W; full.height = H; const f = full.getContext('2d');
   // sprite (x, y from its top-left; mirrored when flipped) -> ground: X = x - kx·y + kx·ph + pad, Y = ky·(ph - y) + pad
   f.setTransform(flip ? -1 : 1, 0, -CAST.kx, -CAST.ky, (flip ? pw : 0) + CAST.kx * ph + pad, CAST.ky * ph + pad);
   f.drawImage(IMG.surface, px, py, pw, ph, 0, 0, pw, ph);
   f.setTransform(1, 0, 0, 1, 0, 0); f.globalCompositeOperation = 'source-in'; f.fillStyle = '#000'; f.fillRect(0, 0, W, H);
-  const sm = document.createElement('canvas'); sm.width = Math.max(1, Math.round(W / 4)); sm.height = Math.max(1, Math.round(H / 4));
+  const sm = document.createElement('canvas'); sm.width = Math.max(1, Math.round(W / CAST.soft)); sm.height = Math.max(1, Math.round(H / CAST.soft));
   const s = sm.getContext('2d'); s.imageSmoothingEnabled = true; s.drawImage(full, 0, 0, sm.width, sm.height);
   c = { img: sm, W, H, ox: pad + pw / 2, oy: pad }; castCache.set(ck, c); return c;   // (ox, oy): the foot in the canvas
 }
@@ -1919,8 +1921,9 @@ function drawSurfShadow(o) {
   const key = o.type === 'bush' ? 'bush' + o.look : o.look, k = o.type === 'bush' ? o.scale : o.scale * 0.85;
   const [sx, sy] = iso(o.x + 0.5 + (o.fx || 0), o.y + 0.5 + (o.fy || 0)), fy = sy + 6 * (o.type === 'bush' ? k : 1);
   const c = castShadow(key, o.flip);
-  ctx.save(); ctx.globalAlpha = CAST.alpha[o.type] || 0.36; ctx.imageSmoothingEnabled = true;
-  ctx.drawImage(c.img, sx - c.ox * k, fy - c.oy * k, c.W * k, c.H * k); ctx.restore();
+  if (o.type === 'decal') { const [cw, chh, ca] = CAST.contact, w = META.surface[key][2]; softShadow(sx, fy - 3, Math.max(cw, w * 0.32) * k, chh * k, ca); }
+  ctx.save(); ctx.globalAlpha = CAST.alpha[o.type] || 0.34; ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(c.img, sx - c.ox * k, fy - CAST.tuck * k - c.oy * k, c.W * k, c.H * k); ctx.restore();
 }
 function surfSprite(key, sx, sy, scale, flip, srcY = 0, srcH = null, alpha = 1) {   // anchored at the sprite's bottom centre
   const [px, py, pw, ph] = META.surface[key], h = srcH == null ? ph - srcY : srcH, w = pw * scale;
