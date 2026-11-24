@@ -46,7 +46,7 @@
     <p id="sbStatus" class="status">Loading the game…</p>
     <h2>Surface</h2>
     <button class="sc" id="sbTrees"><b>Big trees</b>The surface with one of each of the five big trees (oak, Scots pine, silver birch, autumn maple, dead tree) standing around you on the lawn before the crypt; the forest beyond is the game's own. Each is three layers: roots and a soft moonlight shadow on the ground, the trunk sorted with you, the crown always on top and never fading. Walk around and under them: you show through the sparse crowns. <b>Layers</b> in the bar tints the three layers (roots red, trunk blue, crown green).</button>
-    <button class="sc" id="sbSurface"><b>The surface</b>A new level-1 hero at depth 0, a few steps from the crypt's entrance. Walk the endless woods around it (the land is made as you go), then click the dark doorway to go down to depth 1.</button>
+    <button class="sc" id="sbSurface"><b>The surface</b>A new level-1 hero at depth 0, a few steps from the crypt's entrance. Garrick the Hunter calls out and walks over (voiced: turn the sound on). Walk the endless woods around it (the land is made as you go), then click the dark doorway to go down to depth 1.</button>
     <h2>Fire bombs</h2>
     <button class="sc" id="sbFirePack"><b>Fire bombs: pack fight</b>Depth 3, 15 fire bombs equipped, four skeletons and three ghouls rushing in. Right-click to throw at a monster or a spot (up to 7 tiles). Key 1 is your longsword, 2 the bombs. Mind the flames: they burn you too.</button>
     <button class="sc" id="sbFireLast"><b>Fire bombs: the last two</b>Only two bombs equipped and three skeletons coming. After the second throw your hands are empty until you equip the longsword (key 1).</button>

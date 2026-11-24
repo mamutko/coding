@@ -400,6 +400,7 @@
 
 <script src="story/story.js"></script>   <!-- the dialogue (STORIES.story), written from story/story.md: see README, Dialogue -->
 <script src="story/demo.js"></script>   <!-- the sandbox's demo dialogue (STORIES.demo), from story/demo.md -->
+<script src="story/story.voices.js"></script>   <!-- the story's voice clips (VOICE_CLIPS), made by tools/story/voice.js -->
 <script>
 'use strict';
 // =====================================================================================
@@ -418,7 +419,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 119;
+const VERSION = 120;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1756,6 +1757,8 @@ function gainXp(n) {
 // super tiles that came into view are generated. The rest of the game (drawing, paths, collisions) sees an
 // ordinary map. World tile = window tile + (G.surf.ox, G.surf.oy).
 const SURF = { chunk: 32, n: 3, seed: 7919, crypt: [13, 12], cryptN: 5,
+  // story characters on the surface (story NPCs, see README, Dialogue): world tile, story id, sheet, facing
+  npcs: [{ at: [20, 19], char: 'garrick', sheet: 'hunter', dir: 1 }],
   bigTreeAt: null };   // big trees at fixed world tiles, [x, y, look] (the sandbox's Big trees scenario; none in the game)
 // The trees' kinds (see README, The surface, Trees) and how often each grows overall. Kinds grow in groves: each
 // kind has its own smooth noise over the world (cells TREE_GROVE tiles across), and a tree's kind is drawn with each
@@ -1815,6 +1818,10 @@ function chunkThings(cx, cy) {
   if (cx === 0 && cy === 0) {
     out.push({ type: 'crypt', wx: SURF.crypt[0], wy: SURF.crypt[1], block: true });
     const [dx, dy] = cryptDoor(); out.push({ type: 'cryptdoor', wx: dx, wy: dy, block: false });
+    for (const n of SURF.npcs) {   // the story's characters on the lawn (nothing else on their tiles)
+      for (let i = out.length - 1; i >= 0; i--) if (out[i].wx === n.at[0] && out[i].wy === n.at[1] && out[i].type !== 'crypt') out.splice(i, 1);
+      out.push({ type: 'npc', char: n.char, sheet: n.sheet, wx: n.at[0], wy: n.at[1], block: true, dir: n.dir || 0, anim: 0, moving: false });
+    }
   }
   return out;
 }
@@ -1825,7 +1832,9 @@ function buildSurfaceWindow() {
   const map = { w, h, t, at, seen: new Uint8Array(w * h).fill(1), block: new Uint8Array(w * h), rooms: [], surface: true };
   const objects = [];
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) for (const o of chunkThings(sv.cx - 1 + i, sv.cy - 1 + j)) {
-    o.x = o.wx - sv.ox; o.y = o.wy - sv.oy; o.used = false; o.surf = true; if (o.type !== 'cryptdoor') o.decor = true;
+    o.x = o.wx - sv.ox; o.y = o.wy - sv.oy; o.used = false;
+    if (o.type === 'npc') { o.fx = o.x + 0.5; o.fy = o.y + 0.5; loadCast(o.sheet); }   // a character: drawn and talked to like one
+    else { o.surf = true; if (o.type !== 'cryptdoor') o.decor = true; }
     if (o.type === 'crypt') { for (let y = 0; y < SURF.cryptN; y++) for (let x = 0; x < SURF.cryptN; x++) map.block[(o.y + y) * w + o.x + x] = 1; }
     else if (o.block) map.block[o.y * w + o.x] = 1;
     objects.push(o);
@@ -3025,9 +3034,39 @@ function dlgPick(e, id, how) {
     && (!v.when || dlgTry(v.when, Object.assign(probe, { conv: v }))))
     .map((v, i) => [v, i]).sort((a, b) => (b[0].priority || 0) - (a[0].priority || 0) || a[1] - b[1]).map(a => a[0]);
 }
+// ---- Voice-over (README, Dialogue: Voice-over): a line whose speaker and text have a clip in VOICE_CLIPS
+// ("speaker|text", the hero's "hero:m|text" / "hero:f|text" by its look's voice, HERO_VOICE) is spoken on the voices
+// bus as it appears, and stays up at least as long as the clip. One clip at a time: a new line, moving on, walking
+// away or the end stops it (a short fade). Clips load when a conversation with their speaker starts.
+const VOICE_BUF = {}, VOICE_T = { lead: 0.25, tail: 0.6, late: 0.8, fade: 0.12 };   // lead: s after a line appears; tail: the line stays this long after the clip; late: a clip still loading after this long is skipped
+const voiceKey = (who, text) => (who === 'hero' ? 'hero:' + (HERO_VOICE[G.hero && G.hero.look] || 'm') : who) + '|' + text;
+const voiceClip = (who, text) => typeof VOICE_CLIPS !== 'undefined' ? VOICE_CLIPS[voiceKey(who, text)] : null;
+function voiceLoad(file) {
+  if (VOICE_BUF[file] || !audio()) return VOICE_BUF[file];
+  VOICE_BUF[file] = fetch(file).then(r => r.arrayBuffer()).then(b => new Promise((res, rej) => AC.decodeAudioData(b, res, rej)))
+    .then(buf => (VOICE_BUF[file] = buf)).catch(() => (VOICE_BUF[file] = null));
+  return VOICE_BUF[file];
+}
+function voicePreload(id) {   // every clip of this character and the hero
+  if (typeof VOICE_CLIPS === 'undefined') return;
+  for (const k in VOICE_CLIPS) if (k.startsWith(id + '|') || k.startsWith('hero:')) voiceLoad(VOICE_CLIPS[k][0]);
+}
+function voiceStop() {
+  const v = DLG.voice; DLG.voice = null; if (!v || !v.src) return;
+  try { v.g.gain.setTargetAtTime(0, AC.currentTime, VOICE_T.fade / 3); v.src.stop(AC.currentTime + VOICE_T.fade); } catch (e) {}
+}
+function voicePlay(clip) {   // returns the clip's length (s), or 0
+  voiceStop(); if (!clip || !soundOn || !VOL.voice || !audio()) return 0;
+  const [file, dur] = clip, v = DLG.voice = { t0: AC.currentTime, src: null, g: null };
+  const go = buf => { if (DLG.voice !== v || !buf || AC.currentTime - v.t0 > VOICE_T.late) return;
+    const s = AC.createBufferSource(), g = AC.createGain(); s.buffer = buf; s.connect(g); g.connect(VOICE);
+    s.start(Math.max(AC.currentTime, v.t0 + VOICE_T.lead)); v.src = s; v.g = g; };
+  const b = voiceLoad(file); if (b && b.then) b.then(go); else go(b);
+  return dur + VOICE_T.lead;
+}
 function dlgStart(e, id, conv, hailed) {
   if (DLG.c && !DLG.c.done) dlgSuspend(DLG.c, true);
-  const c = DLG.c = dlgNew(e, id, conv); c.walkUp = hailed && convSet(conv, c.def, 'walkUp'); dlgPortrait(c); dlgRun(c);
+  const c = DLG.c = dlgNew(e, id, conv); c.walkUp = hailed && convSet(conv, c.def, 'walkUp'); voicePreload(id); dlgPortrait(c); dlgRun(c);
 }
 function dlgResume(e, id, sp, hailed) {
   const conv = STORY.convs.find(v => v.id === sp.conv), S = heroStory();
@@ -3035,7 +3074,7 @@ function dlgResume(e, id, sp, hailed) {
   if (DLG.c && !DLG.c.done) dlgSuspend(DLG.c, true);
   const c = DLG.c = dlgNew(e, id, conv); c.hist = sp.hist.slice(); c.counted = true; c.resume = { node: sp.node, i: sp.i };
   c.walkUp = hailed && convSet(conv, c.def, 'walkUp');
-  delete S.susp[id]; dlgPortrait(c);
+  delete S.susp[id]; voicePreload(id); dlgPortrait(c);
   if (dlgNodes(c)['@back']) { c.node = '@back'; c.phase = 'back'; } else { c.node = sp.node; c.i = sp.i; }
   dlgRun(c); return true;
 }
@@ -3055,9 +3094,10 @@ function dlgRun(c) {
     if (it.t === 'say') {
       const text = dlgText(it.text, c);
       c.hist.push({ who: it.who, text }); if (c.hist.length > DLG_T.hist) c.hist.shift();
-      c.at = at; c.wait = { t: 0, n: text.length, dur: text.length / DLG_T.cps + Math.min(DLG_T.max, DLG_T.min + DLG_T.per * text.length) };
+      const said = voicePlay(voiceClip(it.who, text));
+      c.at = at; c.wait = { t: 0, n: text.length, dur: Math.max(text.length / DLG_T.cps + Math.min(DLG_T.max, DLG_T.min + DLG_T.per * text.length), said && said + VOICE_T.tail) };
       const nx = items[c.i], opts = nx && nx.t === 'choice' && (!nx.if || dlgTry(nx.if, c)) ? dlgOpts(c, nx) : null;
-      if (opts && opts.length) { c.i++; c.wait.opts = opts; }   // a line with choices under it: shown together
+      if (opts && opts.length) { c.i++; c.wait.opts = opts; c.wait.said = said; }   // a line with choices under it: shown together (once it is spoken)
       dlgShow(true); return;
     }
     if (it.t === 'choice') { const opts = dlgOpts(c, it); if (!opts.length) continue; c.at = at; c.wait = { t: 1e9, n: 0, dur: 0, opts }; dlgShow(true); return; }
@@ -3077,12 +3117,14 @@ function dlgChoose(k) {
   c.hist.push({ who: 'hero', text: o.label }); c.wait = null;
   if (o.do) dlgTry(o.do, c);
   if (o.to) dlgGo(c, o.to);
+  const said = voicePlay(voiceClip('hero', o.label));   // a voiced choice: the hero says it first, as the current line
+  if (said) { c.wait = { t: o.label.length / DLG_T.cps, n: o.label.length, dur: said + 0.3 }; dlgShow(true); return; }
   dlgRun(c);
 }
 function dlgCount(c) { if (c.counted) return; c.counted = true; const S = heroStory(); S.seen[c.conv.id] = (S.seen[c.conv.id] || 0) + 1; S.met[c.char] = (S.met[c.char] || 0) + 1; }
 // The end: counted as played and met; the panel fades. market(): the keeper's market opens.
 function dlgEnd(c, quiet) {
-  if (c.done) return; c.done = true; dlgCount(c); delete heroStory().susp[c.char];
+  if (c.done) return; c.done = true; dlgCount(c); delete heroStory().susp[c.char]; if (c.after === 'market' || quiet) voiceStop();
   DLG.cool[c.char] = G.time + DLG_T.cool; c.wait = null; c.fadeT = quiet ? 0.01 : DLG_T.fade;
   if (c.after === 'market' && c.npc && c.npc.type === 'keeper') { c.fadeT = 0.01; openMarket(c.npc); }
   dlgShow(true);
@@ -3090,12 +3132,12 @@ function dlgEnd(c, quiet) {
 // Walked away: the @leave reaction (the conversation's own, else the character's), then it is put aside where it was
 function dlgLeave(c) {
   if (!dlgNodes(c)['@leave']) return dlgSuspend(c);
-  c.resume = { node: c.node, i: c.at != null ? c.at : c.i }; c.node = '@leave'; c.i = 0; c.phase = 'leave'; c.wait = null; dlgRun(c);
+  c.resume = { node: c.node, i: c.at != null ? c.at : c.i }; c.node = '@leave'; c.i = 0; c.phase = 'leave'; c.wait = null; voiceStop(); dlgRun(c);
 }
 function dlgSuspend(c, quiet) {
   if (c.done) return;
   const r = c.phase === 'talk' ? { node: c.node, i: c.at != null ? c.at : c.i } : c.resume || { node: 'start', i: 0 };
-  dlgCount(c); heroStory().susp[c.char] = { conv: c.conv.id, node: r.node, i: r.i, hist: c.hist.slice(-DLG_T.hist) };
+  dlgCount(c); heroStory().susp[c.char] = { conv: c.conv.id, node: r.node, i: r.i, hist: c.hist.slice(-DLG_T.hist) }; voiceStop();
   c.done = true; c.wait = null; c.fadeT = quiet ? 0.01 : DLG_T.fade; DLG.cool[c.char] = G.time + DLG_T.cool; dlgShow(true);
 }
 // A click on a character: its conversation goes on (the line moves on), one put aside is picked up again, or one
@@ -3112,7 +3154,7 @@ function dlgTalk(e) {
 function dlgSkip() {   // a click on the panel: the whole line at once, then the next one
   const c = DLG.c; if (!c || c.done || !c.wait) return;
   const w = c.wait, rev = w.n / DLG_T.cps;
-  if (w.t < rev) w.t = rev; else if (!w.opts) { c.wait = null; dlgRun(c); }
+  if (w.t < rev) w.t = rev; else if (!w.opts) { c.wait = null; voiceStop(); dlgRun(c); }
   dlgShow(true);
 }
 function updateDialogue(dt) {
@@ -3133,7 +3175,7 @@ function updateDialogue(dt) {
     if (w && !w.opts) { w.t += dt; if (w.t >= w.dur) { c.wait = null; dlgRun(c); } } else if (w) w.t += dt;
     dlgShow(); return;
   }
-  if (G.dead || !STORY.convs.length || G.map.surface && !STORY.surface) return;
+  if (G.dead || !STORY.convs.length) return;
   // nobody talking: a character near enough may start (or pick up again) a conversation of its own
   const h = G.hero, S = heroStory(), cand = [];
   for (const o of G.objects) if (o.type === 'keeper' || o.type === 'npc') cand.push(o);
@@ -3207,7 +3249,7 @@ function dlgShow(force) {
   E.box.style.opacity = c.done ? Math.max(0, c.fadeT / DLG_T.fade) : '';
   E.box.classList.toggle('far', !!c.far && !c.done);
   const cur = c.hist[c.hist.length - 1], w = c.wait, shown = w && cur ? Math.min(cur.text.length, Math.floor(w.t * DLG_T.cps)) : cur ? cur.text.length : 0;
-  const sig = c.hist.length + '|' + shown + '|' + (w && w.opts ? w.opts.length : 0) + '|' + c.done;
+  const sig = c.hist.length + '|' + shown + '|' + (w && w.opts ? w.opts.length : 0) + '|' + (w && w.t >= (w.said || 0)) + '|' + c.done;
   if (!force && sig === dlgSig) return; dlgSig = sig;
   const who = x => x === 'hero' ? G.hero.name : x === c.char ? c.name : npcName(null, x);
   E.hist.innerHTML = c.hist.slice(0, -1).map(l => `<div class="${l.who === 'hero' ? 'hero' : ''}"><b>${dlgEsc(who(l.who))}:</b> ${dlgEsc(l.text)}</div>`).join('');
@@ -3215,7 +3257,7 @@ function dlgShow(force) {
   if (cur) { E.who.textContent = who(cur.who); E.who.className = cur.who === 'hero' ? 'hero' : '';
     E.line.innerHTML = dlgEsc(cur.text.slice(0, shown)) + `<span class="rest">${dlgEsc(cur.text.slice(shown))}</span>`; }
   else { E.who.textContent = c.name; E.line.textContent = ''; }
-  const ready = w && w.opts && shown >= (cur ? cur.text.length : 0);
+  const ready = w && w.opts && shown >= (cur ? cur.text.length : 0) && w.t >= (w.said || 0);
   E.opts.innerHTML = ready ? w.opts.map((o, i) => `<div class="opt" data-k="${i}"><span class="k">${i + 1}.</span> ${dlgEsc(o.label)}</div>`).join('') : '';
   if (cur && (cur.who === 'hero') !== (E.box.dataset.who === 'hero')) { E.box.dataset.who = cur.who === 'hero' ? 'hero' : 'npc'; dlgPortrait(c, cur.who === 'hero'); }
 }

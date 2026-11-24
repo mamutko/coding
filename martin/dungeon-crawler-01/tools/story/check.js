@@ -14,7 +14,7 @@ const OPT_KEYS = ['text', 'if', 'do', 'to'];
 // Ids the game gives its own entities (README, Dialogue: who is who): usable without an entry in chars
 const GAME_IDS = ['aldric', 'borin', 'mirela', 'tobias', 'boss', 'champion', 'skeleton', 'ghoul', 'spider', 'wraith', 'demon'];
 
-const files = fs.readdirSync(DIR).filter(f => f.endsWith('.js')).sort();
+const files = fs.readdirSync(DIR).filter(f => f.endsWith('.js') && !f.endsWith('.voices.js')).sort();   // (not the voice indexes)
 const ctx = vm.createContext({});
 let errs = [], total = 0;
 for (const f of files) {
@@ -41,6 +41,7 @@ for (const key in STORIES) {
     if (o.leave != null && !(typeof o.leave === 'number' && o.leave > 0)) err(where, 'leave: a distance in tiles');
   };
   if (!st || typeof st !== 'object') { err('top', 'not an object'); continue; }
+  keys('top', st, ['chars', 'convs', 'voices']);
   const chars = st.chars || {}, convs = st.convs || [];
   if (!Array.isArray(convs)) { err('top', 'convs should be a list'); continue; }
   const ids = new Set([...GAME_IDS, ...Object.keys(chars)]), convIds = new Set();
@@ -63,6 +64,12 @@ for (const key in STORIES) {
       }
     });
   };
+  // voices: { speaker: { voice, style } }, the hero's as { m: {…}, f: {…} } (the hero's looks' voices, HERO_VOICE)
+  const vs = st.voices || {}, voiceOk = (w, v) => { if (!v || typeof v.voice !== 'string') err(w, 'a voice needs { voice, style }'); else keys(w, v, ['voice', 'style', 'speed']); };
+  for (const k in vs) {
+    if (k === 'hero') { for (const g of ['m', 'f']) voiceOk('voices.hero.' + g, vs.hero[g]); keys('voices.hero', vs.hero, ['m', 'f']); }
+    else if (!ids.has(k)) err('voices', 'no character ' + k); else voiceOk('voices.' + k, vs[k]);
+  }
   for (const id in chars) {
     const c = chars[id]; keys(id, c, CHAR_KEYS); sets(id, c);
     const jumps = [];

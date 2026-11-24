@@ -74,6 +74,9 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `story/story.js` | The game's dialogue (`STORIES.story`), written from `story.md`; loaded by `index.html`. |
 | `story/demo.md`, `story/demo.js` | The demo story showing every dialogue feature (description and dialogue, `STORIES.demo`), played in the sandbox's Dialogue scenario. |
 | `tools/story/check.js` | Checks the dialogue files: `node tools/story/check.js`. |
+| `tools/story/voice.js` | Makes the dialogue's voice clips and their index: see [Voice-over](#voice-over). |
+| `story/story.voices.js` | **Generated** by `tools/story/voice.js`: the story's voice clips (`VOICE_CLIPS`, "speaker\|text" → [file, seconds]); loaded by `index.html`. |
+| `assets/voice/<story>/` | The dialogue's voice clips (`<speaker>-<hash>.mp3`, mono, 64 kbit/s), made by `tools/story/voice.js`. |
 | `todo.md` | Numbered list of ideas for future work (not yet implemented). |
 | `versions.md` | What each version added, newest first, and how to get any version back from git history: see [Version](#version). |
 | `backup/index.NN.html` | Old snapshots of `index.html`, numbered `01`, `02`, … in the order they were made; not used by the game and not described by this README. `index.01.html` is an early version of the game; `index.02.html` is v20, the last version before game time followed real time (see [Main loop](#main-loop)), kept to compare performance; it has a `<base href="../">` so it loads `assets/` from the game folder. |
@@ -96,7 +99,7 @@ it. They live in `sandbox.js`, apart from the game; the game itself never uses t
   `python .claude/skills/artifact-sandbox/build.py martin/dungeon-crawler-01 <out-dir> --title "Crypt Music Sandbox" --skip assets/meta.json assets/dragon.json assets/icons/icon-512.png assets/icons/apple-touch-icon.png 'assets/unused/*' --inline 'assets/*.webp' 'assets/*.jpg'`.
   It removes the document wrapper (the viewer adds its own) and the manifest and touch-icon links, inlines
   `sandbox.js` in place of the loader block (the artifact's address carries no query string) and `story/story.js`
-  and `story/demo.js` in place of their `<script src>`, embeds the 33
+  `story/demo.js` and `story/story.voices.js` in place of their `<script src>`, embeds the 33
   images (`assets/*.webp`, `*.jpg`, the cast's, the dragon's and the trees' included) in the page as data URIs (about 13 MB, a 13.6 MB page of the 16 MB allowed; the claude.ai app on a phone failed
   to load them as separate files, every one and every retry), copies the other assets (sounds and music, minus
   `meta.json`, inlined as `META`, `dragon.json`, inlined as `DRAGON_ART`, and the unused icon sizes) and writes `files.json` for publishing; the
@@ -138,7 +141,8 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     shows how many trees of each kind are in the window, the nearest one's kind and distance and whether the hero is
     in front of or behind its trunk, and the frame rate. **Layers** tints the three layers (`BIGTREE_LAYERS`: roots
     red, trunk blue, crown green) to check the cut. See [The surface](#the-surface-depth-0), Trees.
-  - **The surface** (depth 0): a new level-1 hero (never saved) a few steps from the crypt's entrance. The bar shows
+  - **The surface** (depth 0): a new level-1 hero (never saved) a few steps from the crypt's entrance, where Garrick
+  the Hunter calls out and walks over (the game's story, voiced; see [Dialogue](#dialogue)). The bar shows
     the world tile and super tile the hero is on, then the level's name once below, and the music track and play
     number. **Next loop** starts the next play at once (the other surface track).
 - **Fire bombs** (the hero's longsword goes to the pack on key 1; the bombs are equipped, on key 2):
@@ -698,7 +702,8 @@ freezing.
 
 A new hero starts on **the surface**, a few steps from the crypt's entrance, on a moonlit night. It is an endless
 grassland with woods, glades, bushes and the crypt building; clicking the crypt's dark doorway takes the hero down to
-depth 1 (`descend`). It has its own music (see [Music](#music)). For now nothing else lives there: no monsters, loot or keepers. The level name is *The
+depth 1 (`descend`). It has its own music (see [Music](#music)). One person lives there, **Garrick the Hunter**, on
+the lawn by the crypt's door (a story NPC: see [Dialogue](#dialogue)); no monsters, loot or keepers. The level name is *The
 Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going up is todo #11.)
 
 - **Super tiles** (`SURF`): the land is made of squares of `SURF.chunk` (32) tiles, generated from their world
@@ -1671,15 +1676,24 @@ the code:
   a summarised scene are not copied back into the description. Tools that show a dialogue (a graph of its nodes,
   say) can be built on this file.
 
-There are two stories: `story` (`story/story.md` and `story/story.js`; nothing is written yet: the game's own story
-comes later) and `demo` (`story/demo.md` and `story/demo.js`), a worked example of every feature written at mixed
-levels of detail, played in the sandbox's **Dialogue** scenario (see [Sandbox](#sandbox)). Voice-over is planned
-(**TODO**: a recorded clip per line, played on the Voices bus).
+There are two stories: `story` (`story/story.md` and `story/story.js`), the game's own, which so far has one
+character, **Garrick the Hunter** by the crypt's door on the surface (below), and `demo` (`story/demo.md` and
+`story/demo.js`), a worked example of every feature written at mixed levels of detail, played in the sandbox's
+**Dialogue** scenario (see [Sandbox](#sandbox)). The game's story is **voiced**, the hero's side too (see
+[Voice-over](#voice-over)); the demo isn't.
+
+**Garrick the Hunter** (`garrick`, the cast's hunter sheet) stands on the lawn 5 tiles east of the crypt's door
+(`SURF.npcs`, world tile (20, 19)) and wanders about there. The first time the hero comes within 5 tiles he calls
+out and walks over: a warning about the crypt, then questions the hero can ask in any order (what is down there,
+whether he has been inside, advice: all vague hints of the undead, the dragon and the keepers), help (**one health
+potion**, once: `N.potion`; asked again he has none to spare) and goodbye. Later conversations wait for a click.
+He calls the hero "traveller", never by name, so every line can be voiced.
 
 ### Dialogue files
 
 - Each `story/*.js` file adds its story to `STORIES` (`var STORIES = STORIES || {}; STORIES.demo = { chars, convs }`).
-  `index.html` loads `story/story.js` and `story/demo.js` with `<script src>` before its own script and plays
+  `index.html` loads `story/story.js`, `story/demo.js` and the voice index `story/story.voices.js` with
+  `<script src>` before its own script and plays
   `STORIES.story` (`STORY`). Without the files (or with an empty story) nothing changes in the game. The sandbox's
   Dialogue scenario switches `STORY` to `STORIES.demo`; every other scenario and **Normal game** switch it back.
 - Conditions, effects and `{…}` text are **JavaScript in strings**; when the game loads, `storyPrep` turns them into
@@ -1765,9 +1779,14 @@ pursuing, …).
 - `hail:`, `walkUp:` like the character's, for this conversation only (they override the character's);
 - `nodes:` `start`, any named nodes, and optionally its own `@leave` and `@back`.
 
+**Voices** (`voices`, optional): the voice each speaker's lines are spoken in, `{ voice, style, speed }` (an
+OpenAI speech voice, a delivery style, a speed), the hero's as `hero: { m: {…}, f: {…} }`, one per hero voice. See
+[Voice-over](#voice-over).
+
 **Who is who.** A game entity answers to the first of its story ids that the story uses:
 - the Keepers of the Crypt: `aldric`, `borin`, `mirela`, `tobias`;
-- story NPCs (objects of type `npc`, placed by the sandbox for now): their own `char` id. They are drawn, shadowed
+- story NPCs (objects of type `npc`: Garrick on the surface, placed from `SURF.npcs` with the crypt's super tile;
+  Vesper in the sandbox): their own `char` id. They are drawn, shadowed
   and depth-sorted like a keeper (`drawKeeper`, with their own sheet `sheet` at its scale), block their tile, and
   show their name on hover;
 - monsters: their own `storyId` if one is set, then `boss` (any boss) or `champion` (any champion), then the type
@@ -1833,6 +1852,36 @@ next to the gold. More hooks are added as the story needs them.
 - **The end:** when a conversation runs out of lines (or jumps to `end`, or `end()` / `market()`), the panel fades
   out quickly (0.15 s, `DLG_T.fade`; so does a conversation put aside). The hero's death, the character's (a slain monster) or its disappearance end it at once. Going down
   the stairs puts it aside quietly.
+
+### Voice-over
+
+A line is spoken aloud when the story has a clip for it: characters' lines, and the hero's lines and **choices**
+(the hero's side) in the hero's voice. Lines with `{…}` in them change with the game and aren't voiced, which is
+also why voiced characters never use the hero's name.
+
+- **Making the clips:** `node tools/story/voice.js` lists every line of a speaker with a voice (`voices` in the
+  dialogue file) whose clip is missing, with the cost. `node tools/story/voice.js --go --tts <openai_media.py>`
+  makes them with OpenAI's speech model (`gpt-4o-mini-tts`, about $0.015 a minute, roughly $0.001 a line, through
+  the ai-media-generation skill's script, which holds its own key), each hero line once per hero voice (`m`, `f`),
+  cuts the silence around the voice (`ffmpeg silenceremove`: 0.05 s before, 0.15 s after; a clip that comes back
+  nearly silent is made again, up to 3 times), saves it mono at 64 kbit/s as
+  `assets/voice/<story>/<speaker>-<hash>.mp3`, removes clips no line uses any more, and writes the index
+  `story/<story>.voices.js` (`VOICE_CLIPS["speaker|text"] = [file, seconds]`; the hero's speaker is `hero:m` or
+  `hero:f`). The hash covers the voice, style, speed and text, so **after changing a line or a voice, run it
+  again**: the new line gets its clip and the old one goes. `--index` only rewrites the index.
+- **Playing:** a line with a clip plays it on the voices bus (the **Voices** slider, with the incantations' reverb)
+  0.25 s after it appears (`voicePlay`; `VOICE_T`), and stays up at least until 0.6 s after the clip ends;
+  choices under it appear once it is spoken. A **voiced choice** is first said by the hero, shown as the current
+  line while it plays, then the conversation goes on. The hero's voice is its look's (`HERO_VOICE`: `m` or `f`).
+  One clip plays at a time: the next line, a click that moves on, walking away (before the reaction) and putting
+  the conversation aside stop it with a 0.12 s fade. The clips of a character and the hero load when a
+  conversation with it starts (`voicePreload`; decoded once, `VOICE_BUF`); one still loading 0.8 s after its line
+  appears is skipped.
+- **The voices** (`STORIES.story.voices`): Garrick is `ash`, "a weathered hunter in his fifties: low, gravelly,
+  unhurried, a rural northern English accent; dry humour with warmth underneath; speak quietly, as if outdoors at
+  dusk"; the hero is `echo` (male) or `shimmer` (female), "a young adventurer: steady, earnest, a little wary;
+  natural and quiet, not theatrical". Garrick's 26 clips (16 his, 5 hero lines × 2 voices; 0.8 MB) cost about
+  $0.035 (2026-11-24); a few were checked by transcribing them.
 
 ### The panel
 

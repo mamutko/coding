@@ -9,9 +9,21 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v120 — Garrick the Hunter at the crypt, and voice-over (2026-11-24)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 120`)*
+
+- The game's story has its first character: **Garrick the Hunter**, on the lawn by the crypt's door. He calls out
+  as the hero comes near and walks over, gives vague warnings about what lies below, and, asked for help, one
+  health potion (only once). He calls the hero "traveller".
+- **Voice-over:** lines are spoken aloud, the hero's choices too (in the male or female hero voice, by the look).
+  `tools/story/voice.js` makes the clips with OpenAI speech (about $0.001 a line) and keeps them in step with the
+  dialogue. Garrick and the hero's side are voiced; the choices wait until a line has been spoken.
+- Characters can talk on the surface.
+
 ## v118–v119 — story descriptions in free writing; characters that hail, walk up, wander and face you (2026-11-24)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 119`)*
+Commit: 9d6366f
 
 - A story is now two files: `story/<name>.md`, a free description at any level of detail (exact lines, a sentence
   for a scene, or its logic in technical terms), and `story/<name>.js`, the dialogue the game plays, written from
