@@ -434,6 +434,21 @@ and the picker shows no saved heroes.
     never overwrites a hero (importing the same file twice gives two copies). It is selected, and a box says
     "<name> (level L, depth D) has joined your heroes." Problems are reported in the same box, and nothing is
     changed.
+- **Dying:** when the hero's life drops to 0 or below, the hero is **dying**, not dead (`h.dyingT`). Further hits
+  keep pushing the life below 0 (the life orb shows the negative number), and the hero can still act. If the life
+  is above 0 again within 1.2 s (`DYING_T`: a health potion's heal, a level-up), the hero lives on ("You pull back
+  from the brink."); otherwise the hero dies when the 1.2 s run out, with the cause of the last blow ("You have
+  fallen" or "You burned to death"). Drowning through melting ice kills at once. A potion drunk while dying must
+  reach its half-way point (0.3 s, see [Actions](#actions)) in time, so it saves the hero only if started within
+  about the first 0.9 s. While dying:
+  - "You are dying! Heal within 1.2 seconds." is logged;
+  - a heartbeat (a low *lub-dub*, `sfx('heartbeat')`) sounds every 0.4 s;
+  - a crimson vignette (`#dying`, over the game view and under the HUD) closes in on the screen, throbbing with
+    a heartbeat that quickens as time runs out (`dyingPulse`: opacity 0.55–1 and a slight scale);
+  - the hero is washed red and glows red, throbbing with the same beat;
+  - a red ring on the floor round the hero's feet (`drawDyingRing`) drains clockwise from the top as the 1.2 s run
+    out;
+  - the life orb throbs with a red glow (0.4 s, CSS `orbDying`) and its numbers turn red.
 - **Death:** the scene keeps running for 4 s (`DEATH_DELAY`): the hero fades and sinks like a slain monster,
   enemy projectiles vanish, and every monster drops its chase and goes back to wandering (it can't notice the
   dead hero). Then the title screen returns with the fallen hero selected and a message
@@ -587,7 +602,7 @@ are stored row by row: `map.t[y * map.w + x]`.
 - **Effects.** Melee swings draw a sweeping crescent arc in the attack direction. Arrows are drawn as shafts with
   a tip, and wraith bolts as glowing green orbs. Hits spray blood-coloured sparks (green for wraiths), urns
   burst into shards, and level-ups emit an expanding golden ring. While a potion is being used, its icon (30 px, tinted
-  like its stack) rises 18 px above the hero's head and fades out over the 0.4 s; a scroll being read does the same
+  like its stack) rises 18 px above the hero's head and fades out over the 0.6 s; a scroll being read does the same
   over its 1.6 s (fading only at the very end, alpha `1 − k⁶`) while 14 pale blue frost motes spiral in toward the
   hero, faster and brighter as the words end; iron skin gives the hero a
   steel-blue glow (`drop-shadow`).
@@ -961,7 +976,7 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
   | Picking up a potion | 1 + d |
   | Descending stairs | 10 × the new depth |
 - **Potions** (see [Potions](#potions)): the health potion restores 44 % of max life (`HEAL`); the iron skin potion hardens
-  the hero's armor to armor × 3 + 60 for 20 s (`IRON`). Using one takes 0.4 s of the hero's action time (see [Actions](#actions)).
+  the hero's armor to armor × 3 + 60 for 20 s (`IRON`). Using one takes 0.6 s of the hero's action time, and it works half way through (see [Actions](#actions)).
 - **Scrolls** (see [Scrolls](#scrolls)): the scroll of frost, read aloud for 1.6 s, then a blast of frost around the hero.
 - **Death** returns to the title screen with the fallen hero selected; the hero resumes from its last save
   (see [Saving](#saving)).
@@ -1050,9 +1065,9 @@ and item uses:
 | Action | Action time |
 |---|---|
 | Attack | the weapon's cooldown |
-| Equipping or unequipping a weapon (`SWAP_T`) | 0.2 s |
+| Equipping or unequipping a weapon (`SWAP_T`) | 0.5 s |
 | Equipping or unequipping other gear (armor, rings, amulet) | none (it still waits its turn) |
-| Potion use (`USE_T`) | 0.4 s |
+| Potion use (`USE_T`) | 0.6 s; the potion works half way through, at 0.3 s (`potionEffect`) |
 | Reading a scroll (`POTIONS[k].time`) | 1.6 s (the scroll of frost) |
 
 - **The action queue.** Quick-key presses (weapon swaps and potions), `Q`, the life orb, and every equip,
@@ -1069,7 +1084,7 @@ and item uses:
   Pressing a potion key with no potions of that type at all logs the same message and queues nothing.
 - **A scroll is read the same way** (`{ kind: 'use', pot: 'frost' }`): the scroll is used up when the reading
   starts, and its spell goes off when the reading ends (`h.using.cast`, see [Scrolls](#scrolls)).
-- **A potion in use shows as equipped:** for its 0.4 s its quick key lights up instead of the weapon's, the
+- **A potion in use shows as equipped:** for its 0.6 s its quick key lights up instead of the weapon's, the
   attack button shows the potion, and the potion's icon rises above the hero's head and fades. Then the weapon
   comes back.
 - **Walking is independent of the queue.** The hero keeps walking while items are swapped and used (only a melee
@@ -1327,7 +1342,7 @@ hovers there.
   potion stack. Bombs picked up join the hero's stack: the equipped one, else the first one in the pack
   (`bombStack()`); with none, they take a pack cell like any item (a double click equips them). Tooltip: what it
   does, the range, the fire's radius, damage and duration, throws per second, and how many the hero carries.
-- **Equipping.** The stack must be equipped in the weapon slot to throw. It equips like a weapon (0.2 s, see
+- **Equipping.** The stack must be equipped in the weapon slot to throw. It equips like a weapon (0.5 s, see
   [Actions](#actions)); the weapon it replaces goes into the pack. Bound to a quick key it becomes a **fire bomb
   key** (`{ type: 'bomb' }`, whatever the stack). Pressing it equips the hero's bombs from the pack, does nothing
   if they're already equipped, or logs "No fire bombs left.". The key shows the bomb icon and the number carried,

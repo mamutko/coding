@@ -9,9 +9,19 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v121 — dying instead of dying at once, slower potions and swaps (2026-11-24)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 121`)*
+
+- At 0 life or below the hero is **dying**, not dead: 1.2 s to heal back above 0 (a potion), or the hero dies.
+  While dying: a throbbing crimson vignette, a heartbeat, the hero glowing red, a draining red ring round the hero's
+  feet and a pulsing life orb showing the negative life.
+- Drinking a potion takes 0.6 s (was 0.4 s), and it works half way through, at 0.3 s (was at once).
+- Equipping or unequipping a weapon takes 0.5 s (was 0.2 s).
+
 ## v120 — Garrick the Hunter at the crypt, and voice-over (2026-11-24)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 120`)*
+Commit: 8da2c2e
 
 - The game's story has its first character: **Garrick the Hunter**, on the lawn by the crypt's door. He calls out
   as the hero comes near and walks over, gives vague warnings about what lies below, and, asked for help, one

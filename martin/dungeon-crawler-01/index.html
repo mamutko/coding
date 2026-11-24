@@ -133,6 +133,12 @@
   #burnIco { width: 22px; height: 28px; }
   #burnText { font: 700 13px Cinzel, serif; color: #ffcf8a; text-shadow: 0 0 4px #000; white-space: nowrap; }
   #flash { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at center, rgba(120,0,0,0) 40%, rgba(150,0,0,0.55)); opacity: 0; }
+  /* dying (life at 0 or below): a crimson vignette over the game view (under the HUD) closing in, throbbing with the heartbeat (opacity and scale set per frame) */
+  #dying { display: none; position: fixed; inset: 0; pointer-events: none; mix-blend-mode: multiply;
+    background: radial-gradient(ellipse at center, rgba(255,90,80,0) 18%, rgba(200,0,0,0.85) 55%, rgba(60,0,0,0.98) 85%); }
+  #orb.dying { animation: orbDying 0.4s ease-out infinite; }
+  #orb.dying #orbText { color: #ff3a2a; }
+  @keyframes orbDying { 0% { box-shadow: 0 0 34px 10px rgba(255,30,20,0.95); } 100% { box-shadow: 0 0 6px 1px rgba(255,30,20,0.3); } }
 
   /* ---------- Equip overlay ---------- */
   #equip { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -54%); width: min(940px, 96vw);
@@ -319,6 +325,7 @@
 </head>
 <body>
 <canvas id="game"></canvas>
+<div id="dying"></div>
 
 <div id="hud">
   <div id="topleft"><div id="depthName"></div><div id="depthSub"></div><div id="goldText"></div></div>
@@ -419,7 +426,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 120;
+const VERSION = 121;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -756,6 +763,7 @@ function sfx(type, o = {}) {
     case 'bubbles':   // a body sinking: a short run of rising bubbles
       for (let i = 0; i < 7; i++) { const f = r(250, 550); tone(T + i * 0.09 + r(0, 0.06), f, f * 1.8, 0.07, 0.1); } break;
     case 'hurt': thud(T, 110, 0.14, 0.5); noise(T, 0.12, 500, 1.5, 0.15, 0.003); break;
+    case 'heartbeat': thud(T, 62, 0.16, 0.9); thud(T + 0.15, 52, 0.18, 0.65); break;   // dying: lub-dub
     case 'die': tone(T, 180, 55, 0.5, 0.16, 'sawtooth'); noise(T, 0.4, [900, 200], 1, 0.3, 0.01); break;
     case 'bolt': noise(T, 0.35, [600, 2400], 4, 0.6, 0.05); tone(T, 700, 260, 0.35, 0.05, 'sine'); break;
     case 'drip': {   // a drop into a lake, in the sound picked (SOUND_LOOK.drip, see README Sound)
@@ -1007,7 +1015,8 @@ const POTIONS = {
 };
 const IRON = { mult: 3, add: 60, dur: 20 };     // iron skin: armor × mult + add for dur seconds
 const HEAL = 0.44;                              // health potion: restores this share of max life
-const USE_T = 0.4, SWAP_T = 0.2;                // action time of an item use and of a weapon swap (s)
+const USE_T = 0.6, SWAP_T = 0.5;                // action time of an item use (its effect at half of it) and of a weapon swap (s)
+const DYING_T = 1.2;                             // the hero dies after this long at 0 life or below (a heal in time saves it)
 const useIcon = pot => POTIONS[pot].icon || 'potion';
 const makePotion = (pot, count = 1) => ({ id: nextId++, base: useIcon(pot), slot: 'use', pot, count, rarity: 'common', name: POTIONS[pot].name });
 const potionFilter = it => it && it.slot === 'use' ? POTIONS[it.pot].filter : '';
@@ -2748,8 +2757,9 @@ function damageHero(raw, m) {   // m: the attacking monster, or null for fire (n
   floatText(h.x, h.y, '-' + v, '#ff5a4a', 0.9, 16);
   $('flash').style.opacity = Math.min(0.9, 0.25 + v / h.st.maxHp * 3);
   sfx('hurt');
-  if (h.hp <= 0) { h.hp = 0; G.dead = true; G.deadT = 0; log((m ? 'You have fallen' : 'You burned to death') + ' at depth ' + G.depth + '.', '#ff5a4a'); }
+  if (h.hp <= 0) { h.dyingCause = m ? 'You have fallen' : 'You burned to death'; if (h.dyingT == null) startDying(h); }   // below 0 life stacks up; death comes DYING_T s later (see update)
 }
+function startDying(h) { h.dyingT = 0; sfx('heartbeat'); log('You are dying! Heal within ' + DYING_T + ' seconds.', '#ff5a4a'); }
 
 // =====================================================================================
 //  Loot & interactions
@@ -3417,10 +3427,12 @@ function runAction(a) {
     h.atkCd = P.time; h.using = { pot: a.pot, t: 0, dur: P.time, cast: true };
     speak(incantClip(h)); sfx('castrise', { dur: P.time }); log('You read the ' + P.name + ': “' + P.words + '”', P.color); refreshUI(); return true;
   }
-  if (a.pot === 'health') { const v = Math.round(h.st.maxHp * HEAL); h.hp = Math.min(h.st.maxHp, h.hp + v); floatText(h.x, h.y, '+' + v, '#7fd17f', 0.9, 16); }
-  else { h.ironT = IRON.dur; recalc(); floatText(h.x, h.y, 'Iron skin', POTIONS.ironskin.color, 1.1, 15); log('Your skin hardens like iron.', POTIONS.ironskin.color); }
-  h.atkCd = USE_T; h.using = { pot: a.pot, t: 0, dur: USE_T };
+  h.atkCd = USE_T; h.using = { pot: a.pot, t: 0, dur: USE_T };   // the potion works half way through the drink (potionEffect)
   sfx('potion'); refreshUI(); return true;
+}
+function potionEffect(h, pot) {
+  if (pot === 'health') { const v = Math.round(h.st.maxHp * HEAL); h.hp = Math.min(h.st.maxHp, h.hp + v); floatText(h.x, h.y, '+' + v, '#7fd17f', 0.9, 16); }
+  else { h.ironT = IRON.dur; recalc(); floatText(h.x, h.y, 'Iron skin', POTIONS.ironskin.color, 1.1, 15); log('Your skin hardens like iron.', POTIONS.ironskin.color); }
 }
 // Called every frame: start queued actions while the hero is free (not attacking, swapping or using).
 function runQueue() {
@@ -3839,7 +3851,11 @@ function drawAtkFx() {
 function updateHud() {
   drawAtkFx();
   const h = G.hero, set = (k, v, f) => { if (hudCache[k] !== v) { hudCache[k] = v; f(v); } };
-  set('hp', Math.ceil(h.hp) + '/' + h.st.maxHp, v => { $('orbText').textContent = v.replace('/', ' / '); $('orbFill').style.height = (h.hp / h.st.maxHp * 100) + '%'; });
+  set('hp', Math.ceil(h.hp) + '/' + h.st.maxHp, v => { $('orbText').textContent = v.replace('/', ' / '); $('orbFill').style.height = Math.max(0, h.hp / h.st.maxHp * 100) + '%'; });
+  // dying: a throbbing crimson vignette over the screen and a pulsing, red-lettered life orb (see dyingPulse)
+  const dying = h.dyingT != null && !G.dead, pu = dying ? dyingPulse(h) : 0;
+  set('dying', dying, d => { $('orb').classList.toggle('dying', d); $('dying').style.display = d ? 'block' : 'none'; });
+  if (dying) { const dv = $('dying'); dv.style.opacity = (0.55 + 0.45 * pu).toFixed(3); dv.style.transform = `scale(${(1.06 - 0.06 * pu).toFixed(3)})`; }
   set('xp', h.lvl + ':' + h.xp, () => { $('xpFill').style.width = (h.xp / xpNeed(h.lvl) * 100) + '%'; $('xpText').textContent = 'Level ' + h.lvl + ' — ' + h.xp + ' / ' + xpNeed(h.lvl) + ' xp'; });
   set('depth', G.depth, d => { $('depthName').textContent = depthName(d); $('depthSub').textContent = 'Depth ' + d; });
   set('gold', h.gold, g => { $('goldText').textContent = g + ' gold'; });
@@ -4093,10 +4109,20 @@ function update(dt) {
 
   // hero
   h.atkCd = Math.max(0, h.atkCd - dt); h.hitT = Math.max(0, h.hitT - dt);
-  if (h.using && (h.using.t += dt) >= h.using.dur) { const u = h.using; h.using = null; if (u.cast) castFrost(h); refreshUI(); }   // the weapon comes back (a scroll: its spell goes off)
+  if (h.using) { const u = h.using; u.t += dt;
+    if (!u.cast && !u.done && u.t >= u.dur / 2) { u.done = true; potionEffect(h, u.pot); }   // a potion works half way through the drink
+    if (u.t >= u.dur) { h.using = null; if (u.cast) castFrost(h); refreshUI(); } }   // the weapon comes back (a scroll: its spell goes off)
   if (h.ironT > 0 && (h.ironT -= dt) <= 0) { h.ironT = 0; recalc(); refreshUI(); log('Your iron skin fades.', '#a99c86'); }
   h.lunge = Math.max(0, h.lunge - dt * 5);
   h.hp = Math.min(h.st.maxHp, h.hp + h.st.regen * dt);
+  // dying: at 0 life or below the hero has DYING_T s to heal above 0 (a potion, a level-up), or dies
+  if (h.hp > 0) { if (h.dyingT != null) { h.dyingT = null; log('You pull back from the brink.', '#7fd17f'); } }
+  else {
+    if (h.dyingT == null) startDying(h);
+    const beat = Math.floor(h.dyingT / 0.4); h.dyingT += dt;
+    if (Math.floor(h.dyingT / 0.4) > beat) sfx('heartbeat');
+    if (h.dyingT >= DYING_T) { h.hp = 0; G.dead = true; G.deadT = 0; h.dyingT = null; log((h.dyingCause || 'You have fallen') + ' at depth ' + G.depth + '.', '#ff5a4a'); return; }
+  }
   if (h.swing) { h.swing.t += dt; if (!h.swing.hit && h.swing.t >= 0.08) { h.swing.hit = true; resolveSwing(h); } if (h.swing.t >= h.swing.dur) h.swing = null; }
   if (h.draw && (h.draw.t += dt) >= h.draw.dur) releaseArrow(h);
   runQueue();
@@ -4901,7 +4927,7 @@ function meltIce(p) {
   const h = G.hero;
   if (!G.dead && onIce(p, h)) {
     splash(h.x, h.y, 1.6); sfx('plunge', { x: h.x, y: h.y }); sfx('bubbles', { x: h.x, y: h.y });
-    h.hp = 0; G.dead = true; G.deadT = 0; log('The ice gave way beneath you. You drowned at depth ' + G.depth + '.', '#ff5a4a');
+    h.hp = 0; G.dead = true; G.deadT = 0; h.dyingT = null; log('The ice gave way beneath you. You drowned at depth ' + G.depth + '.', '#ff5a4a');
   }
   for (const mo of G.monsters) if (!mo.dead && !mo.b.float && onIce(p, mo)) { splash(mo.x, mo.y, 1.4); sfx('plunge', { x: mo.x, y: mo.y }); killMonster(mo, true); }
   G.items = G.items.filter(fi => !onIce(p, fi));
@@ -5492,6 +5518,7 @@ function drawChar(e, isHero) {
   e.sink = (e.sink || 0) + ((wet && !fl ? LAKE.drop : 0) - (e.sink || 0)) * 0.3; sy += e.sink;
   const [shw, shh, sha, shm, shy] = CHAR_SHADOW[sheet] || CHAR_SHADOW.hero;
   if (!wet || iceAt(e.x, e.y)) softShadow(sx, sy0 + e.sink + shy * s, shw * s, shh * s, sha * alpha, shm);   // none on open water
+  if (isHero && e.dyingT != null && !G.dead) drawDyingRing(e, sx, sy0 + e.sink);
   const frame = e.moving ? Math.floor(e.anim) % md.frames : (md.idle || 0), row = e.dir;
   // lunge toward facing direction
   let ox = 0, oy = 0;
@@ -5509,6 +5536,7 @@ function drawChar(e, isHero) {
   if (!isHero && e.champ) glow(5, 'rgba(220,40,30,0.9)');
   if (!isHero && e.boss) glow(7, 'rgba(70,235,110,0.95)');
   if (isHero && e.ironT > 0) glow(6, 'rgba(160,190,225,0.9)');   // iron skin potion
+  if (isHero && e.dyingT != null && !G.dead) { const pu = dyingPulse(e); filters.push(`brightness(${0.75 + 0.5 * pu}) sepia(0.6) saturate(3) hue-rotate(-25deg)`); glow(8 + 12 * pu, 'rgba(255,25,15,0.95)'); }   // dying: washed red, throbbing
   fx.filter = filters.join(' ');
   drawSprite(img, frame * md.fw, row * md.fh, md.fw, md.fh, dx, dy, w, hgt, fx);
   const ice = held ? c01((e.frozen.t - e.frozen.delay) / 0.15) : !isHero && e.thaw > 0 ? e.thaw / 0.35 : 0;
@@ -5526,6 +5554,18 @@ function drawChar(e, isHero) {
   if (isHero && e.swing) drawSwing(e);
   if (isHero && e.using) drawUsing(e);
   if (e.burning && !(isHero ? G.dead : e.dead)) drawBurning(e, sx, sy, hgt);
+}
+// Dying (life at 0 or below, h.dyingT s of DYING_T): a heartbeat that quickens as time runs out, 0-1
+function dyingPulse(h) { const k = h.dyingT / DYING_T, ph = (h.dyingT * (2.5 + 3 * k)) % 1; return Math.max(Math.exp(-ph * 9), 0.7 * Math.exp(-Math.abs(ph - 0.22) * 14)); }
+// a red ring on the ground round the dying hero, draining clockwise as the time to death runs out
+function drawDyingRing(h, sx, sy) {
+  const left = Math.max(0, 1 - h.dyingT / DYING_T), pu = dyingPulse(h), rx = 48, ry = 24;
+  ctx.save(); ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(30,0,0,0.7)'; ctx.lineWidth = 9; ctx.beginPath(); ctx.ellipse(sx, sy, rx, ry, 0, 0, 7); ctx.stroke();
+  ctx.globalCompositeOperation = 'lighter'; ctx.shadowColor = 'rgba(255,40,20,1)'; ctx.shadowBlur = 10 + 14 * pu;
+  ctx.strokeStyle = `rgba(255,${50 + 90 * pu | 0},40,1)`; ctx.lineWidth = 5 + 3 * pu;
+  for (let i = 0; i < 2; i++) { ctx.beginPath(); ctx.ellipse(sx, sy, rx, ry, 0, -Math.PI / 2, -Math.PI / 2 + left * 2 * Math.PI); ctx.stroke(); }
+  ctx.restore();
 }
 // A burning creature: a few flames licking up its body, smaller as its burning runs out (full while in a fire).
 function drawBurning(e, sx, sy, hgt) {
