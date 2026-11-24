@@ -426,7 +426,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 121;
+const VERSION = 122;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1016,7 +1016,7 @@ const POTIONS = {
 const IRON = { mult: 3, add: 60, dur: 20 };     // iron skin: armor × mult + add for dur seconds
 const HEAL = 0.44;                              // health potion: restores this share of max life
 const USE_T = 0.6, SWAP_T = 0.5;                // action time of an item use (its effect at half of it) and of a weapon swap (s)
-const DYING_T = 1.2;                             // the hero dies after this long at 0 life or below (a heal in time saves it)
+const DYING_T = 2;                               // the hero dies after this long at 0 life or below (a heal in time saves it)
 const useIcon = pot => POTIONS[pot].icon || 'potion';
 const makePotion = (pot, count = 1) => ({ id: nextId++, base: useIcon(pot), slot: 'use', pot, count, rarity: 'common', name: POTIONS[pot].name });
 const potionFilter = it => it && it.slot === 'use' ? POTIONS[it.pot].filter : '';

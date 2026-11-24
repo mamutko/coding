@@ -436,17 +436,18 @@ and the picker shows no saved heroes.
     changed.
 - **Dying:** when the hero's life drops to 0 or below, the hero is **dying**, not dead (`h.dyingT`). Further hits
   keep pushing the life below 0 (the life orb shows the negative number), and the hero can still act. If the life
-  is above 0 again within 1.2 s (`DYING_T`: a health potion's heal, a level-up), the hero lives on ("You pull back
-  from the brink."); otherwise the hero dies when the 1.2 s run out, with the cause of the last blow ("You have
+  is above 0 again within 2 s (`DYING_T`: a health potion's heal, a level-up), the hero lives on ("You pull back
+  from the brink."); otherwise the hero dies when the 2 s run out, with the cause of the last blow ("You have
   fallen" or "You burned to death"). Drowning through melting ice kills at once. A potion drunk while dying must
   reach its half-way point (0.3 s, see [Actions](#actions)) in time, so it saves the hero only if started within
-  about the first 0.9 s. While dying:
-  - "You are dying! Heal within 1.2 seconds." is logged;
+  about the first 1.7 s. There is no floor: however far below 0 the life goes, a heal must bring it back above 0.
+  While dying:
+  - "You are dying! Heal within 2 seconds." is logged;
   - a heartbeat (a low *lub-dub*, `sfx('heartbeat')`) sounds every 0.4 s;
   - a crimson vignette (`#dying`, over the game view and under the HUD) closes in on the screen, throbbing with
     a heartbeat that quickens as time runs out (`dyingPulse`: opacity 0.55–1 and a slight scale);
   - the hero is washed red and glows red, throbbing with the same beat;
-  - a red ring on the floor round the hero's feet (`drawDyingRing`) drains clockwise from the top as the 1.2 s run
+  - a red ring on the floor round the hero's feet (`drawDyingRing`) drains clockwise from the top as the 2 s run
     out;
   - the life orb throbs with a red glow (0.4 s, CSS `orbDying`) and its numbers turn red.
 - **Death:** the scene keeps running for 4 s (`DEATH_DELAY`): the hero fades and sinks like a slain monster,
