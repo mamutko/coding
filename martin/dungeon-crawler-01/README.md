@@ -826,9 +826,9 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
 
 ## The Rift
 
-The game's online co-op mode (`multiplayer.md`, its phases there). Built so far (phases 2–4): the portal and its
-dial on the surface, the Rift itself, players in the same realm seeing each other, and their monsters shared and
-fought together (no shared loot yet). The code is in `realm.js` (constants `RIFT`) and `net.js` (`NET_CFG`), plus hooks in `index.html`.
+The game's online co-op mode (`multiplayer.md`, its phases there). Built so far (phases 2–5): the portal and its
+dial on the surface, the Rift itself, players in the same realm seeing each other, their monsters shared and fought
+together, and their loot shared. The code is in `realm.js` (constants `RIFT`) and `net.js` (`NET_CFG`), plus hooks in `index.html`.
 
 - **The portal** (`type: 'portal'`) stands on the surface about 60 tiles north of the crypt (screen north: −x −y),
   its arch on the line of tiles x + y = const, running west–east and facing south, toward the crypt. `RIFT.at` =
@@ -918,10 +918,10 @@ shared project, its public key; no table) and then talk directly over **WebRTC**
   networks cannot connect), two data channels: **`ev`** (reliable, ordered: `hello`, `snapReq`, `snap`, `bye`) and
   **`st`** (unreliable, unordered: `st` states, `ping`, `pong`). Messages are JSON.
 - **The snapshot** (`riftSnapshot`, `buildRiftFromSnap`): the map's tiles and blocked tiles (run-length encoded),
-  its rooms, which rooms are **claimed** (by index), its lasting furnishings (doors as they are, the portal,
-  braziers, banners, pillars and other decor) and every live **monster** with its owner (below), sent in pieces of
-  16 000 characters. Not chests, urns, bones, gold or items: those stay with the player who brought them (shared in a
-  later phase); their tiles are left free. The joiner arrives beside the portal (up to 0.6 tiles off its usual spot).
+  its rooms, which rooms are **claimed** (by index), its objects (doors as they are, the portal, braziers, banners,
+  pillars and other decor, and the chests, urns, bones and gold with their owners), every live **monster** and every
+  **floor item**, each with its owner (below), sent in pieces of 16 000 characters. The joiner arrives beside the
+  portal (up to 0.6 tiles off its usual spot).
 - **Hello:** when the `ev` channel opens, each side sends its hero's name, level and look; the other hero appears
   once we are in the Rift ("Alda (level 12) is in the Rift.").
 - **States** (`netTick`, every 66 ms from a timer, so at least once a second in a background tab: the heartbeat):
@@ -977,7 +977,35 @@ Every monster in the Rift belongs to the player who brought it (`MON_NET` in `ne
   monster's experience among those who hurt it in the last 30 s (`credit`: the damage each did), each by its share,
   but at least 25 % (so helping always pays), and sends `died` with the shares; each player gains its own (and
   counts the kill). Nobody else hurt it: all of it to the owner, as always. The copies die (sound, fading) when
-  `died` comes. Loot is rolled and dropped by the owner, seen only by the owner for now.
+  `died` comes. Its loot is rolled and dropped by the owner (below).
+
+#### Loot
+
+Floor items, gold, chests, urns and bones in the Rift belong to whoever brought them, and everyone sees them
+(`LOOT_OBJ`, `NET.loot` in `net.js`):
+
+- **What is whose:** the founder's Rift's chests, urns, bones and gold are the founder's (`netOwnAll` gives them ids
+  too). A joiner brings, besides its monsters, treasure for its rooms as a crypt level's rooms have it
+  (`riftFurnish`: a chest 38 % of the time, gold 20 % of the time, of its own depth), sent with its `spawn`.
+  Whatever **drops** (`dropItem`, `dropGold`: from a monster's death, an opened chest, a broken urn, searched
+  bones, or the hero's own pack) is its dropper's: it gets an id and is sent to everyone (`drop`: the item as it
+  is, or the gold's amount, and where it lies).
+- **Doing something** (`act`, which asks `netAct` first and then does the deed, `act0`): to one's own things, as
+  always, and the others are told (`netActed`): a pickup (`took`), an opened chest, broken urn or searched bones
+  (`used`), a door opened (`door`: every door opens for everyone).
+- **Another player's things:**
+  - **Picking up** an item or gold sends `take` to its owner (an item only if it fits: a free pack cell or a stack
+    to join; else "Your pack is full."). The owner grants the **first** request (`netTakeReq`): it is gone from the
+    floor everywhere (`took` with the winner) and the winner picks it up as from its own floor (the pickup's
+    experience, the double click's equip), with a new id of its own. A later request, or one for something already
+    gone, is refused ("Someone was quicker."). If the winner's pack has filled meanwhile, the item drops at its feet,
+    now its own. Asking again is possible after 2 s. The owner's log says who took an item.
+  - **Opening** a chest, breaking an urn or searching bones sends `use` to its owner, who does it (`act0` for the
+    other player: it rolls and drops the contents, as its own drops) and tells everyone (`used`), and the player
+    who asked gains the experience (and reads "The chest creaks open."). The first request wins; a used one does
+    nothing.
+- **A player leaving** leaves its loot behind, passed to the player in the Rift longest (`netElder`, from each
+  player's `since`; everyone works out the same one).
 
 ## Dungeon generation
 

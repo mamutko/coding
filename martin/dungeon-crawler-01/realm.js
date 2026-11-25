@@ -169,18 +169,21 @@ function riftWait(text) { const el = $('riftAsk'); if (!text) { el.classList.add
 
 // ---- The snapshot: what a player joining the realm gets from its elder (net.js): the map (tiles and blocked tiles,
 // run-length encoded), its rooms and its lasting furnishings (doors, the portal, braziers, banners, pillars, …).
-// Not (yet) monsters, chests, urns, bones, gold or items: those belong to their owners (multiplayer.md §5).
-const SNAP_SKIP = new Set(['chest', 'urn', 'bones', 'gold', 'stairs', 'keeper']);
+// Also every live monster, chest, urn, bones, gold and floor item, each with its owner (net.js; multiplayer.md §5).
+const SNAP_SKIP = new Set(['stairs', 'keeper']);
 function rle(a) { const o = []; for (let i = 0; i < a.length;) { let j = i; while (j < a.length && a[j] === a[i]) j++; o.push(a[i], j - i); i = j; } return o; }
 function unrle(o, n) { const a = new Uint8Array(n); for (let i = 0, k = 0; i < o.length; i += 2) { a.fill(o[i], k, k + o[i + 1]); k += o[i + 1]; } return a; }
 function riftSnapshot() {
   const m = G.map, b = m.block.slice(), objects = [];
   for (const o of G.objects) {
     if (SNAP_SKIP.has(o.type)) { if (o.block && o.type !== 'door') b[o.y * m.w + o.x] = 0; continue; }   // its tile is free for the joiner
-    const c = {}; for (const k in o) if (k !== 'room' && typeof o[k] !== 'function') c[k] = o[k]; objects.push(c);
+    const c = {}; for (const k in o) if (k !== 'room' && k !== 'asked' && typeof o[k] !== 'function') c[k] = o[k];
+    if (LOOT_OBJ.has(o.type)) c.owner = o.owner || NET.me;   // whose it is, seen from the joiner
+    objects.push(c);
   }
   return { v: VERSION, w: m.w, h: m.h, t: rle(m.t), b: rle(b), rooms: m.rooms.map(r => ({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.cx, cy: r.cy })), objects,
-    claims: [...(m.claims || [])], mons: G.monsters.filter(q => !q.dead && q.nid && !q.parts).map(monDesc) };   // every live monster, with its owner (net.js)
+    claims: [...(m.claims || [])], mons: G.monsters.filter(q => !q.dead && q.nid && !q.parts).map(monDesc),
+    items: G.items.filter(fi => fi.nid).map(fi => ({ i: fi.nid, o: fi.owner || NET.me, it: itemOut(fi.item), x: fi.x, y: fi.y })) };   // every live monster, with its owner (net.js)
 }
 function buildRiftFromSnap(s) {
   const w = s.w, h = s.h, t = unrle(s.t, w * h);
@@ -195,6 +198,8 @@ function buildRiftFromSnap(s) {
   hero.queue = []; hero.pendingAt = null; hero.using = null; hero.burnLeft = 0; hero.burning = hero.inFire = false;
   G.fade = 1; updateMinimap(true);
   for (const d of s.mons || []) netAddMonster(d, d.o);   // the monsters already here, each predicted from its owner's states
+  for (const o of G.objects) if (o.nid) NET.loot.set(o.nid, o);   // chests, urns, bones, gold: their owners grant them
+  for (const d of s.items || []) { const fi = { item: d.it, x: d.x, y: d.y, t: rnd() * 6, nid: d.i, owner: d.o }; G.items.push(fi); NET.loot.set(d.i, fi); }
 }
 // A player joining a Rift brings its share of monsters (multiplayer.md §3): as many rooms as a crypt level of its
 // depth has, less one, of the rooms no one has claimed, the farthest from the portal first; tells the others.
@@ -202,10 +207,22 @@ function riftJoinSpawn(d) {
   const m = G.map, o = G.objects.find(q => q.type === 'portal'), dist = bfs(Math.floor(o.fx), Math.floor(o.fy));
   const free = m.rooms.map((r, i) => i).filter(i => !m.claims.has(i)), n = Math.min(9 + Math.floor(d / 2), 18) - 1;
   const mine = free.sort((a, b) => (dist[m.rooms[b].cy * m.w + m.rooms[b].cx] || 0) - (dist[m.rooms[a].cy * m.w + m.rooms[a].cx] || 0)).slice(0, n);
-  const mons = riftPopulate(mine.map(i => m.rooms[i]), d);
+  const mons = riftPopulate(mine.map(i => m.rooms[i]), d), objs = riftFurnish(mine.map(i => m.rooms[i]), d);
   for (const q of mons) G.monsters.push(q);
+  for (const o of objs) { G.objects.push(o); if (o.block) m.block[o.y * m.w + o.x] = 1; }
   netOwnAll(); for (const i of mine) m.claims.add(i);
-  netEach({ t: 'spawn', a: mons.map(monDesc), rooms: mine });
+  netEach({ t: 'spawn', a: mons.map(monDesc), rooms: mine, objs: objs.map(o => Object.assign({}, o)) });
+}
+// A joiner's rooms get treasure as a crypt level's rooms do: a chest 38 % of the time, gold 20 % (of its depth)
+function riftFurnish(rooms, d) {
+  const out = [], map = G.map, used = new Set(G.objects.map(o => o.x + ',' + o.y));
+  const spot = r => { for (let k = 0; k < 40; k++) { const x = ri(r.x + 1, r.x + r.w - 2), y = ri(r.y + 1, r.y + r.h - 2);
+    if (map.at(x, y) !== T_FLOOR || map.block[y * map.w + x] || used.has(x + ',' + y)) continue; used.add(x + ',' + y); return [x, y]; } return null; };
+  for (const r of rooms) {
+    if (rnd() < 0.38) { const p = spot(r); if (p) out.push({ type: 'chest', x: p[0], y: p[1], used: false, block: true }); }
+    if (rnd() < 0.2) { const p = spot(r); if (p) out.push({ type: 'gold', x: p[0], y: p[1], used: false, block: false, amount: Math.max(1, Math.round(ri(3, 12) * d * LOOT)) }); }
+  }
+  return out;
 }
 // Monsters for rooms, as on a crypt level of depth d: 1 to cap each (cap 3 at depths 1-2, +1 every 2 depths, at most
 // 7), +1 half the time in a large room, each type within its room limit, champions with 2-3 escorts

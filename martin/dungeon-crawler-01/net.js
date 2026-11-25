@@ -19,7 +19,7 @@ const NET_CFG = {
   delay: 100,        // ms other heroes are drawn in the past (interpolated between their states)
   chunk: 16000,      // characters per snapshot piece
 };
-const NET = { mons: new Map(), monN: 0, sb: null, libP: null, ch: null, topic: null, me: null, since: 0, peers: new Map(), on: false, timer: null, snapIn: null };
+const NET = { loot: new Map(), mons: new Map(), monN: 0, sb: null, libP: null, ch: null, topic: null, me: null, since: 0, peers: new Map(), on: false, timer: null, snapIn: null };
 const netNow = () => performance.now();
 
 function netLib() {   // load supabase-js once; resolves to the client, or null if it cannot be loaded
@@ -54,7 +54,7 @@ async function netPeek(realmId) {
 }
 async function netClose() {   // leave the channel and every connection
   for (const p of NET.peers.values()) netDropPeer(p, true);
-  NET.peers.clear(); NET.mons.clear(); NET.on = false; clearInterval(NET.timer); NET.timer = null;
+  NET.peers.clear(); NET.mons.clear(); NET.loot.clear(); NET.on = false; clearInterval(NET.timer); NET.timer = null;
   if (NET.ch) { const ch = NET.ch; NET.ch = null; NET.topic = null; try { await ch.untrack(); } catch (e) {} try { await NET.sb.removeChannel(ch); } catch (e) {} }
 }
 
@@ -125,6 +125,8 @@ function netDropPeer(p, quiet) {
   if (p.hero && G && G.heroes) { const i = G.heroes.indexOf(p.hero); if (i >= 0) G.heroes.splice(i, 1);
     if (!quiet && G.rift) log(p.hero.name + ' has left the Rift.', '#b49ae6'); }
   p.hero = null;
+  // its loot passes to the eldest player left (everyone works out the same one)
+  if (G && G.rift) { const el = netElder(); for (const x of NET.loot.values()) if (x.owner === p.id) x.owner = el === NET.me ? undefined : el; }
   // its monsters go with it (multiplayer.md §7: handing them over comes later)
   if (G && G.monsters) { const n = G.monsters.length; G.monsters = G.monsters.filter(m => m.owner !== p.id); for (const [k, m] of NET.mons) if (m.owner === p.id) NET.mons.delete(k);
     if (G.monsters.length < n && G.rift) log('The Rift reclaims its own: their monsters fade away.', '#a99c86'); }
@@ -151,7 +153,9 @@ function netMsg(p, data) {
     case 'snap': { const S = NET.snapIn; if (!S || S.from !== p.id) break; S.parts[m.i] = m.d;
       if (S.parts.filter(x => x != null).length === m.n) { try { S.res(JSON.parse(S.parts.join(''))); } catch (e) { S.res(null); } } break; }
     case 'bye': netDropPeer(p); break;
-    case 'spawn': for (const d of m.a) netAddMonster(d, p.id); if (G.map && m.rooms) for (const r of m.rooms) G.map.claims.add(r); break;
+    case 'spawn': for (const d of m.a) netAddMonster(d, p.id); if (G.map && m.rooms) for (const r of m.rooms) G.map.claims.add(r);
+      if (G.map) for (const o of m.objs || []) if (!NET.loot.has(o.nid)) { o.owner = p.id; G.objects.push(o); NET.loot.set(o.nid, o); if (o.block) G.map.block[o.y * G.map.w + o.x] = 1; }
+      break;
     case 'ms': netMonStates(p, m); break;
     case 'hit': { const mo = NET.mons.get(m.i); if (mo && !mo.owner) netTakeHit(mo, m.v, m.c, m.f, p.id); break; }
     case 'died': { const mo = NET.mons.get(m.i); if (mo) netRemoteDied(mo, m.xp && m.xp[NET.me] || 0); break; }
@@ -159,6 +163,12 @@ function netMsg(p, data) {
       if (!mo.owner) for (const q of NET.peers.values()) if (q !== p) netSend(q, m);   // ours: tell the others too
       break; }
     case 'hh': if (G.rift && !G.dead) damageHero(m.v, { lvl: m.lvl }); break;   // one of their monsters struck our hero
+    case 'drop': netGotDrop(m, p.id); break;
+    case 'take': netTakeReq(m, p); break;
+    case 'took': netTook(m); break;
+    case 'use': netUseReq(m, p); break;
+    case 'used': netUsed(m); break;
+    case 'door': { const o = G.objects.find(q => q.type === 'door' && q.x === m.x && q.y === m.y); if (o && !o.open) { o.open = true; G.map.t[o.y * G.map.w + o.x] = T_OPEN; sfx('door', { x: o.x, y: o.y }); } break; }
     case 'bolt': G.proj.push({ type: 'bolt', x: m.x, y: m.y, vx: m.vx, vy: m.vy, life: m.l, dmg: 0, friendly: false, ghost: true }); break;   // seen only: its owner decides what it hits
   }
 }
@@ -226,7 +236,11 @@ function drawRemoteLabels() {   // a name and a small life bar over each other h
 // =====================================================================================
 const MON_NET = { batch: 25, near: 14, mid: 30, wNear: 1, wMid: 0.3, wFar: 0.05, snap: 2, blend: 8, share: 0.25, credit: 30 };
 const netOn = () => NET.on && G && G.rift && NET.peers.size > 0;
-function netOwnAll() { for (const m of G.monsters) if (!m.nid) { m.nid = NET.me + '.' + (++NET.monN); NET.mons.set(m.nid, m); } }   // our monsters get ids
+function netOwnAll() {   // our monsters, floor items and loot objects (chests, urns, bones, gold) get ids
+  for (const m of G.monsters) if (!m.nid) { m.nid = NET.me + '.' + (++NET.monN); NET.mons.set(m.nid, m); }
+  for (const fi of G.items) if (!fi.nid) { fi.nid = NET.me + '.' + (++NET.monN); NET.loot.set(fi.nid, fi); }
+  for (const o of G.objects) if (LOOT_OBJ.has(o.type) && !o.nid) { o.nid = NET.me + '.' + (++NET.monN); NET.loot.set(o.nid, o); }
+}
 const monDesc = m => ({ i: m.nid, o: m.owner || NET.me, ty: m.type, x: +m.x.toFixed(2), y: +m.y.toFixed(2), d: m.lvl, c: m.champ ? 1 : 0, b: m.boss ? 1 : 0,
   n: m.name, mh: m.maxHp, hp: Math.round(m.hp), st: m.state });
 function netAddMonster(d, from) {   // a monster another player brought (or, in a snapshot, any monster not ours)
@@ -346,4 +360,94 @@ function netFreeze(m, dl, du) {   // our frost froze a monster: tell its owner (
   if (!netOn() || !m.nid) return;
   const msg = { t: 'frz', i: m.nid, dl, du };
   if (m.owner) { const p = NET.peers.get(m.owner); if (p) netSend(p, msg); } else netEach(msg);
+}
+
+// =====================================================================================
+//  Loot in the Rift (multiplayer.md §5): floor items, gold, chests, urns and bones belong to whoever brought them
+//  (dropped, rolled from their monster or chest, or placed in their rooms) and are seen by all. Taking or opening one
+//  another player owns asks that player first; the first to ask gets it. The owner tells everyone the outcome.
+// =====================================================================================
+const LOOT_OBJ = new Set(['chest', 'urn', 'bones', 'gold']);
+const itemOut = it => JSON.parse(JSON.stringify(it));
+function netElder() {   // the player in the Rift longest (ourselves included)
+  let id = NET.me, since = NET.since;
+  for (const p of NET.peers.values()) { const s = p.info && p.info.since; if (s != null && (s < since || s === since && p.id < id)) { since = s; id = p.id; } }
+  return id;
+}
+function netDropped(fi, o) {   // dropItem / dropGold made something of ours: an id, and the others see it
+  if (!G || !G.rift || !NET.me) return;
+  const x = fi || o; x.nid = NET.me + '.' + (++NET.monN); NET.loot.set(x.nid, x);
+  if (!netOn()) return;
+  if (fi) netEach({ t: 'drop', i: fi.nid, it: itemOut(fi.item), x: +fi.x.toFixed(2), y: +fi.y.toFixed(2) });
+  else netEach({ t: 'drop', i: o.nid, gold: o.amount, x: +o.fx.toFixed(2), y: +o.fy.toFixed(2) });
+}
+function netGotDrop(m, owner) {   // something another player dropped
+  if (!G.map || NET.loot.has(m.i)) return;
+  if (m.gold != null) { const o = { type: 'gold', x: Math.floor(m.x), y: Math.floor(m.y), fx: m.x, fy: m.y, amount: m.gold, used: false, block: false, nid: m.i, owner }; G.objects.push(o); NET.loot.set(m.i, o); }
+  else { const fi = { item: m.it, x: m.x, y: m.y, t: rnd() * 6, nid: m.i, owner }; G.items.push(fi); NET.loot.set(m.i, fi); }
+}
+const lootHere = x => G.items.includes(x) || G.objects.includes(x);
+function lootGone(x) {   // off the floor everywhere it shows
+  const i = G.items.indexOf(x); if (i >= 0) G.items.splice(i, 1);
+  if (x.type === 'gold') { const j = G.objects.indexOf(x); if (j >= 0) G.objects.splice(j, 1); }
+  NET.loot.delete(x.nid);
+}
+// Before act0: true when the deed is another player's to grant (we asked), or must not happen
+function netAct(ref) {
+  if (!netOn()) return false;
+  const x = ref.r; if (!x || !x.nid || !x.owner) return false;
+  if (ref.kind === 'item') {
+    if (!G.items.includes(x)) return true;
+    const it = x.item, fits = h => h.inv.includes(null) || (it.slot === 'use' && stackOf(it.pot, it.depth)) || (isBomb(it) && bombStack());
+    if (!fits(G.hero)) { log('Your pack is full.', '#e06a5a'); return true; }
+    if (!x.asked || G.time - x.asked > 2) { x.asked = G.time; x.equip = !!ref.equip; netSendOwner(x, { t: 'take', i: x.nid }); }
+    return true;
+  }
+  if (x.type === 'gold') { if (!x.asked || G.time - x.asked > 2) { x.asked = G.time; netSendOwner(x, { t: 'take', i: x.nid }); } return true; }
+  if (LOOT_OBJ.has(x.type)) {
+    if (x.used) return true;
+    if (x.type === 'chest' && x.boss && G.map.boss && !G.map.boss.dead) return false;   // (sealed: act0 says so)
+    if (!x.asked || G.time - x.asked > 2) { x.asked = G.time; netSendOwner(x, { t: 'use', i: x.nid }); }
+    return true;
+  }
+  return false;
+}
+function netSendOwner(x, msg) { const p = NET.peers.get(x.owner); if (p) netSend(p, msg); }
+// After act0 on something of ours (or nobody's): tell the others what changed
+function netActed(ref, was) {
+  if (!netOn()) return;
+  const x = ref.r; if (!x) return;
+  if (ref.kind === 'item') { if (was && !G.items.includes(x) && x.nid) { netEach({ t: 'took', i: x.nid, to: NET.me }); NET.loot.delete(x.nid); } return; }
+  if (x.type === 'gold') { if (was.here && !G.objects.includes(x) && x.nid) { netEach({ t: 'took', i: x.nid, to: NET.me }); NET.loot.delete(x.nid); } return; }
+  if (x.type === 'door') { if (!was.open && x.open) netEach({ t: 'door', x: x.x, y: x.y }); return; }
+  if (LOOT_OBJ.has(x.type) && !was.used && x.used && x.nid) netEach({ t: 'used', i: x.nid, by: NET.me });
+}
+function netTakeReq(m, p) {   // another player asks for something of ours lying on the floor: the first to ask gets it
+  const x = NET.loot.get(m.i);
+  if (!x || x.owner || !lootHere(x)) { netSend(p, { t: 'took', i: m.i, to: null }); return; }
+  lootGone(x); netEach({ t: 'took', i: m.i, to: p.id });
+  if (x.type !== 'gold') log((p.info && p.info.name || 'Someone') + ' picked up ' + x.item.name + '.', '#a99c86');
+}
+function netTook(m) {   // the owner says who got it
+  const x = NET.loot.get(m.i); if (!x) return;
+  if (m.to === null) { x.asked = 0; if (!lootHere(x)) NET.loot.delete(m.i); log('Someone was quicker.', '#a99c86'); return; }
+  if (m.to !== NET.me) { lootGone(x); return; }
+  if (x.type === 'gold') { lootGone(x); G.hero.gold += x.amount; sfx('gold'); floatText(G.hero.x, G.hero.y, '+' + x.amount + ' gold', '#e3c060', 0.9, 14); refreshUI(); return; }
+  x.item.id = nextId++;   // ours now: an id of our own
+  NET.loot.delete(m.i); act0({ kind: 'item', r: x, equip: x.equip });
+  if (G.items.includes(x)) { delete x.owner; x.asked = 0; netDropped(x); }   // no room after all: it lies at our feet, ours
+}
+function netUseReq(m, p) {   // another player opens one of our chests (breaks an urn, searches bones): the first one does
+  const o = NET.loot.get(m.i); if (!o || o.owner || o.used || !lootHere(o)) return;
+  act0({ kind: 'obj', r: o }, true);   // we roll what is in it (and drop it: the drops are ours, seen by all)
+  if (o.used) netEach({ t: 'used', i: o.nid, by: p.id });
+}
+function netUsed(m) {   // someone opened a chest, broke an urn or searched bones
+  const o = NET.loot.get(m.i); if (!o || o.used) return;
+  o.used = true; o.asked = 0;
+  const d = G.depth, mine = m.by === NET.me;
+  if (o.type === 'chest') { sfx('chest', { x: o.x, y: o.y }); if (mine) { gainXp((o.boss ? 15 : 6) * d); log('The chest creaks open.', '#c9a45c'); } }
+  else if (o.type === 'urn') { G.map.block[o.y * G.map.w + o.x] = 0; sfx('urn', { x: o.x, y: o.y }); if (mine) gainXp(2 * d);
+    for (let i = 0; i < 8; i++) G.fx.push({ type: 'spark', x: o.x + 0.5, y: o.y + 0.5, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 20, vz: 80, t: 0, dur: 0.5, color: '140,120,90' }); }
+  else if (o.type === 'bones' && mine) { gainXp(d); log('You search the bones.', '#a99c86'); }
 }

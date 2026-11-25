@@ -436,7 +436,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 135;
+const VERSION = 136;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2848,11 +2848,11 @@ function dropSpot(x, y) {
   }
   return [x, y];
 }
-function dropItem(item, x, y) { const [px, py] = dropSpot(x, y); G.items.push({ item, x: px, y: py, t: rnd() * 6 }); }
+function dropItem(item, x, y) { const [px, py] = dropSpot(x, y), fi = { item, x: px, y: py, t: rnd() * 6 }; G.items.push(fi); netDropped(fi); }   // (the Rift: ours, shown to the others)
 function lootItem(item, x, y) { if (rnd() < LOOT) dropItem(item, x, y); }   // a random drop, thinned by LOOT
 const POTION_ODDS = 1.2;   // scales every potion drop chance (monsters, chests, urns)
 function dropPotion(x, y) { dropItem(makePotion(rnd() < 0.15 ? 'ironskin' : 'health'), x, y); }   // 15 % iron skin
-function dropGold(n, x, y) { n = Math.max(1, Math.round(n * LOOT)); const [px, py] = dropSpot(x, y); G.objects.push({ type: 'gold', x: Math.floor(px), y: Math.floor(py), fx: px, fy: py, amount: n, used: false, block: false }); }
+function dropGold(n, x, y) { n = Math.max(1, Math.round(n * LOOT)); const [px, py] = dropSpot(x, y), o = { type: 'gold', x: Math.floor(px), y: Math.floor(py), fx: px, fy: py, amount: n, used: false, block: false }; G.objects.push(o); netDropped(null, o); }
 
 function objCenter(o) { return o.fx !== undefined ? [o.fx, o.fy] : [o.x + 0.5, o.y + 0.5]; }
 // =====================================================================================
@@ -3372,7 +3372,16 @@ function interactable(o) {
   if (o.type === 'stairs') return true;
   return !o.used;
 }
+// Using something: in the Rift with others, something another player owns is asked of its owner first, and what we
+// own is announced (net.js: netAct, netActed); act0 does the deed. other: done by its owner for another player (that
+// player gains the experience).
 function act(ref) {
+  if (netAct(ref)) return;
+  const was = ref.kind === 'item' ? G.items.includes(ref.r) : ref.r && { used: ref.r.used, open: ref.r.open, here: G.objects.includes(ref.r) };
+  act0(ref);
+  netActed(ref, was);
+}
+function act0(ref, other = false) {
   const h = G.hero, d = G.depth;
   if (ref.kind === 'item') {
     const fi = ref.r;
@@ -3407,7 +3416,7 @@ function act(ref) {
     case 'chest': {
       if (o.used) return;
       if (o.boss && G.map.boss && !G.map.boss.dead) { log('The chest is sealed while its guardian lives.', '#7fe08a'); sfx('locked'); return; }
-      o.used = true; sfx('chest'); gainXp((o.boss ? 15 : 6) * d);
+      o.used = true; sfx('chest'); if (!other) gainXp((o.boss ? 15 : 6) * d);
       if (o.scrolls) { dropItem(makePotion('frost', o.scrolls), o.x + 0.5, o.y + 0.5); log('The chest holds a bundle of scrolls, cold to the touch.', POTIONS.frost.color); break; }
       if (o.boss) {   // guardian's chest: always one rare (30 %) or magic item, plus a normal chest's loot
         // depth + 4 rules: always at least magic; rare only where depth + 4 allows it
@@ -3423,11 +3432,11 @@ function act(ref) {
       dropGold(ri(10, 30) * d, o.x + 0.5, o.y + 0.5);
       if (rnd() < 0.225 * POTION_ODDS) dropPotion(o.x + 0.5, o.y + 0.5);
       if (d >= BOMB.from && rnd() < 0.15) dropItem(makeBombs(ri(1, 3)), o.x + 0.5, o.y + 0.5);
-      log('The chest creaks open.', '#c9a45c');
+      if (!other) log('The chest creaks open.', '#c9a45c');
       break;
     }
     case 'urn':
-      if (o.used) return; o.used = true; G.map.block[o.y * G.map.w + o.x] = 0; sfx('urn'); gainXp(2 * d);
+      if (o.used) return; o.used = true; G.map.block[o.y * G.map.w + o.x] = 0; sfx('urn'); if (!other) gainXp(2 * d);
       for (let i = 0; i < 8; i++) G.fx.push({ type: 'spark', x: o.x + 0.5, y: o.y + 0.5, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 20, vz: 80, t: 0, dur: 0.5, color: '140,120,90' });
       if (rnd() < 0.35) dropGold(ri(3, 10) * d, o.x + 0.5, o.y + 0.5);
       if (rnd() < 0.09 * POTION_ODDS) dropPotion(o.x + 0.5, o.y + 0.5);
@@ -3435,7 +3444,7 @@ function act(ref) {
       if (rnd() < 0.08) lootItem(genItem(d), o.x + 0.5, o.y + 0.5);
       break;
     case 'bones':
-      if (o.used) return; o.used = true; gainXp(d); log('You search the bones.', '#a99c86');
+      if (o.used) return; o.used = true; if (!other) { gainXp(d); log('You search the bones.', '#a99c86'); }
       if (rnd() < 0.2) dropGold(ri(2, 8) * d, o.x + 0.5, o.y + 0.5);
       if (rnd() < 0.1) lootItem(genItem(d), o.x + 0.5, o.y + 0.5);
       break;

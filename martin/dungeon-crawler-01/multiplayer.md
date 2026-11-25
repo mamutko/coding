@@ -208,7 +208,8 @@ generation code a silent desync.
 are `<peer id>.<n>` rather than seat numbers (no seats to hand out); fires are not shared yet (a fire hurts
 another player's monster through its thrower's browser, but the owner and the others don't see it burn); a
 monster's projectile is decided by its owner against every hero rather than by each player for its own hero (the
-others see a copy). Loot (chests, drops) is still only the owner's: phase 5.
+others see a copy). **Loot built in v136** (phase 5; `README.md`, Playing together: Loot): as below, plus urns and
+bones (opened like chests), shared doors, and a leaver's loot passing to the eldest at once (rather than in phase 6).
 
 **Rule: each browser decides about what it owns; everyone else sends it requests.**
 
@@ -334,5 +335,5 @@ Each phase is one version (or a few), playable at the end.
 | 2 | Portal and solo Rift | portal and dial art, placement, dial items saved and hashed into a realm id and name, the Rift's map and its portal, spawning for `maxDepth`, saves on entering and leaving | done (v132) |
 | 3 | Seeing each other | Supabase presence and signaling, WebRTC mesh, snapshot (map + heroes), other heroes walking and animating, clock and heartbeat; no combat; `G.heroes` (drawing, light and minimap; monsters still go for our own hero only, until phase 4) | done (v133) |
 | 4 | Fighting together | spawning for each joiner, ownership, monster state with intent and prediction, the priority queue, hits both ways, deaths and shared XP | done (v135) |
-| 5 | Loot | ground items, gold and chests decided by their owner, pickup and open requests | planned |
+| 5 | Loot | ground items, gold and chests decided by their owner, pickup and open requests | done (v136) |
 | 6 | Robustness | hand-over on leaving, hidden tabs and away ghosts, founding race, capacity, TURN relay | planned |

@@ -9,9 +9,20 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v136 — shared loot in the Rift (2026-11-25)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 136`)*
+
+- Everything that drops in the Rift (from monsters, chests, urns, bones, or a player's pack) is seen by everyone and
+  belongs to whoever dropped it; the chests, urns, bones and gold of each player's rooms likewise. A player joining
+  brings chests and gold for its rooms too.
+- Picking up or opening another player's things asks that player's game: the first to ask gets it; it vanishes for
+  the others. The one who opens a chest gains its experience; its owner rolls what is inside.
+- Doors open for everyone. A player leaving leaves its loot to the player in the Rift longest.
+
 ## v135 — fighting together in the Rift (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 135`)*
+Commit: 191e68b
 
 - Every monster belongs to the player who brought it; a player joining a Rift brings its own share (monsters of its
   own deepest depth) into rooms no one has claimed.
