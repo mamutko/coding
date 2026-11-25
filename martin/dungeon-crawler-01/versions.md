@@ -9,9 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v131 — the realm key includes affixes (2026-11-25)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 131`)*
+
+- `multiplayer.md`: the dial's realm key is built from the whole items (affixes, rarity, rolled names), so a magic
+  or rare item on the dial opens a private realm; friends share a realm with ordinary items. No game changes.
+
 ## v130 — scrolls of surface escape and return (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 130`)*
+Commit: 463484c
 
 - **Scroll of Surface Escape:** read in the crypt (4 s, standing still, voiced Latin incantation, its words over the
   hero's head, a column of light) to go up to the surface; it becomes a **Scroll of Return** to that depth, which,

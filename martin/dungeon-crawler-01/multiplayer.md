@@ -92,11 +92,15 @@ One image (Gemini, in the style of the crypt building), cut into two parts as wi
 
 - The hero drops items on the dial's inner circle like on any floor (drag out of the pack, or Drop in the overlay).
   Items lying there are the **dial items**; picking one up removes it.
-- **Realm key** = the multiset of the dial items' **base types and stack counts**, sorted (e.g.
-  `longsword×1, potion:health×3, rubyring×1`), so the order of laying them down does not matter. Only the base and
-  count, not the random affixes or rarity, so two friends can set the same dial with items they can both find.
-  (Option for later: including rarity or the exact item makes a dial "private" — a realm only that item's owner
-  can open.)
+- **Realm key** = the multiset of the dial items, each written out in full except its id: base type, rarity, name
+  (a rare item's name is rolled), its affixes (`stats`, keys sorted), and for stacks the count (and a scroll of
+  return's depth). The items are sorted by that text, so the order of laying them down does not matter.
+  - A common item has no affixes and takes its stats from its base type, so two ordinary items of the same type
+    are identical: friends who want to share a realm set the dial with a few **ordinary items** (e.g. a longsword,
+    an iron helm and 3 health potions) that anyone can find or buy.
+  - A magic or rare item's affixes are rolled, so practically no one else has the same one: a dial with one on it
+    opens a **private realm**, which only someone with that exact item can reach (the owner, or someone it was
+    given to).
 - **Realm id** = `v<VERSION>-<hash>`, hash = the first 10 characters of SHA-256 (base32) of the realm key
   (`crypto.subtle`). An empty dial is a valid key: the **open Rift**, where strangers meet. Because the version is
   part of the id, players on different versions never meet (and never need to agree on a protocol).
