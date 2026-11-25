@@ -830,9 +830,9 @@ The game's online co-op mode (`multiplayer.md`, its phases there). Built so far 
 dial on the surface, the Rift itself, and players in the same realm seeing each other (no shared monsters, loot or
 combat yet). The code is in `realm.js` (constants `RIFT`) and `net.js` (`NET_CFG`), plus hooks in `index.html`.
 
-- **The portal** (`type: 'portal'`) stands on the surface about 50 tiles north of the crypt (screen north: −x −y),
+- **The portal** (`type: 'portal'`) stands on the surface about 60 tiles north of the crypt (screen north: −x −y),
   its arch on the line of tiles x + y = const, running west–east and facing south, toward the crypt. `RIFT.at` =
-  (−22, −22) is the ground point in the middle of the arch's base line, a tile corner; the line runs through the
+  (−29, −29) is the ground point in the middle of the arch's base line, a tile corner; the line runs through the
   centres of the arch's four tiles (`portalTiles`): the two outer ones are its **pillars** (blocked), the two middle
   ones its **gate**. The picture (see [Assets](#assets)) has three layers (`META.portal`, `drawPortal`):
   - the **platform** (flagstones and two steps spreading south in front of the arch), drawn flat on the ground;
@@ -846,7 +846,7 @@ combat yet). The code is in `realm.js` (constants `RIFT`) and `net.js` (`NET_CFG
 - **The clearing:** no trees, bushes or ground details within `RIFT.clear` (9) tiles of the arch, within
   dialR + 4 tiles of the dial, and on a lawn in front of the dial (x + y up to 18 more than the dial's, x − y within
   9 of its), since tree crowns reach far up the screen.
-- **The dial** (`type: 'dial'`): a flat stone ring in front of the portal (`RIFT.dial` = (−17.4, −17.4), radius
+- **The dial** (`type: 'dial'`): a flat stone ring in front of the portal (`RIFT.dial` = (−23, −23), about 8.5 tiles from the arch, radius
   `META.portal.dialR` = 2 tiles), drawn on the ground. The items lying on it (`dialItems`: floor items within its
   radius, in the window or remembered off it) choose **the realm**:
   - **Realm key** (`realmKey`): each item written out in full except its id (`itemKey`: base, rarity, name,

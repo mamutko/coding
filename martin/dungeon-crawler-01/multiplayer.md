@@ -65,7 +65,7 @@ A use item (an entry in `POTIONS`, like the Scroll of Frost), stacking in the pa
 
 **Built in v132** (phase 2, with [§3](#3-the-rift) played alone); `README.md` ([The Rift](README.md#the-rift))
 describes it as built. Where it differs from this design: the realm hash is a 53-bit cyrb53 (synchronous) rather
-than SHA-256; the dial lies at (−17.4, −17.4), clear of the platform's steps; the arch is 4.2 tiles wide; monsters
+than SHA-256; the portal stands at (−29, −29), about 60 tiles north of the crypt (moved 10 tiles north in v134), and the dial at (−23, −23), about 8.5 tiles in front of the arch; the arch is 4.2 tiles wide; monsters
 do not come back yet (the respawn below is for later); the hero stands before the portal when resumed from the save
 made on entering (`surfAt`).
 

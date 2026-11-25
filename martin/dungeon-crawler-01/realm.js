@@ -4,10 +4,10 @@
 //  Loaded before the game's main script; everything here runs only once the game is up.
 // =====================================================================================
 // The portal on the surface: its arch stands on the line of tiles x + y = const, west to east, facing south (toward
-// the crypt); `at` is the ground point in the middle of the arch's base line (world tiles), about 50 tiles north of
+// the crypt); `at` is the ground point in the middle of the arch's base line (world tiles), about 60 tiles north of
 // the crypt. The dial lies in front of it (`dial`, its centre), META.portal.dialR tiles in radius. `clear`: no trees
 // grow within this many tiles of the arch. The Rift: `size` tiles a side, `rooms` rooms.
-const RIFT = { at: [-22, -22], dial: [-17.4, -17.4], clear: 9, size: 110, rooms: 34 };
+const RIFT = { at: [-29, -29], dial: [-23, -23], clear: 9, size: 110, rooms: 34 };
 
 // The arch's four tiles, from west to east: [x, y, role] with role 'pillar' (blocked) or 'gate'. gx, gy (whole
 // numbers): the ground point in the middle of its base line, which runs through the four tiles' centres.

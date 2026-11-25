@@ -9,9 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v134 — the portal 10 tiles farther north, the dial 2 tiles farther out (2026-11-25)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 134`)*
+
+- The Rift's portal stands at (−29, −29), about 60 tiles north of the crypt; its dial at (−23, −23), about 8.5
+  tiles in front of the arch (2 tiles more), with grass between the steps and the dial.
+
 ## v133 — players in the same Rift see each other (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 133`)*
+Commit: 9ef3503
 
 - The portal's question says who is in the realm (Supabase Realtime presence).
 - Entering a realm others are in joins them: a WebRTC connection to each, the Rift's map from the eldest, and the
