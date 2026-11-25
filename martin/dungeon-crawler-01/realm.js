@@ -81,32 +81,54 @@ function riftAsk(o) {
   if (inside) html = `<h2>The Rift of ${G.rift.name}</h2><div>Step back through the portal to the surface?</div><div class="ty">You will be saved there.</div>`;
   else { const r = currentRealm();
     html = `<h2>The Rift of ${r.name}</h2><div>${r.open ? 'The dial is empty: this is the open Rift, where strangers meet.' : 'The items on the dial have chosen this realm.'}</div>` +
-      `<div>The Rift lies empty. You will be the first.</div><div class="ty">Realm ${r.id}. You are saved before you go. Nothing is saved inside: leave through this portal to keep what you win; die in there and you lose it.</div>`; }
+      `<div id="raWho">Listening at the portal…</div><div class="ty">Realm ${r.id}. You are saved before you go. Nothing is saved inside: leave through this portal to keep what you win; die in there and you lose it.</div>`;
+    // who is inside (net.js): the realm's presence, read without showing ourselves
+    const ask = RA.o;
+    netPeek(r.id).then(list => { if (RA.o !== ask || !$('raWho')) return;
+      const who = $('raWho'), go = $('raGo');
+      if (list == null) who.textContent = 'The Rift is silent: no one else can be reached from here. You can still go in alone.';
+      else if (!list.length) who.textContent = 'The Rift lies empty. You will be the first.';
+      else if (list.length >= NET_CFG.max) { who.textContent = 'The Rift is full (' + list.length + ' adventurers).'; if (go) go.disabled = true; }
+      else who.textContent = (list.length === 1 ? '1 adventurer is' : list.length + ' adventurers are') + ' inside: ' + list.map(p => p.name + ' (level ' + p.lvl + ')').join(', ') + '.'; }); }
   el.innerHTML = html + `<div class="btns"><button id="raGo">${inside ? 'Leave' : 'Enter'}</button><button id="raStay">Stay</button></div>`;
   el.classList.remove('hidden');
-  $('raGo').onclick = () => { riftClose(); inside ? leaveRift() : enterRift(); };
-  $('raStay').onclick = riftClose;
+  $('raGo').onclick = () => { riftClose(true); inside ? leaveRift() : enterRift(); };
+  $('raStay').onclick = () => riftClose();
 }
-function riftClose() { RA.o = null; const el = $('riftAsk'); el.classList.add('hidden'); el.innerHTML = ''; }
+function riftClose(going) {   // (staying outside: let go of the realm's channel the question opened)
+  if (RA.o && !going && !G.rift && !RA.busy) netClose();
+  RA.o = null; const el = $('riftAsk'); el.classList.add('hidden'); el.innerHTML = ''; }
 const riftAskOpen = () => !!RA.o;
 
 // ---- Entering and leaving
-function enterRift() {
-  if (G.rift || G.depth !== 0) return;
-  const h = G.hero; syncDial();
+async function enterRift() {
+  if (G.rift || G.depth !== 0 || RA.busy) return;
+  const h = G.hero, g = G; syncDial();
   h.surfAt = 'portal';   // saved: resumed from this save, the hero stands before the portal
   if (saveHero()) log('Progress saved.', '#a99c86');
   h.surfAt = null;
-  const r = currentRealm(); leaveLevel(); sfx('stairs');
-  G.rift = { id: r.id, name: r.name, d: Math.max(1, h.maxDepth || 1) };
-  G.depth = G.rift.d; buildLevel(G.depth);
+  const r = currentRealm(), d = Math.max(1, h.maxDepth || 1);
+  // join the realm (net.js): found it, join the players already in it, or (no connection) go in alone
+  RA.busy = true; riftWait('Entering the Rift of ' + r.name + '…');
+  const res = await netJoin(r.id, { name: h.name, lvl: h.lvl, look: h.look || 'hero', depth: d });
+  RA.busy = false; riftWait(null);
+  if (G !== g || G.dead || G.rift || G.depth !== 0) { netLeave(); return; }   // gone meanwhile (died, another game)
+  if (res && res.role === 'full') { log('The Rift of ' + r.name + ' is full. Try again later, or set the dial for another realm.', '#e06a5a'); return; }
+  leaveLevel(); sfx('stairs');
+  G.rift = { id: r.id, name: r.name, d };
+  G.depth = d;
+  if (res && res.role === 'joiner') buildRiftFromSnap(res.snap); else buildLevel(G.depth);
   RA.away = false;   // arrived standing near the portal's gate: no question until the hero has stepped off it
   log('You step through the portal into the Rift of ' + r.name + '.', '#b49ae6');
+  if (!res) log('The Rift is silent: no one else can reach you here.', '#a99c86');
+  else if (res.role === 'unreachable') log('You could not reach ' + (res.name || 'the others') + ' in this Rift: you are alone in it.', '#e06a5a');
+  else if (res.role === 'joiner') log('Others walk this Rift. (Their monsters and treasure are not shared yet: you see each other, nothing more.)', '#a99c86');
   log('Monsters here match the deepest depth you have reached (' + G.depth + '). Nothing is saved until you leave through the portal.', '#a99c86');
   refreshUI();
 }
 function leaveRift() {
   if (!G.rift) return;
+  netLeave(); G.heroes = [G.hero];
   leaveLevel(); sfx('stairs');
   const name = G.rift.name; G.rift = null; G.depth = 0; buildSurface('portal');
   RA.away = false;
@@ -139,4 +161,36 @@ function drawPortal(o, part) {
 function pickPortal(o) {   // the hover / click box: the arch's opening
   const P = META.portal; if (!P) return; const [sx, sy] = iso(o.x, o.y), [gx, gy, rx, ry] = P.glow;
   G.pick.push({ kind: 'obj', r: o, x: sx + gx - rx, y: sy + gy - ry, w: rx * 2, h: ry * 2 + 20 });
+}
+
+// "Entering the Rift…" while the realm is being joined
+function riftWait(text) { const el = $('riftAsk'); if (!text) { el.classList.add('hidden'); el.innerHTML = ''; return; }
+  el.innerHTML = `<h2>${text}</h2><div class="ty">Looking for the others in this realm.</div>`; el.classList.remove('hidden'); }
+
+// ---- The snapshot: what a player joining the realm gets from its elder (net.js): the map (tiles and blocked tiles,
+// run-length encoded), its rooms and its lasting furnishings (doors, the portal, braziers, banners, pillars, …).
+// Not (yet) monsters, chests, urns, bones, gold or items: those belong to their owners (multiplayer.md §5).
+const SNAP_SKIP = new Set(['chest', 'urn', 'bones', 'gold', 'stairs', 'keeper']);
+function rle(a) { const o = []; for (let i = 0; i < a.length;) { let j = i; while (j < a.length && a[j] === a[i]) j++; o.push(a[i], j - i); i = j; } return o; }
+function unrle(o, n) { const a = new Uint8Array(n); for (let i = 0, k = 0; i < o.length; i += 2) { a.fill(o[i], k, k + o[i + 1]); k += o[i + 1]; } return a; }
+function riftSnapshot() {
+  const m = G.map, b = m.block.slice(), objects = [];
+  for (const o of G.objects) {
+    if (SNAP_SKIP.has(o.type)) { if (o.block && o.type !== 'door') b[o.y * m.w + o.x] = 0; continue; }   // its tile is free for the joiner
+    const c = {}; for (const k in o) if (k !== 'room' && typeof o[k] !== 'function') c[k] = o[k]; objects.push(c);
+  }
+  return { v: VERSION, w: m.w, h: m.h, t: rle(m.t), b: rle(b), rooms: m.rooms.map(r => ({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.cx, cy: r.cy })), objects };
+}
+function buildRiftFromSnap(s) {
+  const w = s.w, h = s.h, t = unrle(s.t, w * h);
+  const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? T_VOID : t[y * w + x];
+  const map = { w, h, t, at, seen: new Uint8Array(w * h), block: unrle(s.b, w * h), rooms: s.rooms, lake: null, lakeRoom: null };
+  G.lakeFx = null; G.map = map; G.objects = s.objects; G.monsters = []; G.items = []; G.proj = []; G.fx = []; G.texts = [];
+  stopFireSounds(); G.fires = [];
+  const o = G.objects.find(q => q.type === 'portal'), hero = G.hero;
+  hero.x = o.x + 1.6 + (rnd() - 0.5) * 1.2; hero.y = o.y + 1.6 + (rnd() - 0.5) * 1.2; hero.dir = 0;   // just come through, beside whoever else did
+  if (!canStand(hero.x, hero.y, hero.r)) { hero.x = o.x + 1.6; hero.y = o.y + 1.6; }
+  hero.path = []; hero.intent = null; hero.attackTarget = null; hero.swing = null;
+  hero.queue = []; hero.pendingAt = null; hero.using = null; hero.burnLeft = 0; hero.burning = hero.inFire = false;
+  G.fade = 1; updateMinimap(true);
 }

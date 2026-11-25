@@ -9,9 +9,19 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v133 — players in the same Rift see each other (2026-11-25)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 133`)*
+
+- The portal's question says who is in the realm (Supabase Realtime presence).
+- Entering a realm others are in joins them: a WebRTC connection to each, the Rift's map from the eldest, and the
+  other heroes walking about, with their names and life bars, smoothly interpolated. Two players entering at once
+  end up in the same Rift. Leaving, dying or closing the page tells the others.
+- Not shared yet: monsters, chests, loot, fighting (next phases).
+
 ## v132 — the Rift's portal, its dial and the Rift played alone (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 132`)*
+Commit: 1e87dcf
 
 - A stone **portal** with a swirling vortex stands about 50 tiles north of the crypt (new AI art in three layers:
   the arch, depth-sorted; its platform and a rune **dial** on the ground).

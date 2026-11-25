@@ -416,6 +416,7 @@
 <script src="story/story.js"></script>   <!-- the dialogue (STORIES.story), written from story/story.md: see README, Dialogue -->
 <script src="story/demo.js"></script>   <!-- the sandbox's demo dialogue (STORIES.demo), from story/demo.md -->
 <script src="story/story.voices.js"></script>
+<script src="net.js"></script>   <!-- the Rift's network: Supabase presence and WebRTC (see README, The Rift; multiplayer.md) -->
 <script src="realm.js"></script>   <!-- the Rift: the portal and its dial on the surface, realms (see README, The Rift; multiplayer.md) -->   <!-- the story's voice clips (VOICE_CLIPS), made by tools/story/voice.js -->
 <script>
 'use strict';
@@ -435,7 +436,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 132;
+const VERSION = 133;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1683,6 +1684,7 @@ function newGame(entry) {
   DLG.c = null; DLG.cool = {};
   G = { depth: entry ? entry.depth : 0, hero: newHero(), map: null, monsters: [], objects: [], items: [], proj: [], fx: [], texts: [], fires: [],
     zoom: 1, camX: 0, camY: 0, time: 0, dead: false, deadT: 0, hover: null, uiHover: null, pick: [], fade: 1, minimap: true, miniT: 0 };
+  G.heroes = [G.hero];   // every hero in the level: ours first, then other players' (the Rift: net.js)
   if (entry) {
     Object.assign(G.hero, JSON.parse(JSON.stringify(entry.hero)));
     G.hero.saveId = entry.id;
@@ -4272,6 +4274,7 @@ function update(dt) {
   runQueue();
   noteBusy(h);
   riftCheck();   // standing in a portal's gate: go through? (realm.js)
+  netFrame(dt);  // the other players' heroes (net.js)
   if (MK.o && (dist(h, { x: MK.o.fx, y: MK.o.fy }) > KEEPER.reach || !G.objects.includes(MK.o))) closeMarket();   // walked away
   // a click attack at the ground that came while the hero was busy waits (one at most) for the hero to be free
   if (h.pendingAt && h.atkCd <= 0 && !h.swing && heroAttack(h.pendingAt.x, h.pendingAt.y, null)) h.pendingAt = null;
@@ -4545,7 +4548,7 @@ function mirrorChar(e, isHero) {
   const sheet = isHero ? heroLook(e) : e.type, md = META.characters[sheet], s = isHero ? lookScale(sheet) : e.scale, [sx, sy0] = iso(e.x, e.y);
   let sy = sy0, alpha = 1;
   if (!isHero && e.dead) { alpha = Math.max(0, 1 - e.deathT / 1.1); sy += e.deathT * 14; }
-  if (isHero && G.dead) { alpha = Math.max(0, 1 - G.deadT / 1.1); sy += Math.min(G.deadT, 1.1) * 14; }
+  if (isHero && !e.remote && G.dead) { alpha = Math.max(0, 1 - G.deadT / 1.1); sy += Math.min(G.deadT, 1.1) * 14; }
   if (isHero ? MON[sheet] && MON[sheet].float : e.b.float) sy -= !isHero && frozenHeld(e) ? e.frozen.lift : 8 + Math.sin(G.time * 3 + e.x) * 4;
   if (alpha <= 0) return;
   const frame = e.moving ? Math.floor(e.anim) % md.frames : (md.idle || 0), footY = md.footY != null ? md.footY : md.fh - 6;
@@ -5239,6 +5242,7 @@ function render() {
   for (const mo of G.monsters) if (mo.parts) { if (Math.abs(mo.x - h.x) < 30 && Math.abs(mo.y - h.y) < 30) dragonDrawables(mo, dl); }
     else if (mo.x >= x0 && mo.x <= x1 + 1 && mo.y >= y0 && mo.y <= y1 + 1) dl.push({ k: mo.x + mo.y, t: 2, e: mo });
   dl.push({ k: h.x + h.y, t: 3, e: h });
+  for (const e of G.heroes) if (e.remote && e.x >= x0 && e.x <= x1 + 1 && e.y >= y0 && e.y <= y1 + 1) dl.push({ k: e.x + e.y, t: 3, e });   // the other players' heroes (net.js)
   for (const p of G.proj) dl.push({ k: p.x + p.y, t: 4, p });
   for (const fi of G.items) if (fi.x >= x0 && fi.x <= x1 + 1 && fi.y >= y0 && fi.y <= y1 + 1) dl.push({ k: fi.x + fi.y, t: 8, fi });   // an item's icon stands up
   for (const f of G.fires) for (const q of f.parts) if (q.x > x0 - 1 && q.x < x1 + 2 && q.y > y0 - 1 && q.y < y1 + 2) dl.push({ k: q.x + q.y, t: 6, q, f });
@@ -5317,6 +5321,7 @@ function render() {
     lctx.fillStyle = gr; lctx.beginPath(); lctx.arc(0, 0, r, 0, 7); lctx.fill(); lctx.restore();
   };
   hole(h.x, h.y, m.surface ? 9 : 7.2, 1, 30);
+  for (const e of G.heroes) if (e.remote && Math.abs(e.x - h.x) < 24 && Math.abs(e.y - h.y) < 24) hole(e.x, e.y, 5.5, 0.9, 30);   // other heroes carry light too
   if (m.surface) for (const o of G.objects) if (o.type === 'cryptdoor') hole(o.x + 0.5, o.y - 0.5, 3, 0.55, 60);   // a faint glow at the crypt's door
   const portals = G.objects.filter(o => o.type === 'portal' && Math.abs(o.x - h.x) < 24 && Math.abs(o.y - h.y) < 24);
   for (const o of portals) hole(o.x + 0.4, o.y + 0.4, 5 + 0.3 * Math.sin(G.time * 1.7), 0.9, 120);   // the Rift's portal lights its surroundings
@@ -5355,6 +5360,7 @@ function render() {
 
   // post-light overlays: labels, hp bars, floating text
   ctx.setTransform(...baseT);
+  drawRemoteLabels();   // the other players' names (net.js)
   ctx.textAlign = 'center'; ctx.font = '13px "IM Fell English", serif';
   // floor item labels: outlined in black (no box), in the rarity colour; magic / rare ones by affix tier:
   // tier 1 plain, tier 2 bold, tier 3 bold, larger and glowing in its colour
@@ -5668,7 +5674,7 @@ function drawChar(e, isHero) {
   const s = isHero ? lookScale(sheet) : e.scale, [sx, sy0] = iso(e.x, e.y);
   let sy = sy0, alpha = 1;
   if (!isHero && e.dead) { alpha = Math.max(0, 1 - e.deathT / 1.1); sy += e.deathT * 14; }
-  if (isHero && G.dead) { alpha = Math.max(0, 1 - G.deadT / 1.1); sy += Math.min(G.deadT, 1.1) * 14; }   // fades like a slain monster
+  if (isHero && !e.remote && G.dead) { alpha = Math.max(0, 1 - G.deadT / 1.1); sy += Math.min(G.deadT, 1.1) * 14; }   // fades like a slain monster
   const held = !isHero && frozenHeld(e), fl = isHero ? MON[sheet] && MON[sheet].float : e.b.float;
   if (fl) sy -= held ? e.frozen.lift : 8 + Math.sin(G.time * 3 + e.x) * 4;
   // standing on lake ice: LAKE.drop px lower, at the water's level (eased, a step down onto the ice)
@@ -5893,6 +5899,7 @@ function updateMinimap() {
   }
   for (const o of G.objects) if (o.type === 'stairs' && m.seen[o.y * m.w + o.x]) { mctx.fillStyle = '#e6c84a'; mctx.fillRect(o.x - 0.5, o.y - 0.5, 2, 2); }
   if (!m.surface) for (const o of G.objects) if (o.type === 'portal') { mctx.fillStyle = '#9a7ae6'; mctx.fillRect(o.x - 1.5, o.y - 1.5, 3, 3); }   // the Rift's way out
+  for (const e of G.heroes || []) if (e.remote) { mctx.fillStyle = '#c9b0f0'; mctx.fillRect(e.x - 1, e.y - 1, 2, 2); }   // other players
   mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.fillStyle = '#ff4030'; mctx.beginPath(); mctx.arc(mm.width / 2, mm.height / 2, 3, 0, 7); mctx.fill();
 }
 // equip-screen portrait: the hero slowly turning through all eight directions

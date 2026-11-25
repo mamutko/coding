@@ -46,6 +46,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `assets/grass_a.jpg`, `assets/grass_b.jpg` | 512 px seamless grass textures of the surface (lush dark green; patchy olive meadow). See [The surface](#the-surface-depth-0). |
 | `assets/surface.webp` | The surface's sprites: four bushes, four ground details (flowers, rocks, mushrooms, a grass tuft) and the crypt. Coordinates in `META.surface`. It still holds the four retired small trees (`tree1`–`tree4`: oak, fir, dead tree, birch), no longer used. |
 | `assets/bigtrees.webp` | The surface's trees: five kinds (oak, Scots pine, silver birch, autumn maple, dead tree) in three variants each, each tree as three cropped layers (roots with its cast shadow, trunk, crown), one tree per row. Coordinates in `META.bigtrees`. See [The surface](#the-surface-depth-0), Trees. |
+| `net.js` | The Rift's network: Supabase Realtime presence and the WebRTC handshake, the mesh of data channels, other players' heroes; loaded by `index.html` before its main script. See [The Rift](#the-rift), Playing together. |
 | `realm.js` | The Rift: its portal and dial on the surface, realm ids and names, the question at the portal, entering and leaving; loaded by `index.html` before its main script. See [The Rift](#the-rift). |
 | `assets/portal.webp` | The Rift portal's three layers: the arch, its platform and the dial. Coordinates in `META.portal`. |
 | `tools/add_portal.py`, `tools/raw/portal.png`, `tools/raw/dial.png` | Cuts the portal picture into the arch and its platform, squashes the dial to the iso ground, finds the vortex, and writes `assets/portal.webp` and `META.portal`. The other candidates are in `assets/unused/portal/`. |
@@ -211,7 +212,7 @@ The picker (*Crypt Sandbox*) groups the scenarios:
       asleep: their calm never ends, so only a hit wakes one. Until then they wander slowly.
     - Shows the draw time and the charge, with room to run.
 - **The Rift:**
-  - **The portal and the dial** (`sbRift`): the test hero (level 12, `maxDepth` 7) on the surface before the portal
+  - **The portal and the dial** (`sbRift`; open it in two windows, set the same dial and enter in both to meet): the test hero (level 12, `maxDepth` 7) on the surface before the portal
     (`surfAt: 'portal'`), with two common longswords and a rare ruby ring (depth 9) in the pack besides the usual kit.
 - **Crossbows:**
   - **Crossbows** (`sbXbow`, depth 18): the kiting scenario's big room (the same `bigRoom` set-up: grown 1.5×, the
@@ -825,9 +826,9 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
 
 ## The Rift
 
-The game's planned online co-op mode (`multiplayer.md`, its phases there). Built so far (phase 2): the portal and
-its dial on the surface, and the Rift itself, played alone. The code is in `realm.js` (constants `RIFT`) plus hooks
-in `index.html`.
+The game's online co-op mode (`multiplayer.md`, its phases there). Built so far (phases 2 and 3): the portal and its
+dial on the surface, the Rift itself, and players in the same realm seeing each other (no shared monsters, loot or
+combat yet). The code is in `realm.js` (constants `RIFT`) and `net.js` (`NET_CFG`), plus hooks in `index.html`.
 
 - **The portal** (`type: 'portal'`) stands on the surface about 50 tiles north of the crypt (screen north: −x −y),
   its arch on the line of tiles x + y = const, running west–east and facing south, toward the crypt. `RIFT.at` =
@@ -887,8 +888,54 @@ in `index.html`.
   made on entering, before the portal, and loses what it won inside.
 - **Leaving** (`leaveRift`): through the portal, after the question: the surface is built with the hero before the
   portal (`buildSurface('portal')`), its dial items back on the dial, and the hero is saved.
-- **Monsters' target** (`monTarget`): the hero a monster goes for, for now always the hero; with other players in
-  the Rift it will choose among them.
+- **Monsters' target** (`monTarget`): the hero a monster goes for, for now always our own hero (other players'
+  heroes are not fought over yet).
+
+### Playing together
+
+Everyone in the same realm (the same realm id: the same game version and dial) is in the same Rift, up to 6 players
+(`NET_CFG.max`). There is no game server: the browsers find each other through **Supabase Realtime** (the repo's
+shared project, its public key; no table) and then talk directly over **WebRTC** data channels. `net.js`:
+
+- **The client:** `supabase-js` 2.119.0 from jsdelivr, loaded the first time a hero comes to the portal (`netLib`);
+  if it cannot load or connect, the Rift is played alone ("The Rift is silent").
+- **The channel** `rift:<realm id>`: **presence** (each player in the realm: `{ peer, name, lvl, look, depth,
+  since }`, `peer` a random id per page, `since` when it joined) and **broadcast** messages `sig` for the WebRTC
+  handshake (`{ to, from, k: 'offer' | 'answer' | 'ice', d }`; everyone ignores those not addressed to it). The
+  realm exists while its presence is not empty.
+- **At the portal** (`netPeek`): the question subscribes to the channel without showing itself and waits up to
+  1.5 s for the presence list (the first sync can come before the list): "1 adventurer is inside: Alda (level 12).",
+  "The Rift lies empty. You will be the first.", "The Rift is full" (Enter disabled) or "The Rift is silent: …".
+  **Stay** closes the channel.
+- **Entering** (`netJoin`, "Entering the Rift of <name>…" meanwhile): the hero shows itself in the presence, waits
+  0.7 s (`raceWait`), and looks for **older** players (smaller `since`, ties by `peer`):
+  - none: it **founds** the realm (builds the Rift as alone; see above). Two players walking in at the same moment
+    both look; the younger one finds the older and joins it instead.
+  - some: it **joins**. It offers a WebRTC connection to each older player (younger ones connect to it, so two
+    offers never cross), and asks the **elder** (the oldest) for the **snapshot** once that connection is open. No
+    snapshot within 10 s (`connectWait`): it leaves the channel and enters a Rift of its own ("You could not reach
+    <name> in this Rift: you are alone in it.").
+- **The connections:** one `RTCPeerConnection` per pair (public STUN, `stun.l.google.com`; no TURN relay yet: some
+  networks cannot connect), two data channels: **`ev`** (reliable, ordered: `hello`, `snapReq`, `snap`, `bye`) and
+  **`st`** (unreliable, unordered: `st` states, `ping`, `pong`). Messages are JSON.
+- **The snapshot** (`riftSnapshot`, `buildRiftFromSnap`): the map's tiles and blocked tiles (run-length encoded),
+  its rooms, and its lasting furnishings (doors as they are, the portal, braziers, banners, pillars and other decor),
+  sent in pieces of 16 000 characters. Not monsters, chests, urns, bones, gold or items: those will belong to the
+  player who brought them (`multiplayer.md` §5); their tiles are left free. The joiner arrives beside the portal (up
+  to 0.6 tiles off its usual spot) with no monsters around it yet; its log says so.
+- **Hello:** when the `ev` channel opens, each side sends its hero's name, level and look; the other hero appears
+  once we are in the Rift ("Alda (level 12) is in the Rift.").
+- **States** (`netTick`, every 66 ms from a timer, so at least once a second in a background tab: the heartbeat):
+  our hero's position, facing, whether it walks, life, max life, whether it is dying, look and level, with our clock
+  (`performance.now()`). Every 2 s a `ping` / `pong` measures the round trip and the other's clock offset (smoothed).
+- **Other heroes** (`G.heroes`: our hero first, then the others, `remote: true`): each frame (`netFrame`) a hero is
+  placed where it was 100 ms ago on its own clock (`NET_CFG.delay`), interpolated between the two states around
+  then, carried on for at most 250 ms when states are late; its walk animation follows the distance moved. Drawn
+  like our hero (its look, its dying glow), with a light of its own (5.5 tiles), its name in pale violet and a small
+  life bar over its head (`drawRemoteLabels`), and a dot on the minimap.
+- **Leaving:** through the portal, by dying, or by starting another game, the hero says `bye` and leaves the
+  channel (`netLeave`); closing the page sends `bye` too. A player silent for 3 s (`drop`) is gone. Either way the
+  others' log says "<name> has left the Rift."
 
 ## Dungeon generation
 

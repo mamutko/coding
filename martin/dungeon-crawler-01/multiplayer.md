@@ -144,6 +144,12 @@ One image (Gemini, in the style of the crypt building), cut into two parts as wi
 
 ## 4. Network: finding each other
 
+**Built in v133** (phase 3); `README.md` ([The Rift](README.md#the-rift), Playing together) describes it as built.
+Differences: the joiner offers only to *older* players (younger ones connect to it), so offers never cross; there is
+no "Could not reach <name>, entering without them" per peer yet: failing to reach the elder means a Rift of one's
+own; the snapshot carries no heroes (each hero arrives with its `hello` and states) and no monsters or loot yet
+(phase 4–5); hidden tabs keep sending states from a timer (about once a second), so they stay in the realm.
+
 ### Supabase Realtime (signaling and presence)
 
 No database table. The existing Supabase project (the one `worm-03` uses), its publishable key, and
@@ -320,7 +326,7 @@ Each phase is one version (or a few), playable at the end.
 |---|---|---|---|
 | 1 | Surface Escape | the scroll and its return, the 4 s incantation, dying while reading, Garrick's gift, keepers' stock, save after escape, `maxDepth` | done (v130) |
 | 2 | Portal and solo Rift | portal and dial art, placement, dial items saved and hashed into a realm id and name, the Rift's map and its portal, spawning for `maxDepth`, saves on entering and leaving | done (v132) |
-| 3 | Seeing each other | Supabase presence and signaling, WebRTC mesh, snapshot (map + heroes), other heroes walking and animating, clock and heartbeat; no combat; the `G.heroes` refactor (moved here from phase 2: with one hero there was nothing to test it with; phase 2 added the seam, `monTarget`) | planned |
+| 3 | Seeing each other | Supabase presence and signaling, WebRTC mesh, snapshot (map + heroes), other heroes walking and animating, clock and heartbeat; no combat; `G.heroes` (drawing, light and minimap; monsters still go for our own hero only, until phase 4) | done (v133) |
 | 4 | Fighting together | spawning for each joiner, ownership, monster state with intent and prediction, the priority queue, hits both ways, deaths and shared XP | planned |
 | 5 | Loot | ground items, gold and chests decided by their owner, pickup and open requests | planned |
 | 6 | Robustness | hand-over on leaving, hidden tabs and away ghosts, founding race, capacity, TURN relay | planned |
