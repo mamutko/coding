@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v129 — multiplayer specification (2026-11-25)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 129`)*
+
+- `multiplayer.md`: the planned online co-op mode (the Rift beyond a portal north of the crypt, realms chosen by
+  items laid on a dial, Supabase + WebRTC, ownership of monsters and loot) and the Scroll of Surface Escape. No
+  game changes.
+
 ## v127–v128 — item comparison as a table (2026-11-24)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 128`)*
+Commit: e59e34d
 
 - The item comparison is a table, labels on the left: damage as "+6–8", attacks per second as a change in
   percent, no computed values (the base DPS row is gone).

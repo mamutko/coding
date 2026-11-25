@@ -18,8 +18,7 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
    - knock the monster back on a critical hit;
    - cleaving — every monster hit takes 100 % damage.
 
-10. **Multiplayer** — several players exploring the crypt together online. See the `multiplayer-game` skill for
-    the generic mechanics (PeerJS handshake, WebRTC data channels, host-authoritative simulation).
+10. **Multiplayer** — specified in `multiplayer.md` (the Rift, the dial, Supabase + WebRTC, ownership; phases).
 
 11. **Stairs up** — going back up the stairs to earlier (shallower) levels, i.e. lower depth numbers. Open
     question: levels are currently generated fresh and never kept, so going up either regenerates the level or

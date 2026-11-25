@@ -78,6 +78,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `story/story.voices.js` | **Generated** by `tools/story/voice.js`: the story's voice clips (`VOICE_CLIPS`, "speaker\|text" → [file, seconds]); loaded by `index.html`. |
 | `assets/voice/<story>/` | The dialogue's voice clips (`<speaker>-<hash>.mp3`, mono, 64 kbit/s), made by `tools/story/voice.js`. |
 | `todo.md` | Numbered list of ideas for future work (not yet implemented). |
+| `multiplayer.md` | Specification of the planned online co-op mode (the Rift, the portal and its dial, networking, ownership) and of the Scroll of Surface Escape; not implemented yet. |
 | `versions.md` | What each version added, newest first, and how to get any version back from git history: see [Version](#version). |
 | `backup/index.NN.html` | Old snapshots of `index.html`, numbered `01`, `02`, … in the order they were made; not used by the game and not described by this README. `index.01.html` is an early version of the game; `index.02.html` is v20, the last version before game time followed real time (see [Main loop](#main-loop)), kept to compare performance; it has a `<base href="../">` so it loads `assets/` from the game folder. |
 
