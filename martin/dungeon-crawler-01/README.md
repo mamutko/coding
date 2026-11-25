@@ -58,7 +58,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `tools/add_market.py`, `tools/raw/keepers.png`, `keeper_decor.png` | Adds the Keepers of the Crypt and their furnishings to `assets/props.webp` (the rows after row 2) and updates `assets/meta.json` and the inline `META`. See [Keepers of the Crypt](#keepers-of-the-crypt-the-market). |
 | `tools/add_props.py`, `tools/raw/bones_searched.png`, `doors.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones, door leaves) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
-| `assets/sfx/` | Ghoul moans and grunts, and the scroll of frost's incantation in the male and female heroes' voices (`incantm1.mp3`, `incantf1.mp3`) (MP3). |
+| `assets/sfx/` | Ghoul moans and grunts, and the scrolls' incantations in the male and female heroes' voices: frost (`incantm1.mp3`, `incantf1.mp3`), surface escape (`escapem1.mp3`, `escapef1.mp3`) and return (`returnm1.mp3`, `returnf1.mp3`) (MP3). |
 | `assets/music/explore-instrumental.mp3`, `combat-instrumental.mp3`, `explore.mp3`, `combat.mp3`, `surface-1.mp3`, `surface-2.mp3` | The music: exploration and combat loops, each instrumental and with a Latin choir, and two cheerful instrumental surface tracks. See [Music](#music). |
 | `tools/raw/<char>_walk_<DIR>.png` | The raw AI walk-cycle images (`hero`, `skeleton`, `ghoul`, `keeper1`–`keeper4` and the cast × `S`, `SW`, `W`, `NW`, `N`) the 8-frame sheets are built from. |
 | `lake-prototype.html` | A standalone prototype of underground lakes (not loaded by the game, which now has lakes: see [Lakes](#lakes)): still water set a few pixels below the floor, a mirrored reflection of the walls, props and characters, rock banks on the far shores, and ripples from drips. A panel compares the options (tile or rounded shore, ripple rings or refraction, water colour, depth, reflection strength). Published as a separate Claude artifact by the artifact-sandbox `build.py` with `--page lake-prototype.html --skip 'assets/*' --inline` (the seven images it uses). |
@@ -215,6 +215,12 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     weapon's damage a shot with the hero's DEX, its reload, draw time and damage per second, the last arrow's damage
     (before armor; *crit* when it was one) and how many shots each weapon has fired and their average. The tally
     comes from a wrapper around the game's `releaseArrow`, active only in this scenario.
+- **Scrolls of travel:**
+  - **Surface escape** (`sbEscape`): the test hero at depth 5 with 2 scrolls of surface escape on key 4; monsters
+    within 14 tiles are removed and three skeletons (depth 5) stand 2–3.5 tiles away, still until hit. Reading takes
+    4 s, then the hero is on the surface with a scroll of return to depth 5 (the sandbox never saves).
+  - **Scroll of return** (`sbReturn`): the test hero on the surface before the crypt's door with a scroll of return
+    to depth 9 on key 4.
 - **Lakes:**
   - **The scroll of frost** (`sbFrost`): the underground lake scenario below, plus 6 scrolls of frost on key 4 and the
     15 fire bombs on key 5, and four monsters on dry floor 2–3.8 tiles from the hero, standing still until hit:
@@ -397,9 +403,14 @@ The iron skin effect is not saved. Every read and write
 is wrapped in `try`; if storage is unavailable the game still plays, logs that progress could not be saved,
 and the picker shows no saved heroes.
 
-- **When it saves:** when a hero is created (at depth 0, the surface), and automatically on arrival at each new depth
-  (after the descend XP; the log says "Progress saved."). Nothing else is saved: not the level layout, and
-  nothing gained or lost partway through a level.
+- **When it saves:** when a hero is created (at depth 0, the surface), automatically on arrival at each new depth
+  (after the descend XP; the log says "Progress saved."), on arriving on the surface by a scroll of surface escape
+  (the save's depth is then 0: the hero resumes on the surface), and on arriving at a depth by a scroll of return
+  (see [Scrolls](#scrolls)). Nothing else is saved: not the level layout, and nothing gained or lost partway
+  through a level.
+- **`maxDepth`** (saved): the deepest depth the hero has reached (set on descending and on a scroll of return; a
+  save without it takes the depth it resumes at). Not used by the game yet; the planned Rift spawns its monsters by
+  it (see `multiplayer.md`).
 - **Hero picker** (the title screen): one box per saved hero, most recently saved first, showing name, level
   and depth, then a **New Hero** box. The hero played last (or the newest) is selected at start; the selected
   box is lit (gold border and glow, brighter background, a filled gold diamond), the others are dimmed with an
@@ -979,7 +990,8 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
   | Descending stairs | 10 × the new depth |
 - **Potions** (see [Potions](#potions)): the health potion restores 44 % of max life (`HEAL`); the iron skin potion hardens
   the hero's armor to armor × 3 + 60 for 20 s (`IRON`). Using one takes 0.6 s of the hero's action time, and it works half way through (see [Actions](#actions)).
-- **Scrolls** (see [Scrolls](#scrolls)): the scroll of frost, read aloud for 1.6 s, then a blast of frost around the hero.
+- **Scrolls** (see [Scrolls](#scrolls)): the scroll of frost, read aloud for 1.6 s, then a blast of frost around the
+  hero; the scroll of surface escape (4 s, up to the surface) and the scroll of return (4 s, back to its depth).
 - **Death** returns to the title screen with the fallen hero selected; the hero resumes from its last save
   (see [Saving](#saving)).
 
@@ -1084,8 +1096,9 @@ and item uses:
   the pack ("No health potions left."), an equip of an item no longer in the pack, or an unequip of an item no longer equipped (or with
   a full pack: "Your pack is full.").
   Pressing a potion key with no potions of that type at all logs the same message and queues nothing.
-- **A scroll is read the same way** (`{ kind: 'use', pot: 'frost' }`): the scroll is used up when the reading
-  starts, and its spell goes off when the reading ends (`h.using.cast`, see [Scrolls](#scrolls)).
+- **A scroll is read the same way** (`{ kind: 'use', pot: 'frost' }`; a scroll of return also carries its `depth`):
+  the scroll is used up when the reading starts, and its spell goes off when the reading ends (`h.using.cast`, see
+  [Scrolls](#scrolls)). A scroll of travel (`root`) keeps the hero standing still while it is read.
 - **A potion in use shows as equipped:** for its 0.6 s its quick key lights up instead of the weapon's, the
   attack button shows the potion, and the potion's icon rises above the hero's head and fades. Then the weapon
   comes back.
@@ -1433,7 +1446,37 @@ the scroll is used up, the hero speaks its incantation (`time` s, the weapon han
 it shows as the equipped item meanwhile (its quick key lit, the attack button showing it) and above the hero's head,
 then its spell goes off and the weapon comes back. Keepers buy and sell it like a potion (value 150 a scroll).
 
-Scrolls are found in two places: the guardian's chest in a dragon's lair holds 3–5 scrolls of frost besides its loot (see [The dragon](#the-dragon)), and the chest on the lake room's shore holds 4 scrolls of frost (see
+**Scrolls of travel** (`root: true`: the hero stands still while reading them; walking, attacking and other actions
+wait) take the hero between the crypt and the surface. Their stacks: a scroll of return stacks only with others of
+its depth (`stackOf(pot, depth)`; `makePotion('return', n, depth)` names it "Scroll of Return — Depth N").
+
+- **The scroll of surface escape** (`POTIONS.escape`; the frost scroll's icon turned golden by a filter, `hue-rotate(195deg)
+  saturate(1.6) brightness(1.15)`). Read in the crypt (on the surface it does nothing: "You are already under the open
+  sky."). Reading takes **4 s** and nothing interrupts it but the hero's death. The incantation is *"Per umbras noctis
+  aeternae, aperi mihi viam ad lucem, redde me superis!"* (Latin, "Through the shadows of the endless night, open for
+  me the way to the light, give me back to those above!"); its three phrases rise over the hero's head one by one
+  (`floatText`, every 4/3 s), the voice clip plays (`escape<voice>1.mp3`) over the cast sound's *Crystal riser*
+  version (`castrise` with `k: 3`). While it is read, a column of pale gold light grows over the hero (wider and
+  brighter, fading upward), a ring on the ground opens, and motes rise up the column.
+  When the words end (`castScroll`): if the hero is at 0 life or below, **it dies at once** ("The last words die on
+  your lips, and you with them, at depth N."; no save, the usual death). Otherwise (`surfaceEscape`) the
+  conversation in progress is put aside, the market closes, the fires go out, the surface is built and the hero
+  stands on the lawn before the crypt's door (as at the start). The scroll **becomes a scroll of return** to the
+  depth it was read at (into the pack, onto a stack of that depth, or at the hero's feet if the pack is full). The
+  log says "Light floods over you. You stand under the open sky, before the crypt's door." and "The scroll in your
+  hand darkens: a scroll of return to depth N.", and the hero is saved.
+- **The scroll of return** (`POTIONS.return`; the same icon turned violet, `hue-rotate(40deg) saturate(1.3)
+  brightness(0.8)`). Read on the surface (in the crypt: "You are already below."). The same 4 s, standing still,
+  death at the end if dying. The incantation is *"E luce in tenebras, redde me profundo, unde veni!"* ("From light
+  into darkness, give me back to the deep, whence I came!"; clip `return<voice>1.mp3`, the cast sound's *Rising
+  hum*, `k: 2`); a violet ring on the ground closes in while motes spiral down into it. Then (`returnTo`) the
+  hero is at the scroll's depth, newly built (as on descending, but with no descend experience): "The ground
+  swallows you. You return to depth N: <name>." The scroll is **used up**; the hero is saved.
+- **Where they come from:** Garrick gives the hero a scroll of surface escape in their first meeting, and another
+  whenever asked while the hero carries none (see [Dialogue](#dialogue)); every keeper sells them, one at a time,
+  never sold out (see [Keepers of the Crypt](#keepers-of-the-crypt-the-market)). Value 60 gold each (both kinds).
+
+Scrolls of frost are found in two places: the guardian's chest in a dragon's lair holds 3–5 scrolls of frost besides its loot (see [The dragon](#the-dragon)), and the chest on the lake room's shore holds 4 scrolls of frost (see
 [Dungeon generation](#dungeon-generation)). Nothing else drops them.
 
 **The scroll of frost** (`POTIONS.frost`, icon `frostscroll`: a frosted rolled parchment tied with a pale blue
@@ -1660,6 +1703,9 @@ constants are `KEEPER` in the code.
   0.25 rarity boost, so mostly common items, with magic and rare ones if you're lucky. Buying costs the item's
   value (less the keeper's story discount, if any: see [Dialogue](#dialogue)) and needs a free pack cell. A
   bought item's cell stays empty.
+- **Scrolls of surface escape, always** (the first stock cell; `endless`): bought one at a time for 60 gold (less
+  the discount), onto the pack's stack or into a free cell; the cell never empties (its tooltip says "The keeper
+  has plenty."). See [Scrolls](#scrolls).
 - **Your pack** shows every pack item with its sell price. Selling gives `KEEPER.sell` (25 %) of the value, for
   one at a time from a stack (or the whole stack), and clears quick keys bound to a sold item.
 - **Services:** **heal** to full life for `1 + 0.15 × depth` gold per missing life point (1.45 at depth 3, 1.9 at
@@ -1703,7 +1749,11 @@ character, **Garrick the Hunter** by the crypt's door on the surface (below), an
 (`SURF.npcs`, world tile (20, 19)) and wanders about there. The first time the hero comes within 5 tiles he calls
 out and walks over: a warning about the crypt, then questions the hero can ask in any order (what is down there,
 whether he has been inside, advice: all vague hints of the undead, the dragon and the keepers), help (**one health
-potion**, once: `N.potion`; asked again he has none to spare) and goodbye. Later conversations wait for a click.
+potion**, once: `N.potion`; asked again he has none to spare) and goodbye. In the first meeting, after the warning, he gives the hero a **scroll of surface escape**
+(`give('escape', 1)`, `N.scroll`; "Read it aloud down there, and it'll carry you back up into the light. … Don't
+leave it till you're bleeding out."), and later the hero can ask *"Do you have another of those scrolls?"*
+whenever it carries neither a scroll of surface escape nor a scroll of return: he gives another, as often as asked,
+and mentions that the keepers sell them. Later conversations wait for a click.
 He calls the hero "traveller", never by name, so every line can be voiced.
 
 ### Dialogue files
@@ -1901,8 +1951,8 @@ also why voiced characters never use the hero's name.
 - **The voices** (`STORIES.story.voices`): Garrick is `ash`, "a weathered hunter in his fifties: low, gravelly,
   unhurried, a rural northern English accent; dry humour with warmth underneath; speak quietly, as if outdoors at
   dusk"; the hero is `echo` (male) or `shimmer` (female), "a young adventurer: steady, earnest, a little wary;
-  natural and quiet, not theatrical". Garrick's 26 clips (16 his, 5 hero lines × 2 voices; 0.8 MB) cost about
-  $0.035 (2026-11-24); a few were checked by transcribing them.
+  natural and quiet, not theatrical". Garrick's 32 clips (20 his, 6 hero lines × 2 voices) cost about
+  $0.042 (2026-11-24, the scroll lines 2026-11-25); a few, and all the scroll lines, were checked by transcribing them.
 
 ### The panel
 
@@ -2223,7 +2273,8 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
 - **The scroll of frost.**
   - *Reading* (`incant`): the incantation, "Gelu, cuncta liga!", spoken in the hero's voice: each hero look has a
     voice (`HERO_VOICE`: `m` for the Knight, Stocky knight, Woodsman, Scout and the Mannequin; `f` for the Huntress),
-    and the clip is `assets/sfx/incant<voice>1.mp3` (`CLIPS.incantm`, `incantf`; `incantClip`), played on the voices
+    and the clip is `assets/sfx/incant<voice>1.mp3` (`CLIPS.incantm`, `incantf`; `incantClip(h, clip)`, where `clip` is the
+    scroll's `clip`, `incant` for frost), played on the voices
     bus (the Voices slider). A voice without a clip uses the male one.
     - **Male (decided 2026-11-20)**: `incantm1.mp3`, 1.55 s. Google `gemini-3.8-flash-tts`, voice Algenib, text
       "Gelu, cuncta liga!", style prompt: "A sorcerer snapping out a three-word Latin spell, classical Latin
@@ -2252,6 +2303,15 @@ clips. Audio starts on the first click (browser autoplay rules); `N` toggles it 
     stepping on) add a deep ringing ping (900–1400 → 160–240 Hz) and a low rumble.
   - *A drop on the ice* (`icetick`): a tiny high sine tick and a hiss, no splash.
   - *Drowning*: the bomb splash (`plunge`) and a short run of rising bubbles (`bubbles`).
+- **The scrolls of travel** (see [Scrolls](#scrolls)): their incantations in the same two voices, 2026-11-25. Google
+  `gemini-3.8-flash-tts`, Algenib (male, `escapem1.mp3`, `returnm1.mp3`) and Leda (female, `escapef1.mp3`,
+  `returnf1.mp3`), style prompt "A sorcerer reciting a Latin spell quickly and urgently, classical Latin
+  pronunciation, low and forceful, no pauses between phrases, the whole sentence in under four seconds" (a first,
+  slower prompt gave 7–11 s takes). Trimmed of silence (30 ms kept before, 80 ms after, 10 ms fades); the escape
+  takes (about 5.1 s) sped up ×1.3 with `atempo` to about 3.9 s, the return takes left at about 3.5–3.6 s, so
+  each ends within the 4 s reading; peak-normalised to −1 dB, 96 kbit/s MP3. Checked by transcription. Under them
+  plays the cast sound (below) over the 4 s: *Crystal riser* for the escape, *Rising hum* for the return (the
+  scroll's `cast`, passed as `k`).
 - **Ghoul clips** (`assets/sfx/moan1–5.mp3`, `grunt1–2.mp3`): Google `gemini-3.8-flash-lite-tts` (fractions of
   a cent) with wordless text and a style prompt, e.g. "Uuuuurrrrhhhhhh... hhhuuuurrrrgh." in the voice Algenib,
   styled "a rotting undead ghoul: a long, low, wet guttural moan, raspy and breathy, no words, slow" (raw takes in

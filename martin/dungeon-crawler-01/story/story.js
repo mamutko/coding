@@ -26,6 +26,9 @@ STORIES.story = {
       start: [
         { say: 'garrick', text: "Hold there, traveller. You've the look of someone about to do something foolish." },
         { say: 'garrick', text: "That's the Crypt of Endless Night. Folk go down those stairs. Few come back up." },
+        { say: 'garrick', text: "If you're set on it, take this. Read it aloud down there, and it'll carry you back up into the light." },
+        { do: "give('escape', 1); N.scroll = true" },
+        { say: 'garrick', text: "Mind, it takes a few breaths to read. Don't leave it till you're bleeding out." },
         { go: 'garrick-ask' },
       ],
     } },
@@ -45,6 +48,7 @@ STORIES.story = {
           { text: 'Any advice?', to: 'advice' },
           { text: 'Can you help me?', if: '!N.potion', to: 'help' },
           { text: 'Could you spare another potion?', if: 'N.potion', to: 'more' },
+          { text: 'Do you have another of those scrolls?', if: "N.scroll && !has('escape') && !has('return')", to: 'scroll' },
           { text: 'Goodbye.', to: 'bye' },
         ] },
       ],
@@ -66,6 +70,12 @@ STORIES.story = {
       help: [
         { say: 'garrick', text: "Here. Brewed it myself, from the moss on the north stones. It'll close a wound or two." },
         { do: "give('health', 1); N.potion = true" },
+        { go: 'start' },
+      ],
+      scroll: [
+        { say: 'garrick', text: "Used it already? Good. It means you came back. Here's another." },
+        { do: "give('escape', 1)" },
+        { say: 'garrick', text: "The keepers below sell them too, I hear, for those who can pay." },
         { go: 'start' },
       ],
       more: [

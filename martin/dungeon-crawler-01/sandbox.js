@@ -60,6 +60,9 @@
     <h2>Dragon</h2>
     <button class="sc" id="sbDragon"><b>The dragon's lair</b>Depth 13, the first depth with a dragon: you stand at the north-west end of its lair (20–23 tiles a side, four pillars, braziers, the sealed guardian's chest), and on the gold hoard in the middle Nythrakar, the Crypt Wyrm, sleeps. Come within 4.5 tiles, or hit it, and it wakes with a roar: it walks after you, turns its whole long body, and bites, breathes fire (it sets you burning), sweeps its tail at you when you stand behind it, and beats its wings to throw you back. Strike any part of it; the head takes ×1.5. Slain, it spills its hoard: rare and magic items along its body, gold, potions and fire bombs. The bar's buttons make it attack at once, or start the scenario again.</button>
     <button class="sc" id="sbChest"><b>Guardian's chests</b>Depth 13, in the dragon's lair emptied of everything but six guardian's chests along its walls, all unsealed (no dragon, no guardians). Open them to see what a dragon's guardian's chest gives (a magic or rare item from 4 depths deeper, a normal chest's items, gold, and 3–5 scrolls of frost). Then play on: the rest of the level is the real game, with its monsters and the stairs down to depth 14.</button>
+    <h2>Scrolls of travel</h2>
+    <button class="sc" id="sbEscape"><b>Surface escape</b>Depth 5 with 2 scrolls of surface escape (key 4) and three skeletons a few steps away, waiting until hit. Press 4: you stand still and read the incantation for 4 s (its words over your head, phrase by phrase, a column of light growing), then you are carried up to the surface before the crypt's door, and the scroll becomes a scroll of return to depth 5. Let the skeletons bring you to 0 life while reading to see the read end in death.</button>
+    <button class="sc" id="sbReturn"><b>Scroll of return</b>The surface, before the crypt's door, with a scroll of return to depth 9 (key 4). Press 4: 4 s of reading (a dark swirl sinking into the ground), then you are back at depth 9, newly made, and the scroll is gone.</button>
     <h2>Crossbows</h2>
     <button class="sc" id="sbXbow"><b>Crossbows</b>Depth 18, in the middle of the level's big room, with the three best ranged weapons: the Gilded Arbalest equipped (key 5: 62–104 a bolt, a long 1.4 s reload), the Heavy Crossbow (key 4) and the War Bow (key 2) to compare. Two skeletons, two ghouls and two Pit Demons sleep around you; a hit wakes one. The bar shows each weapon's damage, reload and draw, the last shot and a tally per weapon. Key 1 is your longsword.</button>
     <h2>Characters</h2>
@@ -177,6 +180,22 @@
   $('sbSurface').onclick = () => {
     newGame(null); G.hero.name = 'Tester'; G.hero.saveId = 'sandbox'; refreshUI();
     start('surface'); log('Test: the surface. The crypt is right ahead.', '#c9a45c');
+  };
+  $('sbEscape').onclick = () => {
+    testHero(5); const h = G.hero, m = G.map;
+    h.inv[h.inv.indexOf(null)] = makePotion('escape', 2); h.hotkeys[3] = { type: 'use', pot: 'escape' };
+    G.monsters = G.monsters.filter(mo => Math.hypot(mo.x - h.x, mo.y - h.y) > 14);
+    const spots = [];   // three skeletons 2-3.5 tiles away, standing still until hit
+    for (let y = Math.floor(h.y) - 4; y <= h.y + 4; y++) for (let x = Math.floor(h.x) - 4; x <= h.x + 4; x++) {
+      const dd = Math.hypot(x + 0.5 - h.x, y + 0.5 - h.y); if (dd >= 2 && dd <= 3.5 && floorAt(x, y) && !m.block[y * m.w + x]) spots.push([x, y]); }
+    for (let i = 0; i < 3 && spots.length; i++) { const [x, y] = spots.splice(Math.floor(Math.random() * spots.length), 1)[0], mo = makeMonster('skeleton', x + 0.5, y + 0.5, 5, false, false, true);
+      mo.calm = { walked: -1e9, t: 1e9 }; G.monsters.push(mo); }
+    refreshUI(); start('escape'); log('Test: the scroll of surface escape. Press 4 to read it.', POTIONS.escape.color);
+  };
+  $('sbReturn').onclick = () => {
+    testHero(0); const h = G.hero;
+    h.inv[h.inv.indexOf(null)] = makePotion('return', 1, 9); h.hotkeys[3] = { type: 'use', pot: 'return' };
+    refreshUI(); start('surface'); log('Test: the scroll of return to depth 9. Press 4 to read it.', POTIONS.return.color);
   };
   $('sbMarket').onclick = () => {
     for (let i = 0; i < 50; i++) { testHero(6); if (G.objects.some(o => o.type === 'keeper')) break; }
@@ -454,7 +473,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbTrees', 'sbDragon', 'sbChest', 'sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbXbow', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
+  const SC = ['sbTrees', 'sbDragon', 'sbChest', 'sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbEscape', 'sbReturn', 'sbXbow', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
   // the same, but the picker covers it); errors thrown later are listed there too

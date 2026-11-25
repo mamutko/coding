@@ -27,7 +27,9 @@ about there.
 ### The first meeting
 
 The first time the hero comes within about 5 tiles he calls out and walks over. He warns them that this is the
-Crypt of Endless Night, that people go down and few come back. Then the hero can ask:
+Crypt of Endless Night, that people go down and few come back. If they're set on going, he gives them a **scroll of
+surface escape**: read aloud down there, it carries them back up into the light; but it takes a few breaths to
+read, so they shouldn't leave it till they're bleeding out. Then the hero can ask:
 
 - **What's down there?** He has only stories: the dead don't rest easy below; things that walk and things that
   crawl, and worse the deeper you go; and a darkness that eats the light. Nothing specific.
@@ -37,6 +39,9 @@ Crypt of Endless Night, that people go down and few come back. Then the hero can
   you dead: some of it trades. (A hint of the Keepers of the Crypt.)
 - **Can you help me?** He gives the hero **one health potion**, brewed himself. Only once: asked again, he has none
   to spare (the rest are for his own hide).
+- **Do you have another of those scrolls?** (only while the hero carries no scroll of surface escape and no scroll of
+  return) He is glad it was used: it means they came back. He gives another, as often as they ask, and mentions
+  that the keepers below sell them too, for those who can pay.
 - **Goodbye.** He wishes them luck: he'd like to see them come back out.
 
 After each answer the hero can ask another.

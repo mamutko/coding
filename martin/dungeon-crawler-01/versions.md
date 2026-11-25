@@ -9,9 +9,22 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v130 — scrolls of surface escape and return (2026-11-25)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 130`)*
+
+- **Scroll of Surface Escape:** read in the crypt (4 s, standing still, voiced Latin incantation, its words over the
+  hero's head, a column of light) to go up to the surface; it becomes a **Scroll of Return** to that depth, which,
+  read on the surface, takes the hero back down to a new level of it and is used up. Dying when the words end
+  kills the hero at once, with no save. The hero is saved on arrival either way.
+- Garrick gives one in the first meeting, and another on request when the hero has none; every keeper sells them
+  (60 gold, never sold out).
+- The deepest depth reached is saved (`maxDepth`, for the planned Rift).
+- Sandbox: *Surface escape* and *Scroll of return* scenarios.
+
 ## v129 — multiplayer specification (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 129`)*
+Commit: cb74983
 
 - `multiplayer.md`: the planned online co-op mode (the Rift beyond a portal north of the crypt, realms chosen by
   items laid on a dial, Supabase + WebRTC, ownership of monsters and loot) and the Scroll of Surface Escape. No

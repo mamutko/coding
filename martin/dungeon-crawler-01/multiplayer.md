@@ -21,6 +21,9 @@ move into `README.md` (or stay here and `README.md` links to them) and are marke
 
 ## 1. Scroll of Surface Escape
 
+**Built in v130** (phase 1); `README.md` ([Scrolls](README.md#scrolls)) describes it as implemented. Below, the
+design as agreed; where the build differs, the README is right.
+
 A use item (an entry in `POTIONS`, like the Scroll of Frost), stacking in the pack and usable from a quick key.
 
 | State | Name | Read where | Effect |
@@ -32,12 +35,11 @@ A use item (an entry in `POTIONS`, like the Scroll of Frost), stacking in the pa
   until it is over). The incantation appears over the hero's head word by word, one phrase per second, and in the
   log as it finishes:
 
-  > *Per umbras noctis aeternae — aperi mihi viam ad lucem — et redde me superis — ex tenebris in diem.*
-  > ("Through the shadows of the endless night — open for me the way to the light — and return me to those above —
-  > out of darkness into day.")
+  > *Per umbras noctis aeternae, aperi mihi viam ad lucem, redde me superis!*
+  > ("Through the shadows of the endless night, open for me the way to the light, give me back to those above!")
 
-  A Scroll of Return reads the reverse: *E luce in tenebras — redi me ad profundum — ubi mortui vigilant — ad
-  gradum N.* ("From light into darkness — take me back to the deep — where the dead keep watch — to step N.")
+  A Scroll of Return reads: *E luce in tenebras, redde me profundo, unde veni!* ("From light into darkness, give
+  me back to the deep, whence I came!"; no depth number in it, so one voice clip serves every depth).
   While reading, a column of pale light grows around the hero (Surface Escape) or a dark swirl sinks into the
   ground (Return); monsters keep attacking.
 - **Not interruptible** (for now): damage does not stop it. Only the hero's death does.
@@ -56,8 +58,8 @@ A use item (an entry in `POTIONS`, like the Scroll of Frost), stacking in the pa
     another later if the hero has none (repeatable, at most one in the pack from him).
   - **Every keeper** stocks Scrolls of Surface Escape, always, at a fixed price (suggested 60 gold), beside the
     random stock.
-- Icon: a scroll with a pale sky-blue seal (a new cell in the items sheet; Scroll of Return: the same scroll, seal
-  turned dark violet, drawn with a filter).
+- Icon: for now the scroll of frost's icon, turned golden (escape) or violet (return) by a CSS filter; a painted
+  icon of its own can come later.
 
 ## 2. The portal and the dial on the surface
 
@@ -306,7 +308,7 @@ Each phase is one version (or a few), playable at the end.
 
 | # | Phase | Contents | Status |
 |---|---|---|---|
-| 1 | Surface Escape | the scroll and its return, the 4 s incantation, dying while reading, Garrick's gift, keepers' stock, save after escape, `maxDepth` | planned |
+| 1 | Surface Escape | the scroll and its return, the 4 s incantation, dying while reading, Garrick's gift, keepers' stock, save after escape, `maxDepth` | done (v130) |
 | 2 | Portal and solo Rift | portal and dial art, placement, dial items saved and hashed into a realm id and name, the Rift's map and its portal, spawning for `maxDepth`, saves on entering and leaving, `G.heroes` refactor | planned |
 | 3 | Seeing each other | Supabase presence and signaling, WebRTC mesh, snapshot (map + heroes), other heroes walking and animating, clock and heartbeat; no combat | planned |
 | 4 | Fighting together | spawning for each joiner, ownership, monster state with intent and prediction, the priority queue, hits both ways, deaths and shared XP | planned |

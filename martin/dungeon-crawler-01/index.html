@@ -427,7 +427,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 129;
+const VERSION = 130;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -498,7 +498,7 @@ const CAST_SCALE = { girl: 0.7, boy: 0.74, huntress: 0.97, princess: 0.95,
 const HERO_LOOKS = { hero: 'Knight', hero2: 'Stocky knight', hero3: 'Huntress', hero4: 'Woodsman', hero5: 'Scout', mannequin: 'Mannequin' };
 // Each look's voice for incantations (scrolls): 'm' or 'f' (sfx 'incant'; a voice with no clip yet uses the male one)
 const HERO_VOICE = { hero: 'm', hero2: 'm', hero3: 'f', hero4: 'm', hero5: 'm', mannequin: 'm' };
-const incantClip = h => { const k = 'incant' + (HERO_VOICE[h && h.look] || 'm'); return CLIP_BUF[k] ? k : 'incantm'; };   // the hero's incantation clip
+const incantClip = (h, clip = 'incant') => { const k = clip + (HERO_VOICE[h && h.look] || 'm'); return CLIP_BUF[k] ? k : clip + 'm'; };   // the hero's incantation clip (of a scroll's clip)
 const LOOK_SRC = { hero2: 'assets/hero2.webp', hero3: 'assets/hero3.webp', hero4: 'assets/hero4.webp', hero5: 'assets/hero5.webp', mannequin: 'assets/mannequin.webp' };
 function loadCast(k) {
   const src = CAST_SRC[k] || LOOK_SRC[k];
@@ -539,7 +539,7 @@ let AC = null, soundOn = true, noiseBuf = null, MASTER = null, VERB = null, VOIC
 const VOL = (() => { const d = { music: 60, fx: 100, voice: 75 }; try { return Object.assign(d, JSON.parse(localStorage.getItem('dc01-volume')) || {}); } catch (e) { return d; } })();
 const saveVol = () => { try { localStorage.setItem('dc01-volume', JSON.stringify(VOL)); } catch (e) {} };
 const volGain = v => Math.pow(v / 100, 2), FX_BASE = 0.9;
-const CLIPS = { moan: [1, 2, 3, 4, 5], grunt: [1, 2], incantm: [1], incantf: [1] }, CLIP_BUF = {}, SFX_RANGE = 14, SFX_LAST = {};
+const CLIPS = { moan: [1, 2, 3, 4, 5], grunt: [1, 2], incantm: [1], incantf: [1], escapem: [1], escapef: [1], returnm: [1], returnf: [1] }, CLIP_BUF = {}, SFX_RANGE = 14, SFX_LAST = {};
 function audio() {
   if (!AC) { try { AC = new (window.AudioContext || window.webkitAudioContext)();
     noiseBuf = AC.createBuffer(1, AC.sampleRate * 1, AC.sampleRate);
@@ -721,7 +721,7 @@ function sfx(type, o = {}) {
     case 'moan': clip('moan', o.rate || r(0.82, 1), 0.55 * (o.vol || 1)); break;
     case 'grunt': clip('grunt', r(0.85, 1), 0.5); break;
     case 'castrise': {   // under a scroll's reading (o.dur s): a sound that builds to the spell (SOUND_LOOK.cast: 1, Gathering frost, was picked; 2 and 3 for the sandbox)
-      const D = o.dur || 1.6, k = SOUND_LOOK.cast, end = T + D;
+      const D = o.dur || 1.6, k = o.k || SOUND_LOOK.cast, end = T + D;
       const swell = (node, peak, curve = 3) => { const g = AC.createGain(), n = 24; const c = new Float32Array(n);
         for (let i = 0; i < n; i++) c[i] = 0.0001 + peak * Math.pow(i / (n - 1), curve);
         g.gain.setValueCurveAtTime(c, T, D); g.gain.setValueAtTime(peak, end + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, end + 0.12);
@@ -1013,13 +1013,25 @@ const POTIONS = {
   frost:    { name: 'Scroll of Frost', plural: 'scrolls of frost', color: '#9fd4ef', glow: '150,205,240', filter: '', icon: 'frostscroll',
               scroll: true, time: 1.6, words: 'Gelu, cuncta liga!',
               desc: 'Read it aloud (1.6 seconds) to loose a blast of frost around you: monsters within 5 tiles freeze solid for up to 6 seconds (less for stronger ones, champions and guardians), and water within 11 tiles freezes over for 18 seconds. Walk on the ice while it lasts: it cracks for its last 5 seconds, and whoever is still on it when it melts drowns.' },
+  // the way out of the crypt and back (see README, Scrolls): root: the hero stands still while reading; clip: its
+  // incantation's voice clips (assets/sfx/<clip><voice>1.mp3); cast: the castrise sound's version; the words are
+  // shown over the hero's head phrase by phrase. A scroll of return carries its depth (it.depth).
+  escape:   { name: 'Scroll of Surface Escape', plural: 'scrolls of surface escape', color: '#f2dc96', glow: '242,220,150',
+              filter: 'hue-rotate(195deg) saturate(1.6) brightness(1.15)', icon: 'frostscroll', scroll: true, time: 4, root: true, clip: 'escape', cast: 3,
+              words: 'Per umbras noctis aeternae, aperi mihi viam ad lucem, redde me superis!',
+              desc: 'Read it aloud in the crypt (4 seconds, standing still) to be carried up to the surface, before the crypt\'s door. The scroll becomes a scroll of return to the depth you left. Read it only while you still have life: if you are dying when the words end, you die.' },
+  return:   { name: 'Scroll of Return', plural: 'scrolls of return', color: '#b49ae6', glow: '170,140,230',
+              filter: 'hue-rotate(40deg) saturate(1.3) brightness(0.8)', icon: 'frostscroll', scroll: true, time: 4, root: true, clip: 'return', cast: 2,
+              words: 'E luce in tenebras, redde me profundo, unde veni!',
+              desc: 'Read it aloud on the surface (4 seconds, standing still) to be taken back down to its depth, newly made. The scroll is used up.' },
 };
 const IRON = { mult: 3, add: 60, dur: 20 };     // iron skin: armor × mult + add for dur seconds
 const HEAL = 0.44;                              // health potion: restores this share of max life
 const USE_T = 0.6, SWAP_T = 0.5;                // action time of an item use (its effect at half of it) and of a weapon swap (s)
 const DYING_T = 2;                               // the hero dies after this long at 0 life or below (a heal in time saves it)
 const useIcon = pot => POTIONS[pot].icon || 'potion';
-const makePotion = (pot, count = 1) => ({ id: nextId++, base: useIcon(pot), slot: 'use', pot, count, rarity: 'common', name: POTIONS[pot].name });
+const makePotion = (pot, count = 1, depth) => depth ? { id: nextId++, base: useIcon(pot), slot: 'use', pot, count, rarity: 'common', name: POTIONS[pot].name + ' — Depth ' + depth, depth }
+  : { id: nextId++, base: useIcon(pot), slot: 'use', pot, count, rarity: 'common', name: POTIONS[pot].name };
 const potionFilter = it => it && it.slot === 'use' ? POTIONS[it.pot].filter : '';
 const itemHex = it => it.slot === 'use' ? POTIONS[it.pot].color : isBomb(it) ? BOMB.color : rarityHex(it.rarity);
 const stackCount = it => it && (it.slot === 'use' || isBomb(it)) ? it.count : 0;   // potion and fire bomb stacks
@@ -1671,6 +1683,7 @@ function newGame(entry) {
     nextId = owned.reduce((m, it) => Math.max(m, it.id), 0) + 1;   // new items never reuse a saved item's id
     migrateHero(G.hero);
   }
+  G.hero.maxDepth = Math.max(G.hero.maxDepth || 0, G.depth);   // older saves: the depth they resume at
   recalc();
   // a resumed hero keeps the life it had when saved (older saves without it start at full life)
   const savedHp = entry && entry.hero.hp;
@@ -1688,7 +1701,7 @@ function newGame(entry) {
 // entry = { id, name, depth, lvl, saved: <ms timestamp>, hero: { ...the SAVED_FIELDS of the hero } }.
 // A hero is saved when created and on arrival at each new depth; the level layout is never saved.
 const SAVE_KEY = 'crypt-of-endless-night.save';
-const SAVED_FIELDS = ['name', 'lvl', 'xp', 'base', 'equip', 'inv', 'gold', 'hotkeys', 'kills', 'hp', 'look', 'story', 'lastWeapon'];   // story: see Dialogue; lastWeapon: see compareTarget
+const SAVED_FIELDS = ['name', 'lvl', 'xp', 'base', 'equip', 'inv', 'gold', 'hotkeys', 'kills', 'hp', 'look', 'story', 'lastWeapon', 'maxDepth'];   // story: see Dialogue; lastWeapon: see compareTarget; maxDepth: the deepest depth reached
 // Older saves kept health potions as a counter (hero.potions) with a { type: 'potion' } quick key: turn them
 // into a stack in the pack (first free cell; dropped at the start if the pack is full) and a 'use' key.
 function migrateHero(h) {
@@ -2808,7 +2821,7 @@ const keeperAt = d => d % KEEPER.every === 0;
 // Item value (the keeper's price; it buys for KEEPER.sell of it): 12 · L² + 50 for an item type unlocking at depth L
 // (rings and amulets count as L = 3 + 3 · affix tier), × 2.5 for magic and × 5 for rare items, + 15 % per affix
 // tier above 1. Potions and fire bombs have fixed prices per piece.
-const UNIT_VALUE = { health: 40, ironskin: 60, frost: 150, firebomb: 50 };
+const UNIT_VALUE = { health: 40, ironskin: 60, frost: 150, escape: 60, return: 60, firebomb: 50 };
 function itemValue(it, one = false) {
   if (it.slot === 'use') return UNIT_VALUE[it.pot] * (one ? 1 : it.count);
   if (isBomb(it)) return UNIT_VALUE.firebomb * (one ? 1 : it.count);
@@ -2840,6 +2853,7 @@ function makeWish(d, used) {
 }
 function makeMarket(d) {
   const ld = d + KEEPER.plus, stock = [], used = new Set(), wishes = [];
+  stock.push(Object.assign(makePotion('escape'), { endless: true }));   // always for sale, one at a time, never sold out
   for (let i = ri(...KEEPER.stock); i > 0; i--) stock.push(genItem(ld, 0.25, null, null, ld));
   for (let i = 0; i < KEEPER.wishes; i++) wishes.push(makeWish(d, used));
   return { stock, wishes };
@@ -2886,8 +2900,9 @@ function renderMarket() {
   // the detail pane: the selected item and what can be done with it
   const sel = MK.sel, det = $('mkDetail');
   let it = null, act = '';
-  if (sel && sel.ref[0] === 's') { it = m.stock[sel.i]; if (it) { const pr = buyPrice(it), ok = h.gold >= pr && h.inv.includes(null);
-      act = `<button data-act="buy" ${ok ? '' : 'disabled'}>Buy for ${pr} gold</button>` + (h.gold < pr ? '<div class="ty">Not enough gold.</div>' : !h.inv.includes(null) ? '<div class="ty">Your pack is full.</div>' : ''); } }
+  if (sel && sel.ref[0] === 's') { it = m.stock[sel.i]; if (it) { const pr = buyPrice(it);
+      const room = h.inv.includes(null) || it.endless && stackOf(it.pot), ok = h.gold >= pr && room;
+      act = `<button data-act="buy" ${ok ? '' : 'disabled'}>Buy ${it.endless ? 'one ' : ''}for ${pr} gold</button>` + (h.gold < pr ? '<div class="ty">Not enough gold.</div>' : !room ? '<div class="ty">Your pack is full.</div>' : ''); } }
   else if (sel && sel.ref[0] === 'p') { it = h.inv[sel.i]; if (it) { const one = stackCount(it) > 1;
       act = `<button data-act="sell">Sell ${one ? 'one ' : ''}for ${sellPrice(it, true)} gold</button>` + (one ? `<button data-act="sellall">Sell all ${it.count} for ${sellPrice(it, true) * it.count} gold</button>` : ''); } }
   else if (sel && sel.ref[0] === 'w') { const w = m.wishes[sel.i]; if (w && !w.done) { it = w.reward; const gi = wishGive(w);
@@ -2902,8 +2917,10 @@ function mkRemove(i, n = 0) {   // take a pack item (or n of a stack) away, clea
 }
 function marketAction(a) {
   const h = G.hero, m = MK.o.market, sel = MK.sel; if (!sel) return;
-  if (a === 'buy') { const it = m.stock[sel.i], pr = buyPrice(it), slot = h.inv.indexOf(null); if (!it || h.gold < pr || slot < 0) return;
-    h.gold -= pr; h.inv[slot] = it; m.stock[sel.i] = null; MK.sel = { ref: 'p' + slot, i: slot }; log('Bought ' + it.name + ' for ' + pr + ' gold.', rarityColor(it.rarity)); }
+  if (a === 'buy') { const it = m.stock[sel.i], pr = it && buyPrice(it), st = it && it.endless ? stackOf(it.pot) : null, slot = h.inv.indexOf(null); if (!it || h.gold < pr || slot < 0 && !st) return;
+    h.gold -= pr;
+    if (it.endless) { if (st) st.count++; else h.inv[slot] = makePotion(it.pot); log('Bought a ' + it.name + ' for ' + pr + ' gold.', itemHex(it)); }   // the keeper has more
+    else { h.inv[slot] = it; m.stock[sel.i] = null; MK.sel = { ref: 'p' + slot, i: slot }; log('Bought ' + it.name + ' for ' + pr + ' gold.', rarityColor(it.rarity)); } }
   else if (a === 'sell' || a === 'sellall') { const it = h.inv[sel.i]; if (!it) return; const n = a === 'sellall' ? it.count : 1, pr = sellPrice(it, true) * (stackCount(it) ? n : 1);
     mkRemove(sel.i, stackCount(it) ? n : 0); h.gold += pr; if (!h.inv[sel.i]) MK.sel = null; log('Sold ' + it.name + (stackCount(it) && n > 1 ? ' ×' + n : '') + ' for ' + pr + ' gold.', '#e3c060'); }
   else if (a === 'trade') { const w = m.wishes[sel.i], gi = wishGive(w); if (!w || w.done || gi < 0) return;
@@ -2993,7 +3010,7 @@ const dlgDist = e => Math.hypot(G.hero.x - (e.fx != null ? e.fx : e.x), G.hero.y
 const dlgAlive = e => e && (e.b ? G.monsters.includes(e) && !e.dead : G.objects.includes(e));
 // Items: potions and scrolls by their POTIONS key (health, ironskin, frost), fire bombs as firebomb, gear by its base
 function storyCount(k) {
-  const h = G.hero; if (POTIONS[k]) { const s = stackOf(k); return s ? s.count : 0; }
+  const h = G.hero; if (POTIONS[k]) return h.inv.reduce((n, it) => n + (it && it.slot === 'use' && it.pot === k ? it.count : 0), 0);
   if (k === 'firebomb') return bombCount();
   return [...Object.values(h.equip), ...h.inv].filter(it => it && it.base === k).length;
 }
@@ -3309,7 +3326,7 @@ function act(ref) {
   if (ref.kind === 'item') {
     const fi = ref.r;
     if (!G.items.includes(fi)) return;
-    const it = fi.item, stack = it.slot === 'use' ? stackOf(it.pot) : null;
+    const it = fi.item, stack = it.slot === 'use' ? stackOf(it.pot, it.depth) : null;
     const bst = isBomb(it) ? bombStack() : null;
     if (bst) {     // fire bombs join the hero's stack (the equipped one first)
       bst.count += it.count; G.items.splice(G.items.indexOf(fi), 1);
@@ -3380,10 +3397,40 @@ function act(ref) {
     case 'cryptdoor': descend(); break;
   }
 }
+// A scroll's spell when its reading ends (h.using u, already cleared). True if the hero left the level (or died),
+// so the rest of this frame's update is skipped.
+function castScroll(h, u) {
+  if (u.pot === 'frost') { castFrost(h); return false; }
+  // a scroll of travel read while dying: the words end with the hero's last breath (no save)
+  if (h.hp <= 0) { h.hp = 0; G.dead = true; G.deadT = 0; h.dyingT = null; log('The last words die on your lips, and you with them, at depth ' + G.depth + '.', '#ff5a4a'); return true; }
+  if (u.pot === 'escape') surfaceEscape(u.from); else returnTo(u.depth);
+  return true;
+}
+// Leaving a level by a scroll: a conversation in progress is put aside, fires and the market close
+function leaveLevel() { if (DLG.c && !DLG.c.done) dlgSuspend(DLG.c, true); DLG.c = null; if (MK.o) closeMarket(); stopFireSounds(); }
+function surfaceEscape(from) {   // the scroll of surface escape: up to the crypt's door; the scroll becomes a scroll of return to `from`
+  const h = G.hero; leaveLevel(); sfx('stairs');
+  G.depth = 0; buildLevel(0);
+  const rs = stackOf('return', from), it = makePotion('return', 1, from), i = h.inv.indexOf(null);
+  if (rs) rs.count++; else if (i >= 0) h.inv[i] = it; else dropItem(it, h.x, h.y);
+  log('Light floods over you. You stand under the open sky, before the crypt\'s door.', POTIONS.escape.color);
+  log('The scroll in your hand darkens: a scroll of return to depth ' + from + '.', POTIONS.return.color);
+  if (saveHero()) log('Progress saved.', '#a99c86');
+  refreshUI();
+}
+function returnTo(d) {   // the scroll of return: back down to depth d, newly made (no descend experience)
+  const h = G.hero; leaveLevel(); sfx('stairs');
+  G.depth = d; h.maxDepth = Math.max(h.maxDepth || 0, d);
+  buildLevel(d);
+  log('The ground swallows you. You return to depth ' + d + ': ' + depthName(d) + '.', POTIONS.return.color);
+  if (dragonAt(d)) log('Somewhere in the dark, something vast is breathing.', '#7fe08a');
+  if (saveHero()) log('Progress saved.', '#a99c86');
+  refreshUI();
+}
 function descend() {
   sfx('stairs');
   if (DLG.c && !DLG.c.done) dlgSuspend(DLG.c, true); DLG.c = null;   // a conversation in progress is put aside
-  const d = G.depth + 1; G.depth = d;
+  const d = G.depth + 1; G.depth = d; G.hero.maxDepth = Math.max(G.hero.maxDepth || 0, d);
   gainXp(10 * d);
   buildLevel(d);
   log('You descend to depth ' + d + ': ' + depthName(d) + '.', '#c9a45c');
@@ -3393,19 +3440,22 @@ function descend() {
 // ---- Actions: one timeline (h.atkCd = time until the hero is free) shared by attacks, weapon swaps from quick
 // keys and item uses. Swaps and uses wait in h.queue and run in order whenever the hero is free, before any
 // attack; walking goes on meanwhile. A use that would be pointless when its turn comes is skipped at no cost.
-const stackOf = pot => G.hero.inv.find(it => it && it.slot === 'use' && it.pot === pot) || null;
+// a scroll of return stacks with others of its depth only; with no depth given, any stack of the kind
+const stackOf = (pot, depth) => G.hero.inv.find(it => it && it.slot === 'use' && it.pot === pot && (depth == null || it.depth === depth)) || null;
 // the hero's fire bombs: the equipped stack, else the first stack in the pack; and how many in all
 const bombStack = () => { const h = G.hero; return isBomb(h.equip.weapon) ? h.equip.weapon : h.inv.find(isBomb) || null; };
 const bombCount = () => [G.hero.equip.weapon, ...G.hero.inv].reduce((n, it) => n + (isBomb(it) ? it.count : 0), 0);
-function queueUse(pot) {
+function queueUse(pot, depth) {
   const h = G.hero; if (G.dead) return;
-  if (!stackOf(pot)) { log('No ' + POTIONS[pot].plural + ' left.', '#e06a5a'); return; }
-  h.queue.push({ kind: 'use', pot });
+  if (!stackOf(pot, depth)) { log('No ' + POTIONS[pot].plural + ' left.', '#e06a5a'); return; }
+  h.queue.push({ kind: 'use', pot, depth });
 }
 function useWhy(pot) {   // why using this potion now would be pointless, or ''
   const h = G.hero;
   if (pot === 'health' && h.hp >= h.st.maxHp) return 'You are already at full health.';
   if (pot === 'ironskin' && h.ironT > 0) return 'Iron skin is already active.';
+  if (pot === 'escape' && G.depth === 0) return 'You are already under the open sky.';
+  if (pot === 'return' && G.depth > 0) return 'You are already below.';
   return '';
 }
 // Runs one queued action; true if it took time (then the next action waits until the hero is free again).
@@ -3421,14 +3471,15 @@ function runAction(a) {
     if (f.slot === 'weapon') { h.atkCd = Math.max(h.atkCd, SWAP_T); return true; }
     return false;
   }
-  const st = stackOf(a.pot);
+  const st = stackOf(a.pot, a.depth);
   if (!st) { log('No ' + POTIONS[a.pot].plural + ' left.', '#e06a5a'); return false; }
   const why = useWhy(a.pot); if (why) { log(why, '#a99c86'); return false; }
   if (--st.count <= 0) h.inv[h.inv.indexOf(st)] = null;
   const P = POTIONS[a.pot];
   if (P.scroll) {   // read aloud: the weapon hand is busy for P.time s, then the spell goes off (see update)
-    h.atkCd = P.time; h.using = { pot: a.pot, t: 0, dur: P.time, cast: true };
-    speak(incantClip(h)); sfx('castrise', { dur: P.time }); log('You read the ' + P.name + ': “' + P.words + '”', P.color); refreshUI(); return true;
+    h.atkCd = P.time; h.using = { pot: a.pot, t: 0, dur: P.time, cast: true, depth: st.depth, from: G.depth, said: 0 };
+    if (P.root) { h.path = []; h.intent = null; h.attackTarget = null; h.attackPending = false; h.pendingAt = null; }   // reading it, the hero stands still
+    speak(incantClip(h, P.clip)); sfx('castrise', { dur: P.time, k: P.cast }); log('You read the ' + P.name + ': “' + P.words + '”', P.color); refreshUI(); return true;
   }
   h.atkCd = USE_T; h.using = { pot: a.pot, t: 0, dur: USE_T };   // the potion works half way through the drink (potionEffect)
   sfx('potion'); refreshUI(); return true;
@@ -3450,7 +3501,7 @@ const rarityColor = r => r === 'rare' ? 'var(--rare)' : r === 'magic' ? 'var(--m
 const rarityHex = r => r === 'rare' ? '#e6c84a' : r === 'magic' ? '#6f8cff' : '#d8d2c4';
 function equipFromInv(i) {
   const h = G.hero, it = h.inv[i]; if (!it) return;
-  if (it.slot === 'use') { queueUse(it.pot); return; }   // potions are used, not equipped
+  if (it.slot === 'use') { queueUse(it.pot, it.depth); return; }   // potions are used, not equipped
   let slot = it.slot;
   if (slot === 'ring') slot = !h.equip.ring1 ? 'ring1' : !h.equip.ring2 ? 'ring2' : 'ring1';
   const old = h.equip[slot]; h.equip[slot] = it; h.inv[i] = old || null;
@@ -3465,7 +3516,7 @@ function unequip(slot) {   // true if the item went back to the pack
 // The equipment screen queues its equips, unequips and uses like the quick keys do (see Actions).
 function queueItem(ref) {
   const h = G.hero, it = refItem(ref); if (!it || G.dead) return;
-  if (it.slot === 'use') queueUse(it.pot);
+  if (it.slot === 'use') queueUse(it.pot, it.depth);
   else h.queue.push({ kind: ref.startsWith('inv:') ? 'equip' : 'unequip', id: it.id });
 }
 function dropFromInv(i) {
@@ -3657,8 +3708,8 @@ function itemLines(it) {
     `<div>Range: <b>${BOMB.range}</b> tiles · fire radius <b>${FIRE.r}</b> tiles</div><div>Throws per second: <b>${(1 / BOMB.cd).toFixed(2)}</b></div>` +
     `<div class="ty">You carry ${bombCount()}. Equip them as your weapon to throw them.</div>`;
   if (it.slot === 'use') { const P = POTIONS[it.pot];
-    return `<div class="nm" style="color:${P.color}">${P.name}</div><div class="ty">${P.scroll ? 'Scroll · read aloud' : 'Potion · instant use'}</div>` +
-      (P.words ? `<div><i>“${P.words}”</i></div>` : '') + `<div>${P.desc}</div><div class="ty">You carry ${it.count}.</div>`; }
+    return `<div class="nm" style="color:${P.color}">${it.name}</div><div class="ty">${P.scroll ? 'Scroll · read aloud' : 'Potion · instant use'}</div>` +
+      (P.words ? `<div><i>“${P.words}”</i></div>` : '') + `<div>${P.desc}</div><div class="ty">${it.endless ? 'The keeper has plenty.' : 'You carry ' + it.count + '.'}</div>`; }
   const b = BASES[it.base]; let s = `<div class="nm" style="color:${rarityHex(it.rarity)}">${it.name}</div>`;
   s += `<div class="ty">${it.rarity !== 'common' ? (it.rarity === 'rare' ? 'Rare ' : 'Magic ') : ''}${it.slot === 'weapon' ? KIND_INFO[it.kind].label : SLOT_LABEL[it.slot]}</div>`;
   if (it.slot === 'weapon') s += `<div>Damage: <b>${it.min}–${it.max}</b></div><div>Attacks per second: <b>${(1 / it.cd).toFixed(2)}</b></div>`;
@@ -4152,7 +4203,11 @@ function update(dt) {
   h.atkCd = Math.max(0, h.atkCd - dt); h.hitT = Math.max(0, h.hitT - dt);
   if (h.using) { const u = h.using; u.t += dt;
     if (!u.cast && !u.done && u.t >= u.dur / 2) { u.done = true; potionEffect(h, u.pot); }   // a potion works half way through the drink
-    if (u.t >= u.dur) { h.using = null; if (u.cast) castFrost(h); refreshUI(); } }   // the weapon comes back (a scroll: its spell goes off)
+    if (u.cast && POTIONS[u.pot].root) {   // a scroll of travel: its words over the hero's head phrase by phrase; the hero stands still
+      const ph = POTIONS[u.pot].words.split(/(?<=,) /);
+      while (u.said < ph.length && u.t >= u.said * u.dur / ph.length) floatText(h.x, h.y, ph[u.said++], POTIONS[u.pot].color, u.dur / ph.length + 0.5, 15);
+      h.path = []; h.intent = null; }
+    if (u.t >= u.dur) { h.using = null; refreshUI(); if (u.cast && castScroll(h, u)) return; } }   // the weapon comes back (a scroll: its spell goes off)
   if (h.ironT > 0 && (h.ironT -= dt) <= 0) { h.ironT = 0; recalc(); refreshUI(); log('Your iron skin fades.', '#a99c86'); }
   h.lunge = Math.max(0, h.lunge - dt * 5);
   h.hp = Math.min(h.st.maxHp, h.hp + h.st.regen * dt);
@@ -4188,7 +4243,7 @@ function update(dt) {
   if (h.kb) { h.path = []; moveEnt(h, h.kb.vx * dt, h.kb.vy * dt); if ((h.kb.t -= dt) <= 0) h.kb = null; }   // thrown back by the dragon
   if (G.shake > 0) G.shake = Math.max(0, G.shake - dt);
   const ox = h.x, oy = h.y;
-  h.moving = !h.swing && !h.draw && !h.kb && followPath(h, h.st.speed * (h.speedMul || 1), dt);   // speedMul: the sandbox's character viewer
+  h.moving = !h.swing && !h.draw && !h.kb && !(h.using && POTIONS[h.using.pot].root) && followPath(h, h.st.speed * (h.speedMul || 1), dt);   // speedMul: the sandbox's character viewer
   const stepD = Math.hypot(h.x - ox, h.y - oy);
   if (h.moving) { const lk = heroLook(h); h.anim += stepD * (META.characters[lk].fpt || 2) / lookScale(lk); if (stepD < 1e-4) { h.stuckT += dt; if (h.stuckT > 0.3) { h.path = []; h.stuckT = 0; } } else h.stuckT = 0; }
   if (h.intent) {
@@ -5622,7 +5677,22 @@ function drawBurning(e, sx, sy, hgt) {
 // A potion being used: its icon rises above the hero's head and fades out.
 function drawUsing(h) {
   const k = h.using.t / h.using.dur, [sx, sy] = iso(h.x, h.y), s = 30, [ix, iy] = META.items[useIcon(h.using.pot)], f = POTIONS[h.using.pot].filter;
-  if (h.using.cast) {   // a scroll being read: frost motes spiral in toward the hero, faster and brighter as the words end
+  if (h.using.pot === 'escape' || h.using.pot === 'return') {   // a scroll of travel: a column of pale light grows (escape), or a dark swirl sinks into the ground (return)
+    const up = h.using.pot === 'escape', g = POTIONS[h.using.pot].glow, t = h.using.t;
+    ctx.save(); ctx.globalCompositeOperation = 'lighter';
+    if (up) {   // the column: a soft vertical beam, widening and brightening, on a glowing ring
+      const w = 26 + 14 * k, hgt = 120 + 260 * k, gr = ctx.createLinearGradient(sx - w, 0, sx + w, 0);
+      gr.addColorStop(0, `rgba(${g},0)`); gr.addColorStop(0.5, `rgba(${g},${0.12 + 0.4 * k})`); gr.addColorStop(1, `rgba(${g},0)`);
+      ctx.fillStyle = gr; for (let j = 0; j < 8; j++) { ctx.globalAlpha = 1 - j / 8; ctx.fillRect(sx - w, sy - hgt * (j + 1) / 8, w * 2, hgt / 8); }   // fading upward
+      ctx.globalAlpha = 1;
+    }
+    ctx.strokeStyle = `rgba(${g},${0.25 + 0.5 * k})`; ctx.lineWidth = 2 + 2 * k;   // the ring on the ground, closing in (return) or opening (escape)
+    const rr = up ? 22 + 16 * k : 40 - 16 * k; ctx.beginPath(); ctx.ellipse(sx, sy, rr, rr * 0.5, 0, 0, 7); ctx.stroke();
+    for (let i = 0; i < 18; i++) { const u = (t * (0.5 + k) + i / 18) % 1, a = i * 2.4 + t * (up ? 2 : -3), r = up ? 20 * (1 - 0.4 * u) : 42 * (1 - u) + 4;
+      const y = up ? sy - 10 - u * (90 + 200 * k) : sy - 110 * (1 - u) * (1 - k * 0.5);
+      ctx.fillStyle = `rgba(${g},${(0.3 + 0.6 * k) * Math.sin(Math.PI * u)})`; ctx.beginPath(); ctx.arc(sx + Math.cos(a) * r, y + Math.sin(a) * r * 0.5, 1.8 + k, 0, 7); ctx.fill(); }
+    ctx.restore();
+  } else if (h.using.cast) {   // a scroll being read: frost motes spiral in toward the hero, faster and brighter as the words end
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     for (let i = 0; i < 14; i++) { const u = (h.using.t * (0.9 + k) + i / 14) % 1, a = i * 2.4 + h.using.t * 3, r = 46 * (1 - u) + 6;
       ctx.fillStyle = `rgba(185,225,250,${(0.25 + 0.6 * k) * Math.sin(Math.PI * u)})`; ctx.beginPath(); ctx.arc(sx + Math.cos(a) * r, sy - 50 + Math.sin(a) * r * 0.5 - 30 * u, 1.6 + k, 0, 7); ctx.fill(); }
