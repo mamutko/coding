@@ -136,7 +136,9 @@ One image (Gemini, in the style of the crypt building), cut into two parts as wi
   arrival at a depth and from `depth` for older saves). A player's monsters are made with `makeMonster(type, x, y,
   maxDepth)` and their chests and drops roll with `maxDepth`'s loot rules.
 - **How much each player brings:** what one crypt level at their depth would hold (its monster count and chests,
-  champions included), spread over the rooms nobody has claimed yet, farthest from the start room first. The
+  champions included), spread evenly over the rooms nobody has claimed yet, from near the start room to far (v139;
+  first built farthest-first, which left the rooms by the portal empty). The two rooms nearest the portal are a quiet
+  zone with one warm-up skeleton, and the lake lies in the corner farthest from the portal. The
   first player also places the static furnishings (props, doors, urns).
 - **Keeping the realm alive:** a player's monsters slowly come back (one every ~20 s, up to their starting number)
   in rooms where no hero has been within 15 tiles for 60 s.

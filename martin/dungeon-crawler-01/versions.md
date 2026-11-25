@@ -9,9 +9,19 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v139 — monsters spread evenly through the Rift, a quiet zone, the lake far away (2026-11-25)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 139`)*
+
+- Each player's monsters and treasure are spread evenly over the Rift from near the portal to far (they were put
+  in the farthest rooms, which left the rooms near the portal empty).
+- The two rooms nearest the portal are a quiet zone, with one skeleton for a warm-up.
+- The Rift's start room and portal are in the map's south corner, as far from the lake (north corner) as it gets.
+- Fixed: since v132, arriving on a new level kept the hero's last click target, attack target and swing.
+
 ## v138 — a lake in the Rift (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 138`)*
+Commit: 4b85d57
 
 - The Rift always has a lake room in its north corner (water, reflections, wraiths, the chest of scrolls of frost);
   its start room and portal lie just south-west of it, and the portal is mirrored in the water.

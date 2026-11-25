@@ -7,7 +7,7 @@
 // the crypt); `at` is the ground point in the middle of the arch's base line (world tiles), about 60 tiles north of
 // the crypt. The dial lies in front of it (`dial`, its centre), META.portal.dialR tiles in radius. `clear`: no trees
 // grow within this many tiles of the arch. The Rift: `size` tiles a side, `rooms` rooms.
-const RIFT = { at: [-29, -29], dial: [-23, -23], clear: 9, size: 110, rooms: 34 };
+const RIFT = { at: [-29, -29], dial: [-23, -23], clear: 9, size: 110, rooms: 34, quiet: 2 };   // quiet: rooms by the Rift's portal left (nearly) empty
 
 // The arch's four tiles, from west to east: [x, y, role] with role 'pillar' (blocked) or 'gate'. gx, gy (whole
 // numbers): the ground point in the middle of its base line, which runs through the four tiles' centres.
@@ -208,7 +208,8 @@ function buildRiftFromSnap(s) {
 function riftJoinSpawn(d) {
   const m = G.map, o = G.objects.find(q => q.type === 'portal'), dist = bfs(Math.floor(o.fx), Math.floor(o.fy));
   const free = m.rooms.map((r, i) => i).filter(i => !m.claims.has(i)), n = Math.min(9 + Math.floor(d / 2), 18) - 1;
-  const mine = free.sort((a, b) => (dist[m.rooms[b].cy * m.w + m.rooms[b].cx] || 0) - (dist[m.rooms[a].cy * m.w + m.rooms[a].cx] || 0)).slice(0, n);
+  const D = i => dist[m.rooms[i].cy * m.w + m.rooms[i].cx] || 0;
+  const mine = riftSpread(free.sort((a, b) => D(a) - D(b)), n);   // spread evenly over the free rooms, near to far
   const mons = riftPopulate(mine.map(i => m.rooms[i]), d), objs = riftFurnish(mine.map(i => m.rooms[i]), d);
   for (const q of mons) G.monsters.push(q);
   for (const o of objs) { G.objects.push(o); if (o.block) m.block[o.y * m.w + o.x] = 1; }
@@ -246,3 +247,6 @@ function riftPopulate(rooms, d) {
   }
   return out;
 }
+
+// n of a list (sorted near to far) spread evenly over it: the middles of n equal stretches (all of it if n ≥ its length)
+function riftSpread(list, n) { if (n >= list.length) return list.slice(); return Array.from({ length: n }, (_, i) => list[Math.floor((i + 0.5) * list.length / n)]); }

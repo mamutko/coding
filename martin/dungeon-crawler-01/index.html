@@ -436,7 +436,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 138;
+const VERSION = 139;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2043,7 +2043,7 @@ function buildLevel(d) {
   const want = rift ? RIFT.rooms : Math.min(9 + Math.floor(d / 2), 18) + (lakeAt ? 1 : 0);
   // the lake room's spot (the map's north corner) is kept free from the start, so it always fits
   const lakeR = lakeAt ? { x: 2, y: 2, w: ri(...LAKE_ROOM), h: ri(...LAKE_ROOM) } : null;
-  const riftR = rift ? { x: 2, y: lakeR.y + lakeR.h + 3, w: 10, h: 10 } : null;   // (south-west of the lake: corridors reach its dry shore)
+  const riftR = rift ? { x: w - 13, y: h - 13, w: 10, h: 10 } : null;   // (the map's south corner: as far from the lake as it gets)
   if (riftR) rooms.push(Object.assign(riftR, { cx: riftR.x + 5, cy: riftR.y + 5, big: false }));
   for (let tries = 0; tries < (rift ? 4000 : 600) && rooms.length < want; tries++) {
     // after the start room come the big rooms of this depth: the boss room (bossRoomAt), then the big room
@@ -2207,7 +2207,7 @@ function buildLevel(d) {
     return null;
   };
   occ[start.cy * w + start.cx] = 1;
-  let riftOwn = null, riftPortal = null;
+  let riftOwn = null, riftPortal = null, riftQuiet = [];
   if (rift) {   // the portal back stands across the start room's north corner; the tiles behind it are walled off
     riftPortal = { type: 'portal', x: start.x + 3, y: start.y + 3, used: false, block: false };
     riftPortal.fx = riftPortal.x + 0.7; riftPortal.fy = riftPortal.y + 0.7;
@@ -2217,11 +2217,13 @@ function buildLevel(d) {
     for (let y = start.y; y < start.y + 9; y++) for (let x = start.x; x < start.x + 9; x++) {   // nothing on the platform in front of the arch
       const s = x + y + 1 - riftPortal.x - riftPortal.y, u = x - y - riftPortal.x + riftPortal.y; if (s >= 0 && s <= 4 && Math.abs(u) <= 4) occ[y * w + x] = 1; }
     objects.push(riftPortal);
-    // the founder's share: one crypt level's worth of rooms (as many as a level of depth d has, less its start
-    // room), the farthest from the start; the other rooms stay empty for those who join (multiplayer.md)
-    const n = Math.min(9 + Math.floor(d / 2), 18) - 1;
-    riftOwn = new Set(rooms.slice(1).sort((a, b) => distArr[b.cy * w + b.cx] - distArr[a.cy * w + a.cx]).slice(0, n));
-    map.claims = new Set([0, ...[...riftOwn].map(r => rooms.indexOf(r))]);   // rooms taken (the start room and ours), by index
+    // the quiet zone: the RIFT.quiet rooms nearest the portal (by walking distance) stay empty but for one warm-up
+    // skeleton; the founder's share, one crypt level's worth of rooms (as many as a level of depth d has, less its
+    // start room), is spread evenly over the others from near to far (riftSpread); the rest wait for those who join
+    const byDist = rooms.slice(1).filter(r => r !== lakeRoom).sort((a, b) => distArr[a.cy * w + a.cx] - distArr[b.cy * w + b.cx]);
+    riftQuiet = byDist.slice(0, RIFT.quiet);
+    riftOwn = new Set(riftSpread(byDist.slice(RIFT.quiet), Math.min(9 + Math.floor(d / 2), 18) - 1));
+    map.claims = new Set([0, ...[...riftOwn, ...riftQuiet].map(r => rooms.indexOf(r))]);   // rooms taken (start, quiet zone, ours), by index
     if (lakeRoom) map.claims.add(rooms.indexOf(lakeRoom));   // the lake (its wraiths and its chest) is the founder's
   } else {
     occ[far.cy * w + far.cx] = 1;
@@ -2400,10 +2402,14 @@ function buildLevel(d) {
       }
     }
   }
+  if (riftQuiet.length) {   // the quiet zone's one warm-up skeleton (never a champion), in the room nearest the portal
+    const r = riftQuiet[0], p = freeInner(r, false); if (p) { occ[p[1] * w + p[0]] = 1; monsters.push(makeMonster('skeleton', p[0] + 0.5, p[1] + 0.5, d, false, false, true)); }
+  }
   for (const o of objects) if (o.block && o.type !== 'door') map.block[o.y * w + o.x] = 1;   // doors block via their tile type
   const hero = G.hero;
   hero.x = start.cx + 0.5; hero.y = start.cy + 0.5; hero.path = [];
-  if (riftPortal) { hero.x = riftPortal.x + 1.6; hero.y = riftPortal.y + 1.6; hero.dir = 0; }   // just come through the portal hero.intent = null; hero.attackTarget = null; hero.swing = null;
+  if (riftPortal) { hero.x = riftPortal.x + 1.6; hero.y = riftPortal.y + 1.6; hero.dir = 0; }   // just come through the portal
+  hero.intent = null; hero.attackTarget = null; hero.swing = null;
   hero.queue = []; hero.pendingAt = null; hero.using = null; hero.burnLeft = 0; hero.burning = hero.inFire = false;
   G.fade = 1;
   updateMinimap(true);

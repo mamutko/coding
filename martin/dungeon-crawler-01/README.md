@@ -879,13 +879,17 @@ relay for networks that cannot connect directly (on hold). The code is in `realm
   4000 tries), corridors and doors as on any level; always a **lake room** in the map's north corner, made as the
   crypt's (see [Lakes](#lakes): its water, shore, braziers, pillars, wraiths and chest of scrolls of frost; it is
   the founder's, a claimed room); no boss room, big room, lone monster, keeper, dragon or stairs. The start room
-  (10 × 10) lies just south-west of the lake (3 tiles from it, along the map's north-west edge), so corridors reach
-  the lake's dry shore; the **portal back** stands across the start room's own north corner (its ground point 3
+  (10 × 10) is in the map's **south corner** (3 tiles in from its edges), as far from the lake as the map allows
+  (about 150 steps); the **portal back** stands across the start room's own north corner (its ground point 3
   tiles in from the corner), the tiles behind it are walled off, and nothing is placed on its platform. The hero
   arrives 1.6 tiles in front of it. The portal is mirrored in the lake like any prop (`mirrorProp`: its arch).
-  - **The founder's rooms:** the rooms farthest from the start (by walking distance), as many as a crypt level of
-    depth d has less one (9 + ⌊d / 2⌋ − 1, at most 17), get chests, gold and monsters as on a normal level; the other
-    rooms get only braziers, urns and bones (they are kept for the players who join, in a later phase).
+  - **The quiet zone:** the `RIFT.quiet` (2) rooms nearest the portal (by walking distance; not the lake) get no
+    chests, gold or monsters, only one warm-up skeleton (never a champion) in the nearer one.
+  - **The founder's rooms:** as many as a crypt level of depth d has less one (9 + ⌊d / 2⌋ − 1, at most 17),
+    **spread evenly** over the other rooms from near to far (`riftSpread`: with the rooms sorted by walking
+    distance, the middle of each of n equal stretches), get chests, gold and monsters as on a normal level. The
+    rooms between them get only braziers, urns and bones: they are kept for the players who join, who spread their
+    own share over the free rooms the same way.
 - **Inside:** the HUD says "The Rift of <name>" and "Monsters of depth d". Nothing is saved (`saveHero` does
   nothing). Scrolls of surface escape and return do nothing ("The Rift does not let go so easily. Find the
   portal."). **Death** is the usual death ("You have fallen in the Rift of <name>."): the hero resumes from the save
@@ -950,7 +954,7 @@ Every monster in the Rift belongs to the player who brought it (`MON_NET` in `ne
 - **Bringing them:** the founder's are those of its Rift (its rooms: `map.claims`). A **joiner**, once it has the
   snapshot (with every monster already there, each a copy made by `makeMonster` with its type, depth, champion or
   boss, name and life), brings its own share (`riftJoinSpawn`): as many rooms as a crypt level of its own deepest
-  depth has, less one, among the rooms no one has claimed, the farthest from the portal first, filled as a crypt
+  depth has, less one, spread evenly (`riftSpread`) over the rooms no one has claimed, from near the portal to far, filled as a crypt
   level's normal rooms (`riftPopulate`: 1 to cap monsters each, types within their room limits, champions with
   escorts). It claims those rooms and sends `spawn` (the monsters and the rooms) to everyone. Its log: "Your coming
   woke more of its monsters, deep in rooms no one had claimed."
