@@ -198,6 +198,7 @@ function netMsg(p, data) {
       break; }
     case 'hh': if (G.rift && !G.dead && !NET.awaySince) damageHero(m.v, { lvl: m.lvl }); break;   // one of their monsters struck our hero
     case 'handover': netApplyHandover(m.a); break;
+    case 'ice': if (G.map) { frostPatch(m.x, m.y, m.s); sfx('frostcast', { x: m.x, y: m.y }); } break;   // another player's scroll of frost: the same ice here
     case 'bomb': G.proj.push({ type: 'bomb', x: m.x0, y: m.y0, x0: m.x0, y0: m.y0, tx: m.tx, ty: m.ty, z: 44, t: 0, dur: m.dur, peak: m.pk, life: 1, rot: rnd() * 6, spin: 8, ghost: true }); break;   // seen only
     case 'fire': if (G.map) { const f = newFire(m.x, m.y); f.owner = p.id; G.fires.push(f); } break;   // its thrower decides what it burns
     case 'drop': netGotDrop(m, p.id); break;

@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v138 — a lake in the Rift (2026-11-25)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 138`)*
+
+- The Rift always has a lake room in its north corner (water, reflections, wraiths, the chest of scrolls of frost);
+  its start room and portal lie just south-west of it, and the portal is mirrored in the water.
+- Players joining get the lake too; a scroll of frost read there makes the same ice for everyone, and each game
+  drowns only its own hero and monsters when it melts.
+
 ## v137 — handover, hidden tabs and shared fire bombs in the Rift (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 137`)*
+Commit: 3c0ccf6
 
 - A player leaving hands its monsters over: one fighting someone passes to that player, the rest fade away (the
   player in the Rift longest decides, for everyone).

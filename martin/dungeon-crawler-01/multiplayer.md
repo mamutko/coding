@@ -122,7 +122,8 @@ One image (Gemini, in the style of the crypt building), cut into two parts as wi
 ## 3. The Rift
 
 - **One level, no depths, no stairs.** Built by `buildLevel` in a realm mode: about 110 × 110 tiles, 30–40 rooms,
-  the usual corridors and doors, no lake, no dragon, no boss room (for now).
+  the usual corridors and doors, a lake room in the north corner (v138: shared, its ice from a scroll of frost made
+  the same everywhere from a seed), no dragon, no boss room (for now).
 - **The portal's other end** stands in the start room. Every player arrives there (spread around it) and **leaves
   only through it**: walking into it takes the hero to the surface in front of the portal.
 - **Saving:** the hero is saved **on entering** (before the transfer, on the surface) and **on leaving** (after

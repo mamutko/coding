@@ -436,7 +436,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 137;
+const VERSION = 138;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2030,11 +2030,12 @@ function drawCrypt(o) {
 // =====================================================================================
 function buildLevel(d) {
   if (d === 0) return buildSurface();
-  // the Rift (G.rift, realm.js): RIFT.size tiles a side, RIFT.rooms rooms, the start room in the north corner with
-  // the portal back across its corner; no lake, boss, big room, keeper or stairs; monsters and loot of depth d
-  const rift = !!G.rift, riftR = rift ? { x: 2, y: 2, w: 10, h: 10 } : null;
+  // the Rift (G.rift, realm.js): RIFT.size tiles a side, RIFT.rooms rooms, always a lake room in the north corner,
+  // the start room just south-west of it with the portal back across its own north corner; no boss, big room,
+  // keeper or stairs; monsters and loot of depth d
+  const rift = !!G.rift;
   if (!rift && (dragonAt(d) || dragonAt(d + 1))) loadDragonArt();   // the dragon's art, a depth ahead
-  const lakeAt = !rift && lakeRoomAt(d);
+  const lakeAt = rift || lakeRoomAt(d);
   const w = rift ? RIFT.size : Math.min(44 + d * 2, 80) + (lakeAt ? 16 : 0), h = w;
   const t = new Uint8Array(w * h);
   const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? T_VOID : t[y * w + x];
@@ -2042,12 +2043,13 @@ function buildLevel(d) {
   const want = rift ? RIFT.rooms : Math.min(9 + Math.floor(d / 2), 18) + (lakeAt ? 1 : 0);
   // the lake room's spot (the map's north corner) is kept free from the start, so it always fits
   const lakeR = lakeAt ? { x: 2, y: 2, w: ri(...LAKE_ROOM), h: ri(...LAKE_ROOM) } : null;
+  const riftR = rift ? { x: 2, y: lakeR.y + lakeR.h + 3, w: 10, h: 10 } : null;   // (south-west of the lake: corridors reach its dry shore)
   if (riftR) rooms.push(Object.assign(riftR, { cx: riftR.x + 5, cy: riftR.y + 5, big: false }));
   for (let tries = 0; tries < (rift ? 4000 : 600) && rooms.length < want; tries++) {
     // after the start room come the big rooms of this depth: the boss room (bossRoomAt), then the big room
     // (bigRoomAt). The boss room is 11-14 tiles a side (about 2.8x the area of a normal 5-10 room), the big room
     // 16-20 (about twice the boss room's area)
-    const bigKinds = rift ? [] : [lakeR && 'lake', bossRoomAt(d) && 'boss', bigRoomAt(d) && 'horde'].filter(Boolean);
+    const bigKinds = rift ? ['lake'] : [lakeR && 'lake', bossRoomAt(d) && 'boss', bigRoomAt(d) && 'horde'].filter(Boolean);   // (the Rift: only its lake)
     const big = rooms.length >= 1 && rooms.length <= bigKinds.length && (tries < 300 || bigKinds[rooms.length - 1] === 'lake') ? bigKinds[rooms.length - 1] : false;
     if (big === 'lake') {   // its "centre" (where corridors lead) is on the dry shore near its south corner
       const r = lakeR; rooms.push({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.x + r.w - 3, cy: r.y + r.h - 3, big }); continue;
@@ -2220,6 +2222,7 @@ function buildLevel(d) {
     const n = Math.min(9 + Math.floor(d / 2), 18) - 1;
     riftOwn = new Set(rooms.slice(1).sort((a, b) => distArr[b.cy * w + b.cx] - distArr[a.cy * w + a.cx]).slice(0, n));
     map.claims = new Set([0, ...[...riftOwn].map(r => rooms.indexOf(r))]);   // rooms taken (the start room and ours), by index
+    if (lakeRoom) map.claims.add(rooms.indexOf(lakeRoom));   // the lake (its wraiths and its chest) is the founder's
   } else {
     occ[far.cy * w + far.cx] = 1;
     objects.push({ type: 'stairs', x: far.cx, y: far.cy, used: false, block: false });
@@ -4583,6 +4586,10 @@ function mirrorChar(e, isHero) {
   }
 }
 function mirrorProp(o) {
+  if (o.type === 'portal') {   // the Rift's portal (realm.js): its arch, mirrored about its base line
+    const P = META.portal; if (!P || !IMG.portal) return; const [x, y, w, h, ox, oy, gw, gh] = P.arch, [sx, sy] = iso(o.x, o.y);
+    return mirSprite(IMG.portal, x, y, w, h, sx + ox, sy + oy, gw, gh, sy);
+  }
   if (o.surf || o.type === 'keeper' || o.type === 'npc' || o.type === 'stairs' || o.type === 'bones' || o.type === 'gold' || o.type === 'mrug' || (o.type === 'urn' && o.used)) return;
   const key = o.type === 'chest' && o.used ? 'chestopen' : o.type === 'keeper' ? 'keeper' + o.look : o.type;
   const [px, py, pw, ph] = META.props[key], [s, off] = PROP_STYLE[key], [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy), w = pw * s, hh = ph * s;
@@ -4831,7 +4838,18 @@ function iceMask(c, p, k) {
 }
 // The blast, when the scroll's reading ends: centred on the hero.
 function castFrost(h) {
-  const S = iceS(), seed = (Math.random() * 1e9) | 0, rnd = mulberry(seed), x = h.x, y = h.y, R = FROST.water, m = G.map;
+  const seed = (Math.random() * 1e9) | 0, x = h.x, y = h.y;
+  if (netOn()) netEach({ t: 'ice', x: +x.toFixed(3), y: +y.toFixed(3), s: seed });   // the others make the same ice from the same seed (net.js)
+  const p = frostPatch(x, y, seed);
+  for (const mo of G.monsters) {   // monsters near the hero freeze as the front reaches them
+    if (mo.dead) continue; const t = near(mo, x, y), d = Math.hypot(t.x - x, t.y - y);
+    if (d < FROST.mon + t.r) { const dl = reachIce(p, Math.min(0.999, d / FROST.water)), du = frostDur(mo); freezeMonster(mo, dl, du); netFreeze(mo, dl, du); }
+  }
+  sfx('frostcast');
+}
+// The blast's ice and frost on the floor, from where it was read and a seed (the same everywhere for the same two)
+function frostPatch(x, y, seed) {
+  const S = iceS(), rnd = mulberry(seed), R = FROST.water, m = G.map;
   const p = { ox: x, oy: y, R, t: 0, fd: 0.9 + 0.07 * R, life: FROST.iceDur, md: FROST.melt, phase: 'freeze', k: 0, seed,
     ph: [0, 0, 0, 0, 0].map(() => rnd() * 7), ticks: Array.from({ length: 200 }, () => 0.06 + rnd() * 0.16),
     net: null, holes: null, ripLeft: 3, sounded: 0, tex: null, ftex: null, d0: R, crackFrom: [x, y] };
@@ -4851,11 +4869,7 @@ function castFrost(h) {
   // ice shards flung out with the wave, each stopping at the edge of the monsters' freeze radius
   p.shards = Array.from({ length: 56 }, () => ({ a: rnd() * Math.PI * 2, sp: 0.8 + rnd() * 0.22, vz: 60 + rnd() * 120, len: 0.12 + rnd() * 0.2 }));
   S.patches.push(p); while (S.patches.length > 3) S.patches.shift();
-  for (const mo of G.monsters) {   // monsters near the hero freeze as the front reaches them
-    if (mo.dead) continue; const t = near(mo, x, y), d = Math.hypot(t.x - x, t.y - y);
-    if (d < FROST.mon + t.r) { const dl = reachIce(p, Math.min(0.999, d / R)), du = frostDur(mo); freezeMonster(mo, dl, du); netFreeze(mo, dl, du); }
-  }
-  sfx('frostcast');
+  return p;
 }
 
 // The ice's look, drawn once in the ground plane (P px per tile, foreshortened by scale(1, 0.5)): a pale tint over
@@ -5104,7 +5118,7 @@ function meltIce(p) {
     splash(h.x, h.y, 1.6); sfx('plunge', { x: h.x, y: h.y }); sfx('bubbles', { x: h.x, y: h.y });
     h.hp = 0; G.dead = true; G.deadT = 0; h.dyingT = null; log('The ice gave way beneath you. You drowned at depth ' + G.depth + '.', '#ff5a4a');
   }
-  for (const mo of G.monsters) if (!mo.dead && !mo.b.float && onIce(p, mo)) { splash(mo.x, mo.y, 1.4); sfx('plunge', { x: mo.x, y: mo.y }); killMonster(mo, true); }
+  for (const mo of G.monsters) if (!mo.dead && !mo.owner && !mo.b.float && onIce(p, mo)) { splash(mo.x, mo.y, 1.4); sfx('plunge', { x: mo.x, y: mo.y }); killMonster(mo, true); }   // (another player's monster: its owner's ice decides)
   G.items = G.items.filter(fi => !onIce(p, fi));
   G.objects = G.objects.filter(o => !(o.type === 'gold' && onIce(p, { x: o.fx ?? o.x + 0.5, y: o.fy ?? o.y + 0.5 })));
   const rnd = mulberry(p.seed * 13 + 3); p.holes = [];

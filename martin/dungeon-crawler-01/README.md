@@ -876,10 +876,13 @@ relay for networks that cannot connect directly (on hold). The code is in `realm
   and gold are those of depth d. Logged: "You step through the portal into the Rift of <name>." and a reminder that
   nothing is saved inside.
 - **The Rift's map** (`buildLevel` with `G.rift`): `RIFT.size` (110) tiles a side and `RIFT.rooms` (34) rooms (up to
-  4000 tries), corridors and doors as on any level; no lake, boss room, big room, lone monster, keeper, dragon or
-  stairs. The start room (10 × 10) is in the map's north corner; the **portal back** stands across its corner (its
-  ground point 3 tiles in from the corner), the tiles behind it are walled off, and nothing is placed on its
-  platform. The hero arrives 1.6 tiles in front of it.
+  4000 tries), corridors and doors as on any level; always a **lake room** in the map's north corner, made as the
+  crypt's (see [Lakes](#lakes): its water, shore, braziers, pillars, wraiths and chest of scrolls of frost; it is
+  the founder's, a claimed room); no boss room, big room, lone monster, keeper, dragon or stairs. The start room
+  (10 × 10) lies just south-west of the lake (3 tiles from it, along the map's north-west edge), so corridors reach
+  the lake's dry shore; the **portal back** stands across the start room's own north corner (its ground point 3
+  tiles in from the corner), the tiles behind it are walled off, and nothing is placed on its platform. The hero
+  arrives 1.6 tiles in front of it. The portal is mirrored in the lake like any prop (`mirrorProp`: its arch).
   - **The founder's rooms:** the rooms farthest from the start (by walking distance), as many as a crypt level of
     depth d has less one (9 + ⌊d / 2⌋ − 1, at most 17), get chests, gold and monsters as on a normal level; the other
     rooms get only braziers, urns and bones (they are kept for the players who join, in a later phase).
@@ -1006,6 +1009,16 @@ Floor items, gold, chests, urns and bones in the Rift belong to whoever brought 
     nothing.
 - **A player leaving** leaves its loot behind, passed to the player in the Rift longest (`netElder`, from each
   player's `since`; everyone works out the same one).
+
+#### The lake and its ice
+
+- A joiner's lake comes with the snapshot (`lake`: the lake room's index; its water is in the tiles): it remakes the
+  outline from the water (`lakeGeom`), so reflections, drips and ripples work as in the crypt.
+- **A scroll of frost** read in the Rift is sent to the others (`ice`: where it was read and the blast's random
+  seed); they make the same ice from the same two (`frostPatch`: the ice's outline, texture, cracks and melt all
+  come from the seed and the place), with its sound. Monsters freeze through their owners (`frz`, above).
+- **The thaw:** each game drowns its own hero if it is on the ice, and only its own monsters (another player's
+  monster on the ice drowns in its owner's game, which has the same ice).
 
 #### Fire bombs
 

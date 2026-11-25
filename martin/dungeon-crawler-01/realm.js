@@ -182,14 +182,16 @@ function riftSnapshot() {
     objects.push(c);
   }
   return { v: VERSION, w: m.w, h: m.h, t: rle(m.t), b: rle(b), rooms: m.rooms.map(r => ({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.cx, cy: r.cy })), objects,
-    claims: [...(m.claims || [])], mons: G.monsters.filter(q => !q.dead && q.nid && !q.parts).map(monDesc),
+    claims: [...(m.claims || [])], lake: m.lakeRoom ? m.rooms.indexOf(m.lakeRoom) : null, mons: G.monsters.filter(q => !q.dead && q.nid && !q.parts).map(monDesc),
     items: G.items.filter(fi => fi.nid).map(fi => ({ i: fi.nid, o: fi.owner || NET.me, it: itemOut(fi.item), x: fi.x, y: fi.y })) };   // every live monster, with its owner (net.js)
 }
 function buildRiftFromSnap(s) {
   const w = s.w, h = s.h, t = unrle(s.t, w * h);
   const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? T_VOID : t[y * w + x];
   const map = { w, h, t, at, seen: new Uint8Array(w * h), block: unrle(s.b, w * h), rooms: s.rooms, lake: null, lakeRoom: null, claims: new Set(s.claims || [0]) };
-  G.lakeFx = null; G.map = map; G.objects = s.objects; G.monsters = []; G.items = []; G.proj = []; G.fx = []; G.texts = [];
+  G.lakeFx = null; G.map = map;
+  if (s.lake != null) { map.lakeRoom = s.rooms[s.lake]; map.lakeRoom.big = 'lake'; map.lake = lakeGeom(map); }   // the lake: its outline from the water tiles
+  G.objects = s.objects; G.monsters = []; G.items = []; G.proj = []; G.fx = []; G.texts = [];
   stopFireSounds(); G.fires = [];
   const o = G.objects.find(q => q.type === 'portal'), hero = G.hero;
   hero.x = o.x + 1.6 + (rnd() - 0.5) * 1.2; hero.y = o.y + 1.6 + (rnd() - 0.5) * 1.2; hero.dir = 0;   // just come through, beside whoever else did
