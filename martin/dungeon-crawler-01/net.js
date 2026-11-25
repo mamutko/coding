@@ -226,6 +226,7 @@ function netMsg(p, data) {
     case 'ms': netMonStates(p, m); break;
     case 'hit': { const mo = NET.mons.get(m.i); if (mo && !mo.owner) { netTakeHit(mo, m.v, m.c, m.f, p.id); netDot(mo); } break; }
     case 'hx': { const mo = NET.mons.get(m.i); if (mo && !mo.dead) { netSeeHit(mo, m.v, m.c, m.f); netDot(mo); } break; }   // someone else struck it: seen only
+    case 'wk': if (G.map) netWoken(m.a); break;   // another player's monster woke ours near it
     case 'ma': { const mo = NET.mons.get(m.i); if (mo && mo.owner && !mo.dead) { mo.lunge = 1; netDot(mo); } break; }   // its owner says it struck
     case 'sw': { const e = p.hero; if (e) { e.swing = { t: 0, dur: 0.24, ang: m.a, arc: m.r }; e.lunge = 1; sfx('swing', { kind: m.k, x: e.x, y: e.y }); } break; }
     case 'arw': if (G.map) { G.proj.push({ type: 'arrow', x: m.x, y: m.y, vx: m.vx, vy: m.vy, life: m.l, dmg: 0, friendly: true, ghost: true }); if (p.hero) sfx('bow', { x: m.x, y: m.y }); } break;   // seen only
@@ -415,6 +416,14 @@ function netSeeHit(m, v, crit, fire) {   // another player's hero struck a monst
 function netSwing(h) { if (netOn()) netEach({ t: 'sw', a: +h.swing.ang.toFixed(3), r: h.swing.arc, k: weaponOf(h).kind }); }
 function netArrow(a) { if (netOn()) netEach({ t: 'arw', x: +a.x.toFixed(2), y: +a.y.toFixed(2), vx: +a.vx.toFixed(2), vy: +a.vy.toFixed(2), l: +a.life.toFixed(2) }); }
 function netHurt(v, fire) { if (netOn()) netEach({ t: 'hd', v, f: fire ? 1 : 0 }); }
+// One of ours woke (sighting or a hit) next to other players' monsters: the wake rules (WAKES) run here, but those
+// monsters run in their owners' games, so each owner is asked to wake its own (`wk`, one message per owner)
+function netWake(list) {
+  if (!netOn()) return;
+  const by = new Map(); for (const o of list) { if (!by.has(o.owner)) by.set(o.owner, []); by.get(o.owner).push(o.nid); }
+  for (const [ow, a] of by) { const p = NET.peers.get(ow); if (p) netSend(p, { t: 'wk', a }); }
+}
+function netWoken(a) { for (const i of a) { const o = NET.mons.get(i); if (o && !o.owner && !o.dead && o.state === 'idle' && !o.calm) { chase(o); netDot(o); } } }
 function netStrike(m) { if (netOn() && m.nid && !m.owner) netEach({ t: 'ma', i: m.nid }); }   // a monster of ours struck (its lunge)
 function credit(m, who, v) { const c = m.dmgBy || (m.dmgBy = {}), e = c[who] || (c[who] = { v: 0, t: 0 }); e.v += v; e.t = G.time; }
 function netTakeHit(m, v, crit, fire, from) {   // another player's hero struck one of our monsters (already through its armor)
@@ -564,20 +573,21 @@ function netUsed(m) {   // someone opened a chest, broke an urn or searched bone
 // =====================================================================================
 const netDbgOn = () => { const el = document.getElementById('debug'); return !!el && !el.classList.contains('hidden'); };
 function netDot(x) { if (x && x.x != null && G && G.map && netDbgOn()) NET.dots.push({ r: x, t: netNow() }); }
-function drawNetDots() {
-  if (!NET.dots.length) return;
+function drawNetDots() {   // (blue over each monster of ours, under the green; both half see-through, so overlaps show)
   const now = netNow(); NET.dots = NET.dots.filter(d => now - d.t < 200);
-  ctx.save(); ctx.fillStyle = '#35ff5a'; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 1.5;
+  const dot = (r, col) => { const ob = r.type && !r.b && r.fx == null && Number.isInteger(r.x), [sx, sy] = iso(ob ? r.x + 0.5 : r.x, ob ? r.y + 0.5 : r.y);
+    ctx.fillStyle = col; ctx.beginPath(); ctx.arc(sx, sy - (r.b ? 60 : 24), 8, 0, 7); ctx.fill(); ctx.stroke(); };
+  ctx.save(); ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 1.5;
+  for (const m of G.monsters) if (!m.owner && m.nid && !m.dead) dot(m, 'rgba(60,140,255,0.55)');
   const seen = new Set();
-  for (const d of NET.dots) { if (seen.has(d.r)) continue; seen.add(d.r);
-    const ob = d.r.type && !d.r.b && d.r.fx == null && Number.isInteger(d.r.x), [sx, sy] = iso(ob ? d.r.x + 0.5 : d.r.x, ob ? d.r.y + 0.5 : d.r.y);
-    ctx.beginPath(); ctx.arc(sx, sy - (d.r.b ? 60 : 24), 8, 0, 7); ctx.fill(); ctx.stroke(); }
+  for (const d of NET.dots) { if (seen.has(d.r)) continue; seen.add(d.r); dot(d.r, 'rgba(53,255,90,0.55)'); }
   ctx.restore();
 }
-// … and on the minimap (redrawn every 50 ms while there are dots: see update)
+// … and on the minimap (redrawn every 50 ms while there are green dots: see update)
 function drawNetDotsMini(c) {
   const now = netNow(); NET.dots = NET.dots.filter(d => now - d.t < 200);
-  c.fillStyle = '#35ff5a'; for (const d of NET.dots) c.fillRect(d.r.x - 1.5, d.r.y - 1.5, 3, 3);
+  c.fillStyle = 'rgba(60,140,255,0.55)'; for (const m of G.monsters) if (!m.owner && m.nid && !m.dead) c.fillRect(m.x - 1.5, m.y - 1.5, 3, 3);
+  c.fillStyle = 'rgba(53,255,90,0.55)'; for (const d of NET.dots) c.fillRect(d.r.x - 1.5, d.r.y - 1.5, 3, 3);
 }
 function netDbgText() {
   if (!NET.on || !G || !G.rift) return NET.on ? 'net: connecting…' : '';

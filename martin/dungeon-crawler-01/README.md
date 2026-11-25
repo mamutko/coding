@@ -998,6 +998,10 @@ Every monster in the Rift belongs to the player who brought it (`MON_NET` in `ne
   first: a monster whose intent changed (state, path step, target, windup, frozen) at once, the others by how long
   since that player last got it × a weight by its distance from that player's hero (1 within 14 tiles, 0.3 within
   30, 0.05 beyond), none sent again within 60 ms × that weight. Far monsters end up at about one state a second.
+- **Waking** (`alert`, `netWake`): the wake rules (`WAKES`) reach other players' monsters too. When one of ours
+  notices a hero or is hit, idle monsters it would wake that another player owns are woken in that player's game:
+  one `wk` message per owner with their ids, and that game wakes each one still idle and not calm (`netWoken`). (Before
+  v143 only the local copy was set chasing, and the owner's next state put it back to idle.)
 - **Targets** (`pickTarget`): a monster we own goes for one of the heroes in the Rift: the one it is after, while it
   is within 20 tiles and no other is under 60 % as far; when choosing, the nearest it can see within 8.5 tiles, else
   the nearest. (Alone: our hero, as always.)
@@ -2348,6 +2352,8 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
   a message just came about (a state, a hit, a death, a spawn, a drop, a take, an opening) gets a **green dot** for
   0.2 s, over it in the scene (`netDot`, `drawNetDots`) and on the minimap (`drawNetDotsMini`; the minimap is redrawn
   every 50 ms instead of 250 ms while dots show), so you can see what is being updated and how often, near or far.
+  Each monster our game runs has a **blue dot** over it and on the minimap the whole time the panel is open. Both
+  colours are half see-through, so a green dot on one of ours shows over its blue.
 - **Music** (always shown, under the frame rate) — the current mood, file and play number, e.g.
   `music: explore · explore (play 2) · demon level` (see [Music](#music)).
 - **Frame rate** (always shown under the switches) — over the last 2 s: the average frames per second, the

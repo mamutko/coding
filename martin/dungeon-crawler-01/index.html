@@ -438,7 +438,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 142;
+const VERSION = 143;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2590,7 +2590,9 @@ function alert(m, roomWide = false) {
   chase(m);
   const room = roomWide ? roomAt(m.x, m.y) : null;
   const can = (WAKES[m.type] || [[], []])[roomWide ? 1 : 0];
-  for (const o of G.monsters) if (!o.dead && o.state === 'idle' && !o.calm && can.includes(o.type) && (dist(o, m) < 6 || (room && roomAt(o.x, o.y) === room))) chase(o);
+  const far = [];   // (another player's monsters: its own game wakes them, net.js)
+  for (const o of G.monsters) if (!o.dead && o.state === 'idle' && !o.calm && can.includes(o.type) && (dist(o, m) < 6 || (room && roomAt(o.x, o.y) === room))) { if (o.owner) far.push(o); else chase(o); }
+  if (far.length) netWake(far);
 }
 function chase(m) { if (m.state !== 'chase' && !m.dead) { monsterVoice(m, 'alert'); m.voiceT = 2 + rnd() * 4; } m.state = 'chase'; m.lastSeen = G.time; m.stuckT = 0; m.anchor = null; m.calm = null; m.detourT = 0; }
 // Losing interest: back to a random walk. After being stuck (calm) it ignores the hero for at least CALM_MIN s
@@ -5433,7 +5435,7 @@ function render() {
   // post-light overlays: labels, hp bars, floating text
   ctx.setTransform(...baseT);
   drawRemoteLabels();   // the other players' names (net.js)
-  if (netDbgOn()) drawNetDots();   // debug: a green dot where a message just came about a monster or object (net.js)
+  if (G.rift && netDbgOn()) drawNetDots();   // debug: a green dot where a message just came about a monster or object (net.js)
   ctx.textAlign = 'center'; ctx.font = '13px "IM Fell English", serif';
   // floor item labels: outlined in black (no box), in the rarity colour; magic / rare ones by affix tier:
   // tier 1 plain, tier 2 bold, tier 3 bold, larger and glowing in its colour
@@ -5974,7 +5976,7 @@ function updateMinimap() {
   for (const o of G.objects) if (o.type === 'stairs' && m.seen[o.y * m.w + o.x]) { mctx.fillStyle = '#e6c84a'; mctx.fillRect(o.x - 0.5, o.y - 0.5, 2, 2); }
   if (!m.surface) for (const o of G.objects) if (o.type === 'portal') { mctx.fillStyle = '#9a7ae6'; mctx.fillRect(o.x - 1.5, o.y - 1.5, 3, 3); }   // the Rift's way out
   for (const e of G.heroes || []) if (e.remote) { mctx.fillStyle = '#c9b0f0'; mctx.fillRect(e.x - 1, e.y - 1, 2, 2); }   // other players
-  if (NET.dots.length && netDbgOn()) drawNetDotsMini(mctx);   // debug: monsters and objects a message just came about (net.js)
+  if (G.rift && netDbgOn()) drawNetDotsMini(mctx);   // debug: monsters and objects a message just came about (net.js)
   mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.fillStyle = '#ff4030'; mctx.beginPath(); mctx.arc(mm.width / 2, mm.height / 2, 3, 0, 7); mctx.fill();
 }
 // equip-screen portrait: the hero slowly turning through all eight directions
