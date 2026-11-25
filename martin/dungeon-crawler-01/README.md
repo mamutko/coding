@@ -46,9 +46,12 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `assets/grass_a.jpg`, `assets/grass_b.jpg` | 512 px seamless grass textures of the surface (lush dark green; patchy olive meadow). See [The surface](#the-surface-depth-0). |
 | `assets/surface.webp` | The surface's sprites: four bushes, four ground details (flowers, rocks, mushrooms, a grass tuft) and the crypt. Coordinates in `META.surface`. It still holds the four retired small trees (`tree1`–`tree4`: oak, fir, dead tree, birch), no longer used. |
 | `assets/bigtrees.webp` | The surface's trees: five kinds (oak, Scots pine, silver birch, autumn maple, dead tree) in three variants each, each tree as three cropped layers (roots with its cast shadow, trunk, crown), one tree per row. Coordinates in `META.bigtrees`. See [The surface](#the-surface-depth-0), Trees. |
+| `realm.js` | The Rift: its portal and dial on the surface, realm ids and names, the question at the portal, entering and leaving; loaded by `index.html` before its main script. See [The Rift](#the-rift). |
+| `assets/portal.webp` | The Rift portal's three layers: the arch, its platform and the dial. Coordinates in `META.portal`. |
+| `tools/add_portal.py`, `tools/raw/portal.png`, `tools/raw/dial.png` | Cuts the portal picture into the arch and its platform, squashes the dial to the iso ground, finds the vortex, and writes `assets/portal.webp` and `META.portal`. The other candidates are in `assets/unused/portal/`. |
 | `tools/add_bigtree.py`, `tools/raw/bigtree_*.png` | Cuts each big tree into its three layers, sinks its roots into the ground, adds its cast shadow, and writes `assets/bigtrees.webp` and `META.bigtrees` (into `assets/meta.json` and the inline `META`). `bigtree_*_alt.png` are the other candidates, not used. |
 | `tools/add_surface.py`, `tools/raw/grass_a.png`, `grass_b.png`, `trees.png`, `bushes.png`, `crypt.png` | Builds the two grass textures and `assets/surface.webp` from the raw AI images, and writes `META.surface` into `assets/meta.json` and the inline `META`. |
-| `assets/unused/` | AI images and sounds made but not used by the game, kept for later: `keepers-creepy.png` (the first, rejected Keepers of the Crypt); `scrolls/frostscroll-A2`–`A6`, `B1`–`B6` (the eleven scroll of frost designs not picked, keyed, 192 px); `incantations/` (the incantation in six Google voices: Algenib, the male one in use, Charon, Enceladus, Fenrir, Gacrux, Orus; and `incantations/female/`, the female candidates: Kore, Leda, Aoede, Despina, Erinome, Pulcherrima, Sulafat, Vindemiatrix). The five unused fire bomb designs are in `assets/items.webp` (`firebomb2`–`firebomb6`) and `tools/raw/firebombs.png`. Not loaded, and left out of the sandbox artifact. |
+| `assets/unused/` | AI images and sounds made but not used by the game, kept for later: `keepers-creepy.png` (the first, rejected Keepers of the Crypt); `scrolls/frostscroll-A2`–`A6`, `B1`–`B6` (the eleven scroll of frost designs not picked, keyed, 192 px); `incantations/` (the incantation in six Google voices: Algenib, the male one in use, Charon, Enceladus, Fenrir, Gacrux, Orus; and `incantations/female/`, the female candidates: Kore, Leda, Aoede, Despina, Erinome, Pulcherrima, Sulafat, Vindemiatrix); `portal/` (the portal and dial candidates not picked, `portal-alt.webp`, `dial-alt.webp`). The five unused fire bomb designs are in `assets/items.webp` (`firebomb2`–`firebomb6`) and `tools/raw/firebombs.png`. Not loaded, and left out of the sandbox artifact. |
 | `assets/dirt.jpg` | 512 px seamless dirt texture for wall tops and wall faces toward solid ground (from `add_props.py`). |
 | `assets/meta.json` | Frame sizes and atlas coordinates written by the processing script (copied into `META` in `index.html`). |
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
@@ -207,6 +210,9 @@ The picker (*Crypt Sandbox*) groups the scenarios:
     - Four cave spiders and two Pit Demons (no champions) are placed in the room at least 5 tiles from the hero,
       asleep: their calm never ends, so only a hit wakes one. Until then they wander slowly.
     - Shows the draw time and the charge, with room to run.
+- **The Rift:**
+  - **The portal and the dial** (`sbRift`): the test hero (level 12, `maxDepth` 7) on the surface before the portal
+    (`surfAt: 'portal'`), with two common longswords and a rare ruby ring (depth 9) in the pack besides the usual kit.
 - **Crossbows:**
   - **Crossbows** (`sbXbow`, depth 18): the kiting scenario's big room (the same `bigRoom` set-up: grown 1.5×, the
     hero in the middle, only its sleepers) with two skeletons, two ghouls and two Pit Demons asleep. The test hero is
@@ -409,8 +415,11 @@ and the picker shows no saved heroes.
   (see [Scrolls](#scrolls)). Nothing else is saved: not the level layout, and nothing gained or lost partway
   through a level.
 - **`maxDepth`** (saved): the deepest depth the hero has reached (set on descending and on a scroll of return; a
-  save without it takes the depth it resumes at). Not used by the game yet; the planned Rift spawns its monsters by
-  it (see `multiplayer.md`).
+  save without it takes the depth it resumes at). The Rift's monsters are of this depth (see [The Rift](#the-rift)).
+- **`dial`** (saved): the items the hero left on the Rift portal's dial; **`surfAt`** (saved, `'portal'` or none):
+  where on the surface a hero resumed from this save stands (before the portal after entering the Rift, else before
+  the crypt's door). The hero is also saved on entering the Rift (on the surface, before going) and on leaving it;
+  never inside it.
 - **Hero picker** (the title screen): one box per saved hero, most recently saved first, showing name, level
   and depth, then a **New Hero** box. The hero played last (or the newest) is selected at start; the selected
   box is lit (gold border and glow, brighter background, a filled gold diamond), the others are dimmed with an
@@ -731,7 +740,8 @@ freezing.
 A new hero starts on **the surface**, a few steps from the crypt's entrance, on a moonlit night. It is an endless
 grassland with woods, glades, bushes and the crypt building; clicking the crypt's dark doorway takes the hero down to
 depth 1 (`descend`). It has its own music (see [Music](#music)). One person lives there, **Garrick the Hunter**, on
-the lawn by the crypt's door (a story NPC: see [Dialogue](#dialogue)); no monsters, loot or keepers. The level name is *The
+the lawn by the crypt's door (a story NPC: see [Dialogue](#dialogue)); no monsters, loot or keepers. About 50 tiles
+north of the crypt stands the **portal to the Rift** with its dial (see [The Rift](#the-rift)). The level name is *The
 Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going up is todo #11.)
 
 - **Super tiles** (`SURF`): the land is made of squares of `SURF.chunk` (32) tiles, generated from their world
@@ -812,6 +822,73 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
   tiles (7.2 below), and a faint light glows at the crypt's door.
 - **The minimap** shows the grass, trees and bushes as dots, and the crypt.
 - **The doorway** shows *Crypt Entrance — Depth 1* on hover.
+
+## The Rift
+
+The game's planned online co-op mode (`multiplayer.md`, its phases there). Built so far (phase 2): the portal and
+its dial on the surface, and the Rift itself, played alone. The code is in `realm.js` (constants `RIFT`) plus hooks
+in `index.html`.
+
+- **The portal** (`type: 'portal'`) stands on the surface about 50 tiles north of the crypt (screen north: −x −y),
+  its arch on the line of tiles x + y = const, running west–east and facing south, toward the crypt. `RIFT.at` =
+  (−22, −22) is the ground point in the middle of the arch's base line, a tile corner; the line runs through the
+  centres of the arch's four tiles (`portalTiles`): the two outer ones are its **pillars** (blocked), the two middle
+  ones its **gate**. The picture (see [Assets](#assets)) has three layers (`META.portal`, `drawPortal`):
+  - the **platform** (flagstones and two steps spreading south in front of the arch), drawn flat on the ground;
+  - the **arch**, depth-sorted on its base line (key x + y of the ground point), so whoever stands on the
+    platform is drawn over it and whoever walks behind it is hidden by it;
+  - its **vortex** comes alive in code: a slow violet pulse and five faint spiral arms turning, added (`lighter`)
+    inside the opening's ellipse (`META.portal.glow`). The portal lights its surroundings (a light of 5 tiles,
+    breathing) and adds a wide violet glow 180 px up. A violet mark on the minimap.
+  - Clicking the opening walks the hero to just in front of the gate and asks (below). The hover label is
+    "Rift Portal — The Rift of <name>" (on the surface) or "Portal — back to the surface" (in the Rift).
+- **The clearing:** no trees, bushes or ground details within `RIFT.clear` (9) tiles of the arch, within
+  dialR + 4 tiles of the dial, and on a lawn in front of the dial (x + y up to 18 more than the dial's, x − y within
+  9 of its), since tree crowns reach far up the screen.
+- **The dial** (`type: 'dial'`): a flat stone ring in front of the portal (`RIFT.dial` = (−17.4, −17.4), radius
+  `META.portal.dialR` = 2 tiles), drawn on the ground. The items lying on it (`dialItems`: floor items within its
+  radius, in the window or remembered off it) choose **the realm**:
+  - **Realm key** (`realmKey`): each item written out in full except its id (`itemKey`: base, rarity, name,
+    affixes with their keys sorted, count, a scroll of return's depth), the items sorted. Two ordinary items of
+    the same type are identical (common items have no affixes and their base's stats), so friends share a realm
+    with ordinary items; a magic or rare item makes it private.
+  - **Realm id** (`realmOf`): `v<VERSION>-<hash>`, the hash 10 base-32 characters of a 53-bit cyrb53 hash of the
+    key (`realmHash`). An empty dial is the **open Rift**.
+  - **Realm name:** two words picked by the hash from 32 adjectives and 32 nouns (`RIFT_A`, `RIFT_B`), e.g. *Shadowed
+    Maw*, shown in the hover label, the question and the HUD.
+  - **Saved:** the dial's items are the hero's (`hero.dial`, saved: [Saving](#saving)) but not in the pack. They are
+    taken from the dial whenever the hero is saved on the surface and when it leaves the surface (`syncDial`:
+    descending, a scroll of return, the Rift), and laid on the dial again, spread in a ring, whenever the surface
+    is built (`restoreDial`).
+- **The question:** stepping into the gate (`onGate`: between the pillars, across within 1.6 of the middle, and on
+  the base line or up to 1.5 past it; `riftCheck`, every frame) opens a panel (`riftAsk`) once, until the hero
+  steps out again:
+  - outside: "The Rift of <name>", whether the dial is empty (the open Rift) or its items chose the realm, "The Rift
+    lies empty. You will be the first." (no other players yet), the realm id, and that the hero is saved before
+    going and nothing is saved inside. **Enter** / **Stay**.
+  - inside: "Step back through the portal to the surface?" **Leave** / **Stay**.
+- **Entering** (`enterRift`): the dial is read, the hero is saved on the surface (with `surfAt: 'portal'`, so a
+  hero resumed from that save, after closing the tab inside the Rift or dying there, stands before the portal), the
+  level is left as by a scroll (conversation, market and fires closed), and the Rift is built: `G.rift = { id, name,
+  d }` with `d` = the hero's deepest depth reached (`maxDepth`, at least 1), and `G.depth = d`, so monsters, chests
+  and gold are those of depth d. Logged: "You step through the portal into the Rift of <name>." and a reminder that
+  nothing is saved inside.
+- **The Rift's map** (`buildLevel` with `G.rift`): `RIFT.size` (110) tiles a side and `RIFT.rooms` (34) rooms (up to
+  4000 tries), corridors and doors as on any level; no lake, boss room, big room, lone monster, keeper, dragon or
+  stairs. The start room (10 × 10) is in the map's north corner; the **portal back** stands across its corner (its
+  ground point 3 tiles in from the corner), the tiles behind it are walled off, and nothing is placed on its
+  platform. The hero arrives 1.6 tiles in front of it.
+  - **The founder's rooms:** the rooms farthest from the start (by walking distance), as many as a crypt level of
+    depth d has less one (9 + ⌊d / 2⌋ − 1, at most 17), get chests, gold and monsters as on a normal level; the other
+    rooms get only braziers, urns and bones (they are kept for the players who join, in a later phase).
+- **Inside:** the HUD says "The Rift of <name>" and "Monsters of depth d". Nothing is saved (`saveHero` does
+  nothing). Scrolls of surface escape and return do nothing ("The Rift does not let go so easily. Find the
+  portal."). **Death** is the usual death ("You have fallen in the Rift of <name>."): the hero resumes from the save
+  made on entering, before the portal, and loses what it won inside.
+- **Leaving** (`leaveRift`): through the portal, after the question: the surface is built with the hero before the
+  portal (`buildSurface('portal')`), its dial items back on the dial, and the hero is saved.
+- **Monsters' target** (`monTarget`): the hero a monster goes for, for now always the hero; with other players in
+  the Rift it will choose among them.
 
 ## Dungeon generation
 
@@ -2398,6 +2475,22 @@ walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycle
 - **Props** (1536 × 1024): a 4 × 2 grid (closed chest, open chest with glowing gold, arched gothic door in a
   stone frame, descending stairway seen from above, lit brazier, skull-and-bone pile, cracked funeral urn,
   gold coin pile), on magenta.
+- **The Rift portal** (`tools/add_portal.py`, 2026-11-25, ~$0.14): OpenAI `gpt-image-2.6-flare` `edit`, medium, transparent
+  background, with `tools/raw/crypt.png` as the style reference, two candidates each:
+  - `tools/raw/portal.png` (1024 × 1536): "a large ancient portal into another world: a tall arch of massive
+    rune-carved standing stones, broken and mossy, with two thick pillars and a heavy lintel … faces the viewer
+    squarely … the opening filled with a swirling vortex of violet and pale blue magical light … at the back edge of
+    a low semicircular platform of worn flagstones and two shallow steps that spread toward the viewer". Candidate 1
+    picked (it faces the viewer squarely, as a west–east arch must); candidate 2 (turned a little) is
+    `assets/unused/portal/portal-alt.webp`.
+  - `tools/raw/dial.png` (1536 × 1024): "a round stone dial set into the earth … a ring of large worn flagstones
+    carved with glowing faint violet runes and twelve notches like a clock face, and an inner circle of smooth dark
+    polished stone where offerings are laid … completely flat". Candidate 1 picked (nearest the 2:1 iso ellipse);
+    candidate 2 is `assets/unused/portal/dial-alt.webp`.
+  - The cut (`add_portal.py`): the portal at row 1030 (the vortex's bottom, where the pillars stand on the
+    platform): above it the arch, below it the platform; anchor (511, 1030); scaled so the arch's outer width (790
+    raw px) is 4.2 tiles (403 px); sheet at 0.6 of the raw size. The vortex's box comes from its colour (saturated
+    blue-violet pixels). The dial is squashed to a 2:1 ellipse (plus 4 % of rim) 2 tiles in radius (271 px wide).
 - **The surface** (`tools/add_surface.py`, ~$0.39 with a rejected grass):
   - `tools/raw/grass_a.png`: Google `gemini-3.1-flash-image` `edit` (1K, 1:1) with `floor.jpg` as a style
     reference: "lush dark green grass seen from above, short dense blades with small clumps, a few tiny clover leaves".

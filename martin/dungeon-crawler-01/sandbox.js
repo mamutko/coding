@@ -63,6 +63,8 @@
     <h2>Scrolls of travel</h2>
     <button class="sc" id="sbEscape"><b>Surface escape</b>Depth 5 with 2 scrolls of surface escape (key 4) and three skeletons a few steps away, waiting until hit. Press 4: you stand still and read the incantation for 4 s (its words over your head, phrase by phrase, a column of light growing), then you are carried up to the surface before the crypt's door, and the scroll becomes a scroll of return to depth 5. Let the skeletons bring you to 0 life while reading to see the read end in death.</button>
     <button class="sc" id="sbReturn"><b>Scroll of return</b>The surface, before the crypt's door, with a scroll of return to depth 9 (key 4). Press 4: 4 s of reading (a dark swirl sinking into the ground), then you are back at depth 9, newly made, and the scroll is gone.</button>
+    <h2>The Rift</h2>
+    <button class="sc" id="sbRift"><b>The portal and the dial</b>The surface before the Rift's portal (50 tiles north of the crypt), a level 12 hero who has reached depth 7, with two ordinary longswords, health potions and a rare ring in the pack. Drop items on the dial in front of the portal and hover the portal: its label names the realm they choose (the same ordinary items always give the same realm; the rare ring makes it a private one). Walk into the arch and Enter: the Rift, 110 tiles across, its monsters of depth 7 in the rooms farthest from the portal; walk back into the portal there to come out (the sandbox never saves).</button>
     <h2>Crossbows</h2>
     <button class="sc" id="sbXbow"><b>Crossbows</b>Depth 18, in the middle of the level's big room, with the three best ranged weapons: the Gilded Arbalest equipped (key 5: 62–104 a bolt, a long 1.4 s reload), the Heavy Crossbow (key 4) and the War Bow (key 2) to compare. Two skeletons, two ghouls and two Pit Demons sleep around you; a hit wakes one. The bar shows each weapon's damage, reload and draw, the last shot and a tally per weapon. Key 1 is your longsword.</button>
     <h2>Characters</h2>
@@ -196,6 +198,12 @@
     testHero(0); const h = G.hero;
     h.inv[h.inv.indexOf(null)] = makePotion('return', 1, 9); h.hotkeys[3] = { type: 'use', pot: 'return' };
     refreshUI(); start('surface'); log('Test: the scroll of return to depth 9. Press 4 to read it.', POTIONS.return.color);
+  };
+  $('sbRift').onclick = () => {
+    testHero(0); const h = G.hero; h.maxDepth = 7;
+    for (const it of [genItem(3, 0, 'longsword', 'common', 3), genItem(3, 0, 'longsword', 'common', 3), genItem(9, 0, 'rubyring', 'rare', 9)]) h.inv[h.inv.indexOf(null)] = it;
+    G.hero.surfAt = 'portal'; buildLevel(0); G.camSnap = true;
+    refreshUI(); start('surface'); log('Test: the Rift\'s portal. Drop items on the dial to choose a realm; walk into the arch to enter.', '#b49ae6');
   };
   $('sbMarket').onclick = () => {
     for (let i = 0; i < 50; i++) { testHero(6); if (G.objects.some(o => o.type === 'keeper')) break; }
@@ -473,7 +481,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbTrees', 'sbDragon', 'sbChest', 'sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbEscape', 'sbReturn', 'sbXbow', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
+  const SC = ['sbTrees', 'sbDragon', 'sbChest', 'sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbEscape', 'sbReturn', 'sbRift', 'sbXbow', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
   // the same, but the picker covers it); errors thrown later are listed there too

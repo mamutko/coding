@@ -9,9 +9,22 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v132 — the Rift's portal, its dial and the Rift played alone (2026-11-25)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 132`)*
+
+- A stone **portal** with a swirling vortex stands about 50 tiles north of the crypt (new AI art in three layers:
+  the arch, depth-sorted; its platform and a rune **dial** on the ground).
+- Items laid on the dial choose the **realm** (id and a two-word name from their hash: ordinary items give a shared
+  realm, a magic or rare one a private one); they stay on the dial between visits (saved).
+- Walking into the arch asks, then enters **the Rift**: a 110-tile, 34-room dungeon with no stairs, its monsters and
+  loot of the deepest depth reached, in the rooms farthest from the way in; the portal's other end stands in its
+  start room. Saved on entering and on leaving, never inside; death there loses what was won inside.
+- Sandbox: *The portal and the dial*.
+
 ## v131 — the realm key includes affixes (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 131`)*
+Commit: 74268b5
 
 - `multiplayer.md`: the dial's realm key is built from the whole items (affixes, rarity, rolled names), so a magic
   or rare item on the dial opens a private realm; friends share a realm with ordinary items. No game changes.

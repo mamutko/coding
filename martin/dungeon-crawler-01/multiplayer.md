@@ -63,6 +63,12 @@ A use item (an entry in `POTIONS`, like the Scroll of Frost), stacking in the pa
 
 ## 2. The portal and the dial on the surface
 
+**Built in v132** (phase 2, with [§3](#3-the-rift) played alone); `README.md` ([The Rift](README.md#the-rift))
+describes it as built. Where it differs from this design: the realm hash is a 53-bit cyrb53 (synchronous) rather
+than SHA-256; the dial lies at (−17.4, −17.4), clear of the platform's steps; the arch is 4.2 tiles wide; monsters
+do not come back yet (the respawn below is for later); the hero stands before the portal when resumed from the save
+made on entering (`surfAt`).
+
 ### Placement
 
 - A second landmark beside the crypt: `SURF.portal`, about 50 tiles **north** of the crypt (screen up = −x −y), at
@@ -313,8 +319,8 @@ Each phase is one version (or a few), playable at the end.
 | # | Phase | Contents | Status |
 |---|---|---|---|
 | 1 | Surface Escape | the scroll and its return, the 4 s incantation, dying while reading, Garrick's gift, keepers' stock, save after escape, `maxDepth` | done (v130) |
-| 2 | Portal and solo Rift | portal and dial art, placement, dial items saved and hashed into a realm id and name, the Rift's map and its portal, spawning for `maxDepth`, saves on entering and leaving, `G.heroes` refactor | planned |
-| 3 | Seeing each other | Supabase presence and signaling, WebRTC mesh, snapshot (map + heroes), other heroes walking and animating, clock and heartbeat; no combat | planned |
+| 2 | Portal and solo Rift | portal and dial art, placement, dial items saved and hashed into a realm id and name, the Rift's map and its portal, spawning for `maxDepth`, saves on entering and leaving | done (v132) |
+| 3 | Seeing each other | Supabase presence and signaling, WebRTC mesh, snapshot (map + heroes), other heroes walking and animating, clock and heartbeat; no combat; the `G.heroes` refactor (moved here from phase 2: with one hero there was nothing to test it with; phase 2 added the seam, `monTarget`) | planned |
 | 4 | Fighting together | spawning for each joiner, ownership, monster state with intent and prediction, the priority queue, hits both ways, deaths and shared XP | planned |
 | 5 | Loot | ground items, gold and chests decided by their owner, pickup and open requests | planned |
 | 6 | Robustness | hand-over on leaving, hidden tabs and away ghosts, founding race, capacity, TURN relay | planned |
