@@ -279,6 +279,7 @@ const MON_NET = { batch: 25, near: 14, mid: 30, wNear: 1, wMid: 0.3, wFar: 0.05,
 const netOn = () => NET.on && G && G.rift && NET.peers.size > 0;
 function netOwnAll() {   // our monsters, floor items and loot objects (chests, urns, bones, gold) get ids
   for (const m of G.monsters) if (!m.nid) { m.nid = NET.me + '.' + (++NET.monN); NET.mons.set(m.nid, m); }
+  for (const o of G.objects) if (o.gm && !o.guard) o.guard = o.gm.nid;   // a guardian's chest: its boss, by id (realm.js)
   for (const fi of G.items) if (!fi.nid) { fi.nid = NET.me + '.' + (++NET.monN); NET.loot.set(fi.nid, fi); }
   for (const o of G.objects) if (LOOT_OBJ.has(o.type) && !o.nid) { o.nid = NET.me + '.' + (++NET.monN); NET.loot.set(o.nid, o); }
 }
@@ -448,7 +449,7 @@ function netAct(ref) {
   if (x.type === 'gold') { if (!x.asked || G.time - x.asked > 2) { x.asked = G.time; netSendOwner(x, { t: 'take', i: x.nid }); } return true; }
   if (LOOT_OBJ.has(x.type)) {
     if (x.used) return true;
-    if (x.type === 'chest' && x.boss && G.map.boss && !G.map.boss.dead) return false;   // (sealed: act0 says so)
+    if (x.type === 'chest' && chestSealed(x)) return false;   // (sealed: act0 says so)
     if (!x.asked || G.time - x.asked > 2) { x.asked = G.time; netSendOwner(x, { t: 'use', i: x.nid }); }
     return true;
   }

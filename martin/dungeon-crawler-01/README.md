@@ -875,21 +875,38 @@ relay for networks that cannot connect directly (on hold). The code is in `realm
   d }` with `d` = the hero's deepest depth reached (`maxDepth`, at least 1), and `G.depth = d`, so monsters, chests
   and gold are those of depth d. Logged: "You step through the portal into the Rift of <name>." and a reminder that
   nothing is saved inside.
-- **The Rift's map** (`buildLevel` with `G.rift`): `RIFT.size` (110) tiles a side and `RIFT.rooms` (34) rooms (up to
-  4000 tries), corridors and doors as on any level; always a **lake room** in the map's north corner, made as the
-  crypt's (see [Lakes](#lakes): its water, shore, braziers, pillars, wraiths and chest of scrolls of frost; it is
-  the founder's, a claimed room); no boss room, big room, lone monster, keeper, dragon or stairs. The start room
-  (10 × 10) is in the map's **south corner** (3 tiles in from its edges), as far from the lake as the map allows
-  (about 150 steps); the **portal back** stands across the start room's own north corner (its ground point 3
-  tiles in from the corner), the tiles behind it are walled off, and nothing is placed on its platform. The hero
-  arrives 1.6 tiles in front of it. The portal is mirrored in the lake like any prop (`mirrorProp`: its arch).
-  - **The quiet zone:** the `RIFT.quiet` (2) rooms nearest the portal (by walking distance; not the lake) get no
-    chests, gold or monsters, only one warm-up skeleton (never a champion) in the nearer one.
-  - **The founder's rooms:** as many as a crypt level of depth d has less one (9 + ⌊d / 2⌋ − 1, at most 17),
-    **spread evenly** over the other rooms from near to far (`riftSpread`: with the rooms sorted by walking
-    distance, the middle of each of n equal stretches), get chests, gold and monsters as on a normal level. The
-    rooms between them get only braziers, urns and bones: they are kept for the players who join, who spread their
-    own share over the free rooms the same way.
+- **The Rift's map** (`buildLevel` with `G.rift`): a square of `RIFT.size` (110) tiles a side holding
+  `RIFT.rooms` (34) rooms (up to 4000 tries), corridors and doors as on any level, plus a strip `RIFT.band` (36)
+  tiles deep beyond its north-east edge that holds only the lake room (the map is 110 × 146). Four rooms are fixed
+  and placed first:
+  - the **start room** (10 × 10) in the middle of the **north-west edge** (3 tiles in, give or take 3 tiles along
+    it); the **portal back** stands across its own north corner (its ground point 3 tiles in from the corner), the
+    tiles behind it are walled off, and nothing is placed on its platform. The hero arrives 1.6 tiles in front of it;
+  - the **lake room** in the strip, by the other rooms' **east corner** (3 tiles in from the map's east edge), made as
+    the crypt's (see [Lakes](#lakes): its water, shore, braziers, pillars and chest of scrolls of frost). Nothing lies
+    north-west or north-east of it, so its far shores are its own walls, as in the crypt. Its corridors leave it
+    southward from its south corner, never along the strip. The portal is mirrored in the water like any prop
+    (`mirrorProp`: its arch) when seen across it;
+  - the **boss room** (14–16 tiles a side) near the **south corner** (4–10 tiles in from its two edges), with a boss
+    room's braziers, rune circle and the furnishings of depth d (see Bosses), and green banners in the rooms that
+    lead to it;
+  - the **big room** (23–28 tiles a side, about twice a crypt big room's area) in the **middle**, give or take 4
+    tiles, with its two grey banners.
+  The other rooms are placed at random. Corridors are grown out from the start room: each time the room nearest to
+  one already joined is joined to it. No lone monster, keeper, dragon or stairs.
+  - **The great rooms are restocked by everyone** (`riftRestock`, for the founder and for each who joins, at that
+    player's depth d): a group of 8–10 wraiths over the lake (as on a crypt lake), a horde in the big room (twice a
+    crypt big room's pack, skeletons and types of depth d − 4 or earlier, no champions; added to whatever is still
+    there), and in the boss room a **boss of depth d + 1** (its type drawn from those unlocked at d + 2) on the free
+    tile nearest the middle at least 3 tiles from the other bosses, with **its own guardian's chest** against the
+    north-east or north-west wall. Each chest is sealed while its own boss lives (`chestSealed`: `gm`, the boss, for
+    its maker; `guard`, its id, for everyone). They are all claimed rooms, so no one fills them as ordinary rooms.
+  - **The quiet zone:** the `RIFT.quiet` (2) ordinary rooms nearest the portal (by walking distance) get no chests,
+    gold or monsters, only one warm-up skeleton (never a champion) in the nearer one.
+  - **The founder's rooms:** `RIFT.share` (⅓) of the other ordinary rooms (9 of about 28), **spread evenly** over them
+    from near to far (`riftSpread`: with the rooms sorted by walking distance, the middle of each of n equal
+    stretches), get chests, gold and monsters as on a normal level. The rooms between them get only braziers, urns
+    and bones: they are kept for the players who join, each of whom takes ⅓ of those still free (6, 4, 3, 2, …).
 - **Inside:** the HUD says "The Rift of <name>" and "Monsters of depth d". Nothing is saved (`saveHero` does
   nothing). Scrolls of surface escape and return do nothing ("The Rift does not let go so easily. Find the
   portal."). **Death** is the usual death ("You have fallen in the Rift of <name>."): the hero resumes from the save
@@ -953,11 +970,13 @@ Every monster in the Rift belongs to the player who brought it (`MON_NET` in `ne
   (`NET.mons`).
 - **Bringing them:** the founder's are those of its Rift (its rooms: `map.claims`). A **joiner**, once it has the
   snapshot (with every monster already there, each a copy made by `makeMonster` with its type, depth, champion or
-  boss, name and life), brings its own share (`riftJoinSpawn`): as many rooms as a crypt level of its own deepest
-  depth has, less one, spread evenly (`riftSpread`) over the rooms no one has claimed, from near the portal to far, filled as a crypt
+  boss, name and life), brings its own share (`riftJoinSpawn`): `RIFT.share` (⅓) of the ordinary rooms no one has claimed
+  (at least one while any is free), spread evenly (`riftSpread`) over them, from near the portal to far, filled as a crypt
   level's normal rooms (`riftPopulate`: 1 to cap monsters each, types within their room limits, champions with
-  escorts). It claims those rooms and sends `spawn` (the monsters and the rooms) to everyone. Its log: "Your coming
-  woke more of its monsters, deep in rooms no one had claimed."
+  escorts). It also restocks the great rooms (`riftRestock`: wraiths, a horde and its own boss with its chest, at its
+  own depth). It claims its rooms and sends `spawn` (the monsters, the rooms and its chests, gold and the boss's
+  chest with its boss's id) to everyone. Its log: "Your coming woke more of its monsters: in rooms no one had
+  claimed, over the lake, in the great hall, and a new guardian in the boss chamber."
 - **Simulating them:** the owner runs a monster's AI as always. A copy (`remoteMonster`, from `updateMonster`) runs
   none: it is predicted from its owner's last state, carried on along its **intent** (its next path step, or the
   hero it walks straight at, stopping at its reach) at its speed for the time since that state, and eased toward
@@ -1016,7 +1035,7 @@ Floor items, gold, chests, urns and bones in the Rift belong to whoever brought 
 
 #### The lake and its ice
 
-- A joiner's lake comes with the snapshot (`lake`: the lake room's index; its water is in the tiles): it remakes the
+- A joiner's lake comes with the snapshot (each room carries its kind, `big`: the lake, boss and big rooms; its water is in the tiles): it remakes the
   outline from the water (`lakeGeom`), so reflections, drips and ripples work as in the crypt.
 - **A scroll of frost** read in the Rift is sent to the others (`ice`: where it was read and the blast's random
   seed); they make the same ice from the same two (`frostPatch`: the ice's outline, texture, cracks and melt all

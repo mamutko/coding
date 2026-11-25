@@ -6,8 +6,10 @@
 // The portal on the surface: its arch stands on the line of tiles x + y = const, west to east, facing south (toward
 // the crypt); `at` is the ground point in the middle of the arch's base line (world tiles), about 60 tiles north of
 // the crypt. The dial lies in front of it (`dial`, its centre), META.portal.dialR tiles in radius. `clear`: no trees
-// grow within this many tiles of the arch. The Rift: `size` tiles a side, `rooms` rooms.
-const RIFT = { at: [-29, -29], dial: [-23, -23], clear: 9, size: 110, rooms: 34, quiet: 2 };   // quiet: rooms by the Rift's portal left (nearly) empty
+// grow within this many tiles of the arch. The Rift: its rooms `size` tiles a side, `rooms` of them, and a strip `band`
+// tiles deep beyond their north-east edge for the lake; `quiet`: rooms by its portal left (nearly) empty; `share`: the
+// part of the ordinary rooms the founder fills, and each who joins of those still free
+const RIFT = { at: [-29, -29], dial: [-23, -23], clear: 9, size: 110, band: 36, rooms: 34, quiet: 2, share: 1 / 3 };
 
 // The arch's four tiles, from west to east: [x, y, role] with role 'pillar' (blocked) or 'gate'. gx, gy (whole
 // numbers): the ground point in the middle of its base line, which runs through the four tiles' centres.
@@ -117,12 +119,12 @@ async function enterRift() {
   leaveLevel(); sfx('stairs');
   G.rift = { id: r.id, name: r.name, d };
   G.depth = d;
-  if (res && res.role === 'joiner') { buildRiftFromSnap(res.snap); riftJoinSpawn(d); } else { buildLevel(G.depth); netOwnAll(); }
+  if (res && res.role === 'joiner') { buildRiftFromSnap(res.snap); riftJoinSpawn(d); } else { buildLevel(G.depth); riftAdd(riftRestock(d)); netOwnAll(); }
   RA.away = false;   // arrived standing near the portal's gate: no question until the hero has stepped off it
   log('You step through the portal into the Rift of ' + r.name + '.', '#b49ae6');
   if (!res) log('The Rift is silent: no one else can reach you here.', '#a99c86');
   else if (res.role === 'unreachable') log('You could not reach ' + (res.name || 'the others') + ' in this Rift: you are alone in it.', '#e06a5a');
-  else if (res.role === 'joiner') log('Others walk this Rift. Your coming woke more of its monsters, deep in rooms no one had claimed.', '#a99c86');
+  else if (res.role === 'joiner') log('Others walk this Rift. Your coming woke more of its monsters: in rooms no one had claimed, over the lake, in the great hall, and a new guardian in the boss chamber.', '#a99c86');
   log('Monsters here match the deepest depth you have reached (' + G.depth + '). Nothing is saved until you leave through the portal.', '#a99c86');
   refreshUI();
 }
@@ -181,8 +183,8 @@ function riftSnapshot() {
     if (LOOT_OBJ.has(o.type)) c.owner = o.owner || NET.me;   // whose it is, seen from the joiner
     objects.push(c);
   }
-  return { v: VERSION, w: m.w, h: m.h, t: rle(m.t), b: rle(b), rooms: m.rooms.map(r => ({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.cx, cy: r.cy })), objects,
-    claims: [...(m.claims || [])], lake: m.lakeRoom ? m.rooms.indexOf(m.lakeRoom) : null, mons: G.monsters.filter(q => !q.dead && q.nid && !q.parts).map(monDesc),
+  return { v: VERSION, w: m.w, h: m.h, t: rle(m.t), b: rle(b), rooms: m.rooms.map(r => ({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.cx, cy: r.cy, big: r.big || false })), objects,
+    claims: [...(m.claims || [])], mons: G.monsters.filter(q => !q.dead && q.nid && !q.parts).map(monDesc),
     items: G.items.filter(fi => fi.nid).map(fi => ({ i: fi.nid, o: fi.owner || NET.me, it: itemOut(fi.item), x: fi.x, y: fi.y })) };   // every live monster, with its owner (net.js)
 }
 function buildRiftFromSnap(s) {
@@ -190,7 +192,8 @@ function buildRiftFromSnap(s) {
   const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? T_VOID : t[y * w + x];
   const map = { w, h, t, at, seen: new Uint8Array(w * h), block: unrle(s.b, w * h), rooms: s.rooms, lake: null, lakeRoom: null, claims: new Set(s.claims || [0]) };
   G.lakeFx = null; G.map = map;
-  if (s.lake != null) { map.lakeRoom = s.rooms[s.lake]; map.lakeRoom.big = 'lake'; map.lake = lakeGeom(map); }   // the lake: its outline from the water tiles
+  map.lakeRoom = s.rooms.find(r => r.big === 'lake') || null; map.bossRoom = s.rooms.find(r => r.big === 'boss') || null;
+  if (map.lakeRoom) map.lake = lakeGeom(map);   // the lake: its outline from the water tiles
   G.objects = s.objects; G.monsters = []; G.items = []; G.proj = []; G.fx = []; G.texts = [];
   stopFireSounds(); G.fires = [];
   const o = G.objects.find(q => q.type === 'portal'), hero = G.hero;
@@ -203,16 +206,18 @@ function buildRiftFromSnap(s) {
   for (const o of G.objects) if (o.nid) NET.loot.set(o.nid, o);   // chests, urns, bones, gold: their owners grant them
   for (const d of s.items || []) { const fi = { item: d.it, x: d.x, y: d.y, t: rnd() * 6, nid: d.i, owner: d.o }; G.items.push(fi); NET.loot.set(d.i, fi); }
 }
-// A player joining a Rift brings its share of monsters (multiplayer.md §3): as many rooms as a crypt level of its
-// depth has, less one, of the rooms no one has claimed, the farthest from the portal first; tells the others.
+// A player joining a Rift brings its share of monsters (multiplayer.md §3): RIFT.share of the ordinary rooms no one
+// has claimed (at least one while any is free), spread evenly over them from near the portal to far; and it restocks
+// the lake, the big room and the boss room (riftRestock). Tells the others.
 function riftJoinSpawn(d) {
   const m = G.map, o = G.objects.find(q => q.type === 'portal'), dist = bfs(Math.floor(o.fx), Math.floor(o.fy));
-  const free = m.rooms.map((r, i) => i).filter(i => !m.claims.has(i)), n = Math.min(9 + Math.floor(d / 2), 18) - 1;
+  const free = m.rooms.map((r, i) => i).filter(i => !m.claims.has(i) && !m.rooms[i].big);
+  const n = free.length ? Math.max(1, Math.round(free.length * RIFT.share)) : 0;
   const D = i => dist[m.rooms[i].cy * m.w + m.rooms[i].cx] || 0;
   const mine = riftSpread(free.sort((a, b) => D(a) - D(b)), n);   // spread evenly over the free rooms, near to far
-  const mons = riftPopulate(mine.map(i => m.rooms[i]), d), objs = riftFurnish(mine.map(i => m.rooms[i]), d);
-  for (const q of mons) G.monsters.push(q);
-  for (const o of objs) { G.objects.push(o); if (o.block) m.block[o.y * m.w + o.x] = 1; }
+  const more = riftRestock(d);
+  const mons = riftPopulate(mine.map(i => m.rooms[i]), d).concat(more.mons), objs = riftFurnish(mine.map(i => m.rooms[i]), d).concat(more.objs);
+  riftAdd({ mons, objs });
   netOwnAll(); for (const i of mine) m.claims.add(i);
   netEach({ t: 'spawn', a: mons.map(monDesc), rooms: mine, objs: objs.map(o => Object.assign({}, o)) });
 }
@@ -246,6 +251,74 @@ function riftPopulate(rooms, d) {
     }
   }
   return out;
+}
+
+// ---- The three great rooms, restocked by each player who comes in (the founder too), at that player's depth d: a
+// group of wraiths over the lake (LAKE_WRAITHS, as on a crypt lake), a horde in the big room (twice a crypt big room's,
+// as the room is twice the size, however many are in it already) and, in the boss room, a boss of depth d + 1 with a
+// guardian's chest of its own, sealed while that boss lives (gm: the boss; its id, guard, once it has one: netOwnAll).
+// Returns { mons, objs }, not yet in the level (riftAdd).
+function riftRestock(d) {
+  const m = G.map, mons = [], objs = [], room = k => m.rooms.find(r => r.big === k);
+  const used = new Set(G.objects.map(o => o.x + ',' + o.y));
+  const near = (x, y, r) => G.monsters.concat(mons).some(q => !q.dead && Math.hypot(q.x - x, q.y - y) < r);
+  const free = (x, y) => m.at(x, y) === T_FLOOR && !m.block[y * m.w + x] && !used.has(x + ',' + y) && !near(x + 0.5, y + 0.5, 0.9);
+  const inner = r => { for (let k = 0; k < 60; k++) { const x = ri(r.x + 1, r.x + r.w - 2), y = ri(r.y + 1, r.y + r.h - 2);
+    if (free(x, y)) return [x + 0.5 + (rnd() - 0.5) * 0.4, y + 0.5 + (rnd() - 0.5) * 0.4]; } return null; };
+  const typeFor = (pool, cnt, dd) => { for (let k = 0; k < 30; k++) { const t = pick(pool); if ((cnt[t] || 0) < roomLimit(t, dd)) return t; } return 'skeleton'; };
+  const lake = room('lake');
+  if (lake) {   // around a point 45 % of the way from the lake's north corner to its shore, on tiles with water all around
+    const gx = lake.x + (lake.w - LAKE_SHORE) * 0.45, gy = lake.y + (lake.h - LAKE_SHORE) * 0.45, spots = [];
+    for (let y = Math.floor(gy - 7); y <= gy + 7; y++) for (let x = Math.floor(gx - 7); x <= gx + 7; x++) {
+      if (Math.hypot(x + 0.5 - gx, y + 0.5 - gy) > 6.5) continue;
+      let wet = true; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (m.at(x + dx, y + dy) !== T_WATER) wet = false;
+      if (wet) spots.push([x, y]);
+    }
+    for (let n = ri(...LAKE_WRAITHS), k = 0; n > 0 && k < 300 && spots.length; k++) {
+      const [x, y] = pick(spots), px = x + 0.3 + rnd() * 0.4, py = y + 0.3 + rnd() * 0.4;
+      if (near(px, py, k < 150 ? 1.6 : 0.9)) continue;   // (a crowded lake: closer together)
+      const q = makeMonster('wraith', px, py, d, false, false, true); q.lake = true; mons.push(q); n--;
+    }
+  }
+  const hall = room('horde');
+  if (hall) {   // the crypt big room's pack (skeletons x3 and the types of depth d - 4 or earlier, no champions), twice over
+    const pool = []; for (const k in MON) if (k === 'skeleton' || MON[k].minD <= d - 4) for (let i = 0; i < MON[k].w * (k === 'skeleton' ? 3 : 1); i++) pool.push(k);
+    const cnt = {};
+    for (let i = 2 * Math.round((ri(5, 7) + Math.floor((d - 3) / 2)) * 1.5); i > 0; i--) { const p = inner(hall); if (!p) break;
+      const t = typeFor(pool, cnt, d); cnt[t] = (cnt[t] || 0) + 1; mons.push(makeMonster(t, p[0], p[1], d, false, false, true)); }
+  }
+  const br = room('boss');
+  if (br) {
+    // the boss: on the free tile nearest the room's middle at least 3 tiles from every other boss there; its type
+    // drawn by weight from those unlocked at its depth + 1, as a crypt boss's
+    const bd = d + 1, bosses = G.monsters.filter(q => q.boss && !q.dead), mx = br.x + br.w / 2, my = br.y + br.h / 2;
+    let best = null;
+    for (let y = br.y + 1; y < br.y + br.h - 1; y++) for (let x = br.x + 1; x < br.x + br.w - 1; x++) {
+      if (!free(x, y) || bosses.some(q => Math.hypot(q.x - x - 0.5, q.y - y - 0.5) < 3)) continue;
+      const dd = Math.hypot(x + 0.5 - mx, y + 0.5 - my); if (!best || dd < best[2]) best = [x, y, dd];
+    }
+    if (best) {
+      const pool = []; for (const k in MON) if (MON[k].minD <= bd + 1) for (let i = 0; i < MON[k].w; i++) pool.push(k);
+      const boss = makeMonster(pick(pool), best[0] + 0.5, best[1] + 0.5, bd, true); mons.push(boss);
+      // its chest: against the north-east or north-west wall (in view), clear of doorways, a solid wall behind it
+      const spots = [];
+      for (let y = br.y; y <= br.y + br.h - 3; y++) for (let x = br.x; x <= br.x + br.w - 3; x++) {
+        if (x !== br.x && y !== br.y || !free(x, y)) continue;
+        let ok = true;
+        for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const v = m.at(x + dx, y + dy); if (v === T_DOOR || v === T_OPEN) ok = false; }
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = y + dy;
+          if (!(nx >= br.x && nx < br.x + br.w && ny >= br.y && ny < br.y + br.h) && m.at(nx, ny) !== T_WALL) ok = false; }
+        if (ok) spots.push([x, y]);
+      }
+      if (spots.length) { const [x, y] = pick(spots); used.add(x + ',' + y);
+        const c = { type: 'chest', x, y, used: false, block: true, boss: true }; Object.defineProperty(c, 'gm', { value: boss, enumerable: false }); objs.push(c); }
+    }
+  }
+  return { mons, objs };
+}
+function riftAdd({ mons, objs }) {
+  for (const q of mons) G.monsters.push(q);
+  for (const o of objs) { G.objects.push(o); if (o.block) G.map.block[o.y * G.map.w + o.x] = 1; }
 }
 
 // n of a list (sorted near to far) spread evenly over it: the middles of n equal stretches (all of it if n ≥ its length)

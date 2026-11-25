@@ -121,9 +121,11 @@ One image (Gemini, in the style of the crypt building), cut into two parts as wi
 
 ## 3. The Rift
 
-- **One level, no depths, no stairs.** Built by `buildLevel` in a realm mode: about 110 × 110 tiles, 30–40 rooms,
-  the usual corridors and doors, a lake room in the north corner (v138: shared, its ice from a scroll of frost made
-  the same everywhere from a seed), no dragon, no boss room (for now).
+- **One level, no depths, no stairs.** Built by `buildLevel` in a realm mode: 110 × 110 tiles of rooms (34), the
+  usual corridors and doors, no dragon. Fixed rooms (v140): the start room with the portal in the middle of the
+  north-west edge; a lake room (v138: shared, its ice from a scroll of frost made the same everywhere from a seed)
+  in a strip of its own beyond the north-east edge, by the east corner; a boss room near the south corner; a big room
+  (twice a crypt one's area) in the middle.
 - **The portal's other end** stands in the start room. Every player arrives there (spread around it) and **leaves
   only through it**: walking into it takes the hero to the surface in front of the portal.
 - **Saving:** the hero is saved **on entering** (before the transfer, on the surface) and **on leaving** (after
@@ -135,11 +137,13 @@ One image (Gemini, in the style of the crypt building), cut into two parts as wi
 - **Monster and chest depth per player:** `hero.maxDepth` (the deepest depth reached; a new saved field, set on
   arrival at a depth and from `depth` for older saves). A player's monsters are made with `makeMonster(type, x, y,
   maxDepth)` and their chests and drops roll with `maxDepth`'s loot rules.
-- **How much each player brings:** what one crypt level at their depth would hold (its monster count and chests,
-  champions included), spread evenly over the rooms nobody has claimed yet, from near the start room to far (v139;
-  first built farthest-first, which left the rooms by the portal empty). The two rooms nearest the portal are a quiet
-  zone with one warm-up skeleton, and the lake lies in the corner farthest from the portal. The
-  first player also places the static furnishings (props, doors, urns).
+- **How much each player brings:** ⅓ of the ordinary rooms nobody has claimed yet (the first player ⅓ of them all,
+  each who joins ⅓ of what is left: v140; until v139 one crypt level's worth each, which left a lone player's Rift
+  mostly empty and a full one with nothing left to claim), filled as crypt rooms of their depth and spread evenly from
+  near the start room to far (v139). The two rooms nearest the portal are a quiet zone with one warm-up skeleton.
+  Every player, the first included, also **restocks the great rooms** at their own depth: wraiths over the lake, a
+  horde in the big room (however many are still there), and a boss of their depth + 1 with its own guardian's chest
+  in the boss room. The first player also places the static furnishings (props, doors, urns).
 - **Keeping the realm alive:** a player's monsters slowly come back (one every ~20 s, up to their starting number)
   in rooms where no hero has been within 15 tiles for 60 s.
 - Nameplates show a monster's level in the Rift (monsters of different players' depths mix), coloured by how far it

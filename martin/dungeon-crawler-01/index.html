@@ -436,7 +436,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 139;
+const VERSION = 140;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1063,6 +1063,9 @@ const WIDE_ODDS = 0.65, DOOR_ODDS = 0.55;   // corridors 2 tiles wide; doors on 
 const BOSS_ROOM_FROM = 5, BOSS_FROM = 6;   // depth 5's boss room stands empty: a premonition of what is to come;
                                            // depths 1-4 have none, from depth 6 every level has a boss
 const bossRoomAt = d => d === BOSS_ROOM_FROM || d >= BOSS_FROM;
+// A guardian's chest is sealed while its guardian lives: on a crypt level the level's boss; in the Rift its own boss
+// (gm: the boss itself, for whoever made it; guard: its id, for everyone: realm.js riftRestock)
+function chestSealed(o) { if (!o.boss) return false; const g = o.gm || (o.guard ? NET.mons.get(o.guard) : G.map.boss); return !!(g && !g.dead); }
 // The dragon's lair (see README, The dragon): at depth 13 and every 8th depth after it (21, 29, ...) the boss room is a
 // lair of 20-23 tiles a side, and its boss is the dragon, asleep on its hoard.
 const DRAGON_FROM = 13, DRAGON_EVERY = 8;
@@ -2030,31 +2033,43 @@ function drawCrypt(o) {
 // =====================================================================================
 function buildLevel(d) {
   if (d === 0) return buildSurface();
-  // the Rift (G.rift, realm.js): RIFT.size tiles a side, RIFT.rooms rooms, always a lake room in the north corner,
-  // the start room just south-west of it with the portal back across its own north corner; no boss, big room,
-  // keeper or stairs; monsters and loot of depth d
+  // the Rift (G.rift, realm.js): RIFT.size x RIFT.size tiles of rooms, RIFT.rooms of them, plus a strip RIFT.band tiles
+  // deep beyond their north-east edge that holds only the lake room, by their east corner (so nothing lies north-west or
+  // north-east of the lake). Fixed rooms: the start room in the middle of the north-west edge (the portal back across its
+  // own north corner), the boss room near the south corner, the big room (twice a crypt one's area) in the middle; no
+  // keeper or stairs. Its lake's wraiths, the big room's horde and the bosses come from riftRestock (realm.js), once for
+  // each player who comes in; monsters and loot of depth d
   const rift = !!G.rift;
   if (!rift && (dragonAt(d) || dragonAt(d + 1))) loadDragonArt();   // the dragon's art, a depth ahead
   const lakeAt = rift || lakeRoomAt(d);
-  const w = rift ? RIFT.size : Math.min(44 + d * 2, 80) + (lakeAt ? 16 : 0), h = w;
+  const w = rift ? RIFT.size : Math.min(44 + d * 2, 80) + (lakeAt ? 16 : 0), h = rift ? RIFT.size + RIFT.band : w;
+  const top = rift ? RIFT.band : 2;   // the north-east edge of the ordinary rooms (y)
   const t = new Uint8Array(w * h);
   const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? T_VOID : t[y * w + x];
   const rooms = [];
   const want = rift ? RIFT.rooms : Math.min(9 + Math.floor(d / 2), 18) + (lakeAt ? 1 : 0);
   // the lake room's spot (the map's north corner) is kept free from the start, so it always fits
   const lakeR = lakeAt ? { x: 2, y: 2, w: ri(...LAKE_ROOM), h: ri(...LAKE_ROOM) } : null;
-  const riftR = rift ? { x: w - 13, y: h - 13, w: 10, h: 10 } : null;   // (the map's south corner: as far from the lake as it gets)
-  if (riftR) rooms.push(Object.assign(riftR, { cx: riftR.x + 5, cy: riftR.y + 5, big: false }));
+  if (rift) {   // the Rift's fixed rooms, in this order: start, lake, boss, big room
+    lakeR.x = w - lakeR.w - 3;
+    const S = RIFT.size, bs = ri(14, 16), hs = ri(23, 28), mid = S >> 1;
+    const fixed = [{ x: 3, y: top + mid - 9 + ri(-3, 3), w: 10, h: 10, big: false }, null,
+      { x: S - bs - 4 - ri(0, 6), y: top + S - bs - 4 - ri(0, 6), w: bs, h: bs, big: 'boss' },
+      { x: mid - (hs >> 1) + ri(-4, 4), y: top + mid - (hs >> 1) + ri(-4, 4), w: hs, h: hs, big: 'horde' }];
+    for (const r of fixed) if (r) r.cx = r.x + (r.w >> 1), r.cy = r.y + (r.h >> 1);
+    fixed[1] = { x: lakeR.x, y: lakeR.y, w: lakeR.w, h: lakeR.h, cx: lakeR.x + lakeR.w - 3, cy: lakeR.y + lakeR.h - 3, big: 'lake' };
+    rooms.push(...fixed);
+  }
   for (let tries = 0; tries < (rift ? 4000 : 600) && rooms.length < want; tries++) {
     // after the start room come the big rooms of this depth: the boss room (bossRoomAt), then the big room
     // (bigRoomAt). The boss room is 11-14 tiles a side (about 2.8x the area of a normal 5-10 room), the big room
     // 16-20 (about twice the boss room's area)
-    const bigKinds = rift ? ['lake'] : [lakeR && 'lake', bossRoomAt(d) && 'boss', bigRoomAt(d) && 'horde'].filter(Boolean);   // (the Rift: only its lake)
+    const bigKinds = rift ? [] : [lakeR && 'lake', bossRoomAt(d) && 'boss', bigRoomAt(d) && 'horde'].filter(Boolean);   // (the Rift's: placed above)
     const big = rooms.length >= 1 && rooms.length <= bigKinds.length && (tries < 300 || bigKinds[rooms.length - 1] === 'lake') ? bigKinds[rooms.length - 1] : false;
     if (big === 'lake') {   // its "centre" (where corridors lead) is on the dry shore near its south corner
       const r = lakeR; rooms.push({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.x + r.w - 3, cy: r.y + r.h - 3, big }); continue;
     }
-    const [lo, hi] = big === 'horde' ? [16, 20] : big === 'boss' && dragonAt(d) ? [20, 23] : big ? [11, 14] : [5, 10], rw = ri(lo, hi), rh = ri(lo, hi), rx = ri(2, w - rw - 3), ry = ri(2, h - rh - 3);
+    const [lo, hi] = big === 'horde' ? [16, 20] : big === 'boss' && dragonAt(d) ? [20, 23] : big ? [11, 14] : [5, 10], rw = ri(lo, hi), rh = ri(lo, hi), rx = ri(2, w - rw - 3), ry = ri(top, h - rh - 3);
     if (rooms.some(r => rx < r.x + r.w + 3 && rx + rw + 3 > r.x && ry < r.y + r.h + 3 && ry + rh + 3 > r.y)) continue;
     if (lakeR && !rooms.some(r => r.big === 'lake') && rx < lakeR.x + lakeR.w + 3 && rx + rw + 3 > lakeR.x && ry < lakeR.y + lakeR.h + 3 && ry + rh + 3 > lakeR.y) continue;
     rooms.push({ x: rx, y: ry, w: rw, h: rh, cx: rx + (rw >> 1), cy: ry + (rh >> 1), big });
@@ -2068,15 +2083,22 @@ function buildLevel(d) {
   const nearBig = (x, y) => rooms.some(r => r.big && x >= r.x - 3 && x <= r.x + r.w + 2 && y >= r.y - 3 && y <= r.y + r.h + 2);
   const carve = (a, b) => {
     const path = [[a.cx, a.cy]]; links.push([a, b, path]);
-    let x = a.cx, y = a.cy; const hf = rnd() < 0.5, wide = rnd() < WIDE_ODDS;
+    // (the Rift's lake, beyond the other rooms' north-east edge: its corridors run south from it, never along the strip)
+    let x = a.cx, y = a.cy; const hf = rift && a.big === 'lake' ? false : rift && b.big === 'lake' ? true : rnd() < 0.5, wide = rnd() < WIDE_ODDS;
     const lane = (lx, ly) => { if (wide && !nearBig(lx, ly) && lx > 0 && ly > 0 && lx < w - 1 && ly < h - 1) t[ly * w + lx] = T_FLOOR; };
     const stepX = () => { while (x !== b.cx) { x += Math.sign(b.cx - x); t[y * w + x] = T_FLOOR; lane(x, y + 1); path.push([x, y]); } };
     const stepY = () => { while (y !== b.cy) { y += Math.sign(b.cy - y); t[y * w + x] = T_FLOOR; lane(x + 1, y); path.push([x, y]); } };
     if (hf) { stepX(); lane(x + 1, y + 1); stepY(); } else { stepY(); lane(x + 1, y + 1); stepX(); }
   };
-  for (let i = 1; i < rooms.length; i++) {
+  const gap = (a, b) => Math.abs(a.cx - b.cx) + Math.abs(a.cy - b.cy);
+  if (rift) {   // the Rift: grown out from the start room, each time joining the room nearest to those already joined
+    const done = [rooms[0]], left = rooms.slice(1);
+    while (left.length) { let bi = 0, bj = null, bd = 1e9;
+      left.forEach((r, i) => { for (const q of done) { const dd = gap(r, q); if (dd < bd) { bd = dd; bi = i; bj = q; } } });
+      const r = left.splice(bi, 1)[0]; carve(r, bj); done.push(r); }
+  } else for (let i = 1; i < rooms.length; i++) {
     let best = 0, bd = 1e9;
-    for (let j = 0; j < i; j++) { const dd = Math.abs(rooms[i].cx - rooms[j].cx) + Math.abs(rooms[i].cy - rooms[j].cy); if (dd < bd) { bd = dd; best = j; } }
+    for (let j = 0; j < i; j++) { const dd = gap(rooms[i], rooms[j]); if (dd < bd) { bd = dd; best = j; } }
     carve(rooms[i], rooms[best]);
   }
   for (let k = 0; k < 2 + (d >> 2); k++) { const a = pick(rooms), b = pick(rooms); if (a !== b) carve(a, b); }
@@ -2217,14 +2239,15 @@ function buildLevel(d) {
     for (let y = start.y; y < start.y + 9; y++) for (let x = start.x; x < start.x + 9; x++) {   // nothing on the platform in front of the arch
       const s = x + y + 1 - riftPortal.x - riftPortal.y, u = x - y - riftPortal.x + riftPortal.y; if (s >= 0 && s <= 4 && Math.abs(u) <= 4) occ[y * w + x] = 1; }
     objects.push(riftPortal);
-    // the quiet zone: the RIFT.quiet rooms nearest the portal (by walking distance) stay empty but for one warm-up
-    // skeleton; the founder's share, one crypt level's worth of rooms (as many as a level of depth d has, less its
-    // start room), is spread evenly over the others from near to far (riftSpread); the rest wait for those who join
-    const byDist = rooms.slice(1).filter(r => r !== lakeRoom).sort((a, b) => distArr[a.cy * w + a.cx] - distArr[b.cy * w + b.cx]);
+    // the quiet zone: the RIFT.quiet ordinary rooms nearest the portal (by walking distance) stay empty but for one
+    // warm-up skeleton; the founder's share, RIFT.share of the other ordinary rooms, is spread evenly over them from
+    // near to far (riftSpread); the rest wait for those who join (each RIFT.share of what is left: riftJoinSpawn)
+    const byDist = rooms.slice(1).filter(r => !r.big).sort((a, b) => distArr[a.cy * w + a.cx] - distArr[b.cy * w + b.cx]);
     riftQuiet = byDist.slice(0, RIFT.quiet);
-    riftOwn = new Set(riftSpread(byDist.slice(RIFT.quiet), Math.min(9 + Math.floor(d / 2), 18) - 1));
-    map.claims = new Set([0, ...[...riftOwn, ...riftQuiet].map(r => rooms.indexOf(r))]);   // rooms taken (start, quiet zone, ours), by index
-    if (lakeRoom) map.claims.add(rooms.indexOf(lakeRoom));   // the lake (its wraiths and its chest) is the founder's
+    const rest = byDist.slice(RIFT.quiet);
+    riftOwn = new Set(riftSpread(rest, Math.round(rest.length * RIFT.share)));
+    // rooms taken, by index: the start, the lake, boss and big rooms (restocked by everyone), the quiet zone, ours
+    map.claims = new Set([0, ...rooms.filter(r => r.big).map(r => rooms.indexOf(r)), ...[...riftOwn, ...riftQuiet].map(r => rooms.indexOf(r))]);
   } else {
     occ[far.cy * w + far.cx] = 1;
     objects.push({ type: 'stairs', x: far.cx, y: far.cy, used: false, block: false });
@@ -2234,10 +2257,10 @@ function buildLevel(d) {
   // boss room: the largest of the rooms that are neither the start nor the stairs room, preferring rooms far
   // from the start (area x path distance); the boss stands near its middle beside a sealed guardian's chest
   // (fallback if the big room didn't fit: the largest other room, preferring rooms far from the start)
-  const bossRoom = rift || !bossRoomAt(d) ? null : rooms.find(r => r.big === 'boss') || rooms.filter(r => r !== start && r !== far && !r.big)
+  const bossRoom = rift ? rooms.find(r => r.big === 'boss') : !bossRoomAt(d) ? null : rooms.find(r => r.big === 'boss') || rooms.filter(r => r !== start && r !== far && !r.big)
     .sort((a, b) => b.w * b.h * (distArr[b.cy * w + b.cx] + 10) - a.w * a.h * (distArr[a.cy * w + a.cx] + 10))[0] || far;
   // the big room (fallback: the largest remaining room); a lone monster (LONE_AT) gets a random normal room
-  const bigRoom = rift || !bigRoomAt(d) ? null : rooms.find(r => r.big === 'horde') || rooms.filter(r => r !== start && r !== far && r !== bossRoom && r !== lakeRoom)
+  const bigRoom = rift ? rooms.find(r => r.big === 'horde') : !bigRoomAt(d) ? null : rooms.find(r => r.big === 'horde') || rooms.filter(r => r !== start && r !== far && r !== bossRoom && r !== lakeRoom)
     .sort((a, b) => b.w * b.h - a.w * a.h)[0] || null;
   const normalRooms = rooms.filter(r => r !== start && r !== bossRoom && r !== bigRoom && r !== lakeRoom);
   const loneRoom = !rift && LONE_AT[d] && normalRooms.length ? pick(normalRooms) : null;
@@ -2300,7 +2323,7 @@ function buildLevel(d) {
       if (wet) spots.push([x, y]);
     }
     const placed = [];
-    for (let n = ri(...LAKE_WRAITHS), k = 0; n > 0 && k < 200 && spots.length; k++) {
+    for (let n = rift ? 0 : ri(...LAKE_WRAITHS), k = 0; n > 0 && k < 200 && spots.length; k++) {
       const [x, y] = pick(spots), px = x + 0.3 + rnd() * 0.4, py = y + 0.3 + rnd() * 0.4;
       if (placed.some(p => Math.hypot(p[0] - px, p[1] - py) < 1.6)) continue;
       placed.push([px, py]); const m = makeMonster('wraith', px, py, d, false, false, true); m.lake = true; monsters.push(m); n--;
@@ -2343,6 +2366,7 @@ function buildLevel(d) {
         continue;
       }
       for (let n = 0, k = 0; n < 4 && k < 12; k++) if (place('brazier', r, true)) n++;   // at least 4
+      if (rift) continue;   // the Rift: its bosses and their chests come from riftRestock (realm.js), one for each player
       const empty = d < BOSS_FROM;   // depth 3: no boss, guards or loot, only the circle, braziers and furnishings
       if (!empty) place('chest', r, true, { boss: true });
       for (const [t, n] of BOSS_DECOR) if (d >= DECOR_FROM[t]) for (let i = 0; i < n; i++) {
@@ -2374,6 +2398,7 @@ function buildLevel(d) {
     if (r === start || !own) continue;
     const spot = () => { const p = freeInner(r, false); return p && [p[0] + 0.5 + (rnd() - 0.5) * 0.4, p[1] + 0.5 + (rnd() - 0.5) * 0.4]; };
     if (r === loneRoom) { const p = spot(); if (p) monsters.push(makeMonster(LONE_AT[d], p[0], p[1], d, false, false, true)); continue; }
+    if (r === bigRoom && rift) continue;   // the Rift's: its horde comes from riftRestock (realm.js), one for each player
     if (r === bigRoom) {
       // big room: 1.5 x (5-7 monsters, +1 every 2 depths after 3), no champions, only the easier types, those
       // available from depth - 4 or earlier (skeletons always), with skeletons weighted x3
@@ -3430,7 +3455,7 @@ function act0(ref, other = false) {
       if (o.open) return; o.open = true; G.map.t[o.y * G.map.w + o.x] = T_OPEN; sfx('door'); gainXp(d); break;
     case 'chest': {
       if (o.used) return;
-      if (o.boss && G.map.boss && !G.map.boss.dead) { log('The chest is sealed while its guardian lives.', '#7fe08a'); sfx('locked'); return; }
+      if (chestSealed(o)) { log('The chest is sealed while its guardian lives.', '#7fe08a'); sfx('locked'); return; }
       o.used = true; sfx('chest'); if (!other) gainXp((o.boss ? 15 : 6) * d);
       if (o.scrolls) { dropItem(makePotion('frost', o.scrolls), o.x + 0.5, o.y + 0.5); log('The chest holds a bundle of scrolls, cold to the touch.', POTIONS.frost.color); break; }
       if (o.boss) {   // guardian's chest: always one rare (30 %) or magic item, plus a normal chest's loot

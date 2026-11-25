@@ -9,9 +9,20 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v140 — the Rift's new layout: boss room, big room, lake by the east corner, rooms shared by thirds (2026-11-25)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 140`)*
+
+- The portal and start room are back on the north side: in the middle of the Rift's north-west edge.
+- The lake lies beyond the other rooms' north-east edge, by their east corner, with nothing behind it.
+- A boss room near the south corner: everyone who comes in adds a boss one depth above their own, each with its own
+  guardian's chest, sealed until that boss dies.
+- A big room (twice a crypt big room) in the middle: everyone who comes in adds a horde to it, and wraiths to the lake.
+- The first player fills ⅓ of the ordinary rooms, each who joins ⅓ of those left (was one crypt level's worth each).
+
 ## v139 — monsters spread evenly through the Rift, a quiet zone, the lake far away (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 139`)*
+Commit: 0c60439
 
 - Each player's monsters and treasure are spread evenly over the Rift from near the portal to far (they were put
   in the farthest rooms, which left the rooms near the portal empty).
