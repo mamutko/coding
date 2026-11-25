@@ -291,6 +291,11 @@ their parameters; everyone runs the same visual effect; only the owner applies d
 
 ## 7. Leaving, hidden tabs and hand-over
 
+**Built in v137** (phase 6; `README.md`, Playing together: Leaving and hidden tabs). Differences: the handover on
+leaving is decided by the eldest player left and sent to all (so every game agrees), and its monsters wait still
+until then; the leaver's loot goes to the eldest at once (v136). Fire bombs are shared too: only the thrower's game
+burns with its fire, and a companion's fire does not hurt your hero.
+
 - **Leaving** (through the portal, death, or closing the tab: a `leave` event if possible, else the 3 s silence):
   - Monsters the leaver owned that are **fighting** someone pass to the hero they are fighting (its player becomes
     the owner and takes over the AI from the last state).
@@ -336,4 +341,4 @@ Each phase is one version (or a few), playable at the end.
 | 3 | Seeing each other | Supabase presence and signaling, WebRTC mesh, snapshot (map + heroes), other heroes walking and animating, clock and heartbeat; no combat; `G.heroes` (drawing, light and minimap; monsters still go for our own hero only, until phase 4) | done (v133) |
 | 4 | Fighting together | spawning for each joiner, ownership, monster state with intent and prediction, the priority queue, hits both ways, deaths and shared XP | done (v135) |
 | 5 | Loot | ground items, gold and chests decided by their owner, pickup and open requests | done (v136) |
-| 6 | Robustness | hand-over on leaving, hidden tabs and away ghosts, founding race, capacity, TURN relay | planned |
+| 6 | Robustness | hand-over on leaving, hidden tabs and away ghosts, founding race, capacity, TURN relay; shared fire bombs | done (v137), except the TURN relay (on hold) |

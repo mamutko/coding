@@ -436,7 +436,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 136;
+const VERSION = 137;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2654,6 +2654,7 @@ function throwBomb(h, tx, ty) {
   const x0 = h.x + ux * Math.min(0.3, d), y0 = h.y + uy * Math.min(0.3, d);
   G.proj.push({ type: 'bomb', x: x0, y: y0, x0, y0, tx, ty, z: 44, t: 0, dur: 0.3 + d * 0.065, peak: 30 + d * 9, life: 1,
     rot: rnd() * 6, spin: (rnd() < 0.5 ? -1 : 1) * (7 + rnd() * 5) });
+  if (netOn()) netEach({ t: 'bomb', x0, y0, tx, ty, dur: 0.3 + d * 0.065, pk: 30 + d * 9 });   // the others see it fly (net.js)
   sfx('throw');
   if (--st.count <= 0) { h.equip.weapon = null; recalc(); log('That was your last fire bomb. Your hands are empty.', BOMB.color); }
   refreshUI();
@@ -2685,7 +2686,9 @@ function shatter(p, x, y, hard = false) {   // hard: against something solid (a 
   sfx('shatter', { x, y });
   for (let i = 0; i < 12; i++) G.fx.push({ type: 'spark', x, y, vx: (rnd() - 0.5) * 4, vy: (rnd() - 0.5) * 4, z: 8, vz: 50 + rnd() * 90, t: 0, dur: 0.55, color: '150,80,50' });   // terracotta shards
   for (let i = 0; i < 16; i++) { const a = rnd() * 7; G.fx.push({ type: 'spark', x, y, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3, z: 10, vz: 40 + rnd() * 60, t: 0, dur: 0.6, color: '255,190,80' }); }
+  if (p.ghost) return;   // another player's bomb, seen only: its fire comes from its thrower (net.js)
   G.fires.push(newFire(x, y));
+  if (netOn()) netEach({ t: 'fire', x: +x.toFixed(2), y: +y.toFixed(2) });
 }
 // A fire: { x, y, r, t, dur, look, parts }. Its strength I (fireI) is 1 while it burns, rising over the first
 // 0.25 s (with a flare) and falling to 0 over its last FIRE.fade s; flames and smoke are particles in world
@@ -2735,10 +2738,13 @@ function updateFires(dt, hurt) {
   }
   G.fires = G.fires.filter(f => f.t < f.dur + FIRE.scorch);
   if (!hurt) return;
-  burnTick(G.hero, dt, v => damageHero(v, null), 0);
-  for (const m of G.monsters) if (!m.dead) burnTick(m, dt, v => burnMonster(m, v), FIRE.catchMon);
+  // only our own fires burn anything here: another player's fire burns through its thrower's game (the Rift), and a
+  // companion's fire does not hurt our hero (co-op)
+  const own = G.fires.filter(f => !f.owner);
+  burnTick(G.hero, dt, v => damageHero(v, null), 0, own);
+  for (const m of G.monsters) if (!m.dead) burnTick(m, dt, v => burnMonster(m, v), FIRE.catchMon, own);
 }
-const inFire = e => G.fires.some(f => f.t < f.dur && (e.parts ? e.parts.some(p => Math.hypot(p.x - f.x, p.y - f.y) < f.r + p.r * 0.5) : Math.hypot(e.x - f.x, e.y - f.y) < f.r + e.r * 0.5));
+const inFire = (e, fires = G.fires) => fires.some(f => f.t < f.dur && (e.parts ? e.parts.some(p => Math.hypot(p.x - f.x, p.y - f.y) < f.r + p.r * 0.5) : Math.hypot(e.x - f.x, e.y - f.y) < f.r + e.r * 0.5));
 // Burning: a creature in a fire burns at FIRE.dps, and goes on burning for FIRE.after s after it steps out
 // (e.burnLeft; a fire touched again restarts the 10 s) at FIRE.afterDps. Nothing stacks: in two fires, or in a
 // fire while still burning, it is FIRE.dps. Damage comes in ticks of FIRE.tick s: the first at once on catching
@@ -2746,8 +2752,8 @@ const inFire = e => G.fires.some(f => f.t < f.dur && (e.parts ? e.parts.some(p =
 // out exactly (the afterburn: 2.5 per tick, 50 in all). While not burning the timer refills, so it never burns faster.
 // catchT: how long it must stand in a fire without a break to catch fire (monsters FIRE.catchMon, the hero 0);
 // before that the fire hurts it, but it stops burning as soon as it steps out (an earlier burn runs on).
-function burnTick(e, dt, hit, catchT) {
-  e.inFire = inFire(e); e.fireT = e.inFire ? (e.fireT || 0) + dt : 0;
+function burnTick(e, dt, hit, catchT, fires) {
+  e.inFire = inFire(e, fires); e.fireT = e.inFire ? (e.fireT || 0) + dt : 0;
   if (e.inFire && e.fireT >= catchT) e.burnLeft = FIRE.after; else if (e.burnLeft > 0) e.burnLeft = Math.max(0, e.burnLeft - dt);
   e.burning = e.inFire || e.burnLeft > 0;
   e.burnAcc = (e.burnAcc ?? FIRE.tick) + dt;
@@ -5693,6 +5699,7 @@ function drawChar(e, isHero) {
   let sy = sy0, alpha = 1;
   if (!isHero && e.dead) { alpha = Math.max(0, 1 - e.deathT / 1.1); sy += e.deathT * 14; }
   if (isHero && !e.remote && G.dead) { alpha = Math.max(0, 1 - G.deadT / 1.1); sy += Math.min(G.deadT, 1.1) * 14; }   // fades like a slain monster
+  if (e.remote && e.away) alpha *= 0.4;   // another player away (its tab hidden): a ghost
   const held = !isHero && frozenHeld(e), fl = isHero ? MON[sheet] && MON[sheet].float : e.b.float;
   if (fl) sy -= held ? e.frozen.lift : 8 + Math.sin(G.time * 3 + e.x) * 4;
   // standing on lake ice: LAKE.drop px lower, at the water's level (eased, a step down onto the ice)

@@ -9,9 +9,20 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v137 — handover, hidden tabs and shared fire bombs in the Rift (2026-11-25)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 137`)*
+
+- A player leaving hands its monsters over: one fighting someone passes to that player, the rest fade away (the
+  player in the Rift longest decides, for everyone).
+- A hidden tab hands its monsters over at once and its hero is "away" (faded, left alone); back within 60 s it plays
+  on, else it leaves the Rift (saved before the portal).
+- Fire bombs are seen by all; only the thrower's fire burns (monsters through their owners), and a companion's fire
+  does not hurt your hero.
+
 ## v136 — shared loot in the Rift (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 136`)*
+Commit: a4ed4a0
 
 - Everything that drops in the Rift (from monsters, chests, urns, bones, or a player's pack) is seen by everyone and
   belongs to whoever dropped it; the chests, urns, bones and gold of each player's rooms likewise. A player joining

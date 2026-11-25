@@ -826,9 +826,10 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
 
 ## The Rift
 
-The game's online co-op mode (`multiplayer.md`, its phases there). Built so far (phases 2–5): the portal and its
-dial on the surface, the Rift itself, players in the same realm seeing each other, their monsters shared and fought
-together, and their loot shared. The code is in `realm.js` (constants `RIFT`) and `net.js` (`NET_CFG`), plus hooks in `index.html`.
+The game's online co-op mode (`multiplayer.md`, its phases there). Built (phases 2–6): the portal and its dial on
+the surface, the Rift itself, players in the same realm seeing each other, their monsters shared and fought together,
+their loot and fire bombs shared, and monsters handed over when a player leaves or hides its tab. Not built: a TURN
+relay for networks that cannot connect directly (on hold). The code is in `realm.js` (constants `RIFT`) and `net.js` (`NET_CFG`), plus hooks in `index.html`.
 
 - **The portal** (`type: 'portal'`) stands on the surface about 60 tiles north of the crypt (screen north: −x −y),
   its arch on the line of tiles x + y = const, running west–east and facing south, toward the crypt. `RIFT.at` =
@@ -934,8 +935,7 @@ shared project, its public key; no table) and then talk directly over **WebRTC**
   life bar over its head (`drawRemoteLabels`), and a dot on the minimap.
 - **Leaving:** through the portal, by dying, or by starting another game, the hero says `bye` and leaves the
   channel (`netLeave`); closing the page sends `bye` too. A player silent for 3 s (`drop`) is gone. Either way the
-  others' log says "<name> has left the Rift." and its monsters vanish with it ("The Rift reclaims its own: their
-  monsters fade away."; handing them over is a later phase).
+  others' log says "<name> has left the Rift." and its monsters are handed over (below).
 
 #### Monsters
 
@@ -1006,6 +1006,31 @@ Floor items, gold, chests, urns and bones in the Rift belong to whoever brought 
     nothing.
 - **A player leaving** leaves its loot behind, passed to the player in the Rift longest (`netElder`, from each
   player's `since`; everyone works out the same one).
+
+#### Fire bombs
+
+- A bomb thrown in the Rift is sent to the others (`bomb`: where from and to, its flight time and arc), who see it
+  fly; theirs is seen only (`ghost`): where it lands it breaks without a fire.
+- The thrower's fire is sent when its bomb breaks (`fire`: where); the others light the same fire, marked as the
+  thrower's (`f.owner`).
+- **Only one's own fires burn anything** in one's game (`updateFires`: `burnTick` with our fires only): a monster
+  in our fire burns as always if it is ours, and another player's monster in our fire is hurt through its owner
+  (`hit` with fire), so no monster burns twice. Another player's fire does not hurt our hero (co-op); our own still
+  does.
+
+#### Leaving and hidden tabs
+
+- **Handover** (`netHandover`, `netApplyHandover`): when a player leaves (`bye`, 3 s of silence), its monsters stand
+  still (`orphan`) while the player in the Rift longest (`netElder`, after the leaver is gone) decides for everyone:
+  a monster chasing a hero still in the Rift passes to that hero's player, who runs it from where it stands ("A
+  monster that was after you is yours to fight now."); the rest fade away ("The Rift reclaims its own: N monsters
+  fade away."). The decision (`handover`) goes to everyone. An orphan with no decision after 4 s fades.
+- **A hidden tab** (`visibilitychange`, `netHide`) gets no frames, so it cannot run its monsters: it hands them all
+  over at once (one chasing another player's hero to that player, the rest to the eldest of the others). Its hero is
+  **away**: its states say so (still sent from the timer, about once a second in a background tab), the others draw
+  it faded (40 %), their monsters leave it alone (`pickTarget`) and their blows on it are ignored. Back within 60 s
+  (`NET_CFG.away`), it plays on (the monsters stay where they went). Hidden longer: "The Rift let you go." and it
+  leaves the Rift (`leaveRift`: before the portal, saved).
 
 ## Dungeon generation
 

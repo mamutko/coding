@@ -16,7 +16,8 @@ const NET_CFG = {
   rate: 66,          // ms between state messages (about 15 a second; also the heartbeat)
   drop: 3000,        // ms of silence after which a peer counts as gone
   ping: 2000,        // ms between clock pings
-  delay: 100,        // ms other heroes are drawn in the past (interpolated between their states)
+  delay: 100,
+  away: 60000,       // ms a hidden tab stays in the Rift (its hero away) before it leaves        // ms other heroes are drawn in the past (interpolated between their states)
   chunk: 16000,      // characters per snapshot piece
 };
 const NET = { loot: new Map(), mons: new Map(), monN: 0, sb: null, libP: null, ch: null, topic: null, me: null, since: 0, peers: new Map(), on: false, timer: null, snapIn: null };
@@ -127,10 +128,43 @@ function netDropPeer(p, quiet) {
   p.hero = null;
   // its loot passes to the eldest player left (everyone works out the same one)
   if (G && G.rift) { const el = netElder(); for (const x of NET.loot.values()) if (x.owner === p.id) x.owner = el === NET.me ? undefined : el; }
-  // its monsters go with it (multiplayer.md §7: handing them over comes later)
-  if (G && G.monsters) { const n = G.monsters.length; G.monsters = G.monsters.filter(m => m.owner !== p.id); for (const [k, m] of NET.mons) if (m.owner === p.id) NET.mons.delete(k);
-    if (G.monsters.length < n && G.rift) log('The Rift reclaims its own: their monsters fade away.', '#a99c86'); }
+  // its monsters: the eldest player left decides for everyone (handover): one fighting a hero still here passes to
+  // that hero's player, the rest fade away. Until the decision comes they stand still (orphans).
+  if (!quiet && G && G.rift && G.monsters) {
+    const mine = G.monsters.filter(m => m.owner === p.id && !m.dead); for (const m of mine) m.orphan = netNow();
+    if (mine.length && netElder() === NET.me) netHandover(mine.map(m => [m.nid, m.state === 'chase' && m.tg && (m.tg === NET.me || NET.peers.has(m.tg)) ? m.tg : null]));
+  }
 }
+// Handing monsters over (multiplayer.md §7): [[id, new owner or null (fades away)], …], applied here and sent to all
+function netHandover(a) { netEach({ t: 'handover', a }); netApplyHandover(a); }
+function netApplyHandover(a) {
+  let faded = 0, ours = 0;
+  for (const [i, o] of a) {
+    const m = NET.mons.get(i); if (!m || m.dead) continue; m.orphan = null;
+    if (o === null) { m.dead = true; m.deathT = 0; m.faded = true; NET.mons.delete(i); faded++; }
+    else if (o === NET.me) {   // ours now: its AI runs here, from where it stands, after whoever it was after
+      delete m.owner; m.path = []; m.repath = 0; m.cd = Math.max(m.cd, 0.6); m.windup = 0; if (m.state !== 'chase') chase(m); ours++;
+      if (m.tg) m.tgt = heroById(m.tg); }
+    else { if (!m.owner) { m.ax = m.x; m.ay = m.y; m.at = netNow(); m.tx = m.ty = m.tg = null; m.sp = 0; } m.owner = o; }   // (one of ours handed away: a copy now)
+  }
+  if (faded && G.rift) log('The Rift reclaims its own: ' + (faded === 1 ? 'a monster fades' : faded + ' monsters fade') + ' away.', '#a99c86');
+  if (ours && G.rift) log((ours === 1 ? 'A monster that was after you is' : ours + ' monsters that were after you are') + ' yours to fight now.', '#a99c86');
+}
+// Our tab hidden: a hidden tab cannot run its monsters, so it hands them all over at once (those fighting another
+// hero to that hero's player, the rest to the eldest of the others); our hero is "away" (faded, left alone) until
+// we come back; after NET_CFG.away ms it leaves the Rift (netTick).
+function netHide(hidden) {
+  if (!NET.on || !G || !G.rift) return;
+  if (hidden) {
+    if (NET.awaySince) return; NET.awaySince = netNow();
+    const others = [...NET.peers.values()]; if (!others.length) return;
+    let el = null, es = Infinity; for (const q of others) { const sn = q.info && q.info.since; if (sn != null && sn < es) { es = sn; el = q.id; } }
+    if (!el) el = others[0].id;
+    const a = G.monsters.filter(m => !m.owner && m.nid && !m.dead).map(m => { const t = tgtId(m.tgt); return [m.nid, m.state === 'chase' && t && t !== NET.me && NET.peers.has(t) ? t : el]; });
+    if (a.length) netHandover(a);
+  } else NET.awaySince = 0;
+}
+document.addEventListener('visibilitychange', () => netHide(document.hidden));
 
 // ---- Messages
 function netHello(p) {
@@ -162,7 +196,10 @@ function netMsg(p, data) {
     case 'frz': { const mo = NET.mons.get(m.i); if (!mo || mo.dead) break; freezeMonster(mo, m.dl, m.du);
       if (!mo.owner) for (const q of NET.peers.values()) if (q !== p) netSend(q, m);   // ours: tell the others too
       break; }
-    case 'hh': if (G.rift && !G.dead) damageHero(m.v, { lvl: m.lvl }); break;   // one of their monsters struck our hero
+    case 'hh': if (G.rift && !G.dead && !NET.awaySince) damageHero(m.v, { lvl: m.lvl }); break;   // one of their monsters struck our hero
+    case 'handover': netApplyHandover(m.a); break;
+    case 'bomb': G.proj.push({ type: 'bomb', x: m.x0, y: m.y0, x0: m.x0, y0: m.y0, tx: m.tx, ty: m.ty, z: 44, t: 0, dur: m.dur, peak: m.pk, life: 1, rot: rnd() * 6, spin: 8, ghost: true }); break;   // seen only
+    case 'fire': if (G.map) { const f = newFire(m.x, m.y); f.owner = p.id; G.fires.push(f); } break;   // its thrower decides what it burns
     case 'drop': netGotDrop(m, p.id); break;
     case 'take': netTakeReq(m, p); break;
     case 'took': netTook(m); break;
@@ -180,7 +217,10 @@ function netTick() {
   if (!G || !G.rift || G.dead) { netLeave(); return; }   // died, or left for another game: out of the realm
   const h = G.hero, now = netNow();
   const st = { t: 'st', c: now, x: +h.x.toFixed(3), y: +h.y.toFixed(3), d: h.dir, m: h.moving ? 1 : 0, hp: Math.round(h.hp), mh: Math.round(h.st.maxHp),
-    dy: h.dyingT != null ? 1 : 0, l: h.look || 'hero', lv: h.lvl };
+    dy: h.dyingT != null ? 1 : 0, l: h.look || 'hero', lv: h.lvl, aw: NET.awaySince ? 1 : 0 };
+  if (NET.awaySince && now - NET.awaySince > NET_CFG.away) {   // away too long: out of the Rift (saved on the surface)
+    NET.awaySince = 0; log('The Rift let you go.', '#b49ae6'); leaveRift(); return; }
+  for (const m of G.monsters) if (m.orphan && now - m.orphan > 4000) { m.orphan = null; m.dead = true; m.deathT = 0; m.faded = true; NET.mons.delete(m.nid); }   // no decision came: it fades
   for (const p of [...NET.peers.values()]) {
     if (now - p.last > NET_CFG.drop && (p.hero || now - p.last > NET_CFG.connectWait)) { netDropPeer(p); continue; }
     netSend(p, st);
@@ -201,7 +241,7 @@ function remoteHero(p, m) {
 function remoteState(p, m) {
   const e = p.hero; e.buf.push(m); if (e.buf.length > 30) e.buf.shift();
   e.hp = m.hp; e.maxHp = m.mh; e.lvl = m.lv; if (m.l !== e.look) { e.look = m.l; if (m.l !== 'hero') loadCast(m.l); }
-  e.dyingT = m.dy ? 0.5 : null;
+  e.dyingT = m.dy ? 0.5 : null; e.away = !!m.aw;
 }
 function netFrame(dt) {   // every frame: move the other heroes to where they were NET_CFG.delay ms ago (their clock)
   if (!G || !G.heroes) return;
@@ -297,6 +337,7 @@ function monReckon(m, t) {   // its state's position carried on along its intent
 function remoteMonster(m, dt) {   // called from updateMonster for a monster another player owns
   m.hitT = Math.max(0, m.hitT - dt); m.lunge = Math.max(0, m.lunge - dt * 4);
   if (m.dead) { m.deathT += dt; return; }
+  if (m.orphan) { m.moving = false; return; }   // its owner left: it waits for the handover
   if (m.thaw > 0) m.thaw -= dt;
   if (frozenTick(m, dt)) return;
   if (m.ax == null) return;
@@ -342,7 +383,7 @@ function netRemoteDied(m, xp) {   // a monster another player owns died (its own
 // tiles), unless another is less than 60 % as far; when choosing, the nearest it can see within 8.5 tiles, else
 // the nearest. Our own hero when alone.
 function pickTarget(m) {
-  const hs = G.heroes.filter(e => e === G.hero ? !G.dead : e.remote);
+  const hs = G.heroes.filter(e => e === G.hero ? !G.dead && !NET.awaySince : e.remote && !e.away);   // (an away hero is left alone)
   if (!hs.length) return G.hero;
   if (hs.length === 1) return hs[0];
   const d = e => Math.hypot(e.x - m.x, e.y - m.y);
