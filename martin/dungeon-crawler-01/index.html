@@ -438,7 +438,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 141;
+const VERSION = 142;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -4404,7 +4404,7 @@ function update(dt) {
   updateFires(dt, true);
   for (const fi of G.items) fi.t += dt;
   updateFx(dt);
-  G.miniT -= dt; if (G.miniT <= 0) { G.miniT = 0.25; updateMinimap(); }
+  G.miniT -= dt; if (G.miniT <= 0) { G.miniT = NET.dots.length ? 0.05 : 0.25; updateMinimap(); }   // (faster while debug dots show)
 }
 function updateFx(dt) {
   for (const f of G.fx) { f.t += dt; if (f.type === 'spark') { f.x += f.vx * dt; f.y += f.vy * dt; f.z += f.vz * dt; f.vz -= 300 * dt; } }
@@ -5974,6 +5974,7 @@ function updateMinimap() {
   for (const o of G.objects) if (o.type === 'stairs' && m.seen[o.y * m.w + o.x]) { mctx.fillStyle = '#e6c84a'; mctx.fillRect(o.x - 0.5, o.y - 0.5, 2, 2); }
   if (!m.surface) for (const o of G.objects) if (o.type === 'portal') { mctx.fillStyle = '#9a7ae6'; mctx.fillRect(o.x - 1.5, o.y - 1.5, 3, 3); }   // the Rift's way out
   for (const e of G.heroes || []) if (e.remote) { mctx.fillStyle = '#c9b0f0'; mctx.fillRect(e.x - 1, e.y - 1, 2, 2); }   // other players
+  if (NET.dots.length && netDbgOn()) drawNetDotsMini(mctx);   // debug: monsters and objects a message just came about (net.js)
   mctx.setTransform(1, 0, 0, 1, 0, 0); mctx.fillStyle = '#ff4030'; mctx.beginPath(); mctx.arc(mm.width / 2, mm.height / 2, 3, 0, 7); mctx.fill();
 }
 // equip-screen portrait: the hero slowly turning through all eight directions

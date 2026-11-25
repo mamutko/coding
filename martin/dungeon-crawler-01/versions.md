@@ -9,9 +9,9 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v141 — the whole fight seen by everyone, reconnecting instead of splitting, multiplayer debug (2026-11-25)
+## v141–v142 — the whole fight seen by everyone, reconnecting instead of splitting, multiplayer debug (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 141`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 142`)*
 
 - In the Rift, every player sees the others' sword swings, arrows, monster blows and wraith bolts, and every damage
   number: on monsters, whoever struck them, and over heroes that are hurt.
@@ -19,7 +19,7 @@ Commit: *(the next version records it; until then, the latest commit that set `V
   instead of carrying on as two separate games. Only after 30 s lost (or 10 s after closing the tab) has that player left.
 - The debug overlay (Ctrl+D) lists each player in the Rift: ping, monsters and objects it runs, messages, failed
   sends, late heartbeats, losses and reconnects; and a green dot flashes on each monster or object a message just
-  came about.
+  came about, in the scene and on the minimap (v142: bigger in the scene, and on the minimap too).
 
 ## v140 — the Rift's new layout: boss room, big room, lake by the east corner, rooms shared by thirds (2026-11-25)
 

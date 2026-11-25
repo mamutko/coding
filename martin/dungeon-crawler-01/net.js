@@ -571,8 +571,13 @@ function drawNetDots() {
   const seen = new Set();
   for (const d of NET.dots) { if (seen.has(d.r)) continue; seen.add(d.r);
     const ob = d.r.type && !d.r.b && d.r.fx == null && Number.isInteger(d.r.x), [sx, sy] = iso(ob ? d.r.x + 0.5 : d.r.x, ob ? d.r.y + 0.5 : d.r.y);
-    ctx.globalAlpha = 1 - (now - d.t) / 250; ctx.beginPath(); ctx.arc(sx, sy - (d.r.b ? 60 : 24), 5, 0, 7); ctx.fill(); ctx.stroke(); }
+    ctx.beginPath(); ctx.arc(sx, sy - (d.r.b ? 60 : 24), 8, 0, 7); ctx.fill(); ctx.stroke(); }
   ctx.restore();
+}
+// … and on the minimap (redrawn every 50 ms while there are dots: see update)
+function drawNetDotsMini(c) {
+  const now = netNow(); NET.dots = NET.dots.filter(d => now - d.t < 200);
+  c.fillStyle = '#35ff5a'; for (const d of NET.dots) c.fillRect(d.r.x - 1.5, d.r.y - 1.5, 3, 3);
 }
 function netDbgText() {
   if (!NET.on || !G || !G.rift) return NET.on ? 'net: connecting…' : '';

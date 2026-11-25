@@ -2345,8 +2345,9 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
   trip), how many live monsters and objects (chests, urns, bones, gold and floor items not yet taken) it runs, and
   its messages in and out, failed sends (its connection not open), late heartbeats (more than 464 ms between two of
   its states), losses, recoveries, redials and when it was last heard. While the panel is open, each monster or object
-  a message just came about (a state, a hit, a death, a spawn, a drop, a take, an opening) gets a **green dot** over
-  it for 0.2 s (`netDot`, `drawNetDots`), so you can see what is being updated and how often.
+  a message just came about (a state, a hit, a death, a spawn, a drop, a take, an opening) gets a **green dot** for
+  0.2 s, over it in the scene (`netDot`, `drawNetDots`) and on the minimap (`drawNetDotsMini`; the minimap is redrawn
+  every 50 ms instead of 250 ms while dots show), so you can see what is being updated and how often, near or far.
 - **Music** (always shown, under the frame rate) — the current mood, file and play number, e.g.
   `music: explore · explore (play 2) · demon level` (see [Music](#music)).
 - **Frame rate** (always shown under the switches) — over the last 2 s: the average frames per second, the
