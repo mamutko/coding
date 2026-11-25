@@ -193,8 +193,13 @@ No database table. The existing Supabase project (the one `worm-03` uses), its p
   without that player.
 - **Clock:** each pair exchanges pings every 2 s; each side keeps the round-trip time and the offset to the other's
   `G.time`, smoothed. Every state message carries the sender's time.
-- **Heartbeat:** a state message at least once a second. No message from a peer for 3 s: it is **gone** (as if it
-  left, [§7](#7-leaving-hidden-tabs-and-hand-over)).
+- **Heartbeat:** a state message at least once a second. No message from a peer for 3 s: it is **lost** (v141):
+  the younger of the two dials again every 3 s, and once back the two exchange their live monsters (`sync`). Lost for
+  30 s, or for 10 s after leaving the presence list, it is **gone** (as if it left,
+  [§7](#7-leaving-hidden-tabs-and-hand-over)). (Before v141, 3 s of silence was gone, and a short hiccup split the
+  realm into two games for good.)
+- **Seen-only events** (v141): sword swings, arrows, monster blows and bolts, and every damage number (on monsters
+  and on heroes) are sent to everyone, so each player sees the whole fight; only the owner applies anything.
 - **Messages** are JSON with short keys (switch to binary later if needed).
 
 ### Snapshot for a joiner
@@ -303,7 +308,7 @@ leaving is decided by the eldest player left and sent to all (so every game agre
 until then; the leaver's loot goes to the eldest at once (v136). Fire bombs are shared too: only the thrower's game
 burns with its fire, and a companion's fire does not hurt your hero.
 
-- **Leaving** (through the portal, death, or closing the tab: a `leave` event if possible, else the 3 s silence):
+- **Leaving** (through the portal, death, or closing the tab: a `leave` event if possible, else lost for 30 s, or 10 s once out of the presence list):
   - Monsters the leaver owned that are **fighting** someone pass to the hero they are fighting (its player becomes
     the owner and takes over the AI from the last state).
   - Its other monsters fade out ("The Rift reclaims its own.").

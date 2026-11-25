@@ -958,8 +958,19 @@ shared project, its public key; no table) and then talk directly over **WebRTC**
   like our hero (its look, its dying glow), with a light of its own (5.5 tiles), its name in pale violet and a small
   life bar over its head (`drawRemoteLabels`), and a dot on the minimap.
 - **Leaving:** through the portal, by dying, or by starting another game, the hero says `bye` and leaves the
-  channel (`netLeave`); closing the page sends `bye` too. A player silent for 3 s (`drop`) is gone. Either way the
-  others' log says "<name> has left the Rift." and its monsters are handed over (below).
+  channel (`netLeave`); closing the page sends `bye` too. Either way the others' log says "<name> has left the
+  Rift." and its monsters are handed over (below).
+- **Losing touch and reconnecting** (`netTick`, `netRedial`, `netSync`): a player silent for 3 s (`drop`: a network
+  hiccup, a frozen tab, a failed connection) is only **lost**, not gone: "Lost touch with <name>… reconnecting." Its
+  hero is drawn faded and left alone by monsters (`e.lost`), its monsters wait where they are, and the younger of
+  the two (`netYounger`, the one who dialled at the start) dials again every 3 s (`redial`): a new WebRTC connection
+  on the same peer, everything else about it kept. Each attempt has a number (`p.gen`) that its handshake messages
+  carry, so a late one from an earlier attempt is ignored. Any message from it ends the loss ("In touch with <name>
+  again."). Back together, each side sends the other its live monsters (`sync`): monsters of the other's that it no
+  longer has died or faded meanwhile and go; any never heard of appear. It counts as gone, as if it had said `bye`,
+  after 30 s lost (`lostMax`), or 10 s once it has left the realm's presence list (`gone`: closed its tab). The
+  realm's channel shows our presence again whenever it reconnects (`NET.tracked`), so a break there doesn't hide us.
+  (Before v141 3 s of silence counted as leaving, and the two games went on apart for good.)
 
 #### Monsters
 
@@ -992,8 +1003,14 @@ Every monster in the Rift belongs to the player who brought it (`MON_NET` in `ne
   the nearest. (Alone: our hero, as always.)
 - **Its blows** (`hitHero`): on our hero, as always; on another player's hero, an `hh` message (the raw damage and
   the monster's level) to that player, whose browser takes it through its armor (`damageHero`), so its life,
-  potions and dying stay exact on its own screen. A monster's **bolt** is also sent to the others (`bolt`) to be
-  seen; only the owner's bolt can hit, any hero it reaches.
+  potions and dying stay exact on its own screen. A melee blow is sent to the others too (`ma`), so its copy lunges
+  there. A monster's **bolt** is also sent to the others (`bolt`) to be seen and heard; only the owner's bolt can
+  hit, any hero it reaches.
+- **Seen by all** (seen only: nothing is applied): our hero's sword or axe swing (`sw`: its angle, arc and weapon
+  kind; the copy plays the slash, the lunge and the sound), each arrow it looses (`arw`: a `ghost` arrow that stops at
+  the first monster or wall without harm, its shooter decides what it hits), a hit of ours on a monster (`hx` to
+  everyone but its owner, who gets `hit`: the number, the flash, the sparks and the sound, `netSeeHit`), and the
+  damage our hero takes (`hd`: the red number over it and its flash; orange for fire).
 - **Our blows on another player's monster** (`damageMonster`, `burnMonster`): rolled and taken through its armor on
   our side as always, its number, sparks and sound shown at once, its life bar lowered until the owner's next state;
   a `hit` (the damage, critical, fire) goes to its owner, who applies it (`netTakeHit`: the same number, its pursuit,
@@ -1056,7 +1073,7 @@ Floor items, gold, chests, urns and bones in the Rift belong to whoever brought 
 
 #### Leaving and hidden tabs
 
-- **Handover** (`netHandover`, `netApplyHandover`): when a player leaves (`bye`, 3 s of silence), its monsters stand
+- **Handover** (`netHandover`, `netApplyHandover`): when a player leaves (`bye`, or lost too long: 30 s, or 10 s out of the presence list), its monsters stand
   still (`orphan`) while the player in the Rift longest (`netElder`, after the leaver is gone) decides for everyone:
   a monster chasing a hero still in the Rift passes to that hero's player, who runs it from where it stands ("A
   monster that was after you is yours to fight now."); the rest fade away ("The Rift reclaims its own: N monsters
@@ -2323,6 +2340,13 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 (`v<N>`, as on the title screen). Its switches are remembered in
 `localStorage` (`dc01-debug`, wrapped in `try`):
 
+- **Multiplayer** (in the Rift with others, under the music; `netDbgText` in `net.js`, 4 times a second) — a row for
+  us and one for each other player: its name, its state (ok, connecting, or lost for N s), the ping (smoothed round
+  trip), how many live monsters and objects (chests, urns, bones, gold and floor items not yet taken) it runs, and
+  its messages in and out, failed sends (its connection not open), late heartbeats (more than 464 ms between two of
+  its states), losses, recoveries, redials and when it was last heard. While the panel is open, each monster or object
+  a message just came about (a state, a hit, a death, a spawn, a drop, a take, an opening) gets a **green dot** over
+  it for 0.2 s (`netDot`, `drawNetDots`), so you can see what is being updated and how often.
 - **Music** (always shown, under the frame rate) — the current mood, file and play number, e.g.
   `music: explore · explore (play 2) · demon level` (see [Music](#music)).
 - **Frame rate** (always shown under the switches) — over the last 2 s: the average frames per second, the

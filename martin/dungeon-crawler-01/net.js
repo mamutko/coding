@@ -2,7 +2,7 @@
 //  The Rift's network (multiplayer.md §4; README, The Rift: Playing together). Browsers in the same realm find each
 //  other through Supabase Realtime (presence: who is in the realm; broadcast: the WebRTC handshake) and then talk
 //  directly over WebRTC data channels: "ev" (reliable, ordered: hello, snapshot, bye) and "st" (unreliable,
-//  unordered: each hero's state 15 times a second, pings). Phase 3: players see each other; no combat yet.
+//  unordered: each hero's state 15 times a second, monster states, pings). A silent peer is lost and redialled, not dropped.
 //  Loaded before the game's main script; nothing here runs until a hero comes to the portal.
 // =====================================================================================
 const NET_CFG = {
@@ -14,13 +14,17 @@ const NET_CFG = {
   raceWait: 700,     // ms after showing ourselves, to spot someone who founded the same realm at the same moment
   connectWait: 10000,// ms to reach the realm's elder and get its snapshot
   rate: 66,          // ms between state messages (about 15 a second; also the heartbeat)
-  drop: 3000,        // ms of silence after which a peer counts as gone
+  drop: 3000,        // ms of silence after which a peer counts as lost: we try to reconnect, the game goes on
+  lostMax: 30000,    // ms a lost peer is waited for (its hero faded, its monsters still) before it counts as gone
+  gone: 10000,       // … or this long, once it is no longer in the realm's presence list (closed its tab)
+  redial: 3000,      // ms between reconnection attempts (the younger of the two dials, as at the start)
   ping: 2000,        // ms between clock pings
-  delay: 100,
-  away: 60000,       // ms a hidden tab stays in the Rift (its hero away) before it leaves        // ms other heroes are drawn in the past (interpolated between their states)
+  delay: 100,        // ms other heroes are drawn in the past (interpolated between their states)
+  away: 60000,       // ms a hidden tab stays in the Rift (its hero away) before it leaves
   chunk: 16000,      // characters per snapshot piece
 };
-const NET = { loot: new Map(), mons: new Map(), monN: 0, sb: null, libP: null, ch: null, topic: null, me: null, since: 0, peers: new Map(), on: false, timer: null, snapIn: null };
+const NET = { loot: new Map(), mons: new Map(), monN: 0, sb: null, libP: null, ch: null, topic: null, me: null, since: 0, peers: new Map(), on: false, timer: null, snapIn: null,
+  tracked: null, dots: [] };
 const netNow = () => performance.now();
 
 function netLib() {   // load supabase-js once; resolves to the client, or null if it cannot be loaded
@@ -47,7 +51,7 @@ async function netPeek(realmId) {
   ch.on('broadcast', { event: 'sig' }, ({ payload: p }) => { if (p && p.to === NET.me) netSignal(p); });
   ch.on('presence', { event: 'sync' }, () => { NET.synced = true; });
   NET.synced = false;
-  const ok = await new Promise(res => { ch.subscribe(st => { if (st === 'SUBSCRIBED') res(true); else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') res(false); }); setTimeout(() => res(false), 6000); });
+  const ok = await new Promise(res => { ch.subscribe(st => { if (st === 'SUBSCRIBED') { res(true); if (NET.tracked && NET.ch === ch) ch.track(NET.tracked).catch(() => {}); } else if (st === 'CHANNEL_ERROR' || st === 'TIMED_OUT' || st === 'CLOSED') res(false); }); setTimeout(() => res(false), 6000); });
   if (!ok) { await netClose(); return null; }
   // the first sync can come before the list has arrived: wait the whole time, or until someone shows up
   const t0 = netNow(); while (netNow() - t0 < NET_CFG.syncWait && !presenceList().some(p => p.peer !== NET.me)) await new Promise(r => setTimeout(r, 50));
@@ -55,7 +59,7 @@ async function netPeek(realmId) {
 }
 async function netClose() {   // leave the channel and every connection
   for (const p of NET.peers.values()) netDropPeer(p, true);
-  NET.peers.clear(); NET.mons.clear(); NET.loot.clear(); NET.on = false; clearInterval(NET.timer); NET.timer = null;
+  NET.peers.clear(); NET.mons.clear(); NET.loot.clear(); NET.on = false; clearInterval(NET.timer); NET.timer = null; NET.tracked = null; NET.dots = [];
   if (NET.ch) { const ch = NET.ch; NET.ch = null; NET.topic = null; try { await ch.untrack(); } catch (e) {} try { await NET.sb.removeChannel(ch); } catch (e) {} }
 }
 
@@ -65,7 +69,9 @@ async function netClose() {   // leave the channel and every connection
 async function netJoin(realmId, me) {
   const others0 = await netPeek(realmId); if (others0 == null) return null;
   NET.since = Date.now();
-  try { await NET.ch.track(Object.assign({ peer: NET.me, since: NET.since }, me)); } catch (e) { await netClose(); return null; }
+  const tr = Object.assign({ peer: NET.me, since: NET.since }, me);
+  try { await NET.ch.track(tr); } catch (e) { await netClose(); return null; }
+  NET.tracked = tr;   // (shown again whenever the channel comes back after a break: see netPeek)
   await new Promise(r => setTimeout(r, NET_CFG.raceWait));
   const older = presenceList().filter(p => p.peer !== NET.me && (p.since < NET.since || p.since === NET.since && p.peer < NET.me));
   netStart();
@@ -88,38 +94,53 @@ const netLeave = () => { for (const p of NET.peers.values()) netSend(p, { t: 'by
 // ---- WebRTC: one connection per pair. The younger player makes the offer; the handshake goes over the channel.
 function netPeer(info) {
   let p = NET.peers.get(info.peer);
-  if (!p) { p = { id: info.peer, info, pc: null, ev: null, st: null, last: netNow(), off: 0, rtt: 0, hero: null, pend: [] }; NET.peers.set(info.peer, p); }
+  if (!p) { p = { id: info.peer, info, pc: null, ev: null, st: null, last: netNow(), off: 0, rtt: 0, hero: null, pend: [], gen: 0,
+    n: { rx: 0, tx: 0, fail: 0, late: 0, lost: 0, back: 0, redial: 0 }, lastSt: 0, lost: 0 }; NET.peers.set(info.peer, p); }
   return p;
 }
-function netConnect(info, offer) {
-  const p = netPeer(info), pc = p.pc = new RTCPeerConnection({ iceServers: NET_CFG.ice });
-  pc.onicecandidate = e => { if (e.candidate) netSig(p.id, 'ice', e.candidate.toJSON()); };
-  pc.onconnectionstatechange = () => { if (pc.connectionState === 'failed') netDropPeer(p); };
+// A connection, new or again (gen: which attempt; the handshake's messages carry it, so a late one for an
+// earlier attempt is ignored). Reconnecting keeps everything else about the peer: its hero, its monsters, its loot.
+function netConnect(info, offer, gen) {
+  const p = netPeer(info);
+  if (p.pc) { const old = p.pc; old.onicecandidate = old.onconnectionstatechange = old.ondatachannel = null; try { old.close(); } catch (e) {} }
+  p.gen = gen || p.gen + 1; p.ev = p.st = null; p.helloSent = false; p.pend = p.pend.filter(c => c.g === p.gen);
+  const pc = p.pc = new RTCPeerConnection({ iceServers: NET_CFG.ice }), g = p.gen;
+  pc.onicecandidate = e => { if (e.candidate) netSig(p.id, 'ice', e.candidate.toJSON(), g); };
+  pc.onconnectionstatechange = () => { if (p.pc === pc && pc.connectionState === 'failed' && !p.hero) netDropPeer(p); };   // (in the game: lost, redialled; see netTick)
   const wire = (dc) => { dc.onmessage = e => netMsg(p, e.data); if (dc.label === 'ev') { p.ev = dc; dc.onopen = () => netHello(p); if (dc.readyState === 'open') netHello(p); } else p.st = dc; };
   if (offer) {
     wire(pc.createDataChannel('ev')); wire(pc.createDataChannel('st', { ordered: false, maxRetransmits: 0 }));
-    pc.createOffer().then(o => pc.setLocalDescription(o)).then(() => netSig(p.id, 'offer', pc.localDescription.toJSON())).catch(() => netDropPeer(p));
-  } else pc.ondatachannel = e => wire(e.channel);
+    pc.createOffer().then(o => pc.setLocalDescription(o)).then(() => netSig(p.id, 'offer', pc.localDescription.toJSON(), g)).catch(() => { if (!p.hero) netDropPeer(p); });
+  } else pc.ondatachannel = e => { if (p.pc === pc) wire(e.channel); };
   return p;
 }
-const netSig = (to, k, d) => { if (NET.ch) NET.ch.send({ type: 'broadcast', event: 'sig', payload: { to, from: NET.me, k, d } }); };
+const netSig = (to, k, d, g) => { if (NET.ch) NET.ch.send({ type: 'broadcast', event: 'sig', payload: { to, from: NET.me, k, d, g } }); };
+// Is p younger than us (in the realm later)? The younger one dials.
+const netYounger = p => { const s = p.info && p.info.since; return s != null && (s > NET.since || s === NET.since && p.id > NET.me); };
+function netRedial(p) { p.redialAt = netNow(); p.n.redial++; netConnect(p.info, true); }
 async function netSignal(m) {   // a handshake message for us
   if (!NET.on) return;
   let p = NET.peers.get(m.from);
   try {
+    const g = m.g || 1;
     if (m.k === 'offer') {
       if (NET.peers.size >= NET_CFG.max - 1 && !p) return;
-      const info = presenceList().find(q => q.peer === m.from) || { peer: m.from, name: 'Someone' };
-      p = netConnect(info, false);
-      await p.pc.setRemoteDescription(m.d); const a = await p.pc.createAnswer(); await p.pc.setLocalDescription(a);
-      netSig(m.from, 'answer', p.pc.localDescription.toJSON());
-      for (const c of p.pend.splice(0)) await p.pc.addIceCandidate(c);
-    } else if (m.k === 'answer' && p && p.pc) { await p.pc.setRemoteDescription(m.d); for (const c of p.pend.splice(0)) await p.pc.addIceCandidate(c); }
-    else if (m.k === 'ice' && p && p.pc) { if (p.pc.remoteDescription) await p.pc.addIceCandidate(m.d); else p.pend.push(m.d); }
-    else if (m.k === 'ice') netPeer({ peer: m.from }).pend.push(m.d);
+      if (p && p.pc && g < p.gen) return;   // an old attempt's
+      const info = p && p.info && p.info.since != null ? p.info : presenceList().find(q => q.peer === m.from) || { peer: m.from, name: 'Someone' };
+      p = netConnect(info, false, g); const pc = p.pc;
+      await pc.setRemoteDescription(m.d); const a = await pc.createAnswer(); await pc.setLocalDescription(a);
+      netSig(m.from, 'answer', pc.localDescription.toJSON(), g);
+      for (const c of p.pend.splice(0)) if (c.g === g) await pc.addIceCandidate(c.d);
+    } else if (m.k === 'answer' && p && p.pc && g === p.gen) { const pc = p.pc; await pc.setRemoteDescription(m.d); for (const c of p.pend.splice(0)) if (c.g === g) await pc.addIceCandidate(c.d); }
+    else if (m.k === 'ice' && p && p.pc && g === p.gen && p.pc.remoteDescription) await p.pc.addIceCandidate(m.d);
+    else if (m.k === 'ice' && (!p || g >= p.gen)) netPeer(p ? p.info : { peer: m.from }).pend.push({ g, d: m.d });
   } catch (e) { console.warn('[net] signal', m.k, e); }
 }
-function netSend(p, m) { const dc = m.t === 'st' || m.t === 'ms' || m.t === 'ping' || m.t === 'pong' ? p.st : p.ev; if (dc && dc.readyState === 'open') try { dc.send(JSON.stringify(m)); } catch (e) {} }
+function netSend(p, m) {
+  const dc = m.t === 'st' || m.t === 'ms' || m.t === 'ping' || m.t === 'pong' ? p.st : p.ev;
+  if (dc && dc.readyState === 'open') try { dc.send(JSON.stringify(m)); p.n.tx++; return; } catch (e) {}
+  if (p.n) p.n.fail++;   // (not open: lost, or still connecting)
+}
 function netDropPeer(p, quiet) {
   if (NET.peers.get(p.id) === p) NET.peers.delete(p.id);
   try { p.pc && p.pc.close(); } catch (e) {}
@@ -170,15 +191,27 @@ document.addEventListener('visibilitychange', () => netHide(document.hidden));
 function netHello(p) {
   if (p.helloSent) return; p.helloSent = true;
   const h = G.hero; netSend(p, { t: 'hello', name: h.name, lvl: h.lvl, look: h.look || 'hero', since: NET.since });
+  if (p.hero && G.rift) netSend(p, { t: 'sync', a: G.monsters.filter(m => !m.owner && m.nid && !m.dead).map(monDesc) });   // back together after a break
+}
+// After a break: the monsters p owns, as it has them. Ours of its that it no longer has died (or faded) meanwhile;
+// any we never heard of (its spawn lost) appear.
+function netSync(p, a) {
+  const ids = new Set(a.map(d => d.i));
+  for (const m of G.monsters) if (m.owner === p.id && !m.dead && !ids.has(m.nid)) { m.dead = true; m.deathT = 0; m.faded = true; NET.mons.delete(m.nid); }
+  for (const d of a) { const m = NET.mons.get(d.i);
+    if (!m) netAddMonster(d, p.id);
+    else if (m.owner) { m.owner = p.id; m.orphan = null; m.ax = d.x; m.ay = d.y; m.at = netNow(); m.hp = d.hp; m.tx = m.ty = m.tg = null; m.sp = 0; } }
 }
 function netMsg(p, data) {
   let m; try { m = JSON.parse(data); } catch (e) { return; }
-  p.last = netNow();
+  const now = netNow(); p.last = now; p.n.rx++;
+  if (p.lost) { p.lost = 0; p.n.back++; if (p.hero) { p.hero.lost = false; log('In touch with ' + p.hero.name + ' again.', '#b49ae6'); } }
   switch (m.t) {
     case 'hello': {
       p.info = Object.assign(p.info || {}, { name: m.name, lvl: m.lvl, look: m.look, since: m.since }); p.hello = m;   // (its hero appears in netFrame, once we are in the Rift)
       break; }
-    case 'st': if (p.hero) remoteState(p, m); break;
+    case 'st': if (p.lastSt && now - p.lastSt > NET_CFG.rate * 4 + 200) p.n.late++; p.lastSt = now; if (p.hero) remoteState(p, m); break;
+    case 'sync': if (G.map) netSync(p, m.a); break;
     case 'ping': netSend(p, { t: 'pong', a: m.a, b: netNow() }); break;
     case 'pong': { const now = netNow(), rtt = now - m.a, off = m.b + rtt / 2 - now;   // their clock = ours + off
       p.rtt = p.rtt ? p.rtt * 0.8 + rtt * 0.2 : rtt; p.off = p.offN ? p.off * 0.8 + off * 0.2 : off; p.offN = (p.offN || 0) + 1; break; }
@@ -187,12 +220,17 @@ function netMsg(p, data) {
     case 'snap': { const S = NET.snapIn; if (!S || S.from !== p.id) break; S.parts[m.i] = m.d;
       if (S.parts.filter(x => x != null).length === m.n) { try { S.res(JSON.parse(S.parts.join(''))); } catch (e) { S.res(null); } } break; }
     case 'bye': netDropPeer(p); break;
-    case 'spawn': for (const d of m.a) netAddMonster(d, p.id); if (G.map && m.rooms) for (const r of m.rooms) G.map.claims.add(r);
+    case 'spawn': for (const d of m.a) { netAddMonster(d, p.id); netDot(NET.mons.get(d.i)); } if (G.map && m.rooms) for (const r of m.rooms) G.map.claims.add(r);
       if (G.map) for (const o of m.objs || []) if (!NET.loot.has(o.nid)) { o.owner = p.id; G.objects.push(o); NET.loot.set(o.nid, o); if (o.block) G.map.block[o.y * G.map.w + o.x] = 1; }
       break;
     case 'ms': netMonStates(p, m); break;
-    case 'hit': { const mo = NET.mons.get(m.i); if (mo && !mo.owner) netTakeHit(mo, m.v, m.c, m.f, p.id); break; }
-    case 'died': { const mo = NET.mons.get(m.i); if (mo) netRemoteDied(mo, m.xp && m.xp[NET.me] || 0); break; }
+    case 'hit': { const mo = NET.mons.get(m.i); if (mo && !mo.owner) { netTakeHit(mo, m.v, m.c, m.f, p.id); netDot(mo); } break; }
+    case 'hx': { const mo = NET.mons.get(m.i); if (mo && !mo.dead) { netSeeHit(mo, m.v, m.c, m.f); netDot(mo); } break; }   // someone else struck it: seen only
+    case 'ma': { const mo = NET.mons.get(m.i); if (mo && mo.owner && !mo.dead) { mo.lunge = 1; netDot(mo); } break; }   // its owner says it struck
+    case 'sw': { const e = p.hero; if (e) { e.swing = { t: 0, dur: 0.24, ang: m.a, arc: m.r }; e.lunge = 1; sfx('swing', { kind: m.k, x: e.x, y: e.y }); } break; }
+    case 'arw': if (G.map) { G.proj.push({ type: 'arrow', x: m.x, y: m.y, vx: m.vx, vy: m.vy, life: m.l, dmg: 0, friendly: true, ghost: true }); if (p.hero) sfx('bow', { x: m.x, y: m.y }); } break;   // seen only
+    case 'hd': { const e = p.hero; if (e) { e.hitT = 0.15; floatText(e.x, e.y, '-' + m.v, m.f ? '#ff9a40' : '#ff5a4a', 0.9, 16); } break; }   // their hero was hurt
+    case 'died': { const mo = NET.mons.get(m.i); if (mo) { netDot(mo); netRemoteDied(mo, m.xp && m.xp[NET.me] || 0); } break; }
     case 'frz': { const mo = NET.mons.get(m.i); if (!mo || mo.dead) break; freezeMonster(mo, m.dl, m.du);
       if (!mo.owner) for (const q of NET.peers.values()) if (q !== p) netSend(q, m);   // ours: tell the others too
       break; }
@@ -201,13 +239,13 @@ function netMsg(p, data) {
     case 'ice': if (G.map) { frostPatch(m.x, m.y, m.s); sfx('frostcast', { x: m.x, y: m.y }); } break;   // another player's scroll of frost: the same ice here
     case 'bomb': G.proj.push({ type: 'bomb', x: m.x0, y: m.y0, x0: m.x0, y0: m.y0, tx: m.tx, ty: m.ty, z: 44, t: 0, dur: m.dur, peak: m.pk, life: 1, rot: rnd() * 6, spin: 8, ghost: true }); break;   // seen only
     case 'fire': if (G.map) { const f = newFire(m.x, m.y); f.owner = p.id; G.fires.push(f); } break;   // its thrower decides what it burns
-    case 'drop': netGotDrop(m, p.id); break;
-    case 'take': netTakeReq(m, p); break;
-    case 'took': netTook(m); break;
-    case 'use': netUseReq(m, p); break;
-    case 'used': netUsed(m); break;
+    case 'drop': netGotDrop(m, p.id); netDot(NET.loot.get(m.i)); break;
+    case 'take': netDot(NET.loot.get(m.i)); netTakeReq(m, p); break;
+    case 'took': netDot(NET.loot.get(m.i)); netTook(m); break;
+    case 'use': netDot(NET.loot.get(m.i)); netUseReq(m, p); break;
+    case 'used': netDot(NET.loot.get(m.i)); netUsed(m); break;
     case 'door': { const o = G.objects.find(q => q.type === 'door' && q.x === m.x && q.y === m.y); if (o && !o.open) { o.open = true; G.map.t[o.y * G.map.w + o.x] = T_OPEN; sfx('door', { x: o.x, y: o.y }); } break; }
-    case 'bolt': G.proj.push({ type: 'bolt', x: m.x, y: m.y, vx: m.vx, vy: m.vy, life: m.l, dmg: 0, friendly: false, ghost: true }); break;   // seen only: its owner decides what it hits
+    case 'bolt': if (G.map) { G.proj.push({ type: 'bolt', x: m.x, y: m.y, vx: m.vx, vy: m.vy, life: m.l, dmg: 0, friendly: false, ghost: true }); sfx('bolt', { x: m.x, y: m.y }); netDot({ x: m.x, y: m.y }); } break;   // seen only: its owner decides what it hits
   }
 }
 // every NET_CFG.rate ms (a timer, so it goes on at least once a second in a background tab): our hero's state to
@@ -223,7 +261,14 @@ function netTick() {
     NET.awaySince = 0; log('The Rift let you go.', '#b49ae6'); leaveRift(); return; }
   for (const m of G.monsters) if (m.orphan && now - m.orphan > 4000) { m.orphan = null; m.dead = true; m.deathT = 0; m.faded = true; NET.mons.delete(m.nid); }   // no decision came: it fades
   for (const p of [...NET.peers.values()]) {
-    if (now - p.last > NET_CFG.drop && (p.hero || now - p.last > NET_CFG.connectWait)) { netDropPeer(p); continue; }
+    const quiet = now - p.last;
+    if (!p.hero) { if (quiet > NET_CFG.connectWait) netDropPeer(p); }   // never made it into the game
+    else if (quiet > NET_CFG.drop) {   // lost: their hero fades and is left alone, their monsters wait; we try to reconnect
+      if (!p.lost) { p.lost = now; p.n.lost++; p.hero.lost = true; log('Lost touch with ' + p.hero.name + '… reconnecting.', '#b49ae6'); }
+      const here = !NET.ch || presenceList().some(q => q.peer === p.id);
+      if (quiet > NET_CFG.lostMax || !here && now - p.lost > NET_CFG.gone) { netDropPeer(p); continue; }
+      if (netYounger(p) ? false : !p.redialAt || now - p.redialAt > NET_CFG.redial) netRedial(p);
+    }
     netSend(p, st);
     if (!p.pinged || now - p.pinged > NET_CFG.ping) { p.pinged = now; netSend(p, { t: 'ping', a: now }); }
     netSendMons(p, now);
@@ -248,7 +293,10 @@ function netFrame(dt) {   // every frame: move the other heroes to where they we
   if (!G || !G.heroes) return;
   for (const p of NET.peers.values()) {
     if (!p.hero && p.hello && G.rift && G.map) { p.hero = remoteHero(p, p.hello); G.heroes.push(p.hero); log(p.hello.name + ' (level ' + p.hello.lvl + ') is in the Rift.', '#b49ae6'); }
-    const e = p.hero; if (!e || !e.buf.length) continue;
+    const e = p.hero; if (!e) continue;
+    e.lunge = Math.max(0, e.lunge - dt * 5); e.hitT = Math.max(0, e.hitT - dt);   // its swing, lunge and hurt flash play out here
+    if (e.swing && (e.swing.t += dt) >= e.swing.dur) e.swing = null;
+    if (!e.buf.length) continue;
     const t = netNow() + p.off - NET_CFG.delay, b = e.buf;
     let i = b.length - 1; while (i > 0 && b[i - 1].c > t) i--;
     let x, y, s = b[i];
@@ -326,6 +374,7 @@ function netMonStates(p, msg) {
     m.ax = x; m.ay = y; m.at = netNow(); m.tx = tx; m.ty = ty; m.tg = tg; m.sp = sp; m.hp = hp; m.wu = wu; m.netDir = dir;
     m.state = ch ? 'chase' : 'idle';
     if (Math.hypot(m.x - x, m.y - y) > MON_NET.snap) { m.x = x; m.y = y; }
+    netDot(m);
   }
 }
 const heroById = id => id == null ? null : id === NET.me ? G.hero : G.heroes.find(e => e.remote && e.peer === id) || null;
@@ -350,10 +399,23 @@ function remoteMonster(m, dt) {   // called from updateMonster for a monster ano
   m.windup = m.wu ? 0.1 : 0;
 }
 // ---- Hits
-function netHit(m, v, crit, fire) {   // our hero struck a monster another player owns: its owner applies it
-  const p = NET.peers.get(m.owner); if (p) netSend(p, { t: 'hit', i: m.nid, v, c: crit ? 1 : 0, f: fire ? 1 : 0 });
+function netHit(m, v, crit, fire) {   // our hero struck a monster another player owns: its owner applies it, the rest see it
+  const c = crit ? 1 : 0, f = fire ? 1 : 0;
+  for (const p of NET.peers.values()) netSend(p, { t: p.id === m.owner ? 'hit' : 'hx', i: m.nid, v, c, f });
   m.hp = Math.max(1, m.hp - v);   // until its owner's next state says
 }
+function netShowHit(m, v, crit, fire) { if (netOn() && m.nid) netEach({ t: 'hx', i: m.nid, v, c: crit ? 1 : 0, f: fire ? 1 : 0 }); }   // our hero struck one of ours: the others see it
+function netSeeHit(m, v, crit, fire) {   // another player's hero struck a monster (not ours to apply): the number, the flash, the sparks
+  m.hitT = fire ? 0.1 : 0.14;
+  floatText(m.x, m.y, crit ? v + '!' : '' + v, fire ? '#ff9a40' : crit ? '#ffd36a' : '#f2e6d0', 0.8, crit ? 20 : 15);
+  if (!fire) { for (let i = 0; i < 5; i++) G.fx.push({ type: 'spark', x: m.x, y: m.y, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 40 + rnd() * 20, vz: 60 + rnd() * 60, t: 0, dur: 0.45, color: m.type === 'wraith' ? '120,255,170' : '170,20,20' });
+    sfx('hit', { mat: HIT_MAT[m.type], x: m.x, y: m.y }); }
+}
+// What our hero does, seen by the others (drawn on its copy there): a swing, an arrow, being hurt
+function netSwing(h) { if (netOn()) netEach({ t: 'sw', a: +h.swing.ang.toFixed(3), r: h.swing.arc, k: weaponOf(h).kind }); }
+function netArrow(a) { if (netOn()) netEach({ t: 'arw', x: +a.x.toFixed(2), y: +a.y.toFixed(2), vx: +a.vx.toFixed(2), vy: +a.vy.toFixed(2), l: +a.life.toFixed(2) }); }
+function netHurt(v, fire) { if (netOn()) netEach({ t: 'hd', v, f: fire ? 1 : 0 }); }
+function netStrike(m) { if (netOn() && m.nid && !m.owner) netEach({ t: 'ma', i: m.nid }); }   // a monster of ours struck (its lunge)
 function credit(m, who, v) { const c = m.dmgBy || (m.dmgBy = {}), e = c[who] || (c[who] = { v: 0, t: 0 }); e.v += v; e.t = G.time; }
 function netTakeHit(m, v, crit, fire, from) {   // another player's hero struck one of our monsters (already through its armor)
   if (m.dead) return;
@@ -385,7 +447,7 @@ function netRemoteDied(m, xp) {   // a monster another player owns died (its own
 // tiles), unless another is less than 60 % as far; when choosing, the nearest it can see within 8.5 tiles, else
 // the nearest. Our own hero when alone.
 function pickTarget(m) {
-  const hs = G.heroes.filter(e => e === G.hero ? !G.dead && !NET.awaySince : e.remote && !e.away);   // (an away hero is left alone)
+  const hs = G.heroes.filter(e => e === G.hero ? !G.dead && !NET.awaySince : e.remote && !e.away && !e.lost);   // (an away or lost hero is left alone)
   if (!hs.length) return G.hero;
   if (hs.length === 1) return hs[0];
   const d = e => Math.hypot(e.x - m.x, e.y - m.y);
@@ -494,3 +556,36 @@ function netUsed(m) {   // someone opened a chest, broke an urn or searched bone
     for (let i = 0; i < 8; i++) G.fx.push({ type: 'spark', x: o.x + 0.5, y: o.y + 0.5, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 20, vz: 80, t: 0, dur: 0.5, color: '140,120,90' }); }
   else if (o.type === 'bones' && mine) { gainXp(d); log('You search the bones.', '#a99c86'); }
 }
+
+// =====================================================================================
+//  The debug overlay's multiplayer part (Ctrl+D; README, Debug): for us and each other player, the ping, the
+//  monsters and loot each one runs, messages in and out, failed sends, late heartbeats, losses and reconnections;
+//  and, while the overlay is open, a green dot for 0.2 s on each monster or object a message just came about.
+// =====================================================================================
+const netDbgOn = () => { const el = document.getElementById('debug'); return !!el && !el.classList.contains('hidden'); };
+function netDot(x) { if (x && x.x != null && G && G.map && netDbgOn()) NET.dots.push({ r: x, t: netNow() }); }
+function drawNetDots() {
+  if (!NET.dots.length) return;
+  const now = netNow(); NET.dots = NET.dots.filter(d => now - d.t < 200);
+  ctx.save(); ctx.fillStyle = '#35ff5a'; ctx.strokeStyle = 'rgba(0,0,0,0.7)'; ctx.lineWidth = 1.5;
+  const seen = new Set();
+  for (const d of NET.dots) { if (seen.has(d.r)) continue; seen.add(d.r);
+    const ob = d.r.type && !d.r.b && d.r.fx == null && Number.isInteger(d.r.x), [sx, sy] = iso(ob ? d.r.x + 0.5 : d.r.x, ob ? d.r.y + 0.5 : d.r.y);
+    ctx.globalAlpha = 1 - (now - d.t) / 250; ctx.beginPath(); ctx.arc(sx, sy - (d.r.b ? 60 : 24), 5, 0, 7); ctx.fill(); ctx.stroke(); }
+  ctx.restore();
+}
+function netDbgText() {
+  if (!NET.on || !G || !G.rift) return NET.on ? 'net: connecting…' : '';
+  const mons = id => G.monsters.filter(m => !m.dead && m.nid && (id === NET.me ? !m.owner : m.owner === id)).length;
+  const objs = id => { let n = 0; for (const x of NET.loot.values()) if ((id === NET.me ? !x.owner : x.owner === id) && lootHere(x) && !x.used) n++; return n; };
+  const rows = ['<b>' + (G.hero.name || 'You') + '</b> (you) · ' + mons(NET.me) + ' monsters · ' + objs(NET.me) + ' objects' + (netElder() === NET.me ? ' · elder' : '')];
+  const now = netNow();
+  for (const p of NET.peers.values()) {
+    const n = p.n, nm = p.hero ? p.hero.name : p.info && p.info.name || p.id, st = p.lost ? '<span style="color:#ff7a6a">lost ' + ((now - p.lost) / 1000).toFixed(0) + ' s</span>' : p.hero ? 'ok' : 'connecting';
+    rows.push('<b>' + nm + '</b> · ' + st + ' · ping ' + (p.rtt ? Math.round(p.rtt) + ' ms' : '–') + ' · ' + mons(p.id) + ' monsters · ' + objs(p.id) + ' objects<br>'
+      + '&nbsp;&nbsp;msgs in ' + n.rx + ' / out ' + n.tx + ' · failed sends ' + n.fail + ' · late heartbeats ' + n.late + ' · lost ' + n.lost + ' · back ' + n.back + ' · redials ' + n.redial
+      + ' · last heard ' + Math.round(now - p.last) + ' ms ago');
+  }
+  return rows.join('<br>');
+}
+setInterval(() => { const el = document.getElementById('dbgNet'); if (!el || !netDbgOn()) return; const t = netDbgText(); if (el.innerHTML !== t) el.innerHTML = t; el.style.display = t ? '' : 'none'; }, 250);
