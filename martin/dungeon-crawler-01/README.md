@@ -826,9 +826,9 @@ Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going
 
 ## The Rift
 
-The game's online co-op mode (`multiplayer.md`, its phases there). Built so far (phases 2 and 3): the portal and its
-dial on the surface, the Rift itself, and players in the same realm seeing each other (no shared monsters, loot or
-combat yet). The code is in `realm.js` (constants `RIFT`) and `net.js` (`NET_CFG`), plus hooks in `index.html`.
+The game's online co-op mode (`multiplayer.md`, its phases there). Built so far (phases 2–4): the portal and its
+dial on the surface, the Rift itself, players in the same realm seeing each other, and their monsters shared and
+fought together (no shared loot yet). The code is in `realm.js` (constants `RIFT`) and `net.js` (`NET_CFG`), plus hooks in `index.html`.
 
 - **The portal** (`type: 'portal'`) stands on the surface about 60 tiles north of the crypt (screen north: −x −y),
   its arch on the line of tiles x + y = const, running west–east and facing south, toward the crypt. `RIFT.at` =
@@ -888,8 +888,7 @@ combat yet). The code is in `realm.js` (constants `RIFT`) and `net.js` (`NET_CFG
   made on entering, before the portal, and loses what it won inside.
 - **Leaving** (`leaveRift`): through the portal, after the question: the surface is built with the hero before the
   portal (`buildSurface('portal')`), its dial items back on the dial, and the hero is saved.
-- **Monsters' target** (`monTarget`): the hero a monster goes for, for now always our own hero (other players'
-  heroes are not fought over yet).
+- **Monsters' target** (`monTarget`): alone, our hero; with others in the Rift, see Playing together, Monsters.
 
 ### Playing together
 
@@ -919,10 +918,10 @@ shared project, its public key; no table) and then talk directly over **WebRTC**
   networks cannot connect), two data channels: **`ev`** (reliable, ordered: `hello`, `snapReq`, `snap`, `bye`) and
   **`st`** (unreliable, unordered: `st` states, `ping`, `pong`). Messages are JSON.
 - **The snapshot** (`riftSnapshot`, `buildRiftFromSnap`): the map's tiles and blocked tiles (run-length encoded),
-  its rooms, and its lasting furnishings (doors as they are, the portal, braziers, banners, pillars and other decor),
-  sent in pieces of 16 000 characters. Not monsters, chests, urns, bones, gold or items: those will belong to the
-  player who brought them (`multiplayer.md` §5); their tiles are left free. The joiner arrives beside the portal (up
-  to 0.6 tiles off its usual spot) with no monsters around it yet; its log says so.
+  its rooms, which rooms are **claimed** (by index), its lasting furnishings (doors as they are, the portal,
+  braziers, banners, pillars and other decor) and every live **monster** with its owner (below), sent in pieces of
+  16 000 characters. Not chests, urns, bones, gold or items: those stay with the player who brought them (shared in a
+  later phase); their tiles are left free. The joiner arrives beside the portal (up to 0.6 tiles off its usual spot).
 - **Hello:** when the `ev` channel opens, each side sends its hero's name, level and look; the other hero appears
   once we are in the Rift ("Alda (level 12) is in the Rift.").
 - **States** (`netTick`, every 66 ms from a timer, so at least once a second in a background tab: the heartbeat):
@@ -935,7 +934,50 @@ shared project, its public key; no table) and then talk directly over **WebRTC**
   life bar over its head (`drawRemoteLabels`), and a dot on the minimap.
 - **Leaving:** through the portal, by dying, or by starting another game, the hero says `bye` and leaves the
   channel (`netLeave`); closing the page sends `bye` too. A player silent for 3 s (`drop`) is gone. Either way the
-  others' log says "<name> has left the Rift."
+  others' log says "<name> has left the Rift." and its monsters vanish with it ("The Rift reclaims its own: their
+  monsters fade away."; handing them over is a later phase).
+
+#### Monsters
+
+Every monster in the Rift belongs to the player who brought it (`MON_NET` in `net.js`):
+
+- **Ids:** each monster we own gets `m.nid` = `<our peer id>.<n>` (`netOwnAll`, after building the Rift or
+  spawning); a copy of another player's monster has `m.owner` = that player's peer id. Monsters are listed by id
+  (`NET.mons`).
+- **Bringing them:** the founder's are those of its Rift (its rooms: `map.claims`). A **joiner**, once it has the
+  snapshot (with every monster already there, each a copy made by `makeMonster` with its type, depth, champion or
+  boss, name and life), brings its own share (`riftJoinSpawn`): as many rooms as a crypt level of its own deepest
+  depth has, less one, among the rooms no one has claimed, the farthest from the portal first, filled as a crypt
+  level's normal rooms (`riftPopulate`: 1 to cap monsters each, types within their room limits, champions with
+  escorts). It claims those rooms and sends `spawn` (the monsters and the rooms) to everyone. Its log: "Your coming
+  woke more of its monsters, deep in rooms no one had claimed."
+- **Simulating them:** the owner runs a monster's AI as always. A copy (`remoteMonster`, from `updateMonster`) runs
+  none: it is predicted from its owner's last state, carried on along its **intent** (its next path step, or the
+  hero it walks straight at, stopping at its reach) at its speed for the time since that state, and eased toward
+  that point (8 per second); more than 2 tiles off, it jumps. It faces the way it moves, else its owner's facing; it
+  shakes in a windup; frost freezes it as it would the original.
+- **States** (`netSendMons`, with each 66 ms state tick, on the unreliable channel): to each player, up to 25 of our
+  monsters a tick, `[id, x, y, life, chasing, step x, step y, target hero, speed, windup, facing]`, the most urgent
+  first: a monster whose intent changed (state, path step, target, windup, frozen) at once, the others by how long
+  since that player last got it × a weight by its distance from that player's hero (1 within 14 tiles, 0.3 within
+  30, 0.05 beyond), none sent again within 60 ms × that weight. Far monsters end up at about one state a second.
+- **Targets** (`pickTarget`): a monster we own goes for one of the heroes in the Rift: the one it is after, while it
+  is within 20 tiles and no other is under 60 % as far; when choosing, the nearest it can see within 8.5 tiles, else
+  the nearest. (Alone: our hero, as always.)
+- **Its blows** (`hitHero`): on our hero, as always; on another player's hero, an `hh` message (the raw damage and
+  the monster's level) to that player, whose browser takes it through its armor (`damageHero`), so its life,
+  potions and dying stay exact on its own screen. A monster's **bolt** is also sent to the others (`bolt`) to be
+  seen; only the owner's bolt can hit, any hero it reaches.
+- **Our blows on another player's monster** (`damageMonster`, `burnMonster`): rolled and taken through its armor on
+  our side as always, its number, sparks and sound shown at once, its life bar lowered until the owner's next state;
+  a `hit` (the damage, critical, fire) goes to its owner, who applies it (`netTakeHit`: the same number, its pursuit,
+  its death). Our frost on it (`netFreeze`) goes to its owner, who passes it on to the others (`frz`); ours frozen,
+  to everyone.
+- **Deaths and experience** (`netKillShares`, from `killMonster`): only the owner decides a death. It shares the
+  monster's experience among those who hurt it in the last 30 s (`credit`: the damage each did), each by its share,
+  but at least 25 % (so helping always pays), and sends `died` with the shares; each player gains its own (and
+  counts the kill). Nobody else hurt it: all of it to the owner, as always. The copies die (sound, fading) when
+  `died` comes. Loot is rolled and dropped by the owner, seen only by the owner for now.
 
 ## Dungeon generation
 

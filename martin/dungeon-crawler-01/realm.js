@@ -117,12 +117,12 @@ async function enterRift() {
   leaveLevel(); sfx('stairs');
   G.rift = { id: r.id, name: r.name, d };
   G.depth = d;
-  if (res && res.role === 'joiner') buildRiftFromSnap(res.snap); else buildLevel(G.depth);
+  if (res && res.role === 'joiner') { buildRiftFromSnap(res.snap); riftJoinSpawn(d); } else { buildLevel(G.depth); netOwnAll(); }
   RA.away = false;   // arrived standing near the portal's gate: no question until the hero has stepped off it
   log('You step through the portal into the Rift of ' + r.name + '.', '#b49ae6');
   if (!res) log('The Rift is silent: no one else can reach you here.', '#a99c86');
   else if (res.role === 'unreachable') log('You could not reach ' + (res.name || 'the others') + ' in this Rift: you are alone in it.', '#e06a5a');
-  else if (res.role === 'joiner') log('Others walk this Rift. (Their monsters and treasure are not shared yet: you see each other, nothing more.)', '#a99c86');
+  else if (res.role === 'joiner') log('Others walk this Rift. Your coming woke more of its monsters, deep in rooms no one had claimed.', '#a99c86');
   log('Monsters here match the deepest depth you have reached (' + G.depth + '). Nothing is saved until you leave through the portal.', '#a99c86');
   refreshUI();
 }
@@ -179,12 +179,13 @@ function riftSnapshot() {
     if (SNAP_SKIP.has(o.type)) { if (o.block && o.type !== 'door') b[o.y * m.w + o.x] = 0; continue; }   // its tile is free for the joiner
     const c = {}; for (const k in o) if (k !== 'room' && typeof o[k] !== 'function') c[k] = o[k]; objects.push(c);
   }
-  return { v: VERSION, w: m.w, h: m.h, t: rle(m.t), b: rle(b), rooms: m.rooms.map(r => ({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.cx, cy: r.cy })), objects };
+  return { v: VERSION, w: m.w, h: m.h, t: rle(m.t), b: rle(b), rooms: m.rooms.map(r => ({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.cx, cy: r.cy })), objects,
+    claims: [...(m.claims || [])], mons: G.monsters.filter(q => !q.dead && q.nid && !q.parts).map(monDesc) };   // every live monster, with its owner (net.js)
 }
 function buildRiftFromSnap(s) {
   const w = s.w, h = s.h, t = unrle(s.t, w * h);
   const at = (x, y) => (x < 0 || y < 0 || x >= w || y >= h) ? T_VOID : t[y * w + x];
-  const map = { w, h, t, at, seen: new Uint8Array(w * h), block: unrle(s.b, w * h), rooms: s.rooms, lake: null, lakeRoom: null };
+  const map = { w, h, t, at, seen: new Uint8Array(w * h), block: unrle(s.b, w * h), rooms: s.rooms, lake: null, lakeRoom: null, claims: new Set(s.claims || [0]) };
   G.lakeFx = null; G.map = map; G.objects = s.objects; G.monsters = []; G.items = []; G.proj = []; G.fx = []; G.texts = [];
   stopFireSounds(); G.fires = [];
   const o = G.objects.find(q => q.type === 'portal'), hero = G.hero;
@@ -193,4 +194,36 @@ function buildRiftFromSnap(s) {
   hero.path = []; hero.intent = null; hero.attackTarget = null; hero.swing = null;
   hero.queue = []; hero.pendingAt = null; hero.using = null; hero.burnLeft = 0; hero.burning = hero.inFire = false;
   G.fade = 1; updateMinimap(true);
+  for (const d of s.mons || []) netAddMonster(d, d.o);   // the monsters already here, each predicted from its owner's states
+}
+// A player joining a Rift brings its share of monsters (multiplayer.md §3): as many rooms as a crypt level of its
+// depth has, less one, of the rooms no one has claimed, the farthest from the portal first; tells the others.
+function riftJoinSpawn(d) {
+  const m = G.map, o = G.objects.find(q => q.type === 'portal'), dist = bfs(Math.floor(o.fx), Math.floor(o.fy));
+  const free = m.rooms.map((r, i) => i).filter(i => !m.claims.has(i)), n = Math.min(9 + Math.floor(d / 2), 18) - 1;
+  const mine = free.sort((a, b) => (dist[m.rooms[b].cy * m.w + m.rooms[b].cx] || 0) - (dist[m.rooms[a].cy * m.w + m.rooms[a].cx] || 0)).slice(0, n);
+  const mons = riftPopulate(mine.map(i => m.rooms[i]), d);
+  for (const q of mons) G.monsters.push(q);
+  netOwnAll(); for (const i of mine) m.claims.add(i);
+  netEach({ t: 'spawn', a: mons.map(monDesc), rooms: mine });
+}
+// Monsters for rooms, as on a crypt level of depth d: 1 to cap each (cap 3 at depths 1-2, +1 every 2 depths, at most
+// 7), +1 half the time in a large room, each type within its room limit, champions with 2-3 escorts
+function riftPopulate(rooms, d) {
+  const weighted = []; for (const k in MON) if (MON[k].minD <= d) for (let i = 0; i < MON[k].w; i++) weighted.push(k);
+  const out = [], taken = new Set(), map = G.map;
+  const spot = (r) => { for (let k = 0; k < 40; k++) { const x = ri(r.x + 1, r.x + r.w - 2), y = ri(r.y + 1, r.y + r.h - 2);
+    if (map.at(x, y) !== T_FLOOR || map.block[y * map.w + x] || taken.has(x + ',' + y)) continue; taken.add(x + ',' + y);
+    return [x + 0.5 + (rnd() - 0.5) * 0.4, y + 0.5 + (rnd() - 0.5) * 0.4]; } return null; };
+  for (const r of rooms) {
+    const cap = Math.min(7, 3 + Math.floor((d - 1) / 2)), n = ri(1, cap) + (r.w * r.h >= 64 && rnd() < 0.5 ? 1 : 0), cnt = {};
+    for (let i = 0; i < n; i++) {
+      const p = spot(r); if (!p) break;
+      let t = 'skeleton'; for (let k = 0; k < 30; k++) { const c = pick(weighted); if ((cnt[c] || 0) < roomLimit(c, d)) { t = c; break; } }
+      cnt[t] = (cnt[t] || 0) + 1; const mo = makeMonster(t, p[0], p[1], d); out.push(mo);
+      if (mo.champ) for (let e = Math.min(ri(2, 3), roomLimit(t, d) - cnt[t]); e > 0; e--) {
+        const q = spot(r); if (!q) break; out.push(makeMonster(t, q[0], q[1], d, false, false, true)); cnt[t]++; }
+    }
+  }
+  return out;
 }

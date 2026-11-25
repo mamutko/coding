@@ -9,9 +9,22 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v135 — fighting together in the Rift (2026-11-25)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 135`)*
+
+- Every monster belongs to the player who brought it; a player joining a Rift brings its own share (monsters of its
+  own deepest depth) into rooms no one has claimed.
+- Everyone sees every monster: its owner runs it and sends its state and intent (most often for those near each
+  player); the others predict it smoothly between states.
+- Monsters go for any hero in the Rift; blows on another player's hero are taken by that player's game. Hits on
+  another player's monster go to its owner, who decides its death and shares its experience by damage done (at
+  least 25 % each). Frost freezes them for everyone; bolts are seen by all.
+- A player leaving takes its monsters with it. Loot is not shared yet.
+
 ## v134 — the portal 10 tiles farther north, the dial 2 tiles farther out (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 134`)*
+Commit: 013fdbd
 
 - The Rift's portal stands at (−29, −29), about 60 tiles north of the crypt; its dial at (−23, −23), about 8.5
   tiles in front of the arch (2 tiles more), with grass between the steps and the dial.
