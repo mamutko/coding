@@ -438,7 +438,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 146;
+const VERSION = 147;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2677,9 +2677,15 @@ function resolveSwing(h) {
     let da = Math.abs(Math.atan2(dy, dx) - s.ang); if (da > Math.PI) da = 2 * Math.PI - da;
     if (da <= s.arc || d < 0.55 + (t.r - m.r)) hits.push({ m, da, d, t });
   }
+  for (const e of pvpTargets()) {   // blades drawn (a sword on the dial): other heroes in the arc too (net.js)
+    const dx = e.x - h.x, dy = e.y - h.y, d = Math.hypot(dx, dy); if (d - 0.28 > s.reach) continue;
+    let da = Math.abs(Math.atan2(dy, dx) - s.ang); if (da > Math.PI) da = 2 * Math.PI - da;
+    if (da <= s.arc || d < 0.55) hits.push({ m: e, da, d, t: e, hero: true });
+  }
   if (!hits.length) return;
   const main = hits.find(x => x.m === s.target) || hits.reduce((a, b) => (b.da < a.da - 0.05 || (Math.abs(b.da - a.da) <= 0.05 && b.d < a.d)) ? b : a);
-  for (const x of hits) { const [dmg, crit] = s.roll(); if (x.m.parts) x.m.hitPart = x.t; damageMonster(x.m, (x === main ? dmg : dmg * CLEAVE) * (x.t.head ? DRAGON_HEAD : 1), crit); }
+  for (const x of hits) { const [dmg, crit] = s.roll(); if (x.hero) { netPvpHit(x.m, x === main ? dmg : dmg * CLEAVE, crit); continue; }
+    if (x.m.parts) x.m.hitPart = x.t; damageMonster(x.m, (x === main ? dmg : dmg * CLEAVE) * (x.t.head ? DRAGON_HEAD : 1), crit); }
 }
 // ---- Fire bombs in flight and the fires they leave (constants and the item: see BOMB / FIRE above)
 // A thrown bomb flies from the hero's hand to the target in an arc: it is at height z (screen px) =
@@ -2780,7 +2786,7 @@ function updateFires(dt, hurt) {
   // only our own fires burn anything here: another player's fire burns through its thrower's game (the Rift), and a
   // companion's fire does not hurt our hero (co-op)
   const own = G.fires.filter(f => !f.owner);
-  burnTick(G.hero, dt, v => damageHero(v, null), 0, own);
+  burnTick(G.hero, dt, v => damageHero(v, null), 0, G.rift && G.rift.pvp ? G.fires : own);   // (blades drawn: anyone's fire burns our hero)
   for (const m of G.monsters) if (!m.dead) burnTick(m, dt, v => burnMonster(m, v), FIRE.catchMon, own);
 }
 const inFire = (e, fires = G.fires) => fires.some(f => f.t < f.dur && (e.parts ? e.parts.some(p => Math.hypot(p.x - f.x, p.y - f.y) < f.r + p.r * 0.5) : Math.hypot(e.x - f.x, e.y - f.y) < f.r + e.r * 0.5));
@@ -2868,7 +2874,7 @@ function damageHero(raw, m) {   // m: the attacking monster, or null for fire (n
   floatText(h.x, h.y, '-' + v, '#ff5a4a', 0.9, 16); netHurt(v, !m);   // the others see the number over our hero (net.js)
   $('flash').style.opacity = Math.min(0.9, 0.25 + v / h.st.maxHp * 3);
   sfx('hurt');
-  if (h.hp <= 0) { h.dyingCause = m ? 'You have fallen' : 'You burned to death'; if (h.dyingT == null) startDying(h); }   // below 0 life stacks up; death comes DYING_T s later (see update)
+  if (h.hp <= 0) { h.dyingCause = m && m.pvp ? 'You were slain by ' + m.pvp : m ? 'You have fallen' : 'You burned to death'; if (h.dyingT == null) startDying(h); }   // below 0 life stacks up; death comes DYING_T s later (see update)
 }
 function startDying(h) { h.dyingT = 0; sfx('heartbeat'); log('You are dying! Heal yourself, quickly!', '#ff5a4a'); }
 
@@ -4396,6 +4402,8 @@ function update(dt) {
     for (let s = 0; s < steps && p.life > 0; s++) {
       p.x += p.vx * dt / steps; p.y += p.vy * dt / steps; p.life -= dt / steps;
       if (opaque(Math.floor(p.x), Math.floor(p.y))) { p.life = 0; G.fx.push({ type: 'spark', x: p.x, y: p.y, vx: 0, vy: 0, z: 40, vz: 30, t: 0, dur: 0.3, color: p.friendly ? '200,180,140' : '120,255,170' }); break; }
+      if (p.friendly && !p.ghost && p.life > 0) for (const e of pvpTargets()) if (Math.hypot(e.x - p.x, e.y - p.y) < 0.28 + 0.18) { netPvpHit(e, p.dmg, p.crit); p.life = 0; break; }   // blades drawn: our arrow strikes another hero (net.js)
+      if (p.life <= 0) break;
       if (p.friendly) { for (const mo of G.monsters) { if (mo.dead) continue; const t = near(mo, p.x, p.y);
         if (Math.hypot(t.x - p.x, t.y - p.y) < t.r + 0.18) { if (!p.ghost) { if (mo.parts) mo.hitPart = t; damageMonster(mo, p.dmg * (t.head ? DRAGON_HEAD : 1), p.crit); chargeOnShot(mo); } p.life = 0; break; } } }   // (another player's arrow, seen only: its shooter decides what it hits)
       else for (const e of G.heroes) { if (e === G.hero && G.dead) continue;   // a monster's bolt: whichever hero it reaches (a seen-only bolt just stops)

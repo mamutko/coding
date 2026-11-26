@@ -113,6 +113,9 @@ One image (Gemini, in the style of the crypt building), cut into two parts as wi
 - **The realm's name:** two words picked from the hash out of fixed lists (e.g. *Ashen Hollow*, *Weeping Deep*),
   shown on the dial's hover label, in the entry prompt and on the Rift's HUD, so friends can check they dialled the
   same realm. The portal's light takes a hue from the hash as well.
+- **Blades drawn** (v147): a sword of any kind among the dial items makes the realm a player-against-player one
+  (`realm.pvp`): heroes there can hurt each other with swings, arrows and fire bombs. The entry prompt warns of it.
+  Without a sword, heroes cannot harm each other.
 - **Saved:** the dial items are saved with the hero (`hero.dial`, a new `SAVED_FIELDS` entry; the items as data,
   like the pack), and lie on the dial again when the hero returns to the surface. They are the hero's items: a
   hero with items on the dial does not carry them (they are not in the pack and do not count for anything).

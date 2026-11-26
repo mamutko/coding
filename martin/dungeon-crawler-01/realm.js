@@ -54,9 +54,12 @@ const RIFT_B = ['Deep', 'Halls', 'Hollow', 'Vault', 'Maw', 'Warren', 'Abyss', 'B
   'Gallows', 'Cradle', 'Choir'];
 const realmName = hash => { const A = '0123456789abcdefghjkmnpqrstvwxyz', i = A.indexOf(hash[0]) ^ A.indexOf(hash[5]), j = A.indexOf(hash[1]) ^ A.indexOf(hash[6]);
   return RIFT_A[i] + ' ' + RIFT_B[j]; };
+// pvp: a sword (any) on the dial draws blades: in that realm heroes can hurt each other (README, The Rift: Player
+// against player)
+const isSword = it => !!(BASES[it.base] && BASES[it.base].kind === 'sword');
 function realmOf(items) {   // the realm a set of dial items opens
   const key = realmKey(items), hash = realmHash(key);
-  return { id: 'v' + VERSION + '-' + hash, hash, name: realmName(hash), key, open: !items.length };
+  return { id: 'v' + VERSION + '-' + hash, hash, name: realmName(hash), key, open: !items.length, pvp: items.some(isSword) };
 }
 const currentRealm = () => realmOf(dialItems().map(d => d.fi.item));
 // the dial's items go into the save (hero.dial) and lie on the dial again when the surface is built
@@ -83,6 +86,7 @@ function riftAsk(o) {
   if (inside) html = `<h2>The Rift of ${G.rift.name}</h2><div>Step back through the portal to the surface?</div><div class="ty">You will be saved there.</div>`;
   else { const r = currentRealm();
     html = `<h2>The Rift of ${r.name}</h2><div>${r.open ? 'The dial is empty: this is the open Rift, where strangers meet.' : 'The items on the dial have chosen this realm.'}</div>` +
+      (r.pvp ? `<div style="color:#ff6a5a">A sword lies on the dial: blades are drawn in this realm. Heroes can hurt each other here.</div>` : '') +
       `<div id="raWho">Listening at the portal…</div><div class="ty">Realm ${r.id}. You are saved before you go. Nothing is saved inside: leave through this portal to keep what you win; die in there and you lose it.</div>`;
     // who is inside (net.js): the realm's presence, read without showing ourselves
     const ask = RA.o;
@@ -117,7 +121,7 @@ async function enterRift() {
   if (G !== g || G.dead || G.rift || G.depth !== 0) { netLeave(); return; }   // gone meanwhile (died, another game)
   if (res && res.role === 'full') { log('The Rift of ' + r.name + ' is full. Try again later, or set the dial for another realm.', '#e06a5a'); return; }
   leaveLevel(); sfx('stairs');
-  G.rift = { id: r.id, name: r.name, d };
+  G.rift = { id: r.id, name: r.name, d, pvp: r.pvp };
   G.depth = d;
   if (res && res.role === 'joiner') { buildRiftFromSnap(res.snap); riftJoinSpawn(d); } else { buildLevel(G.depth); riftAdd(riftRestock(d)); netOwnAll(); }
   RA.away = false;   // arrived standing near the portal's gate: no question until the hero has stepped off it
@@ -125,6 +129,7 @@ async function enterRift() {
   if (!res) log('The Rift is silent: no one else can reach you here.', '#a99c86');
   else if (res.role === 'unreachable') log('You could not reach ' + (res.name || 'the others') + ' in this Rift: you are alone in it.', '#e06a5a');
   else if (res.role === 'joiner') log('Others walk this Rift. Your coming woke more of its monsters: in rooms no one had claimed, over the lake, in the great hall, and a new guardian in the boss chamber.', '#a99c86');
+  if (r.pvp) log('Blades are drawn in this realm: other heroes can hurt you, and you them.', '#ff6a5a');
   log('Monsters here match the deepest depth you have reached (' + G.depth + '). Nothing is saved until you leave through the portal.', '#a99c86');
   refreshUI();
 }

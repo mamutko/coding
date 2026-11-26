@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v147 — player against player: a sword on the dial draws blades (2026-11-26)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 147`)*
+
+- A sword (any) on the portal's dial makes the realm one where heroes can hurt each other: with swings, arrows and
+  fire bombs. The portal warns before you enter, and the log on arriving.
+- Attack the spot where the other hero stands (right click, or Shift + click). Their armor counts, the number shows
+  over them for everyone, and a death says who struck the blow.
+
 ## v141–v146 — the whole fight seen by everyone, reconnecting instead of splitting, multiplayer debug (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 146`)*
+Commit: 1b1290a
 
 - In the Rift, every player sees the others' sword swings, arrows, monster blows and wraith bolts, and every damage
   number: on monsters, whoever struck them, and over heroes that are hurt.

@@ -253,6 +253,7 @@ function netMsg(p, data) {
     case 'frz': { const mo = NET.mons.get(m.i); if (!mo || mo.dead) break; freezeMonster(mo, m.dl, m.du);
       if (!mo.owner) for (const q of NET.peers.values()) if (q !== p) netSend(q, m);   // ours: tell the others too
       break; }
+    case 'ph': if (G.rift && G.rift.pvp && !G.dead && !NET.awaySince) { damageHero(m.v, { lvl: m.lvl, pvp: m.n }); if (m.c) log((m.n || 'Someone') + ' landed a critical blow on you!', '#ff6a5a'); } break;   // another hero struck ours (blades drawn)
     case 'hh': if (G.rift && !G.dead && !NET.awaySince) damageHero(m.v, { lvl: m.lvl }); break;   // one of their monsters struck our hero
     case 'handover': netApplyHandover(m.a); break;
     case 'ice': if (G.map) { frostPatch(m.x, m.y, m.s); sfx('frostcast', { x: m.x, y: m.y }); } break;   // another player's scroll of frost: the same ice here
@@ -462,6 +463,16 @@ function netWake(list) {
   for (const [ow, a] of by) { const p = NET.peers.get(ow); if (p) netSend(p, { t: 'wk', a }); }
 }
 function netWoken(a) { for (const i of a) { const o = NET.mons.get(i); if (o && !o.owner && !o.dead && o.state === 'idle' && !o.calm) { chase(o); netDot(o); } } }
+// ---- Player against player (a sword on the dial: G.rift.pvp). Our blow or arrow on another hero: rolled here, sent
+// to its player (`ph`: the raw damage, crit, our level and name), whose game takes it through its armor
+// (damageHero) and shows the number to all (`hd`); we see the sparks and hear it at once.
+const pvpTargets = () => G.rift && G.rift.pvp && netOn() ? G.heroes.filter(e => e.remote && !e.away && !e.lost) : [];
+function netPvpHit(e, raw, crit) {
+  const p = NET.peers.get(e.peer); if (!p) return;
+  netSend(p, { t: 'ph', v: Math.round(raw), c: crit ? 1 : 0, lvl: G.hero.lvl, n: G.hero.name });
+  e.hitT = 0.15; sfx('hit', { mat: 'flesh', x: e.x, y: e.y });
+  for (let i = 0; i < 5; i++) G.fx.push({ type: 'spark', x: e.x, y: e.y, vx: (rnd() - 0.5) * 3, vy: (rnd() - 0.5) * 3, z: 40 + rnd() * 20, vz: 60 + rnd() * 60, t: 0, dur: 0.45, color: '170,20,20' });
+}
 function netStrike(m) { if (m.nid && !m.owner) netFx({ t: 'ma', i: m.nid }, m.x, m.y); }   // a monster of ours struck (its lunge)
 function credit(m, who, v) { const c = m.dmgBy || (m.dmgBy = {}), e = c[who] || (c[who] = { v: 0, t: 0 }); e.v += v; e.t = G.time; }
 function netTakeHit(m, v, crit, fire, from) {   // another player's hero struck one of our monsters (already through its armor)
