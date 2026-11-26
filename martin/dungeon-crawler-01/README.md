@@ -1080,10 +1080,11 @@ Floor items, gold, chests, urns and bones in the Rift belong to whoever brought 
   fly; theirs is seen only (`ghost`): where it lands it breaks without a fire.
 - The thrower's fire is sent when its bomb breaks (`fire`: where); the others light the same fire, marked as the
   thrower's (`f.owner`).
-- **Only one's own fires burn anything** in one's game (`updateFires`: `burnTick` with our fires only): a monster
+- **Only one's own fires burn monsters** in one's game (`updateFires`: `burnTick` with our fires only): a monster
   in our fire burns as always if it is ours, and another player's monster in our fire is hurt through its owner
-  (`hit` with fire), so no monster burns twice. Another player's fire does not hurt our hero (co-op); our own still
-  does.
+  (`hit` with fire), so no monster burns twice. **Any fire burns our hero**, ours or another player's, in every
+  realm (since v148: a fire is a fire), so a fire bomb is the one way to hurt another hero where blades are not
+  drawn (see Player against player).
 
 #### Player against player
 
@@ -1094,15 +1095,17 @@ different realm from the same dial without it.
 - **Warnings:** the portal's question says "A sword lies on the dial: blades are drawn in this realm. Heroes can hurt
   each other here." in red, and the log on arriving "Blades are drawn in this realm: other heroes can hurt you, and
   you them."
-- **Striking:** there is no clicking on another hero; an attack aimed at a spot (right click, or `Shift` + click)
-  near it does it. A swing hits other heroes in its arc and reach like monsters (`pvpTargets`, in `resolveSwing`:
+- **Striking:** another hero is a target like a monster (`pvpTarget`: in `G.pick` as `mon`, so hovering it
+  highlights it and shows its name, level and life in the target bar): right click it (or `Shift` + click) and our
+  hero walks into reach and strikes, and goes on while the button is held, or shoots it with a bow. An attack aimed
+  at a spot near it works too. A swing hits other heroes in its arc and reach like monsters (`pvpTargets`, in `resolveSwing`:
   the main target full, the rest the cleave), and our arrow stops at the first other hero it reaches. Heroes away
   (hidden tab) or lost (reconnecting) can't be hurt.
 - **The blow** (`netPvpHit`): rolled by the striker (its weapon, its crits) and sent to the struck hero's player as
   `ph` (raw damage, critical, the striker's level and name). That game takes it through its armor against the
   striker's level (`damageHero`), so its life stays exact there, and shows the number to all (`hd`); a critical blow
   also logs "<name> landed a critical blow on you!". The striker sees sparks and hears the hit at once.
-- **Fire:** in such a realm anyone's fire bomb burns our hero (elsewhere only our own does).
+- **Fire:** anyone's fire bomb burns our hero in every realm, blades drawn or not (a fire is a fire).
 - **Death:** as any death in the Rift ("You were slain by <name> in the Rift of …"); the others see the hero leave.
   No experience or loot for the slayer beyond what the dead hero's game drops.
 

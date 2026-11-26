@@ -466,7 +466,8 @@ function netWoken(a) { for (const i of a) { const o = NET.mons.get(i); if (o && 
 // ---- Player against player (a sword on the dial: G.rift.pvp). Our blow or arrow on another hero: rolled here, sent
 // to its player (`ph`: the raw damage, crit, our level and name), whose game takes it through its armor
 // (damageHero) and shows the number to all (`hd`); we see the sparks and hear it at once.
-const pvpTargets = () => G.rift && G.rift.pvp && netOn() ? G.heroes.filter(e => e.remote && !e.away && !e.lost) : [];
+const pvpTarget = e => !!(e && e.remote && G.rift && G.rift.pvp && !e.away && !e.lost && G.heroes.includes(e));   // can be struck (and clicked)
+const pvpTargets = () => G.rift && G.rift.pvp && netOn() ? G.heroes.filter(pvpTarget) : [];
 function netPvpHit(e, raw, crit) {
   const p = NET.peers.get(e.peer); if (!p) return;
   netSend(p, { t: 'ph', v: Math.round(raw), c: crit ? 1 : 0, lvl: G.hero.lvl, n: G.hero.name });

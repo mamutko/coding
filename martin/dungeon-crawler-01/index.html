@@ -438,7 +438,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 147;
+const VERSION = 148;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2783,10 +2783,11 @@ function updateFires(dt, hurt) {
   }
   G.fires = G.fires.filter(f => f.t < f.dur + FIRE.scorch);
   if (!hurt) return;
-  // only our own fires burn anything here: another player's fire burns through its thrower's game (the Rift), and a
-  // companion's fire does not hurt our hero (co-op)
+  // a fire is a fire: any fire burns our hero, ours or another player's, in every realm (fire bombs are the one way
+  // to hurt another hero where blades are not drawn). Monsters burn only from our own fires here: another player's
+  // fire burns them through its thrower's game (the Rift).
   const own = G.fires.filter(f => !f.owner);
-  burnTick(G.hero, dt, v => damageHero(v, null), 0, G.rift && G.rift.pvp ? G.fires : own);   // (blades drawn: anyone's fire burns our hero)
+  burnTick(G.hero, dt, v => damageHero(v, null), 0, G.fires);
   for (const m of G.monsters) if (!m.dead) burnTick(m, dt, v => burnMonster(m, v), FIRE.catchMon, own);
 }
 const inFire = (e, fires = G.fires) => fires.some(f => f.t < f.dur && (e.parts ? e.parts.some(p => Math.hypot(p.x - f.x, p.y - f.y) < f.r + p.r * 0.5) : Math.hypot(e.x - f.x, e.y - f.y) < f.r + e.r * 0.5));
@@ -4074,7 +4075,7 @@ function updateHud() {
     if (v && !bb.dataset.drawn) { bb.dataset.drawn = 1; const c = $('burnIco').getContext('2d'); c.globalCompositeOperation = 'lighter'; const sp = flameSprites();
       c.drawImage(sp[2], 4, 2, 24, 36); c.drawImage(sp[1], 8, 8, 16, 28); c.drawImage(sp[0], 11, 16, 10, 20); } });
   if (bt) { const r = $('orb').getBoundingClientRect(); bb.style.left = Math.max(4, r.left - 12) + 'px'; bb.style.top = Math.max(4, r.top - 14) + 'px'; }
-  const m = G.hover && G.hover.kind === 'mon' ? G.hover.r : (h.attackTarget && !h.attackTarget.dead ? h.attackTarget : null);
+  const m = G.hover && G.hover.kind === 'mon' ? G.hover.r : (h.attackTarget && !h.attackTarget.dead ? h.attackTarget : null);   // (a monster, or another hero where blades are drawn)
   if (m && !m.dead) {
     $('target').classList.remove('hidden');
     set('tname', m.name + Math.ceil(m.hp), () => { $('targetName').textContent = m.name + '  (level ' + m.lvl + ')'; $('targetName').style.color = m.boss ? '#7fe08a' : m.champ ? '#e6c84a' : '#e8dcc4';
@@ -4346,7 +4347,7 @@ function update(dt) {
   if (h.pendingAt && h.atkCd <= 0 && !h.swing && heroAttack(h.pendingAt.x, h.pendingAt.y, null)) h.pendingAt = null;
   const at = h.attackTarget;
   if (at) {
-    if (at.dead) { h.attackTarget = null; h.attackPending = false; }
+    if (at.dead || at.remote && !pvpTarget(at)) { h.attackTarget = null; h.attackPending = false; }   // (another hero: gone, away or lost)
     else {
       const w = weaponOf(h), info = KIND_INFO[w.kind];
       if (RANGED[w.kind]) { if ((mouse.right || h.attackPending) && h.atkCd <= 0) { heroAttack(0, 0, at); h.attackPending = false; } else if (!mouse.right && !h.attackPending) h.attackTarget = null; }
@@ -5776,7 +5777,7 @@ function drawChar(e, isHero) {
   const footY = md.footY != null ? md.footY : md.fh - 6;   // ground point inside the frame
   const w = md.fw * s, hgt = md.fh * s, dx = sx - w / 2 + ox, dy = sy - footY * s + oy;
   ctx.globalAlpha = alpha;
-  const hover = !isHero && G.hover && G.hover.r === e;
+  const hover = (!isHero || e.remote) && G.hover && G.hover.r === e;
   const filters = [], fx = { bright: e.hitT > 0 ? 2.4 : hover ? 1.35 : 1, glow: null };
   if (e.hitT > 0) filters.push('brightness(2.4) saturate(0.3)');
   else if (hover) filters.push('brightness(1.35)');
@@ -5794,7 +5795,7 @@ function drawChar(e, isHero) {
     ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = alpha * ice * 0.22; ctx.drawImage(ti, dx, dy, w, hgt); ctx.globalCompositeOperation = 'source-over';
   }
   ctx.globalAlpha = 1;
-  if (!isHero && !e.dead) G.pick.push({ kind: 'mon', r: e, x: sx - w * 0.32, y: dy + hgt * 0.15, w: w * 0.64, h: hgt * 0.85 });
+  if ((!isHero || pvpTarget(e)) && !e.dead) G.pick.push({ kind: 'mon', r: e, x: sx - w * 0.32, y: dy + hgt * 0.15, w: w * 0.64, h: hgt * 0.85 });   // (another hero where blades are drawn: a target like a monster, net.js)
   if (DEBUG.pursuit && !isHero && !e.dead && e.state === 'chase') {   // debug: a red dot above a pursuing monster
     ctx.fillStyle = '#ff2a2a'; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(sx, dy + hgt * 0.08, 5, 0, 7); ctx.fill(); ctx.stroke();
