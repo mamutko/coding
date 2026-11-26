@@ -390,7 +390,9 @@ function netSendMons(p, now) {
     const it = monIntent(m), sig = m.state + '|' + it.tx + '|' + it.ty + '|' + it.tg + '|' + (m.windup > 0 ? 1 : 0) + '|' + (m.frozen ? 1 : 0);
     const last = sent.get(m.nid), dd = e ? Math.hypot(m.x - e.x, m.y - e.y) : 99;
     const w = dd < MON_NET.near ? MON_NET.wNear : dd < MON_NET.mid ? MON_NET.wMid : MON_NET.wFar;
-    const pr = !last || last.sig !== sig ? Infinity : (now - last.t) * w;
+    // an intent change goes first, but only within FX_NEAR of that player's hero (what it can see); farther, the
+    // new intent waits for the monster's turn by distance like any state
+    const pr = !last || last.sig !== sig && dd <= FX_NEAR ? Infinity : (now - last.t) * w;
     cand.push([pr, m, it, sig]);
   }
   cand.sort((a, b) => b[0] - a[0]);

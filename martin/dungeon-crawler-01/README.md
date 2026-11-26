@@ -995,7 +995,8 @@ Every monster in the Rift belongs to the player who brought it (`MON_NET` in `ne
   shakes in a windup; frost freezes it as it would the original.
 - **States** (`netSendMons`, with each 66 ms state tick, on the unreliable channel): to each player, up to 25 of our
   monsters a tick, `[id, x, y, life, chasing, step x, step y, target hero, speed, windup, facing]`, the most urgent
-  first: a monster whose intent changed (state, path step, target, windup, frozen) at once, the others by how long
+  first: a monster whose intent changed (state, path step, target, windup, frozen) at once if it is within 20 tiles
+  of that player's hero (`FX_NEAR`: what it can see; farther, the new intent waits for its turn like any state), the others by how long
   since that player last got it × a weight by its distance from that player's hero (1 within 14 tiles, 0.3 within
   30, 0.05 beyond), none sent again within the pace × that weight. Far monsters end up at about one state a second.
 - **Pace** (`PACE`, `netPace`; per player, twice a second): how often a monster whose intent hasn't changed is sent
