@@ -232,7 +232,7 @@ function netMsg(p, data) {
     case 'sync': if (G.map) netSync(p, m.a); break;
     case 'ping': netSend(p, { t: 'pong', a: m.a, b: netNow() }); break;
     case 'pong': { const now = netNow(), rtt = now - m.a, off = m.b + rtt / 2 - now;   // their clock = ours + off
-      p.rtt = p.rtt ? p.rtt * 0.8 + rtt * 0.2 : rtt; p.off = p.offN ? p.off * 0.8 + off * 0.2 : off; p.offN = (p.offN || 0) + 1; break; }
+      p.rtt = p.rtt ? p.rtt * 0.8 + rtt * 0.2 : rtt; p.rttMin = Math.min(p.rttMin || 1e9, rtt); p.off = p.offN ? p.off * 0.8 + off * 0.2 : off; p.offN = (p.offN || 0) + 1; break; }
     case 'snapReq': { const s = JSON.stringify(riftSnapshot()), n = Math.ceil(s.length / NET_CFG.chunk);
       for (let i = 0; i < n; i++) netSend(p, { t: 'snap', i, n, d: s.slice(i * NET_CFG.chunk, (i + 1) * NET_CFG.chunk) }); break; }
     case 'snap': { const S = NET.snapIn; if (!S || S.from !== p.id) break; S.parts[m.i] = m.d;
@@ -290,7 +290,7 @@ function netTick() {
     }
     netSend(p, st);
     if (!p.pinged || now - p.pinged > NET_CFG.ping) { p.pinged = now; netSend(p, { t: 'ping', a: now }); }
-    netSendMons(p, now);
+    netPace(p, now); netSendMons(p, now);
   }
 }
 addEventListener('pagehide', () => { if (NET.on) { for (const p of NET.peers.values()) netSend(p, { t: 'bye' }); } });
@@ -342,6 +342,22 @@ function drawRemoteLabels() {   // a name and a small life bar over each other h
 //  their states (remoteMonster). Hits on it go to its owner, who decides its life and its death (and shares out
 //  its experience); its owner's monsters strike other heroes by telling those heroes' players.
 // =====================================================================================
+// How often a monster whose intent hasn't changed is sent again to a player (PACE): every pace.ival ms × 1 / its
+// distance weight, adapted to that player's connection twice a second (netPace). Struggling (messages piling up
+// to send, the ping well above its best, late heartbeats, or lost): ×1.5, up to max; calm for calm s: one more
+// re-send a second (rate +step/s, i.e. 1000 / ival + step) each half second, back up to min (one state tick):
+// from max to min in about 8 s. Fewer monsters a tick while slower (batch × min / ival, at least 8). Intent
+// changes (state, path step, target, windup, frozen) are always sent at once.
+const PACE = { min: 66, max: 600, up: 1.5, step: 1, calm: 2, every: 500, buffered: 16384 };
+function netPace(p, now) {
+  if (!p.pace) p.pace = { ival: PACE.min, t: now, calm: 0, late: p.n.late, why: '' };
+  const q = p.pace; if (now - q.t < PACE.every) return; q.t = now;
+  const buf = Math.max(p.st ? p.st.bufferedAmount : 0, p.ev ? p.ev.bufferedAmount : 0, p.fx ? p.fx.bufferedAmount : 0);
+  const why = p.lost ? 'lost' : buf > PACE.buffered ? 'queue ' + Math.round(buf / 1024) + ' kB' : p.rttMin && p.rtt > p.rttMin * 2 + 50 ? 'ping up' : p.n.late > q.late ? 'late heartbeats' : '';
+  q.late = p.n.late;
+  if (why) { q.ival = Math.min(PACE.max, q.ival * PACE.up); q.calm = 0; q.why = why; }
+  else if ((q.calm += PACE.every / 1000) >= PACE.calm) { q.ival = Math.max(PACE.min, 1000 / (1000 / q.ival + PACE.step)); if (q.ival === PACE.min) q.why = ''; }
+}
 const MON_NET = { batch: 25, near: 14, mid: 30, wNear: 1, wMid: 0.3, wFar: 0.05, snap: 2, blend: 8, share: 0.25, credit: 30 };
 const netOn = () => NET.on && G && G.rift && NET.peers.size > 0;
 function netOwnAll() {   // our monsters, floor items and loot objects (chests, urns, bones, gold) get ids
@@ -379,8 +395,9 @@ function netSendMons(p, now) {
   }
   cand.sort((a, b) => b[0] - a[0]);
   const a = [];
-  for (const [pr, m, it, sig] of cand.slice(0, MON_NET.batch)) {
-    if (pr < 60) break;   // sent less than 60 ms·weight ago: nothing new
+  const ival = p.pace ? p.pace.ival : PACE.min, batch = Math.max(8, Math.round(MON_NET.batch * PACE.min / ival));
+  for (const [pr, m, it, sig] of cand.slice(0, batch)) {
+    if (pr < ival * 0.9) break;   // sent less than the pace × weight ago: nothing new (0.9: the tick's own jitter)
     sent.set(m.nid, { t: now, sig });
     a.push([m.nid, +m.x.toFixed(2), +m.y.toFixed(2), Math.round(m.hp), m.state === 'chase' ? 1 : 0, it.tx, it.ty, it.tg, +(m.speed * (m.chargeT > 0 ? CHARGE.mult : 1)).toFixed(2), m.windup > 0 ? 1 : 0, m.dir]);
   }
@@ -608,6 +625,12 @@ function drawNetDotsMini(c) {
   c.fillStyle = 'rgba(60,140,255,0.55)'; for (const m of G.monsters) if (!m.owner && m.nid && !m.dead) c.fillRect(m.x - 1.5, m.y - 1.5, 3, 3);
   c.fillStyle = 'rgba(53,255,90,0.55)'; for (const d of NET.dots) c.fillRect(d.r.x - 1.5, d.r.y - 1.5, 3, 3);
 }
+// the pace (PACE) to this player: a swatch from green (66 ms) to red (600 ms), the interval and why it last slowed
+function paceText(p) {
+  const v = p.pace ? p.pace.ival : PACE.min, k = Math.max(0, Math.min(1, (v - PACE.min) / (PACE.max - PACE.min)));
+  return '&nbsp;&nbsp;<span style="display:inline-block;width:28px;height:9px;border-radius:2px;vertical-align:middle;background:hsl(' + Math.round(120 * (1 - k)) + ',85%,48%)"></span> '
+    + 'monster re-send every ' + Math.round(v) + ' ms' + (p.pace && p.pace.why ? ' (' + p.pace.why + ')' : '');
+}
 function netDbgText() {
   if (!NET.on || !G || !G.rift) return NET.on ? 'net: connecting…' : '';
   const mons = id => G.monsters.filter(m => !m.dead && m.nid && (id === NET.me ? !m.owner : m.owner === id)).length;
@@ -619,7 +642,7 @@ function netDbgText() {
   rows[0] += ' · ' + tin + ' msgs/s in, ' + tout + '/s out';
   for (const p of NET.peers.values()) {
     const n = p.n, nm = p.hero ? p.hero.name : p.info && p.info.name || p.id, st = p.lost ? '<span style="color:#ff7a6a">lost ' + ((now - p.lost) / 1000).toFixed(0) + ' s</span>' : p.hero ? 'ok' : 'connecting';
-    rows.push('<b>' + nm + '</b> · ' + st + ' · ping ' + (p.rtt ? Math.round(p.rtt) + ' ms' : '–') + ' · ' + mons(p.id) + ' monsters · ' + objs(p.id) + ' objects' + r(p) + '<br>'
+    rows.push('<b>' + nm + '</b> · ' + st + ' · ping ' + (p.rtt ? Math.round(p.rtt) + ' ms' : '–') + ' · ' + mons(p.id) + ' monsters · ' + objs(p.id) + ' objects' + r(p) + '<br>' + paceText(p) + '<br>'
       + '&nbsp;&nbsp;msgs in ' + n.rx + ' / out ' + n.tx + ' · failed sends ' + n.fail + ' · late heartbeats ' + n.late + ' · lost ' + n.lost + ' · back ' + n.back + ' · redials ' + n.redial
       + ' · last heard ' + Math.round(now - p.last) + ' ms ago');
   }

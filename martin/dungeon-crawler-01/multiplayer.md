@@ -201,6 +201,7 @@ No database table. The existing Supabase project (the one `worm-03` uses), its p
 - **Seen-only events** (v141): sword swings, arrows, monster blows and bolts, and every damage number (on monsters
   and on heroes) are sent so each player sees the whole fight; only the owner applies anything. Since v144 they go on a
   third, lossy channel (`fx`) and only to players whose hero is within 20 tiles.
+- **Pace** (v145): how often unchanged monster states are re-sent adapts to each connection, 66–600 ms (`PACE`).
 - **Messages** are JSON with short keys (switch to binary later if needed).
 
 ### Snapshot for a joiner

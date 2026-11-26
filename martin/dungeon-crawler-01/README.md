@@ -997,7 +997,14 @@ Every monster in the Rift belongs to the player who brought it (`MON_NET` in `ne
   monsters a tick, `[id, x, y, life, chasing, step x, step y, target hero, speed, windup, facing]`, the most urgent
   first: a monster whose intent changed (state, path step, target, windup, frozen) at once, the others by how long
   since that player last got it × a weight by its distance from that player's hero (1 within 14 tiles, 0.3 within
-  30, 0.05 beyond), none sent again within 60 ms × that weight. Far monsters end up at about one state a second.
+  30, 0.05 beyond), none sent again within the pace × that weight. Far monsters end up at about one state a second.
+- **Pace** (`PACE`, `netPace`; per player, twice a second): how often a monster whose intent hasn't changed is sent
+  again. It starts at 66 ms (every state tick). When the connection to that player struggles (more than 16 kB
+  waiting to go out on a channel, the ping above twice its best + 50 ms, a late heartbeat since the last check, or
+  lost) it slows ×1.5, up to 600 ms, with fewer monsters a tick (25 × 66 / pace, at least 8). After 2 s calm it
+  speeds up by one re-send a second each half second, back to 66 ms (from 600 in about 8 s). Intent changes are
+  always sent at once. The debug overlay shows each player's pace, a swatch from green (66 ms) to red (600 ms), and
+  what last slowed it.
 - **Waking** (`alert`, `netWake`): the wake rules (`WAKES`) reach other players' monsters too. When one of ours
   notices a hero or is hit, idle monsters it would wake that another player owns are woken in that player's game:
   one `wk` message per owner with their ids, and that game wakes each one still idle and not calm (`netWoken`). (Before
