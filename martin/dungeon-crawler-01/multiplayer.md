@@ -199,7 +199,8 @@ No database table. The existing Supabase project (the one `worm-03` uses), its p
   [§7](#7-leaving-hidden-tabs-and-hand-over)). (Before v141, 3 s of silence was gone, and a short hiccup split the
   realm into two games for good.)
 - **Seen-only events** (v141): sword swings, arrows, monster blows and bolts, and every damage number (on monsters
-  and on heroes) are sent to everyone, so each player sees the whole fight; only the owner applies anything.
+  and on heroes) are sent so each player sees the whole fight; only the owner applies anything. Since v144 they go on a
+  third, lossy channel (`fx`) and only to players whose hero is within 20 tiles.
 - **Messages** are JSON with short keys (switch to binary later if needed).
 
 ### Snapshot for a joiner

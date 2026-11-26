@@ -1010,7 +1010,9 @@ Every monster in the Rift belongs to the player who brought it (`MON_NET` in `ne
   potions and dying stay exact on its own screen. A melee blow is sent to the others too (`ma`), so its copy lunges
   there. A monster's **bolt** is also sent to the others (`bolt`) to be seen and heard; only the owner's bolt can
   hit, any hero it reaches.
-- **Seen by all** (seen only: nothing is applied): our hero's sword or axe swing (`sw`: its angle, arc and weapon
+- **Seen by those near** (seen only: nothing is applied; `netFx`, on a channel of their own, `fx`: unordered, never
+  sent again when lost, so a lost one is just not seen and nothing waits behind it; sent only to players whose hero
+  is within 20 tiles of it, `FX_NEAR`, or of any point of a projectile's flight; the messages `FX_MSG`): our hero's sword or axe swing (`sw`: its angle, arc and weapon
   kind; the copy plays the slash, the lunge and the sound), each arrow it looses (`arw`: a `ghost` arrow that stops at
   the first monster or wall without harm, its shooter decides what it hits), a hit of ours on a monster (`hx` to
   everyone but its owner, who gets `hit`: the number, the flash, the sparks and the sound, `netSeeHit`), and the
@@ -2347,7 +2349,8 @@ screens the minimap takes touches for this (so touching it doesn't walk there). 
 - **Multiplayer** (in the Rift with others, under the music; `netDbgText` in `net.js`, 4 times a second) — a row for
   us and one for each other player: its name, its state (ok, connecting, or lost for N s), the ping (smoothed round
   trip), how many live monsters and objects (chests, urns, bones, gold and floor items not yet taken) it runs, and
-  its messages in and out, failed sends (its connection not open), late heartbeats (more than 464 ms between two of
+  its messages and kilobytes a second in and out (over the last second; on our row, the totals), its messages in and
+  out since joining, failed sends (its connection not open), late heartbeats (more than 464 ms between two of
   its states), losses, recoveries, redials and when it was last heard. While the panel is open, each monster or object
   a message just came about (a state, a hit, a death, a spawn, a drop, a take, an opening) gets a **green dot** for
   0.2 s, over it in the scene (`netDot`, `drawNetDots`) and on the minimap (`drawNetDotsMini`; the minimap is redrawn

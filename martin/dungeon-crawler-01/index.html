@@ -438,7 +438,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 143;
+const VERSION = 144;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -4450,7 +4450,7 @@ function updateMonster(m, dt) {
       const dmg = m.dmg[0] + rnd() * (m.dmg[1] - m.dmg[0]);
       if (b.ranged) { const a = Math.atan2(h.y - m.y, h.x - m.x), sp = 7; sfx('bolt', { x: m.x, y: m.y });
         G.proj.push({ type: 'bolt', x: m.x, y: m.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1.6, dmg, friendly: false, src: m });
-        if (netOn()) netEach({ t: 'bolt', x: m.x, y: m.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, l: 1.6 }); }
+        netFx({ t: 'bolt', x: m.x, y: m.y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, l: 1.6 }, m.x, m.y, m.x + Math.cos(a) * sp * 1.6, m.y + Math.sin(a) * sp * 1.6); }   // (seen only, by those near: net.js)
       else if (d - h.r <= b.reach + 0.35) { m.lunge = 1; netStrike(m); hitHero(h, dmg, m); }
     }
     return;

@@ -95,7 +95,7 @@ const netLeave = () => { for (const p of NET.peers.values()) netSend(p, { t: 'by
 function netPeer(info) {
   let p = NET.peers.get(info.peer);
   if (!p) { p = { id: info.peer, info, pc: null, ev: null, st: null, last: netNow(), off: 0, rtt: 0, hero: null, pend: [], gen: 0,
-    n: { rx: 0, tx: 0, fail: 0, late: 0, lost: 0, back: 0, redial: 0 }, lastSt: 0, lost: 0 }; NET.peers.set(info.peer, p); }
+    n: { rx: 0, tx: 0, rxB: 0, txB: 0, fail: 0, late: 0, lost: 0, back: 0, redial: 0 }, rate: null, lastSt: 0, lost: 0 }; NET.peers.set(info.peer, p); }
   return p;
 }
 // A connection, new or again (gen: which attempt; the handshake's messages carry it, so a late one for an
@@ -103,13 +103,14 @@ function netPeer(info) {
 function netConnect(info, offer, gen) {
   const p = netPeer(info);
   if (p.pc) { const old = p.pc; old.onicecandidate = old.onconnectionstatechange = old.ondatachannel = null; try { old.close(); } catch (e) {} }
-  p.gen = gen || p.gen + 1; p.ev = p.st = null; p.helloSent = false; p.pend = p.pend.filter(c => c.g === p.gen);
+  p.gen = gen || p.gen + 1; p.ev = p.st = p.fx = null; p.helloSent = false; p.pend = p.pend.filter(c => c.g === p.gen);
   const pc = p.pc = new RTCPeerConnection({ iceServers: NET_CFG.ice }), g = p.gen;
   pc.onicecandidate = e => { if (e.candidate) netSig(p.id, 'ice', e.candidate.toJSON(), g); };
   pc.onconnectionstatechange = () => { if (p.pc === pc && pc.connectionState === 'failed' && !p.hero) netDropPeer(p); };   // (in the game: lost, redialled; see netTick)
-  const wire = (dc) => { dc.onmessage = e => netMsg(p, e.data); if (dc.label === 'ev') { p.ev = dc; dc.onopen = () => netHello(p); if (dc.readyState === 'open') netHello(p); } else p.st = dc; };
-  if (offer) {
-    wire(pc.createDataChannel('ev')); wire(pc.createDataChannel('st', { ordered: false, maxRetransmits: 0 }));
+  const wire = (dc) => { dc.onmessage = e => netMsg(p, e.data);
+    if (dc.label === 'ev') { p.ev = dc; dc.onopen = () => netHello(p); if (dc.readyState === 'open') netHello(p); } else if (dc.label === 'fx') p.fx = dc; else p.st = dc; };
+  if (offer) {   // ev: reliable, ordered; st: states, lossy; fx: what is only seen (FX_MSG), lossy
+    wire(pc.createDataChannel('ev')); wire(pc.createDataChannel('st', { ordered: false, maxRetransmits: 0 })); wire(pc.createDataChannel('fx', { ordered: false, maxRetransmits: 0 }));
     pc.createOffer().then(o => pc.setLocalDescription(o)).then(() => netSig(p.id, 'offer', pc.localDescription.toJSON(), g)).catch(() => { if (!p.hero) netDropPeer(p); });
   } else pc.ondatachannel = e => { if (p.pc === pc) wire(e.channel); };
   return p;
@@ -136,10 +137,27 @@ async function netSignal(m) {   // a handshake message for us
     else if (m.k === 'ice' && (!p || g >= p.gen)) netPeer(p ? p.info : { peer: m.from }).pend.push({ g, d: m.d });
   } catch (e) { console.warn('[net] signal', m.k, e); }
 }
+// Which channel: states and pings on st, the seen-only events on fx (a lost one is just not seen; nothing waits
+// behind it), everything that changes the game on ev
+const ST_MSG = new Set(['st', 'ms', 'ping', 'pong']), FX_MSG = new Set(['hx', 'hd', 'sw', 'arw', 'ma', 'bolt']);
 function netSend(p, m) {
-  const dc = m.t === 'st' || m.t === 'ms' || m.t === 'ping' || m.t === 'pong' ? p.st : p.ev;
-  if (dc && dc.readyState === 'open') try { dc.send(JSON.stringify(m)); p.n.tx++; return; } catch (e) {}
+  const dc = ST_MSG.has(m.t) ? p.st : FX_MSG.has(m.t) ? p.fx || p.ev : p.ev;
+  if (dc && dc.readyState === 'open') try { const d = JSON.stringify(m); dc.send(d); p.n.tx++; p.n.txB += d.length; return; } catch (e) {}
   if (p.n) p.n.fail++;   // (not open: lost, or still connecting)
+}
+// A seen-only event, to each player whose hero is within FX_NEAR tiles of it (of any point from x0,y0 to x1,y1:
+// a projectile's flight); a player whose hero we have not placed yet gets it anyway
+const FX_NEAR = 20;
+function netFx(msg, x0, y0, x1 = x0, y1 = y0, skip = null) {
+  if (!netOn()) return;
+  const dx = x1 - x0, dy = y1 - y0, L = dx * dx + dy * dy;
+  for (const p of NET.peers.values()) {
+    if (p.id === skip) continue;
+    const e = p.hero;
+    if (e) { const k = L > 0 ? Math.max(0, Math.min(1, ((e.x - x0) * dx + (e.y - y0) * dy) / L)) : 0;
+      if (Math.hypot(e.x - x0 - dx * k, e.y - y0 - dy * k) > FX_NEAR) continue; }
+    netSend(p, msg);
+  }
 }
 function netDropPeer(p, quiet) {
   if (NET.peers.get(p.id) === p) NET.peers.delete(p.id);
@@ -204,7 +222,7 @@ function netSync(p, a) {
 }
 function netMsg(p, data) {
   let m; try { m = JSON.parse(data); } catch (e) { return; }
-  const now = netNow(); p.last = now; p.n.rx++;
+  const now = netNow(); p.last = now; p.n.rx++; p.n.rxB += data.length;
   if (p.lost) { p.lost = 0; p.n.back++; if (p.hero) { p.hero.lost = false; log('In touch with ' + p.hero.name + ' again.', '#b49ae6'); } }
   switch (m.t) {
     case 'hello': {
@@ -401,11 +419,12 @@ function remoteMonster(m, dt) {   // called from updateMonster for a monster ano
 }
 // ---- Hits
 function netHit(m, v, crit, fire) {   // our hero struck a monster another player owns: its owner applies it, the rest see it
-  const c = crit ? 1 : 0, f = fire ? 1 : 0;
-  for (const p of NET.peers.values()) netSend(p, { t: p.id === m.owner ? 'hit' : 'hx', i: m.nid, v, c, f });
+  const c = crit ? 1 : 0, f = fire ? 1 : 0, p = NET.peers.get(m.owner);
+  if (p) netSend(p, { t: 'hit', i: m.nid, v, c, f });
+  netFx({ t: 'hx', i: m.nid, v, c, f }, m.x, m.y, m.x, m.y, m.owner);
   m.hp = Math.max(1, m.hp - v);   // until its owner's next state says
 }
-function netShowHit(m, v, crit, fire) { if (netOn() && m.nid) netEach({ t: 'hx', i: m.nid, v, c: crit ? 1 : 0, f: fire ? 1 : 0 }); }   // our hero struck one of ours: the others see it
+function netShowHit(m, v, crit, fire) { if (m.nid) netFx({ t: 'hx', i: m.nid, v, c: crit ? 1 : 0, f: fire ? 1 : 0 }, m.x, m.y); }   // our hero struck one of ours: the others see it
 function netSeeHit(m, v, crit, fire) {   // another player's hero struck a monster (not ours to apply): the number, the flash, the sparks
   m.hitT = fire ? 0.1 : 0.14;
   floatText(m.x, m.y, crit ? v + '!' : '' + v, fire ? '#ff9a40' : crit ? '#ffd36a' : '#f2e6d0', 0.8, crit ? 20 : 15);
@@ -413,9 +432,9 @@ function netSeeHit(m, v, crit, fire) {   // another player's hero struck a monst
     sfx('hit', { mat: HIT_MAT[m.type], x: m.x, y: m.y }); }
 }
 // What our hero does, seen by the others (drawn on its copy there): a swing, an arrow, being hurt
-function netSwing(h) { if (netOn()) netEach({ t: 'sw', a: +h.swing.ang.toFixed(3), r: h.swing.arc, k: weaponOf(h).kind }); }
-function netArrow(a) { if (netOn()) netEach({ t: 'arw', x: +a.x.toFixed(2), y: +a.y.toFixed(2), vx: +a.vx.toFixed(2), vy: +a.vy.toFixed(2), l: +a.life.toFixed(2) }); }
-function netHurt(v, fire) { if (netOn()) netEach({ t: 'hd', v, f: fire ? 1 : 0 }); }
+function netSwing(h) { netFx({ t: 'sw', a: +h.swing.ang.toFixed(3), r: h.swing.arc, k: weaponOf(h).kind }, h.x, h.y); }
+function netArrow(a) { netFx({ t: 'arw', x: +a.x.toFixed(2), y: +a.y.toFixed(2), vx: +a.vx.toFixed(2), vy: +a.vy.toFixed(2), l: +a.life.toFixed(2) }, a.x, a.y, a.x + a.vx * a.life, a.y + a.vy * a.life); }
+function netHurt(v, fire) { netFx({ t: 'hd', v, f: fire ? 1 : 0 }, G.hero.x, G.hero.y); }
 // One of ours woke (sighting or a hit) next to other players' monsters: the wake rules (WAKES) run here, but those
 // monsters run in their owners' games, so each owner is asked to wake its own (`wk`, one message per owner)
 function netWake(list) {
@@ -424,7 +443,7 @@ function netWake(list) {
   for (const [ow, a] of by) { const p = NET.peers.get(ow); if (p) netSend(p, { t: 'wk', a }); }
 }
 function netWoken(a) { for (const i of a) { const o = NET.mons.get(i); if (o && !o.owner && !o.dead && o.state === 'idle' && !o.calm) { chase(o); netDot(o); } } }
-function netStrike(m) { if (netOn() && m.nid && !m.owner) netEach({ t: 'ma', i: m.nid }); }   // a monster of ours struck (its lunge)
+function netStrike(m) { if (m.nid && !m.owner) netFx({ t: 'ma', i: m.nid }, m.x, m.y); }   // a monster of ours struck (its lunge)
 function credit(m, who, v) { const c = m.dmgBy || (m.dmgBy = {}), e = c[who] || (c[who] = { v: 0, t: 0 }); e.v += v; e.t = G.time; }
 function netTakeHit(m, v, crit, fire, from) {   // another player's hero struck one of our monsters (already through its armor)
   if (m.dead) return;
@@ -595,12 +614,19 @@ function netDbgText() {
   const objs = id => { let n = 0; for (const x of NET.loot.values()) if ((id === NET.me ? !x.owner : x.owner === id) && lootHere(x) && !x.used) n++; return n; };
   const rows = ['<b>' + (G.hero.name || 'You') + '</b> (you) · ' + mons(NET.me) + ' monsters · ' + objs(NET.me) + ' objects' + (netElder() === NET.me ? ' · elder' : '')];
   const now = netNow();
+  const r = p => p.rate ? ' · <b>' + p.rate.rx + '/s in, ' + p.rate.tx + '/s out</b> (' + (p.rate.rxB / 1024).toFixed(1) + ' / ' + (p.rate.txB / 1024).toFixed(1) + ' kB/s)' : '';
+  let tin = 0, tout = 0; for (const p of NET.peers.values()) if (p.rate) { tin += p.rate.rx; tout += p.rate.tx; }
+  rows[0] += ' · ' + tin + ' msgs/s in, ' + tout + '/s out';
   for (const p of NET.peers.values()) {
     const n = p.n, nm = p.hero ? p.hero.name : p.info && p.info.name || p.id, st = p.lost ? '<span style="color:#ff7a6a">lost ' + ((now - p.lost) / 1000).toFixed(0) + ' s</span>' : p.hero ? 'ok' : 'connecting';
-    rows.push('<b>' + nm + '</b> · ' + st + ' · ping ' + (p.rtt ? Math.round(p.rtt) + ' ms' : '–') + ' · ' + mons(p.id) + ' monsters · ' + objs(p.id) + ' objects<br>'
+    rows.push('<b>' + nm + '</b> · ' + st + ' · ping ' + (p.rtt ? Math.round(p.rtt) + ' ms' : '–') + ' · ' + mons(p.id) + ' monsters · ' + objs(p.id) + ' objects' + r(p) + '<br>'
       + '&nbsp;&nbsp;msgs in ' + n.rx + ' / out ' + n.tx + ' · failed sends ' + n.fail + ' · late heartbeats ' + n.late + ' · lost ' + n.lost + ' · back ' + n.back + ' · redials ' + n.redial
       + ' · last heard ' + Math.round(now - p.last) + ' ms ago');
   }
   return rows.join('<br>');
 }
+setInterval(() => {   // messages and bytes a second, each player, over the last second
+  for (const p of NET.peers.values()) { const n = p.n, o = p.prevN || n;
+    p.rate = { rx: n.rx - (o.rx || 0), tx: n.tx - (o.tx || 0), rxB: n.rxB - (o.rxB || 0), txB: n.txB - (o.txB || 0) }; p.prevN = Object.assign({}, n); }
+}, 1000);
 setInterval(() => { const el = document.getElementById('dbgNet'); if (!el || !netDbgOn()) return; const t = netDbgText(); if (el.innerHTML !== t) el.innerHTML = t; el.style.display = t ? '' : 'none'; }, 250);

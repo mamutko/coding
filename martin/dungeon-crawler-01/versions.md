@@ -9,9 +9,9 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v141–v143 — the whole fight seen by everyone, reconnecting instead of splitting, multiplayer debug (2026-11-25)
+## v141–v144 — the whole fight seen by everyone, reconnecting instead of splitting, multiplayer debug (2026-11-25)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 143`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 144`)*
 
 - In the Rift, every player sees the others' sword swings, arrows, monster blows and wraith bolts, and every damage
   number: on monsters, whoever struck them, and over heroes that are hurt.
@@ -22,6 +22,8 @@ Commit: *(the next version records it; until then, the latest commit that set `V
   came about, in the scene and on the minimap (v142: bigger in the scene, and on the minimap too). v143: a blue dot
   on each monster your game runs; both colours half see-through.
 - v143: a monster waking its neighbours now wakes other players' monsters too (it only woke your own).
+- v144: swings, arrows, monster blows, bolts and damage numbers go on a channel of their own that never waits for a
+  lost message, and only to players within 20 tiles of them. The debug overlay shows messages and kB a second.
 
 ## v140 — the Rift's new layout: boss room, big room, lake by the east corner, rooms shared by thirds (2026-11-25)
 
