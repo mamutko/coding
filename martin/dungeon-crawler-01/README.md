@@ -975,9 +975,14 @@ shared project, its public key; no table) and then talk directly over **WebRTC**
   each running the other's monsters. While in the Rift, every 3 s each game looks at the realm's presence list for a
   player on the same map (`NET.mid`: an id the founder makes, handed on in the snapshot and shown in presence, so two
   who founded the realm at the same moment never merge) that it has no connection with; the younger dials it (each at
-  most every 10 s). Once connected, both send `sync` (their live monsters and loot). A monster both run stays with the
-  **older** player (in the Rift first, `olderOf`); the younger silently drops it (`toCopy`: a copy now, eased from
-  where it stood). One thought to be a third player's goes to the older claimant. A monster either side knows died
+  most every 10 s). Once connected, both send `sync` (their live monsters and loot) and their world state. A conflict
+  goes to the **bigger side** (since v153, `theyWin`): each side's weight is its player plus the players it was
+  already with when it lost touch with the other (`groupSize`, `NET.droppedAt`: one met again a moment ago doesn't
+  count, so merging with several players one after the other gives the same answer each time), frozen as sent so both
+  games compare the same two numbers; equal sides, the player in the Rift first (`olderOf`). A monster both run stays
+  with the winning side; the other silently drops it (`toCopy`: a copy now, eased from where it stood). Loot both
+  claim goes to the winning side. Each door takes the winning side's state, numbered one above both sides' versions
+  where they differed, so both games end up the same. A monster either side knows died
   (`NET.gone`: deaths seen here) is told back (`gone`) and removed, so nothing killed comes back. The debug overlay
   counts the monsters whose double control was resolved.
 
@@ -1153,6 +1158,12 @@ different realm from the same dial without it.
   rest go one by one to whichever player runs the fewest live monsters then, so the load is spread evenly. The
   decision (`handover`) goes to everyone. Orphans with no decision after 4 s (the decider left too) are decided again
   by whoever is eldest then. A boss passed on keeps its chest sealed.
+- **Keeping the load even** (since v153, `REBAL`, `netRebalance`): every 5 s the eldest player counts the live
+  monsters each player in touch runs (not away, not lost). While the busiest runs more than the least busy by over
+  max(4, 15 % of the average), up to 6 of the busiest's idle monsters (not chasing, not frozen; those farthest from
+  every hero first, so the change happens out of sight) are handed to the least busy (`handover`). So after a merge,
+  or with a founder who filled more rooms than a joiner, the load evens out within a minute or so. The debug overlay
+  counts the monsters we handed over this way.
 - **A hidden tab** (`visibilitychange`, `netHide`) gets no frames, so it cannot run its monsters: it hands them all
   over at once (`netShare` among the others: one chasing another player's hero to that player, the rest spread evenly). Its hero is
   **away**: its states say so (still sent from the timer, about once a second in a background tab), the others draw

@@ -332,8 +332,11 @@ burns with its fire. (Until v148 a companion's fire did not hurt your hero; now 
   passes on all it knows (floor loot with its owner), so the word gets through a third player. Exchanged on every
   reconnection and whenever a 10 s fingerprint differs.
 - **A split and meeting again** (v149): players who dropped each other in a long network split find each other again
-  through presence (same map id only) and merge: a monster both ended up running stays with the older player, the
-  younger drops it seamlessly; monsters killed on either side stay dead.
+  through presence (same map id only) and merge: a conflict (a monster both ended up running, loot both claim, a door's
+  state) goes to the side with more players (v153; counting those it was with when the two lost touch), equal sides to
+  the player in the Rift first; the losing side drops it seamlessly; monsters killed on either side stay dead.
+- **Load** (v153): the eldest player keeps the monster load even, handing a few idle monsters at a time from the
+  busiest player to the least busy.
 - **The elder leaves:** the next oldest becomes the elder (everyone computes the same answer from presence).
 - **The last player leaves:** the realm is gone. The next player to dial that realm id founds a new one.
 

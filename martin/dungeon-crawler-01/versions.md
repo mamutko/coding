@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v153 — the bigger side wins a merge; the monster load kept even (2026-11-27)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 153`)*
+
+- When players who were split apart meet again, conflicts (monsters both sides ran, loot, doors) go to the side with
+  more players; equal sides to whoever entered the Rift first.
+- The monsters are kept spread evenly over the players: a few idle ones at a time pass from the busiest player to
+  the least busy, out of sight.
+
 ## v152 — monsters open doors (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 152`)*
+Commit: 93570ec
 
 - Skeletons, Pit Demons and ghouls chasing you open closed doors in their way, after a moment's fumbling.
   Wandering skeletons sometimes open a door they come to. Spiders and wraiths are still held back by a closed door.

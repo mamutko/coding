@@ -24,7 +24,7 @@ const NET_CFG = {
   chunk: 16000,      // characters per snapshot piece
 };
 const NET = { loot: new Map(), mons: new Map(), monN: 0, sb: null, libP: null, ch: null, topic: null, me: null, since: 0, peers: new Map(), on: false, timer: null, snapIn: null,
-  tracked: null, dots: [], gone: new Set(), taken: new Set() };
+  tracked: null, dots: [], gone: new Set(), taken: new Set(), droppedAt: new Map() };
 const netNow = () => performance.now();
 
 function netLib() {   // load supabase-js once; resolves to the client, or null if it cannot be loaded
@@ -59,7 +59,7 @@ async function netPeek(realmId) {
 }
 async function netClose() {   // leave the channel and every connection
   for (const p of NET.peers.values()) netDropPeer(p, true);
-  NET.peers.clear(); NET.mons.clear(); NET.loot.clear(); NET.on = false; clearInterval(NET.timer); NET.timer = null; NET.tracked = null; NET.dots = []; NET.gone = new Set(); NET.taken = new Set(); NET.dup = 0; NET.tried = null; NET.mid = null;
+  NET.peers.clear(); NET.mons.clear(); NET.loot.clear(); NET.on = false; clearInterval(NET.timer); NET.timer = null; NET.tracked = null; NET.dots = []; NET.gone = new Set(); NET.taken = new Set(); NET.droppedAt = new Map(); NET.dup = 0; NET.tried = null; NET.mid = null;
   if (NET.ch) { const ch = NET.ch; NET.ch = null; NET.topic = null; try { await ch.untrack(); } catch (e) {} try { await NET.sb.removeChannel(ch); } catch (e) {} }
 }
 
@@ -161,6 +161,7 @@ function netFx(msg, x0, y0, x1 = x0, y1 = y0, skip = null) {
 }
 function netDropPeer(p, quiet) {
   if (NET.peers.get(p.id) === p) NET.peers.delete(p.id);
+  if (!quiet && p.hero) NET.droppedAt.set(p.id, netNow());   // (for a merge if we meet again: see groupSize)
   try { p.pc && p.pc.close(); } catch (e) {}
   if (p.hero && G && G.heroes) { const i = G.heroes.indexOf(p.hero); if (i >= 0) G.heroes.splice(i, 1);
     if (!quiet && G.rift) log(p.hero.name + ' has left the Rift.', '#b49ae6'); }
@@ -186,6 +187,22 @@ function netShare(list, to) {
   for (const m of rest) { let best = null; for (const [id, c] of n) if (best === null || c < n.get(best)) best = id;
     out.push([m.nid, best]); n.set(best, n.get(best) + 1); }
   return out;
+}
+// Keeping the load even (REBAL): every 5 s the eldest player looks at how many live monsters each player in touch
+// runs (not away, not lost); while the busiest runs more than the least busy by over max(4, 15 % of the average), a
+// few of the busiest's idle monsters (not chasing, not frozen; those farthest from every hero first, so the change
+// is out of sight) are handed to the least busy, at most `batch` at a time.
+const REBAL = { every: 5000, min: 4, frac: 0.15, batch: 6 };
+function netRebalance(now) {
+  if (now - (NET.rebT || 0) < REBAL.every || !G.rift || NET.awaySince || netElder() !== NET.me) return; NET.rebT = now;
+  const ps = [NET.me, ...[...NET.peers.values()].filter(q => q.hero && !q.lost && !q.hero.away).map(q => q.id)]; if (ps.length < 2) return;
+  const n = new Map(ps.map(id => [id, 0])), live = G.monsters.filter(m => !m.dead && m.nid && !m.orphan);
+  for (const m of live) { const o = m.owner || NET.me; if (n.has(o)) n.set(o, n.get(o) + 1); }
+  const sorted = [...n].sort((a, b) => b[1] - a[1]), [hi, hc] = sorted[0], [lo, lc] = sorted[sorted.length - 1];
+  const avg = live.length / ps.length; if (hc - lc <= Math.max(REBAL.min, REBAL.frac * avg)) return;
+  const far = m => Math.min(...G.heroes.map(e => Math.hypot(e.x - m.x, e.y - m.y)));
+  const pick = live.filter(m => (m.owner || NET.me) === hi && m.state !== 'chase' && !m.frozen).sort((a, b) => far(b) - far(a)).slice(0, Math.min(REBAL.batch, Math.floor((hc - lc) / 2)));
+  if (pick.length) { netHandover(pick.map(m => [m.nid, lo])); NET.rebal = (NET.rebal || 0) + pick.length; }
 }
 // Handing monsters over: [[id, new owner], …], applied here and sent to all
 function netHandover(a) { netEach({ t: 'handover', a }); netApplyHandover(a); }
@@ -221,9 +238,22 @@ document.addEventListener('visibilitychange', () => netHide(document.hidden));
 function netHello(p) {
   if (p.helloSent) return; p.helloSent = true;
   const h = G.hero; netSend(p, { t: 'hello', name: h.name, lvl: h.lvl, look: h.look || 'hero', since: NET.since });
-  if (G.rift) netSend(p, { t: 'sync', a: G.monsters.filter(m => !m.owner && m.nid && !m.dead).map(monDesc),   // (back together after a break,
-    l: [...NET.loot.values()].filter(x => !x.owner && lootHere(x)).map(x => x.nid) });                        //  or meeting again after a split)
-  if (G.rift) netWorldSend(p, false);   // and the world's state: doors, used objects, taken and floor loot
+  if (!G.rift) return;
+  p.myW = groupSize(p.id);   // our side's weight in this merge, frozen as sent (both sides compare the same two numbers)
+  netSend(p, { t: 'sync', w: p.myW, a: G.monsters.filter(m => !m.owner && m.nid && !m.dead).map(monDesc),   // (back together after a break,
+    l: [...NET.loot.values()].filter(x => !x.owner && lootHere(x)).map(x => x.nid) });                      //  or meeting again after a split)
+  netWorldSend(p, false, true);   // and the world's state: doors, used objects, taken and floor loot
+}
+// Merging two views of the world (after a break or a split): the side with more players wins a conflict (each side's
+// group: its player and those it is connected to, other than the one it merges with); equal groups, the player in
+// the Rift first. Both games work out the same answer from the same two numbers.
+// (only the players we were already with when we lost touch with that one (NET.droppedAt): merging with several
+// players one after the other, one met again a moment ago was not on our side and must not tip the next merge)
+const groupSize = except => { const cut = NET.droppedAt.get(except) ?? Infinity;
+  return 1 + [...NET.peers.values()].filter(q => q.id !== except && q.hero && !q.lost && (q.metAt ?? 0) < cut).length; };
+function theyWin(p, theirW) {
+  const mine = p.myW || groupSize(p.id), theirs = theirW || 1;
+  return mine !== theirs ? theirs > mine : olderOf(NET.me, p.id) !== NET.me;
 }
 // This Rift's map (an id the founder makes, handed on in the snapshot): shown in our presence, so that only players
 // on the same map find each other again after a split (two who founded the realm at the same moment never merge)
@@ -239,7 +269,8 @@ const olderOf = (a, b) => { const s = id => id === NET.me ? NET.since : (NET.pee
 // silently drops it (a copy now, eased from where it stood). One we think a third player runs goes to the older of the
 // two claimants. Monsters we know died are told back (`gone`); p's that it no longer has died meanwhile; any we never
 // heard of appear.
-function netSync(p, a, l) {
+function netSync(p, a, l, w) {
+  p.theirW = w; const them = theyWin(p, w);
   const ids = new Set(a.map(d => d.i)), dead = [];
   for (const m of G.monsters) if (m.owner === p.id && !m.dead && !ids.has(m.nid)) { m.dead = true; m.deathT = 0; m.faded = true; NET.mons.delete(m.nid); }
   for (const d of a) {
@@ -247,11 +278,12 @@ function netSync(p, a, l) {
     const m = NET.mons.get(d.i);
     if (!m) { netAddMonster(d, p.id); continue; }
     m.orphan = null;
-    if (!m.owner) { if (olderOf(NET.me, p.id) !== NET.me) { toCopy(m, p.id, d); m.hp = d.hp; NET.dup = (NET.dup || 0) + 1; } }   // both ran it
-    else if (m.owner === p.id || olderOf(m.owner, p.id) === p.id) { if (m.owner !== p.id) NET.dup = (NET.dup || 0) + 1; m.owner = p.id; m.ax = d.x; m.ay = d.y; m.at = netNow(); m.hp = d.hp; m.tx = m.ty = m.tg = null; m.sp = 0; }
+    if (!m.owner) { if (them) { toCopy(m, p.id, d); m.hp = d.hp; NET.dup = (NET.dup || 0) + 1; } }   // both ran it: the winning side keeps it
+    else if (m.owner === p.id || them) {   // (one we think another of our group runs: the winning side's claim stands)
+      if (m.owner !== p.id) NET.dup = (NET.dup || 0) + 1; m.owner = p.id; m.ax = d.x; m.ay = d.y; m.at = netNow(); m.hp = d.hp; m.tx = m.ty = m.tg = null; m.sp = 0; }
   }
   for (const i of l || []) { const x = NET.loot.get(i); if (!x) continue;
-    if (!x.owner ? olderOf(NET.me, p.id) !== NET.me : x.owner !== p.id && olderOf(x.owner, p.id) === p.id) x.owner = p.id; }
+    if (x.owner !== p.id && them) x.owner = p.id; }
   if (dead.length) netSend(p, { t: 'gone', a: dead });
 }
 function netGone(a) {   // monsters p runs that we know died while we were apart: gone (no experience, no loot)
@@ -266,7 +298,7 @@ function netMsg(p, data) {
       p.info = Object.assign(p.info || {}, { name: m.name, lvl: m.lvl, look: m.look, since: m.since }); p.hello = m;   // (its hero appears in netFrame, once we are in the Rift)
       break; }
     case 'st': if (p.lastSt && now - p.lastSt > NET_CFG.rate * 4 + 200) p.n.late++; p.lastSt = now; if (p.hero) remoteState(p, m); break;
-    case 'sync': if (G.rift && G.map) netSync(p, m.a, m.l); break;
+    case 'sync': if (G.rift && G.map) netSync(p, m.a, m.l, m.w); break;
     case 'is': netWorldMerge(p, m); break;   // the world's state, to merge (doors, used, taken, floor loot)
     case 'ih': if (G.rift && m.h !== worldHash()) netWorldSend(p, true); break;   // fingerprints differ: exchange
     case 'gone': if (G.rift) netGone(m.a); break;
@@ -322,6 +354,7 @@ function netTick() {
     NET.awaySince = 0; log('The Rift let you go.', '#b49ae6'); leaveRift(); return; }
   const orph = G.monsters.filter(m => m.orphan && !m.dead && now - m.orphan > 4000);   // no decision came (the decider left too?): the eldest now decides again
   if (orph.length) { for (const m of orph) m.orphan = now; if (netElder() === NET.me) netHandover(netShare(orph, [NET.me, ...NET.peers.keys()])); }
+  netRebalance(now);
   // meeting again: a player in the realm (its presence) we have no connection with, older than us, is dialled (the
   // younger dials, as at the start), at most every 10 s each: after a split, the two halves of the realm find each other
   if (NET.ch && now - (NET.seekT || 0) > 3000) { NET.seekT = now; const tried = NET.tried || (NET.tried = new Map());
@@ -359,7 +392,7 @@ function remoteState(p, m) {
 function netFrame(dt) {   // every frame: move the other heroes to where they were NET_CFG.delay ms ago (their clock)
   if (!G || !G.heroes) return;
   for (const p of NET.peers.values()) {
-    if (!p.hero && p.hello && G.rift && G.map) { p.hero = remoteHero(p, p.hello); G.heroes.push(p.hero); log(p.hello.name + ' (level ' + p.hello.lvl + ') is in the Rift.', '#b49ae6'); }
+    if (!p.hero && p.hello && G.rift && G.map) { p.hero = remoteHero(p, p.hello); p.metAt = netNow(); G.heroes.push(p.hero); log(p.hello.name + ' (level ' + p.hello.lvl + ') is in the Rift.', '#b49ae6'); }
     const e = p.hero; if (!e) continue;
     e.lunge = Math.max(0, e.lunge - dt * 5); e.hitT = Math.max(0, e.hitT - dt);   // its swing, lunge and hurt flash play out here
     if (e.swing && (e.swing.t += dt) >= e.swing.dur) e.swing = null;
@@ -710,6 +743,7 @@ function netDbgText() {
     rows.push('<b>' + nm + '</b> · ' + st + ' · ping ' + (p.rtt ? Math.round(p.rtt) + ' ms' : '–') + ' · ' + mons(p.id) + ' monsters · ' + objs(p.id) + ' objects' + r(p) + '<br>' + paceText(p) + '<br>'
       + '&nbsp;&nbsp;msgs in ' + n.rx + ' / out ' + n.tx + ' · failed sends ' + n.fail + ' · late heartbeats ' + n.late + ' · lost ' + n.lost + ' · back ' + n.back + ' · redials ' + n.redial
       + ' · last heard ' + Math.round(now - p.last) + ' ms ago');
+  if (NET.rebal) rows.push('monsters rebalanced (by us): ' + NET.rebal);
   if (NET.dup) rows.push('double control resolved: ' + NET.dup + ' monsters');
   if (NET.fixed) rows.push('world state repaired: ' + NET.fixed + ' doors, objects or items');
   }
@@ -760,11 +794,16 @@ function worldHash() {   // a fingerprint of what both sides should agree on
   let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return (h >>> 0).toString(36) + '.' + s.length;
 }
-function netWorldSend(p, ask) { if (!G.rift) return; const w = worldState(); netSend(p, { t: 'is', d: w.d, u: w.u, f: w.f, g: w.g, ask: ask ? 1 : 0 }); p.n.isync = (p.n.isync || 0) + 1; }
+function netWorldSend(p, ask, merge) { if (!G.rift) return; const w = worldState(); netSend(p, { t: 'is', d: w.d, u: w.u, f: w.f, g: w.g, ask: ask ? 1 : 0, mg: merge ? p.myW : 0 }); p.n.isync = (p.n.isync || 0) + 1; }
 function netWorldMerge(p, m) {
   if (!G.rift || !G.map) return;
   let n = 0;
-  for (const [i, open, v] of m.d || []) { const o = NET.loot.get(i);
+  if (m.mg) {   // a merge: each door takes the winning side's state, numbered above both sides' versions (the same on both)
+    const them = theyWin(p, m.mg);
+    for (const [i, open, v] of m.d || []) { const o = NET.loot.get(i); if (!o || o.type !== 'door') continue;
+      const top = Math.max(v, o.v || 0), want = them ? !!open : o.open, differ = !!open !== o.open;
+      o.v = top + (differ ? 1 : 0); if (want !== o.open) { setDoor(o, want); n++; } }
+  } else for (const [i, open, v] of m.d || []) { const o = NET.loot.get(i);
     if (o && o.type === 'door' && (v > (o.v || 0) || v === (o.v || 0) && p.id === o.owner && !!open !== o.open) && netDoorSet(o, !!open, v, false)) n++; }
   for (const i of m.u) { const o = NET.loot.get(i); if (o && !o.used) { o.used = true; o.asked = 0; if (o.type === 'urn') G.map.block[o.y * G.map.w + o.x] = 0; n++; } }
   for (const i of m.g) { if (NET.taken.has(i)) continue; NET.taken.add(i); const x = NET.loot.get(i); if (x && lootHere(x)) { lootGone(x); n++; } else NET.loot.delete(i); }
