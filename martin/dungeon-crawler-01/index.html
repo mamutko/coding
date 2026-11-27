@@ -438,7 +438,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 156;
+const VERSION = 157;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -930,7 +930,7 @@ const iconKey = base => base === 'firebomb' ? 'firebomb1' : (BASES[base] && BASE
 const ITEM_GROUP = b => b.kind === 'flail' || b.kind === 'polearm' ? 'crowd' : b.kind || b.slot;   // (flails and polearms share a drop group)
 const JEWELRY = { ring: 1, amulet: 1 };
 const KIND_INFO = { sword: { reach: 1.55, arc: 0.9, label: 'Sword (melee)' }, axe: { reach: 1.45, arc: 1.25, label: 'Axe (melee, wide cleave)' },
-  flail: { reach: 1.5, arc: Math.PI, label: 'Flail (melee, hits all around, knocks back)' }, polearm: { reach: 2.3, arc: Math.PI / 2, label: 'Polearm (melee, long sweep)' },
+  flail: { reach: 1.5, arc: Math.PI, label: 'Flail (melee, hits all around, knocks back)' }, polearm: { reach: 2.5, arc: 0.8, label: 'Polearm (melee, long reach)' },   // (its strength is the reach: an arc a little narrower than a sword's)
   bow: { reach: 12, label: 'Bow (ranged)' }, bomb: { reach: BOMB.range, label: 'Fire bomb (thrown)' }, fist: { reach: 1.25, arc: 0.8, label: 'Bare hands' } };
 const RANGED = { bow: 1, bomb: 1 };   // weapon kinds that attack from a distance (no walking into reach)
 const SLOT_LABEL = { weapon: 'Weapon', head: 'Helm', chest: 'Armor', hands: 'Gloves', feet: 'Boots', ring: 'Ring', ring1: 'Ring', ring2: 'Ring', amulet: 'Amulet' };

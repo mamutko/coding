@@ -239,20 +239,21 @@ $('tierNote').innerHTML = `<b>Champions</b>: 10 % of monsters whose type appeare
   ${D.newLimit.length} depths after a type appears (skeletons and spiders exempt).`;
 
 // ---------- armory ----------
-const GROUPS = [['sword', 'Swords'], ['axe', 'Axes'], ['bow', 'Bows'], ['head', 'Helms'], ['chest', 'Body Armor'],
+const GROUPS = [['sword', 'Swords'], ['axe', 'Axes'], ['flail', 'Flails'], ['polearm', 'Polearms'], ['bow', 'Bows'], ['head', 'Helms'], ['chest', 'Body Armor'],
   ['hands', 'Gloves'], ['feet', 'Boots'], ['ring', 'Rings'], ['amulet', 'Amulets']];
 for (const [g, title] of GROUPS) {
   const keys = Object.keys(D.bases).filter(k => (D.bases[k].kind || D.bases[k].slot) === g).sort((a, b) => D.bases[a].lvl - D.bases[b].lvl);
-  const weapon = ['sword', 'axe', 'bow'].includes(g), jewel = g === 'ring' || g === 'amulet';
+  const weapon = ['sword', 'axe', 'flail', 'polearm', 'bow'].includes(g), jewel = g === 'ring' || g === 'amulet';
   const head = weapon ? '<th></th><th>Name</th><th class="num">Damage</th><th class="num">Speed</th><th class="num">DPS</th><th class="num">From</th>'
     : jewel ? '<th></th><th>Name</th><th>Base stats</th>' : '<th></th><th>Name</th><th class="num">Armor</th><th>Bonus</th><th class="num">From</th>';
   const rows = keys.map(k => { const b = D.bases[k], ico = `<td class="icon"><div class="ico" style="${iconCss(iconKey(k), 48)}"></div></td>`;
     const imp = b.implicit ? Object.entries(b.implicit).map(([s, v]) => `+${v} ${D.statLabel[s]}`).join(', ') : '—';
-    if (weapon) return `<tr>${ico}<td>${esc(b.name)}</td><td class="num">${b.min}–${b.max}</td><td class="num">${b.cd} s</td><td class="num">${n1((b.min + b.max) / 2 / b.cd)}</td><td class="num">${b.lvl}</td></tr>`;
+    if (weapon) return `<tr>${ico}<td>${esc(b.name)}${b.knock ? ` <span class="note">(knocks back ${b.knock} tiles)</span>` : ''}</td><td class="num">${b.min}–${b.max}</td><td class="num">${b.cd} s</td><td class="num">${n1((b.min + b.max) / 2 / b.cd)}</td><td class="num">${b.lvl}</td></tr>`;
     if (jewel) return `<tr>${ico}<td>${esc(b.name)}</td><td class="note">none</td></tr>`;
     return `<tr>${ico}<td>${esc(b.name)}</td><td class="num">${b.armor}</td><td>${imp}</td><td class="num">${b.lvl}</td></tr>`; }).join('');
   const kind = D.kinds[g];
-  const sub = weapon ? `${kind.label.replace(/^\w+ /, '')} · reach ${kind.reach} tiles` : jewel
+  const cl = D.kindCleave[g] ?? D.cleave, arcTxt = !kind || kind.arc == null ? '' : kind.arc >= Math.PI - 0.01 ? ' · all around' : ` · arc ${Math.round(kind.arc * 2 * 180 / Math.PI)}°`;
+  const sub = weapon ? `${kind.label.replace(/^\w+ /, '')} · reach ${kind.reach} tiles${arcTxt}${!kind || kind.arc == null ? '' : ` · other monsters in the arc take ${Math.round(cl * 100)} %`}` : jewel
     ? `Magic or rare only, from depth ${g === 'ring' ? D.ringFrom : D.amuletFrom} (and ${D.magicFrom} for magic); affix ranges × ${D.jewelMult}` : '';
   const div = document.createElement('div'); div.className = 'panel scroll';
   div.innerHTML = `<h3 style="margin-top:0">${title}</h3>${sub ? `<div class="note" style="margin:-4px 0 6px">${esc(sub)}</div>` : ''}<table>${head}${rows}</table>`;

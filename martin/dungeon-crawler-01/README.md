@@ -1450,7 +1450,7 @@ gets its own damage and crit roll, then its own armor reduction.
 | Sword | 1.55 | 0.9 rad |
 | Axe | 1.45 | 1.25 rad (wide cleave, 40 %) |
 | Flail | 1.5 | π (all around; every monster full; knocks back) |
-| Polearm | 2.3 | π/2 (a half circle in front; every monster full) |
+| Polearm | 2.5 | 0.8 rad (a little narrower than a sword: its strength is the reach; every monster full) |
 | Bare hands | 1.25 | 0.8 rad |
 
 **Crowd weapons** (since v154) are for when many monsters close in. A **flail** spins all the way round: every
@@ -1458,8 +1458,8 @@ monster within reach takes the full blow and is **knocked back** (`knock` on the
 for a Morning Star; a boss half as far, the dragon not at all; `knockMonster`, `KNOCK_T` 0.15 s, during which the
 monster does nothing, so a windup in progress waits and often ends out of reach). To make up for it a flail hits
 weaker and slower than a sword of its depth (about 55–60 % of a sword's damage per second on one monster). A
-**polearm** sweeps a half circle at a long reach (2.3 tiles: the front rank and the one behind it), every monster
-in it taking the full blow, at about 85 % of a sword's damage per second on one. Knockback is meant to become a
+**polearm** strikes far (2.5 tiles: the front rank and the one behind it) in an arc a little narrower than a
+sword's (since v157; it was a 180° sweep at 2.3 tiles), every monster in it taking the full blow, at about 85 % of a sword's damage per second on one. Knockback is meant to become a
 possible magic affix later (the item's `knock`). In the Rift another player's monster is thrown by its owner's game
 (`kn`). Their swings sound heavier (a whirl for the flail), and the swing's slash is drawn as a full circle for a
 flail and wider for a polearm. Flails and polearms share one drop group (`ITEM_GROUP`: `crowd`), so together they
