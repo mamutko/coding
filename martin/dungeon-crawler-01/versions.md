@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v168 — the hero card shows gear and gold; erasing moves to the hero list (2026-11-27)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 168`)*
+
+- The hero card on the title screen shows the hero's gold and a small grid of what it wears and wields, each item
+  edged in its rarity's colour.
+- Heroes are erased from the Switch hero list (🗑 beside each, after a confirmation), no longer from the hero's
+  settings.
+
 ## v165–v167 — a calmer title screen; PIN links (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 167`)*
+Commit: e4445cc
 
 - The controls moved off the title screen into a **Help** box (top right, beside Full screen), which also explains
   heroes and the ways to sign in.

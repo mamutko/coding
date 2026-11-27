@@ -245,7 +245,7 @@
     -webkit-touch-callout: none; touch-action: manipulation; }
   #version:hover { opacity: 1; }
   #screen #scenBtn { position: absolute; left: 12px; bottom: 10px; font-size: 13px; padding: 6px 12px; }
-  #heroRow { display: flex; width: min(480px, 100%); margin: 6px 0 4px; }
+  #heroRow { display: flex; width: min(600px, 100%); margin: 6px 0 4px; }
   #screen #switchBtn, #screen #newBtn { font-size: 14px; padding: 8px 16px; }
   @media (max-width: 520px) { #startRow { flex-wrap: wrap; justify-content: center; } #screen #startBtn { flex-basis: 100%; } }
   #heroCard:not(:has(.hcFirst)) { cursor: pointer; }
@@ -257,6 +257,14 @@
   #heroCard .hcName { font-family: Cinzel, serif; font-size: 24px; color: #fff3d6; overflow-wrap: anywhere; }
   #heroCard .hcSub { font-size: 15px; color: var(--ink); }
   #heroCard .hcWhere { font-size: 13px; color: var(--ink-dim); }
+  #heroCard .hcGold { font-size: 14px; color: #e3c060; }
+  #heroCard .hcGear { display: grid; grid-template-columns: repeat(4, 38px); gap: 4px; margin-left: auto; flex: none; }
+  #heroCard .hcGear .g { width: 38px; height: 38px; box-sizing: border-box; border: 1px solid var(--gold-dim); background-color: rgba(0,0,0,0.45);
+    background-repeat: no-repeat; background-origin: content-box; padding: 1px; }
+  #heroCard .hcGear .g.empty { opacity: 0.35; }
+  #heroCard { flex-wrap: wrap; }
+  @media (max-width: 520px) { #heroCard .hcGear { margin: 4px auto 0; } }
+  #heroList .herase { font-size: 18px; }
   #heroCard .hcFirst { font-family: Cinzel, serif; font-size: 18px; color: var(--gold); }
   #heroCard:has(.hcFirst) { flex-direction: column; align-items: stretch; }
   #heroCard .hcRow { display: flex; gap: 8px; }
@@ -447,7 +455,7 @@
 <div id="screen">
   <h1>Crypt of Endless Night</h1>
   <p id="screenText">Descend the endless crypt alone. Every stair leads deeper, and every depth breeds fouler things.</p>
-  <div id="heroRow"><div id="heroCard" title="Hero settings: rename, look, erase"></div></div>
+  <div id="heroRow"><div id="heroCard" title="Hero settings: rename, look"></div></div>
   <div id="acct"><span id="acctText"></span><button id="acctBtn" hidden>Sign in</button></div>
   <div id="heroList" class="hidden"><div class="box"></div></div>
   <div id="startRow"><button id="switchBtn" disabled>Switch hero</button><button id="newBtn">New hero</button><button id="startBtn" disabled>Loading…</button></div>
@@ -488,7 +496,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 167;
+const VERSION = 168;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -6205,7 +6213,17 @@ function titleRefresh() {
     const nm = document.createElement('div'); nm.className = 'hcName'; nm.textContent = e.name;
     const sub = document.createElement('div'); sub.className = 'hcSub'; sub.textContent = `Level ${e.lvl} · ${e.depth ? 'Depth ' + e.depth + ' — ' + depthName(e.depth) : 'The surface'}`;
     const wh = document.createElement('div'); wh.className = 'hcWhere'; wh.textContent = isServerId(e.id) ? 'Kept on the server' + (ACC.user && ACC.user.pin ? ' (PIN ' + ACC.user.pin.slice(0, 2) + ')' : '') : 'Kept on this device';
-    info.append(nm, sub, wh); card.append(cv, info);
+    const gd = document.createElement('div'); gd.className = 'hcGold'; gd.textContent = (e.hero.gold || 0) + ' gold';
+    info.append(nm, sub, gd, wh);
+    // what the hero wears and wields: the eight slots in a small grid, each icon edged in its rarity's colour
+    const grid = document.createElement('div'); grid.className = 'hcGear';
+    for (const [sl, lbl] of [['weapon', 'Weapon'], ['head', 'Helm'], ['chest', 'Armor'], ['hands', 'Gloves'], ['feet', 'Boots'], ['amulet', 'Amulet'], ['ring1', 'Ring'], ['ring2', 'Ring']]) {
+      const it = e.hero.equip && e.hero.equip[sl], c = document.createElement('div'); c.className = 'g' + (it ? '' : ' empty');
+      if (it && META.items[iconKey(it.base)]) { c.style.cssText = itemIconCss(it, 34); c.style.borderColor = rarityHex(it.rarity); c.title = it.name + (it.count > 1 ? ' ×' + it.count : ''); }
+      else c.title = lbl + ': empty';
+      grid.appendChild(c);
+    }
+    card.append(cv, info, grid);
     const lk = HERO_LOOKS[e.hero.look] ? e.hero.look : 'hero'; loadCast(lk); TITLE.look = lk;
   }
   const st = $('startBtn'); st.textContent = 'Enter the World'; st.disabled = !e;
@@ -6260,6 +6278,8 @@ function renderHeroList() {
           const ok = await copyHero(e.id, listTab === 'local'); cb.textContent = ok ? '✓' : '✗'; cb.title = ok ? 'Copied' : 'The copy failed'; });
         row.appendChild(cb);
       }
+      const xb = document.createElement('button'); xb.className = 'hcopy herase'; xb.textContent = '🗑\uFE0E'; xb.title = 'Erase this hero (asks first)';
+      xb.addEventListener('click', () => confirmErase(e.id)); row.appendChild(xb);
       list.appendChild(row);
     }
   }
@@ -6375,14 +6395,18 @@ function openHeroCfg(step = 'main') {
       const b = button(n, () => { setHeroLook(pickSel, k); for (const x of looks.querySelectorAll('button')) x.classList.toggle('on', x === b); titleRefresh(); });
       b.classList.toggle('on', k === lk); b.title = 'Draw ' + e.name + ' as the ' + n.toLowerCase(); return b; }));
     looks.classList.add('looks');
-    row(button('Erase hero', () => openHeroCfg('erase'), 'danger'), button('Close', close)).style.justifyContent = 'space-between';
-  } else {
-    h3.textContent = 'Erase ' + e.name + '?';
-    const w = document.createElement('p'); w.className = 'warn';
-    w.textContent = `${e.name} (level ${e.lvl}, depth ${e.depth}) and everything they carry will be erased for good${isServerId(e.id) ? ' from the server' : ' from this device'}. This cannot be undone.`;
-    box.appendChild(w);
-    row(button('Erase for good', () => { delEntry(pickSel); pickSel = null; close(); titleRefresh(); }, 'danger'), button('Cancel', () => openHeroCfg('main'))).style.justifyContent = 'space-between';
+    row(button('Close', close)).style.justifyContent = 'flex-end';   // (erasing: in the Switch hero list)
   }
+}
+// Erasing a hero (the 🗑 beside it in the Switch hero list): asked first; the list stays open behind
+function confirmErase(id) {
+  const e = getEntry(id); if (!e) return;
+  const { box, close, row, button } = cfgBox(); const h3 = document.createElement('h3'); h3.textContent = 'Erase ' + e.name + '?'; box.appendChild(h3);
+  const w = document.createElement('p'); w.className = 'warn';
+  w.textContent = `${e.name} (level ${e.lvl}, depth ${e.depth}) and everything they carry will be erased for good${isServerId(e.id) ? ' from the server' : ' from this device'}. This cannot be undone.`;
+  box.appendChild(w);
+  row(button('Erase for good', () => { delEntry(id); if (pickSel === id) pickSel = null; close(); titleRefresh(); if (!$('heroList').classList.contains('hidden')) renderHeroList(); }, 'danger'),
+    button('Cancel', close)).style.justifyContent = 'space-between';
 }
 $('heroCard').addEventListener('click', e => { if (!e.target.closest('input, button') && getEntry(pickSel)) openHeroCfg(); });   // the card opens the hero's settings
 // ---- PIN links: <page>#pin=JS4821 signs in with that PIN; &hero=<id> also makes that server hero the current one.
@@ -6420,8 +6444,8 @@ $('helpBtn').addEventListener('click', () => {
     <p><b>M</b> — minimap · <b>N</b> — sound · <b>Mouse wheel</b> (or pinch) — zoom · <b>F5</b> — full screen</p>
     <h4>Heroes</h4>
     <p>Your heroes are kept on this device. Signed in, you can also keep heroes on the server and play them from any
-    device: <b>Switch hero</b> lists both, and ⧉ beside a hero copies it to the other side. Click your hero to rename
-    it, change its look or erase it.</p>
+    device: <b>Switch hero</b> lists both; ⧉ beside a hero copies it to the other side, 🗑&#xFE0E; erases it (it asks
+    first). Click your hero to rename it or change its look.</p>
     <h4>Signing in</h4>
     <p><b>PIN</b> — choose two capital letters (your initials, say) and four digits, e.g. JS4821. No account and no
     email: the same PIN brings your server heroes back on any device. A PIN is not a password: anyone who picks the

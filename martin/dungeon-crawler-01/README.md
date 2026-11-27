@@ -438,7 +438,9 @@ and the picker shows no saved heroes.
   never inside it.
 - **The title screen** (since v162; laid out anew in v165) has the title, one line of story, and the **current hero**
   in a card (`titleRefresh`): its portrait (its look's sprite standing, facing south), name, level, depth (or *The
-  surface*) and where it is kept (*Kept on this device* / *Kept on the server*). **Clicking the card** opens the hero's
+  surface*), its gold, where it is kept (*Kept on this device* / *Kept on the server*), and since v168 a small grid of
+  what it wears and wields (weapon, helm, armor, gloves, boots, amulet, two rings; each icon edged in its rarity's
+  colour, its name on hover; empty slots dimmed; under the rest on narrow screens). **Clicking the card** opens the hero's
   settings. Below it, in one row, **Switch hero**, **New hero** and **Enter the World** (the row sticks to the bottom
   edge when the screen scrolls; on narrow screens Enter the World goes on a line of its own under the other two). At the top right **Help** and **Full screen**, at the
   top left **Sign in**. The current hero is the one last chosen on this device (`crypt-of-endless-night.pick`, either
@@ -455,7 +457,9 @@ and the picker shows no saved heroes.
     on a hero makes it the current one and closes the overlay. Beside each hero a **⧉** button (two joined squares,
     a black-and-white sign for a copy; its tooltip says what it does) puts a **copy** on the other side (`copyHero`:
     a new id, the same data; the original stays): to the server (signed in only), or to this device; it shows ✓
-    when done (✗ if it failed). The server tab asks to sign in when signed out. At its foot: **New hero**,
+    when done (✗ if it failed). Beside it **🗑** (the wastebasket, drawn in black and white) erases the hero after a
+    confirmation (`confirmErase`: "… will be erased for good from this device / from the server. This cannot be
+    undone." **Erase for good** / **Cancel**); the list stays open. The server tab asks to sign in when signed out. At its foot: **New hero**,
     **Import…** (testers only; onto this device) and **Close**.
   - **New hero** asks for a name (up to 20 characters, spaces collapsed; an empty one is refused with a red
     border) and, signed in, where to keep it (*On this device* / *On the server*). Creating saves the new hero
@@ -463,8 +467,7 @@ and the picker shows no saved heroes.
   - **The hero's settings** (a click on the card; there is no cogwheel since v165): rename it (**Rename** or
     Enter), export it (testers only), pick its
     **Look** (Knight, Stocky knight, Huntress, Woodsman, Scout, Mannequin, two per row; the lit one is current; a
-    click saves it at once, see [Hero looks](#hero-looks)), or **Erase hero**, which asks for confirmation ("… will
-    be erased for good from this device / from the server. This cannot be undone.") before deleting it.
+    click saves it at once, see [Hero looks](#hero-looks)). (Erasing is in the Switch hero list since v168.)
   - On narrow screens the screen leaves room at the top for **Sign in**, **Help** and **Full screen**, and
     **Scenarios** goes under the buttons.
 - **Accounts and server heroes** (since v162, `account.js`):
