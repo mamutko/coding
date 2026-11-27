@@ -24,7 +24,7 @@ const NET_CFG = {
   chunk: 16000,      // characters per snapshot piece
 };
 const NET = { loot: new Map(), mons: new Map(), monN: 0, sb: null, libP: null, ch: null, topic: null, me: null, since: 0, peers: new Map(), on: false, timer: null, snapIn: null,
-  tracked: null, dots: [], gone: new Set() };
+  tracked: null, dots: [], gone: new Set(), taken: new Set() };
 const netNow = () => performance.now();
 
 function netLib() {   // load supabase-js once; resolves to the client, or null if it cannot be loaded
@@ -59,7 +59,7 @@ async function netPeek(realmId) {
 }
 async function netClose() {   // leave the channel and every connection
   for (const p of NET.peers.values()) netDropPeer(p, true);
-  NET.peers.clear(); NET.mons.clear(); NET.loot.clear(); NET.on = false; clearInterval(NET.timer); NET.timer = null; NET.tracked = null; NET.dots = []; NET.gone = new Set(); NET.dup = 0; NET.tried = null; NET.mid = null;
+  NET.peers.clear(); NET.mons.clear(); NET.loot.clear(); NET.on = false; clearInterval(NET.timer); NET.timer = null; NET.tracked = null; NET.dots = []; NET.gone = new Set(); NET.taken = new Set(); NET.dup = 0; NET.tried = null; NET.mid = null;
   if (NET.ch) { const ch = NET.ch; NET.ch = null; NET.topic = null; try { await ch.untrack(); } catch (e) {} try { await NET.sb.removeChannel(ch); } catch (e) {} }
 }
 
@@ -223,6 +223,7 @@ function netHello(p) {
   const h = G.hero; netSend(p, { t: 'hello', name: h.name, lvl: h.lvl, look: h.look || 'hero', since: NET.since });
   if (G.rift) netSend(p, { t: 'sync', a: G.monsters.filter(m => !m.owner && m.nid && !m.dead).map(monDesc),   // (back together after a break,
     l: [...NET.loot.values()].filter(x => !x.owner && lootHere(x)).map(x => x.nid) });                        //  or meeting again after a split)
+  if (G.rift) netWorldSend(p, false);   // and the world's state: doors, used objects, taken and floor loot
 }
 // This Rift's map (an id the founder makes, handed on in the snapshot): shown in our presence, so that only players
 // on the same map find each other again after a split (two who founded the realm at the same moment never merge)
@@ -266,6 +267,8 @@ function netMsg(p, data) {
       break; }
     case 'st': if (p.lastSt && now - p.lastSt > NET_CFG.rate * 4 + 200) p.n.late++; p.lastSt = now; if (p.hero) remoteState(p, m); break;
     case 'sync': if (G.rift && G.map) netSync(p, m.a, m.l); break;
+    case 'is': netWorldMerge(p, m); break;   // the world's state, to merge (doors, used, taken, floor loot)
+    case 'ih': if (G.rift && m.h !== worldHash()) netWorldSend(p, true); break;   // fingerprints differ: exchange
     case 'gone': if (G.rift) netGone(m.a); break;
     case 'ping': netSend(p, { t: 'pong', a: m.a, b: netNow() }); break;
     case 'pong': { const now = netNow(), rtt = now - m.a, off = m.b + rtt / 2 - now;   // their clock = ours + off
@@ -334,7 +337,7 @@ function netTick() {
     }
     netSend(p, st);
     if (!p.pinged || now - p.pinged > NET_CFG.ping) { p.pinged = now; netSend(p, { t: 'ping', a: now }); }
-    netPace(p, now); netSendMons(p, now);
+    netPace(p, now); netSendMons(p, now); netWorldCheck(p, now);
   }
 }
 addEventListener('pagehide', () => { if (NET.on) { for (const p of NET.peers.values()) netSend(p, { t: 'bye' }); } });
@@ -590,7 +593,7 @@ function netDropped(fi, o) {   // dropItem / dropGold made something of ours: an
   else netEach({ t: 'drop', i: o.nid, gold: o.amount, x: +o.fx.toFixed(2), y: +o.fy.toFixed(2) });
 }
 function netGotDrop(m, owner) {   // something another player dropped
-  if (!G.map || NET.loot.has(m.i)) return;
+  if (!G.map || NET.loot.has(m.i) || NET.taken.has(m.i)) return;
   if (m.gold != null) { const o = { type: 'gold', x: Math.floor(m.x), y: Math.floor(m.y), fx: m.x, fy: m.y, amount: m.gold, used: false, block: false, nid: m.i, owner }; G.objects.push(o); NET.loot.set(m.i, o); }
   else { const fi = { item: m.it, x: m.x, y: m.y, t: rnd() * 6, nid: m.i, owner }; G.items.push(fi); NET.loot.set(m.i, fi); }
 }
@@ -598,7 +601,7 @@ const lootHere = x => G.items.includes(x) || G.objects.includes(x);
 function lootGone(x) {   // off the floor everywhere it shows
   const i = G.items.indexOf(x); if (i >= 0) G.items.splice(i, 1);
   if (x.type === 'gold') { const j = G.objects.indexOf(x); if (j >= 0) G.objects.splice(j, 1); }
-  NET.loot.delete(x.nid);
+  NET.loot.delete(x.nid); NET.taken.add(x.nid);
 }
 // Before act0: true when the deed is another player's to grant (we asked), or must not happen
 function netAct(ref) {
@@ -625,8 +628,8 @@ function netSendOwner(x, msg) { const p = NET.peers.get(x.owner); if (p) netSend
 function netActed(ref, was) {
   if (!netOn()) return;
   const x = ref.r; if (!x) return;
-  if (ref.kind === 'item') { if (was && !G.items.includes(x) && x.nid) { netEach({ t: 'took', i: x.nid, to: NET.me }); NET.loot.delete(x.nid); } return; }
-  if (x.type === 'gold') { if (was.here && !G.objects.includes(x) && x.nid) { netEach({ t: 'took', i: x.nid, to: NET.me }); NET.loot.delete(x.nid); } return; }
+  if (ref.kind === 'item') { if (was && !G.items.includes(x) && x.nid) { netEach({ t: 'took', i: x.nid, to: NET.me }); NET.loot.delete(x.nid); NET.taken.add(x.nid); } return; }
+  if (x.type === 'gold') { if (was.here && !G.objects.includes(x) && x.nid) { netEach({ t: 'took', i: x.nid, to: NET.me }); NET.loot.delete(x.nid); NET.taken.add(x.nid); } return; }
   if (x.type === 'door') { if (!was.open && x.open) netEach({ t: 'door', x: x.x, y: x.y }); return; }
   if (LOOT_OBJ.has(x.type) && !was.used && x.used && x.nid) netEach({ t: 'used', i: x.nid, by: NET.me });
 }
@@ -642,11 +645,12 @@ function netTook(m) {   // the owner says who got it
   if (m.to !== NET.me) { lootGone(x); return; }
   if (x.type === 'gold') { lootGone(x); G.hero.gold += x.amount; sfx('gold'); floatText(G.hero.x, G.hero.y, '+' + x.amount + ' gold', '#e3c060', 0.9, 14); refreshUI(); return; }
   x.item.id = nextId++;   // ours now: an id of our own
-  NET.loot.delete(m.i); act0({ kind: 'item', r: x, equip: x.equip });
+  NET.loot.delete(m.i); NET.taken.add(m.i); act0({ kind: 'item', r: x, equip: x.equip });
   if (G.items.includes(x)) { delete x.owner; x.asked = 0; netDropped(x); }   // no room after all: it lies at our feet, ours
 }
 function netUseReq(m, p) {   // another player opens one of our chests (breaks an urn, searches bones): the first one does
-  const o = NET.loot.get(m.i); if (!o || o.owner || o.used || !lootHere(o)) return;
+  const o = NET.loot.get(m.i); if (!o || o.owner || !lootHere(o)) return;
+  if (o.used) { netSend(p, { t: 'used', i: o.nid, by: null }); return; }   // already opened: the asker catches up at once
   act0({ kind: 'obj', r: o }, true);   // we roll what is in it (and drop it: the drops are ours, seen by all)
   if (o.used) netEach({ t: 'used', i: o.nid, by: p.id });
 }
@@ -704,6 +708,7 @@ function netDbgText() {
       + '&nbsp;&nbsp;msgs in ' + n.rx + ' / out ' + n.tx + ' · failed sends ' + n.fail + ' · late heartbeats ' + n.late + ' · lost ' + n.lost + ' · back ' + n.back + ' · redials ' + n.redial
       + ' · last heard ' + Math.round(now - p.last) + ' ms ago');
   if (NET.dup) rows.push('double control resolved: ' + NET.dup + ' monsters');
+  if (NET.fixed) rows.push('world state repaired: ' + NET.fixed + ' doors, objects or items');
   }
   return rows.join('<br>');
 }
@@ -712,3 +717,41 @@ setInterval(() => {   // messages and bytes a second, each player, over the last
     p.rate = { rx: n.rx - (o.rx || 0), tx: n.tx - (o.tx || 0), rxB: n.rxB - (o.rxB || 0), txB: n.txB - (o.txB || 0) }; p.prevN = Object.assign({}, n); }
 }, 1000);
 setInterval(() => { const el = document.getElementById('dbgNet'); if (!el || !netDbgOn()) return; const t = netDbgText(); if (el.innerHTML !== t) el.innerHTML = t; el.style.display = t ? '' : 'none'; }, 250);
+
+// =====================================================================================
+//  World state kept in step (README, Playing together: Keeping the world in step). Doors only open, chests, urns and
+//  bones only get used, loot only gets taken: so a merge is a union where "open", "used" and "taken" always win,
+//  and floor loot comes from its owner. Exchanged in full (`is`) on every (re)connection, and whenever the
+//  fingerprint every 10 s (`ih`, ITEM_SYNC) differs; so any two connected games agree within about 10 s, whatever
+//  messages were lost.
+// =====================================================================================
+const ITEM_SYNC = 10000;
+const netDoorKey = o => o.x + ',' + o.y;
+function worldState() {
+  const d = [], u = [], f = [], all = [];
+  for (const o of G.objects) { if (o.type === 'door' && o.open) d.push(netDoorKey(o)); else if (o.nid && LOOT_OBJ.has(o.type) && o.used) u.push(o.nid); }
+  for (const x of NET.loot.values()) if (lootHere(x) && (x.type === 'gold' || !x.type)) { all.push(x.nid);
+    if (!x.owner) f.push(x.type === 'gold' ? { i: x.nid, gold: x.amount, x: +(x.fx ?? x.x + 0.5).toFixed(2), y: +(x.fy ?? x.y + 0.5).toFixed(2) } : { i: x.nid, it: itemOut(x.item), x: +x.x.toFixed(2), y: +x.y.toFixed(2) }); }
+  return { d, u, f, all, g: [...NET.taken] };
+}
+function worldHash() {   // a fingerprint of what both sides should agree on
+  const w = worldState(), s = [w.d.sort().join(';'), w.u.sort().join(';'), w.all.sort().join(';'), w.g.sort().join(';')].join('|');
+  let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(36) + '.' + s.length;
+}
+function netWorldSend(p, ask) { if (!G.rift) return; const w = worldState(); netSend(p, { t: 'is', d: w.d, u: w.u, f: w.f, g: w.g, ask: ask ? 1 : 0 }); p.n.isync = (p.n.isync || 0) + 1; }
+function netWorldMerge(p, m) {
+  if (!G.rift || !G.map) return;
+  let n = 0;
+  const doors = new Set(m.d);
+  for (const o of G.objects) if (o.type === 'door' && !o.open && doors.has(netDoorKey(o))) { o.open = true; G.map.t[o.y * G.map.w + o.x] = T_OPEN; n++; }
+  for (const i of m.u) { const o = NET.loot.get(i); if (o && !o.used) { o.used = true; o.asked = 0; if (o.type === 'urn') G.map.block[o.y * G.map.w + o.x] = 0; n++; } }
+  for (const i of m.g) { if (NET.taken.has(i)) continue; NET.taken.add(i); const x = NET.loot.get(i); if (x && lootHere(x)) { lootGone(x); n++; } else NET.loot.delete(i); }
+  for (const d of m.f) if (!NET.loot.has(d.i) && !NET.taken.has(d.i)) { netGotDrop(d, p.id); n++; }
+  if (n) NET.fixed = (NET.fixed || 0) + n;
+  if (m.ask) netWorldSend(p, false);
+}
+function netWorldCheck(p, now) {   // every ITEM_SYNC ms: our fingerprint, to compare
+  if (!G.rift || !p.hero || p.lost || now - (p.ihT || 0) < ITEM_SYNC) return;
+  p.ihT = now; netSend(p, { t: 'ih', h: worldHash() });
+}

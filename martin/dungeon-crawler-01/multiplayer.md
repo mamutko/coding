@@ -327,6 +327,8 @@ burns with its fire. (Until v148 a companion's fire did not hurt your hero; now 
   60 s, it takes over nothing (objects stay where they went) and plays on; after 60 s it is treated as having left
   (its own screen, when shown again, says "The Rift let you go." and puts the hero on the surface; it is saved
   there, with what it had when it went away).
+- **World state** (v150): doors open, objects used, loot taken and floor loot are merged as unions ("open", "used"
+  and "taken" win; floor loot from its owner) on every reconnection and whenever a 10 s fingerprint differs.
 - **A split and meeting again** (v149): players who dropped each other in a long network split find each other again
   through presence (same map id only) and merge: a monster both ended up running stays with the older player, the
   younger drops it seamlessly; monsters killed on either side stay dead.

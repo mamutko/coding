@@ -1095,6 +1095,26 @@ Floor items, gold, chests, urns and bones in the Rift belong to whoever brought 
   realm (since v148: a fire is a fire), so a fire bomb is the one way to hurt another hero where blades are not
   drawn (see Player against player).
 
+#### Keeping the world in step
+
+Doors only open, chests, urns and bones only get used, and loot only gets taken, so the games can merge their
+views safely: in any disagreement "open", "used" and "taken" win (`netWorldMerge` in `net.js`). Any two connected
+games agree within about 10 s, whatever messages were lost (since v150).
+
+- **Owned or not:** loot (chests, urns, bones, gold, floor items) has an owner, who grants taking or opening it; doors
+  have none (anyone opens one and tells the others).
+- **What is exchanged** (`is`, `worldState`): the doors open, the objects used, every loot id known taken
+  (`NET.taken`: taken here, or heard of; never brought back), and the floor loot we own with its item or gold and
+  position (only the owner says what of its loot lies on the floor).
+- **When:** in full on every connection and reconnection (with the monsters' `sync`), and when the fingerprints
+  differ: every 10 s (`ITEM_SYNC`) each game sends each other player a hash of its doors, used objects, floor loot and
+  taken loot (`ih`, `worldHash`); a different one gets the full state back with a request for theirs.
+- **Merging:** a door open on either side opens (no sound); an object used on either side is used (an urn's tile
+  frees); loot taken on either side goes; floor loot its owner has and we never saw appears.
+- **A request for something already used** is answered (`used`), so the asker catches up at once instead of
+  waiting.
+- The debug overlay counts what has been repaired this way.
+
 #### Player against player
 
 A **sword** of any kind on the dial (`isSword`, `realm.pvp` in `realm.js`) draws blades in that realm: its heroes

@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v150 — doors, chests and loot kept in step (2026-11-27)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 150`)*
+
+- If messages are lost (a break, a reconnection), the games now repair their view of the world: open doors, opened
+  chests, urns and bones, items and gold dropped or picked up. Any two connected players agree within about 10 s.
+- Trying to open something another player already opened now shows it opened at once.
+
 ## v149 — monsters never fade; split realms merge again (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 149`)*
+Commit: 493c198
 
 - When a player leaves the Rift, their monsters stay: the ones fighting someone go to that hero's player, the rest are
   spread evenly over the players still there. Bosses stay too, so their chests stay sealed.
