@@ -486,7 +486,7 @@ and the picker shows no saved heroes.
     is no account: a new PIN simply has no heroes on the server yet, and the same PIN brings them back on any device
     (`accUsePin`). The box warns that a PIN is not a password (anyone picking the same PIN sees and can change the same
     heroes; PINs can be guessed), that it is mainly for testing, and that the option may be retired. Signed in with a
-    PIN, the title screen shows its two letters at the top left (*JS PIN*), and a server hero's card says *Kept on the
+    PIN, the title screen shows its two letters at the top left (*JS*, since v169 without the word PIN), and a server hero's card says *Kept on the
     server (PIN JS)*. The browser keeps the PIN (`crypt-of-endless-night.pin`: the PIN and the time of the last play,
     updated on entering the world, on each save and once a minute while playing) until **Sign out**, or until the
     game is opened more than **48 hours** after the last play (`PIN_IDLE`): then it is forgotten without a word and

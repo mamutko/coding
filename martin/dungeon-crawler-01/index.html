@@ -496,7 +496,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 168;
+const VERSION = 169;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -6230,7 +6230,7 @@ function titleRefresh() {
   $('scenBtn').hidden = !tester() && !new URLSearchParams(location.search).has('sandbox');   // the scenarios: testers (an MI PIN), and in the sandbox
   $('switchBtn').disabled = false;
   const a = $('acctText'), ab = $('acctBtn');
-  a.innerHTML = ''; if (ACC.user && ACC.user.pin) { const i = document.createElement('span'); i.className = 'initials'; i.textContent = ACC.user.pin.slice(0, 2); i.title = 'Signed in with a PIN (for testing)'; a.append(i, ' PIN'); }
+  a.innerHTML = ''; if (ACC.user && ACC.user.pin) { const i = document.createElement('span'); i.className = 'initials'; i.textContent = ACC.user.pin.slice(0, 2); i.title = 'Signed in with a PIN (for testing)'; a.append(i); }
   else a.textContent = ACC.user ? accName() : !ACC.ready ? '' : ACC.sb ? '' : 'Offline: heroes on this device only';
   ab.textContent = ACC.user ? 'Sign out' : 'Sign in'; ab.hidden = !ACC.sb;
   if (!$('heroList').classList.contains('hidden')) renderHeroList();
