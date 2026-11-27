@@ -245,7 +245,12 @@
     -webkit-touch-callout: none; touch-action: manipulation; }
   #version:hover { opacity: 1; }
   #screen #scenBtn { position: absolute; left: 12px; bottom: 10px; font-size: 13px; padding: 6px 12px; }
-  #heroCard { display: flex; align-items: center; gap: 16px; width: min(440px, 100%); margin: 0 0 12px; padding: 12px 16px;
+  #heroRow { display: flex; gap: 12px; align-items: stretch; width: min(560px, 100%); margin: 6px 0 14px; }
+  #heroRow #heroBtns { flex-direction: column; justify-content: center; margin: 0; }
+  @media (max-width: 560px) { #heroRow { flex-direction: column; } #heroRow #heroBtns { flex-direction: row; justify-content: center; } }
+  #heroCard:not(:has(.hcFirst)) { cursor: pointer; }
+  #heroCard:not(:has(.hcFirst)):hover { border-color: var(--gold); background: linear-gradient(rgba(60,40,26,0.9), rgba(24,15,10,0.9)); }
+  #heroCard { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; margin: 0; padding: 12px 16px;
     border: 1px solid var(--gold-dim); background: linear-gradient(rgba(40,26,18,0.85), rgba(16,10,8,0.85)); text-align: left; min-height: 120px; }
   #heroCard canvas { width: 120px; height: 120px; flex: none; }
   #heroCard .hcInfo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
@@ -277,11 +282,17 @@
   #heroList .hpick { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 15px; padding: 8px 12px; text-align: left; min-width: 0; }
   #heroList .hpick .sub { font-family: Georgia, serif; font-size: 13px; color: var(--ink-dim); white-space: nowrap; }
   #heroList .hrow.sel .hpick { border-color: var(--gold); color: #fff; background: linear-gradient(#4a3320, #24170f); }
-  #heroList .hcopy { font-size: 12px; padding: 6px 10px; white-space: nowrap; }
+  #heroList .hcopy { font-size: 20px; line-height: 1; padding: 4px 12px; white-space: nowrap; font-family: 'Segoe UI Symbol', 'DejaVu Sans', sans-serif; }
   #heroList .row { display: flex; gap: 8px; justify-content: flex-end; }
   #heroList .row button { font-size: 14px; padding: 6px 12px; }
   #heroCfg .looks button.on, #heroCfg .row button.on { border-color: var(--gold); color: #fff; }
   #heroCfg input[type=email], #heroCfg input[type=text] { flex: 1; min-width: 0; }
+  #heroCfg input::placeholder, #heroCard input::placeholder { color: rgba(232,220,196,0.35); }
+  #heroCfg input:focus::placeholder, #heroCard input:focus::placeholder { color: transparent; }   /* (an example, not text to edit: gone on focus) */
+  #heroCfg .box:has(.help) { width: min(560px, calc(100% - 32px)); }
+  #heroCfg .help { text-align: left; font-size: 14px; line-height: 1.5; max-height: 60vh; overflow-y: auto; }
+  #heroCfg .help h4 { margin: 10px 0 4px; font-family: Cinzel, serif; font-weight: 400; color: var(--gold); font-size: 15px; }
+  #heroCfg .help p { margin: 4px 0; }
   #heroCfg .tabs button { flex: 1; font-size: 13px; padding: 6px 8px; opacity: 0.6; }
   #heroCfg .tabs button.on { opacity: 1; border-color: var(--gold); color: #fff; }
   #heroCfg .small { font-size: 13px; color: var(--ink-dim); }
@@ -313,10 +324,11 @@
   @media (max-width: 480px) { #heroPick .heroBtn:not(.newHero) { flex-direction: column; align-items: flex-start; gap: 2px; } }
   @media (max-height: 560px) { #screen h1 { font-size: 40px; } #screen p { margin: 6px 0; font-size: 15px; }
     #screen .controls { font-size: 13px; line-height: 1.4; margin: 4px 0 10px; } }
-  #startBtn:disabled, #cfgBtn:disabled { opacity: 0.45; cursor: default; border-color: var(--gold-dim); color: var(--ink); }
-  #screen #cfgBtn { padding: 0 11px; display: flex; align-items: center; }
-  #cfgBtn svg { width: 22px; height: 22px; fill: currentColor; }
-  #screen #fsBtn { position: absolute; right: 12px; top: 12px; display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 12px; }
+  #startBtn:disabled { opacity: 0.45; cursor: default; border-color: var(--gold-dim); color: var(--ink); }
+  #topBtns { position: absolute; right: 12px; top: 12px; display: flex; gap: 8px; }
+  #screen #fsBtn, #screen #helpBtn { display: flex; align-items: center; gap: 8px; font-size: 13px; padding: 6px 12px; }
+  #screen #fsBtn.hidden { display: none; }
+  #screen #scenBtn[hidden] { display: none; }
   #fsBtn svg { width: 16px; height: 16px; fill: currentColor; }
   #fsBtn.hidden { display: none; }
   #heroCfg { position: fixed; inset: 0; z-index: 45; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); }
@@ -436,20 +448,16 @@
 <div id="screen">
   <h1>Crypt of Endless Night</h1>
   <p id="screenText">Descend the endless crypt alone. Every stair leads deeper, and every depth breeds fouler things.</p>
-  <div class="controls" id="screenControls">
-    <b>Left click</b> — walk / open / pick up &nbsp;·&nbsp; <b>Right click</b> (or <b>Shift + click</b>, or tap while holding the attack button) — attack<br>
-    <b>I</b> or <b>Tab</b> — equipment &nbsp;·&nbsp; <b>1–9, 0</b> — quick keys &nbsp;·&nbsp; <b>Q</b> — drink potion<br>
-    <b>M</b> — minimap &nbsp;·&nbsp; <b>N</b> — sound &nbsp;·&nbsp; <b>Mouse wheel</b> (or pinch) — zoom &nbsp;·&nbsp; <b>F5</b> — full screen
-  </div>
-  <div id="heroCard"></div>
-  <div id="heroBtns"><button id="switchBtn" disabled>Switch hero</button><button id="newBtn">New hero</button></div>
+  <div id="heroRow"><div id="heroCard" title="Hero settings: rename, look, erase"></div>
+    <div id="heroBtns"><button id="switchBtn" disabled>Switch hero</button><button id="newBtn">New hero</button></div></div>
   <div id="acct"><span id="acctText"></span><button id="acctBtn" hidden>Sign in</button></div>
   <div id="heroList" class="hidden"><div class="box"></div></div>
-  <div id="startRow"><button id="startBtn" disabled>Loading…</button><button id="cfgBtn" title="Rename or erase this hero" aria-label="Hero settings" disabled><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.2h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.7h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button></div>
+  <div id="startRow"><button id="startBtn" disabled>Loading…</button></div>
   <div id="heroCfg" class="hidden"><div class="box"></div></div>
   <input type="file" id="importFile" accept=".json,application/json,text/plain" hidden>
-  <button id="fsBtn" class="hidden" title="Full screen (F5)"><svg viewBox="0 0 24 24"><path d="M3 9V3h6v2H5v4zm12-6h6v6h-2V5h-4zM3 15h2v4h4v2H3zm16 0h2v6h-6v-2h4z"/></svg><span>Full screen</span></button>
-  <button id="scenBtn" title="Test scenarios (the sandbox)">Scenarios</button>
+  <div id="topBtns"><button id="helpBtn" title="Controls and signing in">Help</button>
+  <button id="fsBtn" class="hidden" title="Full screen (F5)"><svg viewBox="0 0 24 24"><path d="M3 9V3h6v2H5v4zm12-6h6v6h-2V5h-4zM3 15h2v4h4v2H3zm16 0h2v6h-6v-2h4z"/></svg><span>Full screen</span></button></div>
+  <button id="scenBtn" title="Test scenarios (the sandbox)" hidden>Scenarios</button>
   <div id="version" title="Double-click or long-press: debug overlay"></div>
 </div>
 <div id="debug" class="hidden"><h4>Debug (Ctrl+D) <span id="dbgVer"></span></h4>
@@ -482,7 +490,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 164;
+const VERSION = 165;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -6202,7 +6210,8 @@ function titleRefresh() {
     info.append(nm, sub, wh); card.append(cv, info);
     const lk = HERO_LOOKS[e.hero.look] ? e.hero.look : 'hero'; loadCast(lk); TITLE.look = lk;
   }
-  const st = $('startBtn'); st.textContent = 'Enter the World'; st.disabled = !e; $('cfgBtn').disabled = !e;
+  const st = $('startBtn'); st.textContent = 'Enter the World'; st.disabled = !e;
+  $('scenBtn').hidden = !tester() && !new URLSearchParams(location.search).has('sandbox');   // the scenarios: testers (an MI PIN), and in the sandbox
   $('switchBtn').disabled = false;
   const a = $('acctText'), ab = $('acctBtn');
   a.innerHTML = ''; if (ACC.user && ACC.user.pin) { const i = document.createElement('span'); i.className = 'initials'; i.textContent = ACC.user.pin.slice(0, 2); i.title = 'Signed in with a PIN (for testing)'; a.append(i, ' PIN'); }
@@ -6211,14 +6220,14 @@ function titleRefresh() {
   if (!$('heroList').classList.contains('hidden')) renderHeroList();
 }
 const renderHeroPick = titleRefresh;   // (older callers)
-// the portrait turns slowly through the eight directions, as in the equipment screen
-const TITLE = { look: 'hero', t: 0 };
+// the portrait: the hero standing, facing south (the sheet's first row), drawn once its look's sheet has loaded
+const TITLE = { look: 'hero', drawn: null };
 setInterval(() => {
-  const cv = $('heroPortrait'); if (!cv || $('screen').classList.contains('hidden')) return;
+  const cv = $('heroPortrait'); if (!cv || $('screen').classList.contains('hidden') || TITLE.drawn === cv) return;
   const md = META.characters[TITLE.look], img = IMG[TITLE.look]; if (!md || !img || !img.complete || !img.naturalWidth) return;
-  TITLE.t += 0.08; const row = Math.floor(TITLE.t / 1.2) % 8, c = cv.getContext('2d'), k = 120 / md.fh, w = md.fw * k;
-  c.clearRect(0, 0, 120, 120); c.drawImage(img, (md.idle || 0) * md.fw, row * md.fh, md.fw, md.fh, (120 - w) / 2, 0, w, 120);
-}, 80);
+  const c = cv.getContext('2d'), k = 120 / md.fh, w = md.fw * k;
+  c.clearRect(0, 0, 120, 120); c.drawImage(img, (md.idle || 0) * md.fw, 0, md.fw, md.fh, (120 - w) / 2, 0, w, 120); TITLE.drawn = cv;
+}, 100);
 // ---- Switch hero: an overlay with two tabs
 let listTab = 'local';
 function renderHeroList() {
@@ -6247,11 +6256,10 @@ function renderHeroList() {
       pickB.append(m, t); pickB.addEventListener('click', () => { choose(e.id); close(); });
       row.appendChild(pickB);
       if (listTab === 'local' ? ACC.user : true) {   // copy to the other side (to the server only when signed in)
-        const cb = document.createElement('button'); cb.className = 'hcopy';
-        cb.textContent = listTab === 'local' ? 'Copy to server' : 'Copy to device';
+        const cb = document.createElement('button'); cb.className = 'hcopy'; cb.textContent = '⧉';
         cb.title = listTab === 'local' ? 'Put a copy of this hero on the server (this one stays here)' : 'Put a copy of this hero in this browser (this one stays on the server)';
-        cb.addEventListener('click', async () => { cb.disabled = true; cb.textContent = 'Copying…';
-          const ok = await copyHero(e.id, listTab === 'local'); cb.textContent = ok ? 'Copied ✓' : 'Failed'; });
+        cb.addEventListener('click', async () => { cb.disabled = true; cb.textContent = '…';
+          const ok = await copyHero(e.id, listTab === 'local'); cb.textContent = ok ? '✓' : '✗'; cb.title = ok ? 'Copied' : 'The copy failed'; });
         row.appendChild(cb);
       }
       list.appendChild(row);
@@ -6261,7 +6269,7 @@ function renderHeroList() {
   const nb = document.createElement('button'); nb.textContent = 'New hero'; nb.addEventListener('click', () => { close(); openNewHero(listTab === 'server' && ACC.user); });
   const ib = document.createElement('button'); ib.textContent = 'Import…'; ib.title = 'Load a hero from an exported file (onto this device)'; ib.addEventListener('click', () => $('importFile').click());
   const cl = document.createElement('button'); cl.textContent = 'Close'; cl.addEventListener('click', close);
-  r.append(nb, ib, cl); box.appendChild(r);
+  r.append(nb); if (tester()) r.append(ib); r.append(cl); box.appendChild(r);   // (Import: testers only)
 }
 // a copy on the other side, with a new id; the original stays where it is
 async function copyHero(id, toServer) {
@@ -6288,25 +6296,25 @@ function openNewHero(server = false) {
 $('newBtn').addEventListener('click', () => openNewHero(false));
 // ---- Signing in: an email, and a sign-in link sent to it; opening the link brings the player back here signed in
 // (account.js follows the sign-in state and loads the server heroes)
-function openLogin(step = 'email') {
+function openLogin(step = 'pin') {
   const { box, close, row, button } = cfgBox(); const h3 = document.createElement('h3'); box.appendChild(h3);
   const msg = document.createElement('p'); msg.className = 'warn'; msg.style.display = 'none';
   const say = (t, bad = true) => { msg.textContent = t; msg.className = bad ? 'warn' : ''; msg.style.display = t ? '' : 'none'; };
   if (step === 'email' || step === 'pin') {   // two ways: an email link, or a PIN (for testing)
-    const tabs = row(button('Email link', () => openLogin('email')), button('PIN (testing)', () => openLogin('pin'))); tabs.classList.add('tabs');
-    tabs.children[step === 'email' ? 0 : 1].classList.add('on');
+    const tabs = row(button('PIN', () => openLogin('pin')), button('Email link', () => openLogin('email'))); tabs.classList.add('tabs');
+    tabs.children[step === 'pin' ? 0 : 1].classList.add('on');
   }
   if (step === 'pin') {
     h3.textContent = 'Sign in with a PIN';
     const p = document.createElement('p'); p.style.margin = '0';
-    p.textContent = 'Choose a PIN: two capital letters and four digits. Your initials make good letters, e.g. MI4821. There is no account to make: a new PIN simply starts with no heroes on the server, and the same PIN brings them back on any device.';
+    p.textContent = 'Choose a PIN: two capital letters and four digits. Your initials make good letters, e.g. JS4821. There is no account to make: a new PIN simply starts with no heroes on the server, and the same PIN brings them back on any device.';
     const w = document.createElement('p'); w.className = 'warn';
     w.textContent = 'A PIN is not a password. Anyone who picks the same PIN sees and can change the same heroes, and PINs can be guessed. This is mainly for testing: keep nothing precious behind a PIN, and expect this option to be retired in the future.';
     box.append(p, w);
-    const pi = document.createElement('input'); pi.type = 'text'; pi.placeholder = 'AB1234'; pi.maxLength = 6; pi.autocomplete = 'off'; pi.spellcheck = false;
+    const pi = document.createElement('input'); pi.type = 'text'; pi.placeholder = 'JS4821'; pi.maxLength = 6; pi.autocomplete = 'off'; pi.spellcheck = false;
     pi.style.textTransform = 'uppercase'; pi.style.letterSpacing = '3px'; setTimeout(() => pi.focus(), 0);
     pi.addEventListener('input', () => { pi.value = pi.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); pi.classList.remove('bad'); });
-    const go = button('Use this PIN', async () => { if (!PIN_RE.test(pi.value)) { pi.classList.add('bad'); say('A PIN is two letters and four digits, like MI4821.'); return; }
+    const go = button('Use this PIN', async () => { if (!PIN_RE.test(pi.value)) { pi.classList.add('bad'); say('A PIN is two letters and four digits, like JS4821.'); return; }
       go.disabled = true; go.textContent = 'Signing in…'; const err = await accUsePin(pi.value); go.disabled = false; go.textContent = 'Use this PIN';
       if (err) say(err); else close(); });
     pi.addEventListener('keydown', e => { if (e.key === 'Enter') go.click(); });
@@ -6356,8 +6364,8 @@ function openHeroCfg(step = 'main') {
       const x = getEntry(pickSel); if (!x) return close();
       x.name = n; x.hero.name = n; x.saved = x.saved || Date.now(); putEntry(x); close(); titleRefresh(); }, 'Rename');
     row(inp, ok);
-    const ex = button('Export hero', () => exportHero(pickSel)); ex.title = 'Save this hero to a file (as last saved: on arrival at its depth)';
-    row(ex).firstChild.style.flex = '1';
+    if (tester()) { const ex = button('Export hero', () => exportHero(pickSel)); ex.title = 'Save this hero to a file (as last saved: on arrival at its depth)';
+      row(ex).firstChild.style.flex = '1'; }   // (testers only)
     const lk = HERO_LOOKS[e.hero.look] ? e.hero.look : 'hero', lbl = document.createElement('span');
     lbl.className = 'lbl'; lbl.textContent = 'Look';
     const looks = row(lbl, ...Object.entries(HERO_LOOKS).map(([k, n]) => {
@@ -6373,7 +6381,30 @@ function openHeroCfg(step = 'main') {
     row(button('Erase for good', () => { delEntry(pickSel); pickSel = null; close(); titleRefresh(); }, 'danger'), button('Cancel', () => openHeroCfg('main'))).style.justifyContent = 'space-between';
   }
 }
-$('cfgBtn').addEventListener('click', () => openHeroCfg());
+$('heroCard').addEventListener('click', e => { if (!e.target.closest('input, button') && getEntry(pickSel)) openHeroCfg(); });   // the card opens the hero's settings
+// Testers: signed in with a PIN starting MI. Only they see the Scenarios button, Import and Export.
+const tester = () => !!(ACC.user && ACC.user.pin && ACC.user.pin.startsWith('MI'));
+// ---- Help: the controls and the ways to sign in
+$('helpBtn').addEventListener('click', () => {
+  const { box, close, row, button } = cfgBox(); const h3 = document.createElement('h3'); h3.textContent = 'Help'; box.appendChild(h3);
+  const d = document.createElement('div'); d.className = 'help';
+  d.innerHTML = `<h4>Controls</h4>
+    <p><b>Left click</b> — walk, open, pick up · <b>Right click</b> (or <b>Shift + click</b>, or tap while holding the attack button) — attack</p>
+    <p><b>I</b> or <b>Tab</b> — equipment · <b>1–9, 0</b> — quick keys · <b>Q</b> — drink a potion</p>
+    <p><b>M</b> — minimap · <b>N</b> — sound · <b>Mouse wheel</b> (or pinch) — zoom · <b>F5</b> — full screen</p>
+    <h4>Heroes</h4>
+    <p>Your heroes are kept on this device. Signed in, you can also keep heroes on the server and play them from any
+    device: <b>Switch hero</b> lists both, and ⧉ beside a hero copies it to the other side. Click your hero to rename
+    it, change its look or erase it.</p>
+    <h4>Signing in</h4>
+    <p><b>PIN</b> — choose two capital letters (your initials, say) and four digits, e.g. JS4821. No account and no
+    email: the same PIN brings your server heroes back on any device. A PIN is not a password: anyone who picks the
+    same PIN shares those heroes, and PINs can be guessed, so it is mainly for testing and may be retired. This
+    device remembers it until you sign out, or until you come back more than 48 hours after last playing.</p>
+    <p><b>Email link</b> — a sign-in link is sent to your email; opening it brings you back here, signed in. For
+    now it only works for invited addresses.</p>`;
+  box.appendChild(d); row(button('Close', close)).style.justifyContent = 'flex-end';
+});
 
 // ---------- Hero export / import ----------
 // An exported hero is a JSON text file:

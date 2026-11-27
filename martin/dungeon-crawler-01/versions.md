@@ -9,9 +9,21 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v165 — a calmer title screen (2026-11-27)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 165`)*
+
+- The controls moved off the title screen into a **Help** box (top right, beside Full screen), which also explains
+  heroes and the ways to sign in.
+- Your hero stands still, facing you; click the hero to rename it, change its look or erase it (no cogwheel).
+  Switch hero and New hero sit beside it.
+- Copying a hero is a ⧉ button (its tooltip says where the copy goes).
+- Sign-in opens on the PIN tab; the example PIN is JS4821 and disappears when you click into the field.
+- Scenarios, Import and Export are only for testers (signed in with a PIN starting MI).
+
 ## v164 — sign in with a PIN, for testing (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 164`)*
+Commit: 89f99cf
 
 - The sign-in box has a second way in: a PIN of two capital letters (your initials, say) and four digits. No
   account, no email; the same PIN brings your server heroes back on any device. The box warns that anyone with the

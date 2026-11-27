@@ -3,7 +3,7 @@
 //  Auth, signInWithOtp; the link brings them back to the game's page, where supabase-js picks up the session) and then keep heroes on the server as
 //  well as in this browser: the table mdc1_heroes of the repo's shared Supabase project, one row per hero, each
 //  player seeing only their own (row-level security on auth.uid(); supabase/migrations/…_create_mdc1_heroes.sql).
-//  Or, for testing, with a PIN (two uppercase letters and four digits, e.g. initials + digits): no account, no email;
+//  Or, for testing, with a PIN (two uppercase letters and four digits, e.g. initials + digits, JS4821): no account, no email;
 //  the heroes of that PIN live in the table mdc1_pin_heroes, reached only through database functions that touch the
 //  rows of the PIN they are given (…_create_mdc1_pin_heroes.sql). Weak by design (guessable, shared by whoever picks
 //  the same PIN); the sign-in box says so. The PIN is kept in this browser until signing out, or until the player
@@ -42,7 +42,7 @@ async function accInit() {
 // Use a PIN: its heroes are loaded (a new PIN simply has none yet); an email session is ended first
 async function accUsePin(pin) {
   pin = (pin || '').trim().toUpperCase();
-  if (!PIN_RE.test(pin)) return 'A PIN is two letters and four digits, like MI4821.';
+  if (!PIN_RE.test(pin)) return 'A PIN is two letters and four digits, like JS4821.';
   if (!ACC.sb) return 'No connection to the server.';
   if (ACC.user && !ACC.user.pin) try { await ACC.sb.auth.signOut(); } catch (e) {}
   ACC.user = { id: 'pin', pin }; accTouch(); await accLoad();

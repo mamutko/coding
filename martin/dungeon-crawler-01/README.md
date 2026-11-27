@@ -436,27 +436,37 @@ and the picker shows no saved heroes.
   where on the surface a hero resumed from this save stands (before the portal after entering the Rift, else before
   the crypt's door). The hero is also saved on entering the Rift (on the surface, before going) and on leaving it;
   never inside it.
-- **The title screen** (since v162) shows only the **current hero**, in a card (`titleRefresh`): its portrait (its
-  look's sprite, turning slowly through the eight directions), name, level, depth (or *The surface*) and where it
-  is kept (*Kept on this device* / *Kept on the server*). Under it **Switch hero** and **New hero**, then **Enter the
-  World** and the cogwheel (that row sticks to the bottom edge when the screen scrolls). The current hero is the one
-  last chosen on this device (`crypt-of-endless-night.pick`, either kind), else the newest here, else the newest on
-  the server. With no hero at all, the card is a name field (*Create your hero*, `#heroName`) with **Create**.
+- **The title screen** (since v162; laid out anew in v165) has the title, one line of story, and the **current hero**
+  in a card (`titleRefresh`): its portrait (its look's sprite standing, facing south), name, level, depth (or *The
+  surface*) and where it is kept (*Kept on this device* / *Kept on the server*). **Clicking the card** opens the hero's
+  settings. Beside it, in a column, **Switch hero** and **New hero** (under it on narrow screens); below, **Enter the
+  World** (it sticks to the bottom edge when the screen scrolls). At the top right **Help** and **Full screen**, at the
+  top left **Sign in**. The current hero is the one last chosen on this device (`crypt-of-endless-night.pick`, either
+  kind), else the newest here, else the newest on the server. With no hero at all, the card is a name field (*Create
+  your hero*, `#heroName`) with **Create**.
+  - **Help** explains the controls (left click, right click / Shift + click, I / Tab, 1–9 and 0, Q, M, N, the mouse
+    wheel or pinch, F5), heroes (this device and the server, copying, the card's settings) and the two ways to sign in
+    (PIN and email link, with the PIN's warnings).
+  - **Testers** (`tester()`: signed in with a PIN starting **MI**) also see **Scenarios** (bottom left; also always in
+    the sandbox, `?sandbox`), **Import…** in the Switch hero overlay and **Export hero** in the hero's settings; nobody
+    else does.
   - **Switch hero** opens an overlay (`#heroList`, `renderHeroList`) with two tabs, **On this device** and **On the
     server**, each listing its heroes, most recently saved first (name, level, depth; the current one lit). A click
-    on a hero makes it the current one and closes the overlay. Beside each hero a button puts a **copy** on the
-    other side (`copyHero`: a new id, the same data; the original stays): *Copy to server* (signed in only) and
-    *Copy to device*. The server tab asks to sign in when signed out. At its foot: **New hero**, **Import…** (onto
-    this device) and **Close**.
+    on a hero makes it the current one and closes the overlay. Beside each hero a **⧉** button (two joined squares,
+    a black-and-white sign for a copy; its tooltip says what it does) puts a **copy** on the other side (`copyHero`:
+    a new id, the same data; the original stays): to the server (signed in only), or to this device; it shows ✓
+    when done (✗ if it failed). The server tab asks to sign in when signed out. At its foot: **New hero**,
+    **Import…** (testers only; onto this device) and **Close**.
   - **New hero** asks for a name (up to 20 characters, spaces collapsed; an empty one is refused with a red
     border) and, signed in, where to keep it (*On this device* / *On the server*). Creating saves the new hero
     (level 1, on the surface, the starting kit) and makes it the current one.
-  - **The cogwheel** opens a box for the current hero: rename it (**Rename** or Enter), export it, pick its
+  - **The hero's settings** (a click on the card; there is no cogwheel since v165): rename it (**Rename** or
+    Enter), export it (testers only), pick its
     **Look** (Knight, Stocky knight, Huntress, Woodsman, Scout, Mannequin, two per row; the lit one is current; a
     click saves it at once, see [Hero looks](#hero-looks)), or **Erase hero**, which asks for confirmation ("… will
     be erased for good from this device / from the server. This cannot be undone.") before deleting it.
-  - On narrow screens the screen leaves room at the top for **Sign in** and **Full screen**, and **Scenarios** goes
-    under the buttons.
+  - On narrow screens the screen leaves room at the top for **Sign in**, **Help** and **Full screen**, and
+    **Scenarios** goes under the buttons.
 - **Accounts and server heroes** (since v162, `account.js`):
   - **Signing in:** **Sign in** at the top left asks for an email and sends a sign-in **link** (Supabase Auth,
     `signInWithOtp`, `accSendLink`; no password, an account is made on first use). Opening the link brings the player
@@ -467,13 +477,14 @@ and the picker shows no saved heroes.
     device's heroes are shown. *Setup (Supabase dashboard, not code):* the game's address must be among the allowed
     **Redirect URLs** (Authentication → URL Configuration), else the link lands on the project's Site URL instead.
     Supabase's built-in mailer sends only a few emails an hour.
-  - **Signing in with a PIN** (since v164; for testing): the sign-in box's second tab, **PIN (testing)**. A PIN is two
-    capital letters and four digits (`PIN_RE`, e.g. initials + digits, *MI4821*; typed letters become capitals). There
+  - **Signing in with a PIN** (since v164): the sign-in box's first tab, **PIN** (the second is **Email link**). A
+    PIN is two capital letters and four digits (`PIN_RE`, e.g. initials + digits, *JS4821*; typed letters become
+    capitals; the example in the empty field disappears when the field is clicked). There
     is no account: a new PIN simply has no heroes on the server yet, and the same PIN brings them back on any device
     (`accUsePin`). The box warns that a PIN is not a password (anyone picking the same PIN sees and can change the same
     heroes; PINs can be guessed), that it is mainly for testing, and that the option may be retired. Signed in with a
-    PIN, the title screen shows its two letters at the top left (*MI PIN*), and a server hero's card says *Kept on the
-    server (PIN MI)*. The browser keeps the PIN (`crypt-of-endless-night.pin`: the PIN and the time of the last play,
+    PIN, the title screen shows its two letters at the top left (*JS PIN*), and a server hero's card says *Kept on the
+    server (PIN JS)*. The browser keeps the PIN (`crypt-of-endless-night.pin`: the PIN and the time of the last play,
     updated on entering the world, on each save and once a minute while playing) until **Sign out**, or until the
     game is opened more than **48 hours** after the last play (`PIN_IDLE`): then it is forgotten without a word and
     the player is signed out. Signing in by email ends a PIN sign-in, and the other way round.
@@ -495,7 +506,7 @@ and the picker shows no saved heroes.
     when saved (capped at max life; saves made before life was saved start at full life). Item
     ids continue after the highest saved one, so new drops never clash with owned items.
 - **Export / import** (`exportHero`, `importHero`):
-  - **Export hero** in the cogwheel box saves the current hero to a text file,
+  - **Export hero** in the hero's settings (testers only) saves the current hero to a text file,
     `<name>-level<L>-depth<D>.crypt-hero.json`, as last saved (on arrival at its depth). It is a download; on
     iPhone / iPad (where downloads from a home-screen app are unreliable) it goes through the share sheet
     (*Save to Files*, AirDrop, mail, …) when the browser can share files.
@@ -1444,7 +1455,7 @@ Each hero is drawn with one of six walk sheets (`HERO_LOOKS`), its **look**, sav
 | Scout | `hero5` | `assets/hero5.webp` | 12 | 8.02 | 1 |
 | Mannequin | `mannequin` | `assets/mannequin.webp` | 12 | 8.02 | 1 |
 
-- **Picking it:** in the hero's cogwheel box on the title screen, or with **Look** in the debug overlay (the selected
+- **Picking it:** in the hero's settings on the title screen (a click on its card), or with **Look** in the debug overlay (the selected
   hero's on the title screen, the played hero's in the game). `setHeroLook` writes the look straight into the hero's
   save entry (nothing else is saved) and, for the hero being played, changes it at once.
 - **Voice:** each look has a voice for incantations (`HERO_VOICE`): male for the Knight, Stocky knight, Woodsman,
