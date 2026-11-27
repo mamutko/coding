@@ -146,7 +146,7 @@ One image (Gemini, in the style of the crypt building), cut into two parts as wi
   mostly empty and a full one with nothing left to claim), filled as crypt rooms of their depth and spread evenly from
   near the start room to far (v139). The two rooms nearest the portal are a quiet zone with one warm-up skeleton.
   Every player, the first included, also **restocks the great rooms** at their own depth: wraiths over the lake, a
-  horde in the big room (however many are still there), and a boss of their depth + 1 with its own guardian's chest
+  horde in the big room (both topped up to two players' worth, counting what still lives there, v155), and a boss of their depth + 1 with its own guardian's chest
   in the boss room. The first player also places the static furnishings (props, doors, urns).
 - **Keeping the realm alive:** a player's monsters slowly come back (one every ~20 s, up to their starting number)
   in rooms where no hero has been within 15 tiles for 60 s.

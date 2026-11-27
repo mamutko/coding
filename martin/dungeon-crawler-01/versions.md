@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v155 — the Rift's horde topped up to two players' worth; a satchel on the surface (2026-11-27)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 155`)*
+
+- The Rift's big room and lake are filled up to two players' worth of monsters whenever someone comes in, counting
+  what's still there: a real horde from the start, but no longer growing past that with every player who joins.
+- On the surface, 40 tiles west of the portal, lies a satchel. Open it like a chest: a rusty short sword and a pair
+  of leather gloves. Once per hero.
+
 ## v154 — flails and polearms, for fighting crowds; axes and bows rebalanced (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 154`)*
+Commit: f450b40
 
 - Flails spin all the way round, hitting every monster in reach with the full blow and knocking them back; they hit
   weaker and slower to make up for it. Flail from depth 3, Morning Star from depth 10.

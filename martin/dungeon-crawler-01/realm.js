@@ -8,8 +8,9 @@
 // the crypt. The dial lies in front of it (`dial`, its centre), META.portal.dialR tiles in radius. `clear`: no trees
 // grow within this many tiles of the arch. The Rift: its rooms `size` tiles a side, `rooms` of them, and a strip `band`
 // tiles deep beyond their north-east edge for the lake; `quiet`: rooms by its portal left (nearly) empty; `share`: the
-// part of the ordinary rooms the founder fills, and each who joins of those still free
-const RIFT = { at: [-29, -29], dial: [-23, -23], clear: 9, size: 110, band: 36, rooms: 34, quiet: 2, share: 1 / 3 };
+// part of the ordinary rooms the founder fills, and each who joins of those still free; `great`: how many players' worth
+// the lake and the big room are topped up to (riftRestock)
+const RIFT = { at: [-29, -29], dial: [-23, -23], clear: 9, size: 110, band: 36, rooms: 34, quiet: 2, share: 1 / 3, great: 2 };
 
 // The arch's four tiles, from west to east: [x, y, role] with role 'pillar' (blocked) or 'gate'. gx, gy (whole
 // numbers): the ground point in the middle of its base line, which runs through the four tiles' centres.
@@ -258,11 +259,14 @@ function riftPopulate(rooms, d) {
   return out;
 }
 
-// ---- The three great rooms, restocked by each player who comes in (the founder too), at that player's depth d: a
-// group of wraiths over the lake (LAKE_WRAITHS, as on a crypt lake), a horde in the big room (twice a crypt big room's,
-// as the room is twice the size, however many are in it already) and, in the boss room, a boss of depth d + 1 with a
+// ---- The three great rooms, restocked by each player who comes in (the founder too), at that player's depth d. The
+// lake and the big room are topped up to RIFT.great players' worth (counting what still lives there): wraiths over
+// the lake (one player's worth: LAKE_WRAITHS, as on a crypt lake) and a horde in the big room (one player's worth:
+// twice a crypt big room's pack, as the room is twice the size); so they always feel full, but never grow past that
+// however many come. In the boss room, every player adds a boss of depth d + 1 with a
 // guardian's chest of its own, sealed while that boss lives (gm: the boss; its id, guard, once it has one: netOwnAll).
 // Returns { mons, objs }, not yet in the level (riftAdd).
+const inRoom = (r, q) => q.x >= r.x && q.x < r.x + r.w && q.y >= r.y && q.y < r.y + r.h;
 function riftRestock(d) {
   const m = G.map, mons = [], objs = [], room = k => m.rooms.find(r => r.big === k);
   const used = new Set(G.objects.map(o => o.x + ',' + o.y));
@@ -279,7 +283,8 @@ function riftRestock(d) {
       let wet = true; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (m.at(x + dx, y + dy) !== T_WATER) wet = false;
       if (wet) spots.push([x, y]);
     }
-    for (let n = ri(...LAKE_WRAITHS), k = 0; n > 0 && k < 300 && spots.length; k++) {
+    const have = G.monsters.filter(q => !q.dead && q.type === 'wraith' && inRoom(lake, q)).length;
+    for (let n = Math.max(0, RIFT.great * ri(...LAKE_WRAITHS) - have), k = 0; n > 0 && k < 300 + 20 * n && spots.length; k++) {
       const [x, y] = pick(spots), px = x + 0.3 + rnd() * 0.4, py = y + 0.3 + rnd() * 0.4;
       if (near(px, py, k < 150 ? 1.6 : 0.9)) continue;   // (a crowded lake: closer together)
       const q = makeMonster('wraith', px, py, d, false, false, true); q.lake = true; mons.push(q); n--;
@@ -288,8 +293,9 @@ function riftRestock(d) {
   const hall = room('horde');
   if (hall) {   // the crypt big room's pack (skeletons x3 and the types of depth d - 4 or earlier, no champions), twice over
     const pool = []; for (const k in MON) if (k === 'skeleton' || MON[k].minD <= d - 4) for (let i = 0; i < MON[k].w * (k === 'skeleton' ? 3 : 1); i++) pool.push(k);
-    const cnt = {};
-    for (let i = 2 * Math.round((ri(5, 7) + Math.floor((d - 3) / 2)) * 1.5); i > 0; i--) { const p = inner(hall); if (!p) break;
+    const cnt = {}, have = G.monsters.filter(q => !q.dead && inRoom(hall, q)).length;
+    for (const q of G.monsters) if (!q.dead && inRoom(hall, q)) cnt[q.type] = (cnt[q.type] || 0) + 1;
+    for (let i = Math.max(0, RIFT.great * 2 * Math.round((ri(5, 7) + Math.floor((d - 3) / 2)) * 1.5) - have); i > 0; i--) { const p = inner(hall); if (!p) break;
       const t = typeFor(pool, cnt, d); cnt[t] = (cnt[t] || 0) + 1; mons.push(makeMonster(t, p[0], p[1], d, false, false, true)); }
   }
   const br = room('boss');

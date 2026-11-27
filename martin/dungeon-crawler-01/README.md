@@ -41,7 +41,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `tools/raw/cast_design1.png`, `cast_design2.png` | The cast's front-view design sheets (4 × 1 each, on magenta). |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
 | `assets/items.webp` | 6 × 10 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–10 from `add_items.py`). |
-| `assets/props.webp` | Props: row 1 has the chest, open chest, door, stairs, brazier, bones, urn and gold, and the boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus), from `process_art.py`; row 2 has the searched bones (`bonesused`) and the door leaves (`doorA`, `doorB`), from `add_props.py`; rows 3 on have the four Keepers of the Crypt (`keeper1`–`keeper4`) and their stall's furnishings (`mtable`, `mrack`, `mchest`, `mshelf`, `mcrates`, `mbarrel`, `mlantern`, `mrug`), from `add_market.py`. |
+| `assets/props.webp` | Props: row 1 has the chest, open chest, door, stairs, brazier, bones, urn and gold, and the boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus), from `process_art.py`; row 2 has the searched bones (`bonesused`) and the door leaves (`doorA`, `doorB`), from `add_props.py`; rows 3 on have the four Keepers of the Crypt (`keeper1`–`keeper4`) and their stall's furnishings (`mtable`, `mrack`, `mchest`, `mshelf`, `mcrates`, `mbarrel`, `mlantern`, `mrug`), from `add_market.py`; the last row has the satchel (`satchel`, `satchelopen`), from `add_satchel.py`. |
 | `assets/floor.jpg`, `assets/wall.jpg` | 512 px seamless floor and wall textures. |
 | `assets/grass_a.jpg`, `assets/grass_b.jpg` | 512 px seamless grass textures of the surface (lush dark green; patchy olive meadow). See [The surface](#the-surface-depth-0). |
 | `assets/surface.webp` | The surface's sprites: four bushes, four ground details (flowers, rocks, mushrooms, a grass tuft) and the crypt. Coordinates in `META.surface`. It still holds the four retired small trees (`tree1`–`tree4`: oak, fir, dead tree, birch), no longer used. |
@@ -60,6 +60,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `tools/walk_cycle.py` | Walk-cycle pipeline (hero, skeleton, ghoul): renders the 3D stick-figure pose guides and placeholders, and builds the 8-frame sheets. |
 | `tools/add_items.py`, `tools/raw/items2.png`, `items3.png`, `firebombs.png`, `scrolls.png`, `scrolls2.png`, `crossbows.png`, `crowd.png` | Appends the icons of the newer item types (and a quiver), the six fire bomb designs and the scroll of frost (`frostscroll`, cell 1 of `scrolls.png`), to `assets/items.webp` from the three raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
 | `tools/add_market.py`, `tools/raw/keepers.png`, `keeper_decor.png` | Adds the Keepers of the Crypt and their furnishings to `assets/props.webp` (the rows after row 2) and updates `assets/meta.json` and the inline `META`. See [Keepers of the Crypt](#keepers-of-the-crypt-the-market). |
+| `tools/add_satchel.py`, `tools/raw/satchels.png` | Adds the satchel (closed and opened) in a row of its own at the bottom of `assets/props.webp`, keeps all six designs in `assets/unused/satchels`, and updates `assets/meta.json` and the inline `META`. Run it again after `add_props.py` or `add_market.py`, which rebuild the rows they own. See [Assets](#assets). |
 | `tools/add_props.py`, `tools/raw/bones_searched.png`, `doors.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones, door leaves) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
 | `assets/sfx/` | Ghoul moans and grunts, and the scrolls' incantations in the male and female heroes' voices: frost (`incantm1.mp3`, `incantf1.mp3`), surface escape (`escapem1.mp3`, `escapef1.mp3`) and return (`returnm1.mp3`, `returnf1.mp3`) (MP3). |
@@ -742,8 +743,11 @@ A new hero starts on **the surface**, a few steps from the crypt's entrance, on 
 grassland with woods, glades, bushes and the crypt building; clicking the crypt's dark doorway takes the hero down to
 depth 1 (`descend`). It has its own music (see [Music](#music)). One person lives there, **Garrick the Hunter**, on
 the lawn by the crypt's door (a story NPC: see [Dialogue](#dialogue)); no monsters, loot or keepers. About 50 tiles
-north of the crypt stands the **portal to the Rift** with its dial (see [The Rift](#the-rift)). The level name is *The
-Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going up is todo #11.)
+north of the crypt stands the **portal to the Rift** with its dial (see [The Rift](#the-rift)). 40 tiles west of the
+portal (due west on screen: `SURF.satchel`, 28 tiles less x and 28 more y) a **satchel** lies in a small clearing,
+an old adventurer's leather bag. Click it to open it, like a chest: it holds a *Rusty Short Sword* and a pair of
+*Leather Gloves*, dropped beside it (no experience). It opens once per hero (`hero.satchel`, saved) and lies open
+afterwards. The level name is *The Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going up is todo #11.)
 
 - **Super tiles** (`SURF`): the land is made of squares of `SURF.chunk` (32) tiles, generated from their world
   position and a fixed seed (`SURF.seed`; `srand` is a seeded mulberry32 over a hash of the keys, `vnoise` a smooth
@@ -895,9 +899,13 @@ relay for networks that cannot connect directly (on hold). The code is in `realm
   The other rooms are placed at random. Corridors are grown out from the start room: each time the room nearest to
   one already joined is joined to it. No lone monster, keeper, dragon or stairs.
   - **The great rooms are restocked by everyone** (`riftRestock`, for the founder and for each who joins, at that
-    player's depth d): a group of 8–10 wraiths over the lake (as on a crypt lake), a horde in the big room (twice a
-    crypt big room's pack, skeletons and types of depth d − 4 or earlier, no champions; added to whatever is still
-    there), and in the boss room a **boss of depth d + 1** (its type drawn from those unlocked at d + 2) on the free
+    player's depth d). The lake and the big room are **topped up to two players' worth** (`RIFT.great`, since v155),
+    counting what still lives there, so they always feel like a horde but never grow past that however many join:
+    wraiths over the lake (one player's worth: 8–10, as on a crypt lake) and a horde in the big room (one player's
+    worth: twice a crypt big room's pack, skeletons and types of depth d − 4 or earlier, no champions; the types
+    within the room limits counting those already there). The founder arrives to both full (a horde of about 32 at
+    depth 1). Before v155 every joiner added a full set, about 100 in the big room after four joiners. And in the
+    boss room a **boss of depth d + 1** (its type drawn from those unlocked at d + 2) on the free
     tile nearest the middle at least 3 tiles from the other bosses, with **its own guardian's chest** against the
     north-east or north-west wall. Each chest is sealed while its own boss lives (`chestSealed`: `gm`, the boss, for
     its maker; `guard`, its id, for everyone). They are all claimed rooms, so no one fills them as ordinary rooms.
@@ -2779,6 +2787,12 @@ walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycle
     oak stock, blackened steel prod, a crank) is the Heavy Crossbow (`crossbow`, row 9), cell 2 (brass fittings, a
     carved stock) the Gilded Arbalest (`arbalest`); the other four are unused.
     (OpenAI's safety system refused the same request.)
+  - **The satchel** (`tools/add_satchel.py`, `tools/raw/satchels.png`, ~$0.07): Google `gemini-3.1-flash-image`
+    `edit` (1K, 3:2) with the chest, the opened chest, an urn and the bone pile on magenta as the style reference: a
+    3 × 2 sheet of three leather satchel designs, closed (top row) and the same opened and empty (bottom row). Design
+    1 (brown leather, a brass buckle, a coiled shoulder strap) is the props `satchel` and `satchelopen` (120 px high
+    closed), in a row of their own at the bottom of `props.webp` (the script leaves the other props alone). All six
+    are kept keyed out in `assets/unused/satchels` for later.
   - `tools/raw/crowd.png`: Google `gemini-3.1-flash-image` `edit` (1K, 3:2, ~$0.07) with six weapon icons from the
     atlas on magenta as the style reference: three flails and three polearms. Cell 0 (a light flail, wooden
     handle) is the Flail (`flail`), cell 1 (a spiked ball) the Morning Star (`morningstar`), cell 3 the Glaive
