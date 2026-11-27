@@ -723,6 +723,9 @@ setInterval(() => { const el = document.getElementById('dbgNet'); if (!el || !ne
 
 // ---- Doors (owned like loot). Its owner decides its state, numbered by a version (o.v) only the owner raises; any
 // state with a higher version wins wherever it comes from (so a third player can pass it on).
+function netMonDoor(o) {   // one of our monsters opened a door: ours, say so; another player's, ask its owner
+  if (o.owner && netOn()) netSendOwner(o, { t: 'dq', i: o.nid, o: 1 }); else netDoorSay(o);
+}
 function netDoorSay(o) { o.v = (o.v || 0) + 1; if (netOn()) netEach({ t: 'door', i: o.nid, o: o.open ? 1 : 0, v: o.v }); }
 function netDoorSet(o, open, v, sound) {   // a state for it, numbered v: taken if newer than ours (or the same number from its owner, which settles a guess of ours)
   if (v < (o.v || 0)) return false;

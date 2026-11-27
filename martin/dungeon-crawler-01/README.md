@@ -1183,8 +1183,14 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
 - **Opening and closing** (since v151): a click on a closed door opens it; a click on an open one (its leaf, swung
   against the side of the doorway) closes it again (`act0`, `setDoor`: the tile goes back to `T_DOOR`, blocking
   walking and sight). Not while a hero or a monster stands in the doorway (`doorBusy`: "Something is in the way.").
-  Monsters never open doors, so a closed door holds them back. The experience for a door comes only the first time
-  it is opened (`o.opened`).
+  The experience for a door comes only the first time it is opened (`o.opened`).
+- **Monsters and doors** (since v152, `MON_DOORS`): skeletons, Pit Demons and ghouls open a closed door in their way
+  while chasing; spiders and wraiths stop at it. Planning a path, an opener treats closed doors as open (`PATH_DOORS`
+  in `astar`); reaching one in its way (next to it, roughly toward its next path point or goal: `doorNear`) it stands
+  at it for 0.5 s (`DOOR_FUMBLE`) and it swings open with its creak (`monsterDoor`, `openDoorBy`; no experience).
+  A wandering skeleton next to a closed door opens it now and then (0.25 a second, `DOOR_WANDER`; wandering runs
+  only within 30 tiles of a hero). No monster closes a door. In the Rift a monster's door is handled like its
+  player's: ours is announced, another player's is asked of its owner (`netMonDoor`).
 - **Stairs down** are placed in the centre of the room farthest from the start room (by BFS walking distance),
   never the boss room or the big room.
   The hero starts in the centre of the first room, which never has monsters or chests.

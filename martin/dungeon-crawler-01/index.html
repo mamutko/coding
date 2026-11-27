@@ -438,7 +438,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 151;
+const VERSION = 152;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -2483,6 +2483,9 @@ function lineWalkable(ax, ay, bx, by, r) {
 // binary-heap A* over 8-connected tiles; near=true stops on any free tile adjacent to the goal from which the goal
 // can be reached in one step: a diagonal neighbour counts only if the diagonal isn't cut by a wall corner (else a
 // walker across an outside corner from its goal would get an empty path and stand still)
+// While planning for a monster that opens doors (PATH_DOORS, see MON_DOORS), a closed door is a way through.
+let PATH_DOORS = false;
+const pblocked = (x, y) => blocked(x, y) && !(PATH_DOORS && G.map.at(x, y) === T_DOOR && !G.map.block[y * G.map.w + x]);
 function astar(sx, sy, gx, gy, near, maxN = 7000, partial = false) {
   const m = G.map, W_ = m.w, N = W_ * m.h;
   if (!near && blocked(gx, gy)) return null;
@@ -2501,8 +2504,8 @@ function astar(sx, sy, gx, gy, near, maxN = 7000, partial = false) {
         !(x !== gx && y !== gy && (blocked(gx, y) || blocked(x, gy)))) : (x === gx && y === gy)) { found = i; break; }
     for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
       if (!dx && !dy) continue; const nx = x + dx, ny = y + dy;
-      if (blocked(nx, ny)) continue;
-      if (dx && dy && (blocked(x + dx, y) || blocked(x, y + dy))) continue;
+      if (pblocked(nx, ny)) continue;
+      if (dx && dy && (pblocked(x + dx, y) || pblocked(x, y + dy))) continue;
       const j = ny * W_ + nx; if (closed[j]) continue;
       const ng = g[i] + (dx && dy ? 1.414 : 1);
       if (ng < g[j]) { g[j] = ng; came[j] = i; push(ng + hf(nx, ny), j); }
@@ -4450,6 +4453,7 @@ function updateMonster(m, dt) {
       m.wander -= dt;
       if (m.wander <= 0) { m.wander = 2 + rnd() * 5; const tx = m.x + (rnd() - 0.5) * 4, ty = m.y + (rnd() - 0.5) * 4;
         if (canStand(tx, ty, m.r) && lineWalkable(m.x, m.y, tx, ty, m.r)) m.path = [[tx, ty]]; }
+      if (MON_DOORS[m.type] === 2 && rnd() < dt * DOOR_WANDER) { const o = doorNear(m, null); if (o) { openDoorBy(o); m.path = []; } }   // a wandering skeleton tries a door
       if (m.path.length) { const px = m.x, py = m.y; m.moving = followPath(m, m.speed * 0.4, dt);
         if (m.calm) m.calm.walked += Math.hypot(m.x - px, m.y - py); }
     }
@@ -4479,6 +4483,7 @@ function updateMonster(m, dt) {
     goal = [h.x, h.y];
   }
   if (!goal) { m.stuckT = 0; return; }
+  if (monsterDoor(m, dt, m.path.length ? m.path[0] : goal)) return;   // at a closed door in its way: it opens it
   // stuck: trying to move but staying within STUCK_MOVE of one spot for STUCK_GIVEUP s (e.g. a pack plugging a
   // corridor mouth) -> it loses interest
   if (!m.anchor || dist(m, m.anchor) > STUCK_MOVE) { m.anchor = { x: m.x, y: m.y }; m.stuckT = 0; }
@@ -4493,7 +4498,8 @@ function updateMonster(m, dt) {
     moveEnt(m, dx / dd * spd * dt, dy / dd * spd * dt); setDir(m, dx, dy); m.moving = true;
   } else {
     m.repath -= dt;
-    if (m.repath <= 0 || !m.path.length) { m.repath = 0.5 + rnd() * 0.4; const p = astar(Math.floor(m.x), Math.floor(m.y), Math.floor(goal[0]), Math.floor(goal[1]), true, 2500);
+    if (m.repath <= 0 || !m.path.length) { m.repath = 0.5 + rnd() * 0.4; PATH_DOORS = !!MON_DOORS[m.type];
+      let p; try { p = astar(Math.floor(m.x), Math.floor(m.y), Math.floor(goal[0]), Math.floor(goal[1]), true, 2500); } finally { PATH_DOORS = false; }
       m.path = p ? (p.length ? smoothPath(p, m.x, m.y, m.r) : lineWalkable(m.x, m.y, goal[0], goal[1], m.r) ? [[goal[0], goal[1]]] : []) : []; }
     m.moving = followPath(m, spd, dt);
   }
@@ -5565,6 +5571,36 @@ function doorEdge() {   // a hand-drawn end-grain / edge strip in the leaves' br
 function quadImg(img, P0, P1, P3, shade = 0) {
   ctx.save(); ctx.transform((P1[0] - P0[0]) / img.width, (P1[1] - P0[1]) / img.width, (P3[0] - P0[0]) / img.height, (P3[1] - P0[1]) / img.height, P0[0], P0[1]);
   ctx.drawImage(img, 0, 0); if (shade) { ctx.fillStyle = `rgba(0,0,0,${shade})`; ctx.fillRect(0, 0, img.width, img.height); } ctx.restore();
+}
+// Monsters and doors: skeletons, Pit Demons and ghouls open a closed door in their way while chasing (MON_DOORS: 1),
+// skeletons also now and then while wandering (2: DOOR_WANDER per second, one next to them). Planning a path they
+// treat closed doors as open (PATH_DOORS); reaching one in their way (within reach, roughly ahead: toward their next
+// path point or goal) they stand at it DOOR_FUMBLE s, then it swings open. Other monsters stop at closed doors. None
+// close doors. In the Rift a monster opens a door like its player would (openDoorBy: another player's door is asked of
+// its owner).
+const MON_DOORS = { skeleton: 2, demon: 1, ghoul: 1 }, DOOR_FUMBLE = 0.5, DOOR_WANDER = 0.25;
+function doorNear(m, to) {   // a closed door next to m (and, given `to`, roughly the way it is going)
+  for (const o of G.objects) {
+    if (o.type !== 'door' || o.open) continue;
+    const dx = o.x + 0.5 - m.x, dy = o.y + 0.5 - m.y, d = Math.hypot(dx, dy);
+    if (d > 0.95 + m.r) continue;
+    if (to) { const tx = to[0] - m.x, ty = to[1] - m.y, tl = Math.hypot(tx, ty) || 1; if ((dx * tx + dy * ty) / (d * tl) < 0.35 && !(Math.floor(to[0]) === o.x && Math.floor(to[1]) === o.y)) continue; }
+    return o;
+  }
+  return null;
+}
+function monsterDoor(m, dt, to) {
+  if (!MON_DOORS[m.type]) return false;
+  const o = doorNear(m, to);
+  if (!o) { m.doorT = 0; return false; }
+  m.doorT = (m.doorT || 0) + dt; m.moving = false; setDir(m, o.x + 0.5 - m.x, o.y + 0.5 - m.y);
+  if (m.doorT < DOOR_FUMBLE) return true;
+  m.doorT = 0; openDoorBy(o); m.repath = 0; m.stuckT = 0; m.anchor = null;
+  return true;
+}
+function openDoorBy(o) {   // a monster opens a door (not a hero: no experience)
+  setDoor(o, true); sfx('door', { x: o.x, y: o.y });
+  if (G.rift && o.nid) netMonDoor(o);
 }
 // A door's state and its tile: T_DOOR (closed: blocks walking and sight) or T_OPEN. An open door can be closed
 // unless a hero or a monster stands in its doorway (doorBusy); a door closed on our hero (another player's
