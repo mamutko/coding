@@ -329,7 +329,9 @@ The game can be installed as a home-screen app, which then opens **without brows
 
 `catalog.html` is a stand-alone page listing every monster (with its stats at any depth, via a slider), the champion
 and boss multipliers, every item type, the potions, the affixes with their ranges, the rarity rules, and a
-**depth by depth** table of what first appears where. It uses the game's sprites and floor texture and states the
+**depth by depth** table of what first appears where, to depth 20 (`DEPTHS` in `build.js`, past the deepest item
+type at 18): monsters and champions, boss and big rooms, the depth 2–3 magic chests, lakes, the dragon, keepers,
+fire bombs, rarities, affix tiers and item types. It uses the game's sprites and floor texture and states the
 game version it was built from.
 
 It is generated from the game's own data, so **regenerate it whenever stats change or monsters, items, affixes or
@@ -1683,7 +1685,11 @@ bosses add a rarity boost (with a 0.35 boost: 2.45 % rare, 16.25 % magic). An it
 starting kit, the guardian's chest) skips the roll.
 
 **Rarity gates by depth.** No magic items before depth 4 (`MAGIC_FROM`) and no rares before depth 8 (`RARE_FROM`);
-a roll above what the depth allows is lowered to the best allowed rarity.
+a roll above what the depth allows is lowered to the best allowed rarity. The one exception (since v159): depths 2 and
+3 (`TROVE_AT`) each have **one extra chest** in an ordinary room (not the start, boss, keeper, lake or big room;
+`o.trove`) that holds a single magic item and nothing else: any type unlocked at that depth (no ring or amulet), its
+affixes of the first tier (all the depth allows), always dropped. Opening it logs "Something in the chest shimmers
+faintly: a magic item." It looks like any chest and gives a chest's experience. Not in the Rift.
 
 **Richer sources drop deeper loot** (`LOOT_PLUS`): their items are those allowed at a deeper depth, for everything
 the depth decides (item types, affix tiers, the rarity gates and the ring and amulet gates):

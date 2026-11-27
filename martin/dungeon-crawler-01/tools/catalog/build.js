@@ -15,7 +15,7 @@ const server = http.createServer((req, res) => {
   if (!f.startsWith(ROOT) || !fs.existsSync(f)) { res.writeHead(404); res.end(); return; }
   res.writeHead(200, { 'Content-Type': TYPES[path.extname(f)] || 'application/octet-stream' }); fs.createReadStream(f).pipe(res);
 });
-const DEPTHS = 12;   // monster stats are listed for depths 1..DEPTHS
+const DEPTHS = 20;   // monster stats and the depth-by-depth list go to depth DEPTHS (past the deepest item type, 18)
 
 (async () => {
   await new Promise(r => server.listen(0, '127.0.0.1', r));
@@ -42,7 +42,8 @@ const DEPTHS = 12;   // monster stats are listed for depths 1..DEPTHS
       affixW: AFFIX_W, jewelMult: JEWEL_MULT, potions: POTIONS, bomb: BOMB, fire: FIRE, iron: IRON, heal: HEAL, magicFrom: MAGIC_FROM, lootPlus: LOOT_PLUS,
       rareFrom: RARE_FROM, ringFrom: RING_FROM, amuletFrom: AMULET_FROM, magicOdds: MAGIC_ODDS, rareOdds: RARE_ODDS,
       meta: META, heroSpeed: 4.2, depths: DEPTHS, propsW: IMG.props.width, itemsW: IMG.items.width,
-      levels: Array.from({ length: DEPTHS }, (_, i) => ({ bossRoom: bossRoomAt(i + 1), boss: i + 1 >= BOSS_FROM, big: bigRoomAt(i + 1) })) };
+      levels: Array.from({ length: DEPTHS }, (_, i) => ({ bossRoom: bossRoomAt(i + 1), boss: i + 1 >= BOSS_FROM, big: bigRoomAt(i + 1),
+        lake: lakeRoomAt(i + 1), dragon: dragonAt(i + 1), keeper: keeperAt(i + 1), trove: TROVE_AT.includes(i + 1) })) };
   }, DEPTHS);
   await b.close(); server.close();
   if (errs.length) { console.error('Page errors:', errs); process.exit(1); }

@@ -299,6 +299,11 @@ $('rarityNote').innerHTML = `Chests, champions and bosses raise the chances. Som
     if (L.bossRoom && !prev.bossRoom) out.push(mk('ev-boss', L.boss ? 'boss room with a boss' : 'empty boss room'));
     if (L.boss && !prev.boss && prev.bossRoom) out.push(mk('ev-boss', 'boss room with a boss'));
     if (L.big) out.push(mk('ev-big', 'big room (grey banners)'));
+    if (L.trove) out.push(mk('rar-magic', 'a chest with one magic item (lowest affix tier)'));
+    if (L.lake) out.push(mk('ev-big', 'the underground lake (wraiths over the water)'));
+    if (L.dragon) out.push(mk('ev-boss', 'the dragon, Nythrakar, in its lair'));
+    if (L.keeper) out.push(mk('note', 'a Keeper of the Crypt (market)'));
+    if (d === D.bomb.from) out.push(mk('note', 'fire bombs'));
     if (d === D.magicFrom) out.push(mk('rar-magic', 'magic items'));
     if (d === D.rareFrom) out.push(mk('rar-rare', 'rare items'));
     if (d === D.ringFrom) out.push(mk('rar-magic', 'rings (magic / rare)'));

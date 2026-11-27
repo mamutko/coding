@@ -438,7 +438,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 158;
+const VERSION = 159;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1090,6 +1090,7 @@ const bigRoomAt = d => d >= 3 && d % 2 === 1;
 // hovers over the water (the only monsters that can cross it). First on depth 8: the first depth after the
 // first boss fight (depth 6) that has no big room; then every 4th depth after it (12, 16, 20, ...: all even, so never a
 // big room's or a dragon's depth). The map is 16 tiles larger on those depths.
+const TROVE_AT = [2, 3];   // depths with a chest holding one magic item (lowest affix tier), before magic drops begin (buildLevel)
 const LAKE_AT = 8, LAKE_EVERY = 4, LAKE_ROOM = [28, 30], LAKE_SHORE = 4, LAKE_WRAITHS = [8, 10];
 const lakeRoomAt = d => d >= LAKE_AT && (d - LAKE_AT) % LAKE_EVERY === 0;
 // Lone monsters: a foretaste of a type one depth before it starts to appear (its minD): one random normal room
@@ -2444,6 +2445,12 @@ function buildLevel(d) {
       }
     }
   }
+  // depths 2 and 3 (TROVE_AT): one more chest, in an ordinary room, holding a single magic item of the lowest affix
+  // tier (magic items otherwise drop from depth MAGIC_FROM), so these early depths have something new to find
+  if (!rift && TROVE_AT.includes(d)) {
+    const cands = rooms.filter(r => r !== start && r !== bossRoom && r !== keeperRoom && r !== lakeRoom && r !== bigRoom);
+    for (let k = 0; k < 20 && cands.length; k++) if (place('chest', pick(cands), true, { trove: true })) break;
+  }
   if (riftQuiet.length) {   // the quiet zone's one warm-up skeleton (never a champion), in the room nearest the portal
     const r = riftQuiet[0], p = freeInner(r, false); if (p) { occ[p[1] * w + p[0]] = 1; monsters.push(makeMonster('skeleton', p[0] + 0.5, p[1] + 0.5, d, false, false, true)); }
   }
@@ -3513,6 +3520,9 @@ function act0(ref, other = false) {
       if (chestSealed(o)) { log('The chest is sealed while its guardian lives.', '#7fe08a'); sfx('locked'); return; }
       o.used = true; sfx('chest'); if (!other) gainXp((o.boss ? 15 : 6) * d);
       if (o.scrolls) { dropItem(makePotion('frost', o.scrolls), o.x + 0.5, o.y + 0.5); log('The chest holds a bundle of scrolls, cold to the touch.', POTIONS.frost.color); break; }
+      if (o.trove) {   // depths 2-3: one magic item, its affixes of the first tier (rolled at this depth: tier 1 only)
+        let it; for (let i = 0; i < 20 && (!it || JEWELRY[it.slot]); i++) it = genItem(d, 0, null, 'magic', d);
+        dropItem(it, o.x + 0.5, o.y + 0.5); log('Something in the chest shimmers faintly: a magic item.', rarityColor('magic')); break; }
       if (o.boss) {   // guardian's chest: always one rare (30 %) or magic item, plus a normal chest's loot
         // depth + 4 rules: always at least magic; rare only where depth + 4 allows it
         const gd = d + LOOT_PLUS.guardian;
