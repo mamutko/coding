@@ -9,20 +9,20 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v165–v166 — a calmer title screen; PIN links (2026-11-27)
+## v165–v167 — a calmer title screen; PIN links (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 166`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 167`)*
 
 - The controls moved off the title screen into a **Help** box (top right, beside Full screen), which also explains
   heroes and the ways to sign in.
 - Your hero stands still, facing you; click the hero to rename it, change its look or erase it (no cogwheel).
-  Switch hero and New hero sit beside it.
+  Switch hero, New hero and Enter the World sit in one row below it (v167).
 - Copying a hero is a ⧉ button (its tooltip says where the copy goes).
 - Sign-in opens on the PIN tab; the example PIN is JS4821 and disappears when you click into the field.
 - Scenarios, Import and Export are only for testers (signed in with a PIN starting MI).
 - v166: a link can sign in with a PIN, and pick one of its heroes: **PIN link** in the server tab of Switch hero,
   **Copy link to this hero** in a server hero's settings. The PIN stays out of the web server's logs (after the #)
-  and out of the address bar once used.
+  and out of the address bar once used. (v167: PIN link for testers only.)
 
 ## v164 — sign in with a PIN, for testing (2026-11-27)
 

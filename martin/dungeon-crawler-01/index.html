@@ -245,9 +245,9 @@
     -webkit-touch-callout: none; touch-action: manipulation; }
   #version:hover { opacity: 1; }
   #screen #scenBtn { position: absolute; left: 12px; bottom: 10px; font-size: 13px; padding: 6px 12px; }
-  #heroRow { display: flex; gap: 12px; align-items: stretch; width: min(560px, 100%); margin: 6px 0 14px; }
-  #heroRow #heroBtns { flex-direction: column; justify-content: center; margin: 0; }
-  @media (max-width: 560px) { #heroRow { flex-direction: column; } #heroRow #heroBtns { flex-direction: row; justify-content: center; } }
+  #heroRow { display: flex; width: min(480px, 100%); margin: 6px 0 4px; }
+  #screen #switchBtn, #screen #newBtn { font-size: 14px; padding: 8px 16px; }
+  @media (max-width: 520px) { #startRow { flex-wrap: wrap; justify-content: center; } #screen #startBtn { flex-basis: 100%; } }
   #heroCard:not(:has(.hcFirst)) { cursor: pointer; }
   #heroCard:not(:has(.hcFirst)):hover { border-color: var(--gold); background: linear-gradient(rgba(60,40,26,0.9), rgba(24,15,10,0.9)); }
   #heroCard { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; margin: 0; padding: 12px 16px;
@@ -263,8 +263,6 @@
   #heroCard input { flex: 1; min-width: 0; font: 16px Cinzel, serif; padding: 6px 10px; background: #120c0b; color: var(--ink); border: 1px solid var(--gold-dim); outline: none; }
   #heroCard input.bad { border-color: #c4291f; }
   #heroCard .hcRow button { font-size: 14px; padding: 6px 14px; }
-  #heroBtns { display: flex; gap: 8px; margin: 0 0 14px; }
-  #screen #heroBtns button { font-size: 14px; padding: 7px 16px; }
   #acct { position: absolute; left: 12px; top: 12px; display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--ink-dim); max-width: calc(100% - 180px); }
   #acct #acctText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #screen #acct button { font-size: 13px; padding: 6px 12px; }
@@ -449,11 +447,10 @@
 <div id="screen">
   <h1>Crypt of Endless Night</h1>
   <p id="screenText">Descend the endless crypt alone. Every stair leads deeper, and every depth breeds fouler things.</p>
-  <div id="heroRow"><div id="heroCard" title="Hero settings: rename, look, erase"></div>
-    <div id="heroBtns"><button id="switchBtn" disabled>Switch hero</button><button id="newBtn">New hero</button></div></div>
+  <div id="heroRow"><div id="heroCard" title="Hero settings: rename, look, erase"></div></div>
   <div id="acct"><span id="acctText"></span><button id="acctBtn" hidden>Sign in</button></div>
   <div id="heroList" class="hidden"><div class="box"></div></div>
-  <div id="startRow"><button id="startBtn" disabled>Loading…</button></div>
+  <div id="startRow"><button id="switchBtn" disabled>Switch hero</button><button id="newBtn">New hero</button><button id="startBtn" disabled>Loading…</button></div>
   <div id="heroCfg" class="hidden"><div class="box"></div></div>
   <input type="file" id="importFile" accept=".json,application/json,text/plain" hidden>
   <div id="topBtns"><button id="helpBtn" title="Controls and signing in">Help</button>
@@ -491,7 +488,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 166;
+const VERSION = 167;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -6271,7 +6268,7 @@ function renderHeroList() {
   const ib = document.createElement('button'); ib.textContent = 'Import…'; ib.title = 'Load a hero from an exported file (onto this device)'; ib.addEventListener('click', () => $('importFile').click());
   const cl = document.createElement('button'); cl.textContent = 'Close'; cl.addEventListener('click', close);
   r.append(nb); if (tester()) r.append(ib);
-  if (listTab === 'server' && ACC.user && ACC.user.pin) { const lb = document.createElement('button'); lb.textContent = 'PIN link'; lb.title = 'A link that signs in with this PIN on any device';
+  if (listTab === 'server' && tester()) { const lb = document.createElement('button'); lb.textContent = 'PIN link'; lb.title = 'A link that signs in with this PIN on any device';
     lb.addEventListener('click', () => copyLink(pinLink(), 'Opening it signs in with your PIN.')); r.append(lb); }
   r.append(cl); box.appendChild(r);   // (Import: testers only)
 }
