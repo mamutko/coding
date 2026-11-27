@@ -245,6 +245,43 @@
     -webkit-touch-callout: none; touch-action: manipulation; }
   #version:hover { opacity: 1; }
   #screen #scenBtn { position: absolute; left: 12px; bottom: 10px; font-size: 13px; padding: 6px 12px; }
+  #heroCard { display: flex; align-items: center; gap: 16px; width: min(440px, 100%); margin: 0 0 12px; padding: 12px 16px;
+    border: 1px solid var(--gold-dim); background: linear-gradient(rgba(40,26,18,0.85), rgba(16,10,8,0.85)); text-align: left; min-height: 120px; }
+  #heroCard canvas { width: 120px; height: 120px; flex: none; }
+  #heroCard .hcInfo { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+  #heroCard .hcName { font-family: Cinzel, serif; font-size: 24px; color: #fff3d6; overflow-wrap: anywhere; }
+  #heroCard .hcSub { font-size: 15px; color: var(--ink); }
+  #heroCard .hcWhere { font-size: 13px; color: var(--ink-dim); }
+  #heroCard .hcFirst { font-family: Cinzel, serif; font-size: 18px; color: var(--gold); }
+  #heroCard:has(.hcFirst) { flex-direction: column; align-items: stretch; }
+  #heroCard .hcRow { display: flex; gap: 8px; }
+  #heroCard input { flex: 1; min-width: 0; font: 16px Cinzel, serif; padding: 6px 10px; background: #120c0b; color: var(--ink); border: 1px solid var(--gold-dim); outline: none; }
+  #heroCard input.bad { border-color: #c4291f; }
+  #heroCard .hcRow button { font-size: 14px; padding: 6px 14px; }
+  #heroBtns { display: flex; gap: 8px; margin: 0 0 14px; }
+  #screen #heroBtns button { font-size: 14px; padding: 7px 16px; }
+  #acct { position: absolute; left: 12px; top: 12px; display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--ink-dim); max-width: calc(100% - 180px); }
+  #acct #acctText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #screen #acct button { font-size: 13px; padding: 6px 12px; }
+  @media (max-width: 640px) { #screen { padding-top: 64px; } #screen #scenBtn { position: static; order: 99; margin-top: 10px; } }   /* (room for Sign in and Full screen above the title; Scenarios below the buttons) */
+  #heroList { position: fixed; inset: 0; z-index: 44; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); }
+  #heroList .box { width: min(460px, calc(100% - 32px)); max-height: calc(100% - 40px); display: flex; flex-direction: column; gap: 10px;
+    background: linear-gradient(#1d1411, #0e0908); border: 1px solid var(--gold); padding: 16px; box-shadow: 0 0 40px #000; }
+  #heroList h3 { margin: 0; font-family: Cinzel, serif; font-weight: 400; color: var(--gold); font-size: 18px; }
+  #heroList .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--gold-dim); }
+  #heroList .tabs button { flex: 1; font-size: 14px; padding: 7px 8px; border-bottom: none; opacity: 0.6; }
+  #heroList .tabs button.on { opacity: 1; border-color: var(--gold); color: #fff; background: linear-gradient(#4a3320, #24170f); }
+  #heroList .list { display: flex; flex-direction: column; gap: 6px; overflow-y: auto; min-height: 60px; }
+  #heroList .note { color: var(--ink-dim); font-size: 14px; margin: 6px 0; }
+  #heroList .hrow { display: flex; gap: 6px; align-items: stretch; }
+  #heroList .hpick { flex: 1; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 15px; padding: 8px 12px; text-align: left; min-width: 0; }
+  #heroList .hpick .sub { font-family: Georgia, serif; font-size: 13px; color: var(--ink-dim); white-space: nowrap; }
+  #heroList .hrow.sel .hpick { border-color: var(--gold); color: #fff; background: linear-gradient(#4a3320, #24170f); }
+  #heroList .hcopy { font-size: 12px; padding: 6px 10px; white-space: nowrap; }
+  #heroList .row { display: flex; gap: 8px; justify-content: flex-end; }
+  #heroList .row button { font-size: 14px; padding: 6px 12px; }
+  #heroCfg .looks button.on, #heroCfg .row button.on { border-color: var(--gold); color: #fff; }
+  #heroCfg input[type=email], #heroCfg input[type=text] { flex: 1; min-width: 0; }
   #heroPick { display: flex; flex-direction: column; gap: 6px; width: min(420px, 100%); margin: 0 0 16px; }
   #heroPick .heroBtn { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 15px;
     padding: 8px 14px 8px 30px; text-align: left; position: relative; min-height: 40px; opacity: 0.78; }
@@ -400,7 +437,10 @@
     <b>I</b> or <b>Tab</b> — equipment &nbsp;·&nbsp; <b>1–9, 0</b> — quick keys &nbsp;·&nbsp; <b>Q</b> — drink potion<br>
     <b>M</b> — minimap &nbsp;·&nbsp; <b>N</b> — sound &nbsp;·&nbsp; <b>Mouse wheel</b> (or pinch) — zoom &nbsp;·&nbsp; <b>F5</b> — full screen
   </div>
-  <div id="heroPick"></div>
+  <div id="heroCard"></div>
+  <div id="heroBtns"><button id="switchBtn" disabled>Switch hero</button><button id="newBtn">New hero</button></div>
+  <div id="acct"><span id="acctText"></span><button id="acctBtn" hidden>Sign in</button></div>
+  <div id="heroList" class="hidden"><div class="box"></div></div>
   <div id="startRow"><button id="startBtn" disabled>Loading…</button><button id="cfgBtn" title="Rename or erase this hero" aria-label="Hero settings" disabled><svg viewBox="0 0 24 24"><path d="M19.4 13a7.6 7.6 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.4 7.4 0 0 0-1.7-1L15 3.2h-4l-.4 2.7a7.4 7.4 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.6 7.6 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.4 7.4 0 0 0 1.7 1l.4 2.7h4l.4-2.7a7.4 7.4 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button></div>
   <div id="heroCfg" class="hidden"><div class="box"></div></div>
   <input type="file" id="importFile" accept=".json,application/json,text/plain" hidden>
@@ -418,6 +458,7 @@
 <script src="story/demo.js"></script>   <!-- the sandbox's demo dialogue (STORIES.demo), from story/demo.md -->
 <script src="story/story.voices.js"></script>
 <script src="net.js"></script>   <!-- the Rift's network: Supabase presence and WebRTC (see README, The Rift; multiplayer.md) -->
+<script src="account.js"></script>   <!-- signing in and heroes kept on the server (see README, Accounts) -->
 <script src="realm.js"></script>   <!-- the Rift: the portal and its dial on the surface, realms (see README, The Rift; multiplayer.md) -->   <!-- the story's voice clips (VOICE_CLIPS), made by tools/story/voice.js -->
 <script>
 'use strict';
@@ -437,7 +478,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 161;
+const VERSION = 162;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -519,8 +560,8 @@ function loadCast(k) {
 // being played (or shown behind the title screen), its current look too.
 function setHeroLook(id, k) {
   loadCast(k);
-  const sv = readSave(), e = sv.heroes[id];
-  if (e) { e.hero.look = k; writeSave(sv); }
+  const e = getEntry(id);
+  if (e) { e.hero.look = k; putEntry(e); }
   if (G && G.hero && (G.hero.saveId === id || !id)) G.hero.look = k;
 }
 // A failed image is tried again up to IMG_RETRIES times, after 1, 2, 3 ... s (a phone's connection can drop one
@@ -1749,12 +1790,12 @@ function readSave() {
 function saveHero() {
   if (G.rift) return false;   // nothing is saved inside the Rift (see README, The Rift)
   syncDial();                 // on the surface: the items on the dial (realm.js)
-  const sv = readSave(), h = G.hero, data = {};
+  const h = G.hero, data = {};
   for (const k of SAVED_FIELDS) data[k] = h[k];
-  sv.heroes[h.saveId] = { id: h.saveId, name: h.name, depth: G.depth, lvl: h.lvl, saved: Date.now(), hero: data };
-  sv.last = h.saveId;
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify(sv)); return true; }
-  catch (e) { log('Progress could not be saved (browser storage unavailable).', '#e06a5a'); return false; }
+  const e = { id: h.saveId, name: h.name, depth: G.depth, lvl: h.lvl, saved: Date.now(), hero: JSON.parse(JSON.stringify(data)) };
+  if (isServerId(e.id)) return putEntry(e);   // a server hero (account.js): sent in the background
+  if (putEntry(e)) return true;
+  log('Progress could not be saved (browser storage unavailable).', '#e06a5a'); return false;
 }
 
 // =====================================================================================
@@ -4278,7 +4319,7 @@ function toggleDebug() { $('debug').classList.toggle('hidden'); dbgLookShow(); }
 // the hero being played's.
 const dbgLookId = () => $('screen').classList.contains('hidden') ? G && G.hero && G.hero.saveId : pickSel;
 function dbgLookShow() {
-  const id = dbgLookId(), e = readSave().heroes[id], k = e ? e.hero.look : G && G.hero && G.hero.look;
+  const id = dbgLookId(), e = getEntry(id), k = e ? e.hero.look : G && G.hero && G.hero.look;
   $('dbgLook').value = HERO_LOOKS[k] ? k : 'hero';
 }
 $('dbgLook').innerHTML = Object.entries(HERO_LOOKS).map(([k, n]) => `<option value="${k}">${n}</option>`).join('');
@@ -6101,13 +6142,25 @@ function drawPortrait() {
 // =====================================================================================
 //  Screens & main loop
 // =====================================================================================
-// The title screen doubles as the hero picker: saved heroes (most recently saved first) and a "New Hero" box,
-// which turns into a name field in place; creating a hero saves it and selects it (a fresh "New Hero" box
-// appears below). Only the Enter the Crypt button starts; the cogwheel next to it renames or erases the hero.
-let pickSel = null;    // selected save id
-let naming = false;    // the New Hero box shows its name field
+// The title screen shows the current hero only (a card: its portrait turning, name, level, depth and where it is
+// kept), with Enter the World, Switch hero (an overlay with two tabs: heroes on this device and, signed in, on the
+// server, each copyable to the other side), New hero, and the cogwheel (rename, look, export, erase). Signing in
+// (an email code, account.js) is at its top left. With no hero at all, the card is a name field (New Hero).
+let pickSel = null;    // the current hero's id: 'h…' on this device, 's:…' on the server (account.js)
+let naming = false;    // (kept for older callers)
 const cleanName = v => v.trim().replace(/\s+/g, ' ').slice(0, 20);
 function writeSave(sv) { try { localStorage.setItem(SAVE_KEY, JSON.stringify(sv)); return true; } catch (e) { return false; } }
+// ---- Where heroes are kept: this browser (readSave) or the server (ACC.heroes, account.js); the same entries
+const PICK_KEY = 'crypt-of-endless-night.pick';   // the hero last chosen on this device (either kind)
+const localId = () => 'h' + Date.now().toString(36) + Math.floor(rnd() * 1e6).toString(36);
+function getEntry(id) { return !id ? null : isServerId(id) ? ACC.heroes[id] || null : readSave().heroes[id] || null; }
+function putEntry(e) {
+  if (isServerId(e.id)) { accPut(e).then(ok => { if (!ok && G && G.running) log('Progress could not be saved to the server.', '#e06a5a'); }); return true; }
+  const sv = readSave(); sv.heroes[e.id] = e; sv.last = e.id; return writeSave(sv);
+}
+function delEntry(id) { if (isServerId(id)) return accDel(id); const sv = readSave(); delete sv.heroes[id]; if (sv.last === id) sv.last = null; writeSave(sv); }
+const heroList = src => Object.values(src === 'server' ? ACC.heroes : readSave().heroes).sort((a, b) => b.saved - a.saved);
+function choose(id) { pickSel = id; try { localStorage.setItem(PICK_KEY, id || ''); } catch (e) {} titleRefresh(); }
 function nameField(value, onOk, okLabel) {
   const inp = document.createElement('input'); inp.maxLength = 20; inp.placeholder = 'Name your hero'; inp.value = value;
   inp.autocomplete = 'off'; inp.spellcheck = false;
@@ -6118,62 +6171,179 @@ function nameField(value, onOk, okLabel) {
   setTimeout(() => { inp.focus(); inp.select(); }, 0);
   return [inp, b];
 }
-function createHero(name) {
+function createHero(name, server = false) {
   newGame(null); G.running = false; G.camSnap = true; G.hero.name = name;
-  G.hero.saveId = 'h' + Date.now().toString(36) + Math.floor(rnd() * 1e6).toString(36);
-  saveHero(); pickSel = G.hero.saveId; naming = false; refreshUI(); renderHeroPick();
+  G.hero.saveId = server ? newServerId() : localId();
+  saveHero(); choose(G.hero.saveId); refreshUI();
 }
-function renderHeroPick() {
-  const sv = readSave(), list = Object.values(sv.heroes).sort((a, b) => b.saved - a.saved), box = $('heroPick');
-  if (!sv.heroes[pickSel]) pickSel = sv.heroes[sv.last] ? sv.last : list.length ? list[0].id : null;
-  if (!list.length) naming = true;
-  box.innerHTML = '';
-  for (const e of list) {
-    const b = document.createElement('button'); b.className = 'heroBtn' + (pickSel === e.id ? ' sel' : '');
-    const m = document.createElement('span'); m.textContent = e.name; b.appendChild(m);
-    const t = document.createElement('span'); t.className = 'sub'; t.textContent = `Level ${e.lvl} · Depth ${e.depth} — ${depthName(e.depth)}`; b.appendChild(t);
-    b.addEventListener('click', () => { pickSel = e.id; naming = false; renderHeroPick(); });
-    box.appendChild(b);
+// ---- The card
+function titleRefresh() {
+  if (!$('heroCard')) return;
+  if (!getEntry(pickSel)) {   // the last chosen one, else the newest here, else the newest on the server
+    let last = null; try { last = localStorage.getItem(PICK_KEY); } catch (e) {}
+    pickSel = getEntry(last) ? last : (heroList('local')[0] || heroList('server')[0] || {}).id || null;
   }
-  const nb = document.createElement(naming ? 'div' : 'button'); nb.className = 'heroBtn newHero' + (naming ? ' naming' : '');
-  if (naming) { const [inp, ok] = nameField('', n => { if (n) createHero(n); else if (list.length) { naming = false; renderHeroPick(); } }, 'Create'); inp.id = 'heroName'; nb.append(inp, ok); }
-  else { nb.textContent = 'New Hero'; nb.addEventListener('click', () => { naming = true; renderHeroPick(); }); }
-  box.appendChild(nb);
-  const ib = document.createElement('button'); ib.className = 'heroBtn newHero importHero'; ib.textContent = 'Import Hero…';
-  ib.title = 'Load a hero from an exported file'; ib.addEventListener('click', () => $('importFile').click());
-  box.appendChild(ib);
-  const st = $('startBtn'); st.textContent = 'Enter the Crypt'; st.disabled = !pickSel; $('cfgBtn').disabled = !pickSel;
+  const e = getEntry(pickSel), card = $('heroCard');
+  card.innerHTML = '';
+  if (!e) {   // no hero yet (here or on the server): name the first one
+    const t = document.createElement('div'); t.className = 'hcFirst'; t.textContent = 'Create your hero';
+    const [inp, ok] = nameField('', n => { if (n) createHero(n, false); }, 'Create'); inp.id = 'heroName';
+    const r = document.createElement('div'); r.className = 'hcRow'; r.append(inp, ok); card.append(t, r);
+  } else {
+    const cv = document.createElement('canvas'); cv.id = 'heroPortrait'; cv.width = 120; cv.height = 120;
+    const info = document.createElement('div'); info.className = 'hcInfo';
+    const nm = document.createElement('div'); nm.className = 'hcName'; nm.textContent = e.name;
+    const sub = document.createElement('div'); sub.className = 'hcSub'; sub.textContent = `Level ${e.lvl} · ${e.depth ? 'Depth ' + e.depth + ' — ' + depthName(e.depth) : 'The surface'}`;
+    const wh = document.createElement('div'); wh.className = 'hcWhere'; wh.textContent = isServerId(e.id) ? 'Kept on the server' : 'Kept on this device';
+    info.append(nm, sub, wh); card.append(cv, info);
+    const lk = HERO_LOOKS[e.hero.look] ? e.hero.look : 'hero'; loadCast(lk); TITLE.look = lk;
+  }
+  const st = $('startBtn'); st.textContent = 'Enter the World'; st.disabled = !e; $('cfgBtn').disabled = !e;
+  $('switchBtn').disabled = false;
+  const a = $('acctText'), ab = $('acctBtn');
+  a.textContent = ACC.user ? accName() : !ACC.ready ? '' : ACC.sb ? '' : 'Offline: heroes on this device only';
+  ab.textContent = ACC.user ? 'Sign out' : 'Sign in'; ab.hidden = !ACC.sb;
+  if (!$('heroList').classList.contains('hidden')) renderHeroList();
 }
-// The cogwheel: rename the selected hero, or erase it (after a confirmation).
-function openHeroCfg(step = 'main') {
-  const sv = readSave(), e = sv.heroes[pickSel]; if (!e) return;
+const renderHeroPick = titleRefresh;   // (older callers)
+// the portrait turns slowly through the eight directions, as in the equipment screen
+const TITLE = { look: 'hero', t: 0 };
+setInterval(() => {
+  const cv = $('heroPortrait'); if (!cv || $('screen').classList.contains('hidden')) return;
+  const md = META.characters[TITLE.look], img = IMG[TITLE.look]; if (!md || !img || !img.complete || !img.naturalWidth) return;
+  TITLE.t += 0.08; const row = Math.floor(TITLE.t / 1.2) % 8, c = cv.getContext('2d'), k = 120 / md.fh, w = md.fw * k;
+  c.clearRect(0, 0, 120, 120); c.drawImage(img, (md.idle || 0) * md.fw, row * md.fh, md.fw, md.fh, (120 - w) / 2, 0, w, 120);
+}, 80);
+// ---- Switch hero: an overlay with two tabs
+let listTab = 'local';
+function renderHeroList() {
+  const wrap = $('heroList'), box = wrap.querySelector('.box'); box.innerHTML = '';
+  const close = () => wrap.classList.add('hidden');
+  const h3 = document.createElement('h3'); h3.textContent = 'Your heroes'; box.appendChild(h3);
+  const tabs = document.createElement('div'); tabs.className = 'tabs';
+  for (const [k, n] of [['local', 'On this device'], ['server', 'On the server']]) {
+    const b = document.createElement('button'); b.textContent = n; b.classList.toggle('on', listTab === k);
+    b.addEventListener('click', () => { listTab = k; renderHeroList(); }); tabs.appendChild(b); }
+  box.appendChild(tabs);
+  const list = document.createElement('div'); list.className = 'list'; box.appendChild(list);
+  const note = t => { const p = document.createElement('p'); p.className = 'note'; p.textContent = t; list.appendChild(p); return p; };
+  if (listTab === 'server' && !ACC.user) {
+    note(ACC.sb ? 'Sign in to keep heroes on the server and play them from any device.' : 'The server cannot be reached.');
+    if (ACC.sb) { const b = document.createElement('button'); b.textContent = 'Sign in'; b.addEventListener('click', () => { close(); openLogin(); }); list.appendChild(b); }
+  } else if (listTab === 'server' && !ACC.loaded) note('Loading…');
+  else {
+    const hs = heroList(listTab);
+    if (!hs.length) note(listTab === 'server' ? 'No heroes on the server yet. Copy one from this device, or create one.' : 'No heroes on this device yet.');
+    for (const e of hs) {
+      const row = document.createElement('div'); row.className = 'hrow' + (e.id === pickSel ? ' sel' : '');
+      const pickB = document.createElement('button'); pickB.className = 'hpick';
+      const m = document.createElement('span'); m.textContent = e.name;
+      const t = document.createElement('span'); t.className = 'sub'; t.textContent = `Level ${e.lvl} · ${e.depth ? 'Depth ' + e.depth : 'Surface'}`;
+      pickB.append(m, t); pickB.addEventListener('click', () => { choose(e.id); close(); });
+      row.appendChild(pickB);
+      if (listTab === 'local' ? ACC.user : true) {   // copy to the other side (to the server only when signed in)
+        const cb = document.createElement('button'); cb.className = 'hcopy';
+        cb.textContent = listTab === 'local' ? 'Copy to server' : 'Copy to device';
+        cb.title = listTab === 'local' ? 'Put a copy of this hero on the server (this one stays here)' : 'Put a copy of this hero in this browser (this one stays on the server)';
+        cb.addEventListener('click', async () => { cb.disabled = true; cb.textContent = 'Copying…';
+          const ok = await copyHero(e.id, listTab === 'local'); cb.textContent = ok ? 'Copied ✓' : 'Failed'; });
+        row.appendChild(cb);
+      }
+      list.appendChild(row);
+    }
+  }
+  const r = document.createElement('div'); r.className = 'row';
+  const nb = document.createElement('button'); nb.textContent = 'New hero'; nb.addEventListener('click', () => { close(); openNewHero(listTab === 'server' && ACC.user); });
+  const ib = document.createElement('button'); ib.textContent = 'Import…'; ib.title = 'Load a hero from an exported file (onto this device)'; ib.addEventListener('click', () => $('importFile').click());
+  const cl = document.createElement('button'); cl.textContent = 'Close'; cl.addEventListener('click', close);
+  r.append(nb, ib, cl); box.appendChild(r);
+}
+// a copy on the other side, with a new id; the original stays where it is
+async function copyHero(id, toServer) {
+  const e = getEntry(id); if (!e) return false;
+  const c = JSON.parse(JSON.stringify(e)); c.id = toServer ? newServerId() : localId(); c.saved = Date.now();
+  if (toServer) return accPut(c);
+  const sv = readSave(); sv.heroes[c.id] = c; return writeSave(sv);
+}
+$('switchBtn').addEventListener('click', () => { listTab = isServerId(pickSel) ? 'server' : 'local'; $('heroList').classList.remove('hidden'); renderHeroList(); });
+$('heroList').addEventListener('click', e => { if (e.target.id === 'heroList') $('heroList').classList.add('hidden'); });
+// ---- New hero: a name, and (signed in) where to keep it
+function openNewHero(server = false) {
+  const { box, close, row, button } = cfgBox(); const h3 = document.createElement('h3'); h3.textContent = 'New hero'; box.appendChild(h3);
+  let toServer = !!(server && ACC.user);
+  const [inp, ok] = nameField('', n => { if (!n) return close(); close(); createHero(n, toServer); }, 'Create');
+  row(inp, ok);
+  if (ACC.user) {
+    const lbl = document.createElement('span'); lbl.className = 'lbl'; lbl.textContent = 'Keep it';
+    const bs = [['On this device', false], ['On the server', true]].map(([n, v]) => { const b = button(n, () => { toServer = v; for (const x of bs) x.classList.toggle('on', x === b); inp.focus(); }); b.classList.toggle('on', v === toServer); return b; });
+    row(lbl, ...bs).classList.add('looks');
+  }
+  row(button('Cancel', close)).style.justifyContent = 'flex-end';
+}
+$('newBtn').addEventListener('click', () => openNewHero(false));
+// ---- Signing in: an email, then the code it receives (the email's link signs in too)
+function openLogin(step = 'email') {
+  const { box, close, row, button } = cfgBox(); const h3 = document.createElement('h3'); box.appendChild(h3);
+  const msg = document.createElement('p'); msg.className = 'warn'; msg.style.display = 'none';
+  const say = (t, bad = true) => { msg.textContent = t; msg.className = bad ? 'warn' : ''; msg.style.display = t ? '' : 'none'; };
+  const input = (ph, type, v = '') => { const i = document.createElement('input'); i.placeholder = ph; i.type = type; i.value = v; i.autocomplete = type === 'email' ? 'email' : 'one-time-code'; setTimeout(() => i.focus(), 0); return i; };
+  if (step === 'email') {
+    h3.textContent = 'Sign in';
+    const p = document.createElement('p'); p.style.margin = '0'; p.textContent = 'Sign in to keep heroes on the server and play them from any device. We email you a code; no password.'; box.appendChild(p);
+    const em = input('Your email', 'email', ACC.email);
+    const go = button('Send code', async () => { const v = em.value.trim(); if (!/^\S+@\S+\.\S+$/.test(v)) { em.classList.add('bad'); return; }
+      go.disabled = true; go.textContent = 'Sending…'; const err = await accSendCode(v); go.disabled = false; go.textContent = 'Send code';
+      if (err) say(err); else openLogin('code'); });
+    em.addEventListener('keydown', e => { if (e.key === 'Enter') go.click(); });
+    row(em, go); box.appendChild(msg);
+  } else {
+    h3.textContent = 'Enter the code';
+    const p = document.createElement('p'); p.style.margin = '0'; p.textContent = `We sent a sign-in code to ${ACC.email}. Type it here (or open the link in the email).`; box.appendChild(p);
+    const cd = input('Code', 'text'); cd.inputMode = 'numeric'; cd.maxLength = 10;
+    const go = button('Sign in', async () => { const v = cd.value.replace(/\s+/g, ''); if (!/^\d{6,10}$/.test(v)) { cd.classList.add('bad'); return; }
+      go.disabled = true; go.textContent = 'Checking…'; const err = await accVerify(ACC.email, v); go.disabled = false; go.textContent = 'Sign in';
+      if (err) say(err); else close(); });
+    cd.addEventListener('keydown', e => { if (e.key === 'Enter') go.click(); });
+    row(cd, go); box.appendChild(msg);
+    row(button('Use another email', () => openLogin('email')), button('Send again', async () => { const err = await accSendCode(ACC.email); say(err || 'A new code is on its way.', !!err); }));
+  }
+  row(button('Cancel', close)).style.justifyContent = 'flex-end';
+}
+$('acctBtn').addEventListener('click', () => { if (ACC.user) accSignOut(); else openLogin(); });
+// a dialog box in #heroCfg: { box, close, row, button }
+function cfgBox() {
   const wrap = $('heroCfg'), box = wrap.querySelector('.box'); box.innerHTML = ''; wrap.classList.remove('hidden');
   const close = () => wrap.classList.add('hidden');
-  const h3 = document.createElement('h3'); box.appendChild(h3);
   const row = (...els) => { const r = document.createElement('div'); r.className = 'row'; r.append(...els); box.appendChild(r); return r; };
   const button = (label, fn, cls = '') => { const b = document.createElement('button'); b.textContent = label; if (cls) b.className = cls; b.addEventListener('click', fn); return b; };
+  return { wrap, box, close, row, button };
+}
+// The cogwheel: rename the current hero, its look, export it, or erase it (after a confirmation).
+function openHeroCfg(step = 'main') {
+  const e = getEntry(pickSel); if (!e) return;
+  const { box, close, row, button } = cfgBox();
+  const h3 = document.createElement('h3'); box.appendChild(h3);
   if (step === 'main') {
     h3.textContent = e.name;
     const [inp, ok] = nameField(e.name, n => { if (!n) return close();
-      const s2 = readSave(), x = s2.heroes[pickSel]; if (!x) return close();
-      x.name = n; x.hero.name = n; writeSave(s2); close(); renderHeroPick(); }, 'Rename');
+      const x = getEntry(pickSel); if (!x) return close();
+      x.name = n; x.hero.name = n; x.saved = x.saved || Date.now(); putEntry(x); close(); titleRefresh(); }, 'Rename');
     row(inp, ok);
     const ex = button('Export hero', () => exportHero(pickSel)); ex.title = 'Save this hero to a file (as last saved: on arrival at its depth)';
     row(ex).firstChild.style.flex = '1';
     const lk = HERO_LOOKS[e.hero.look] ? e.hero.look : 'hero', lbl = document.createElement('span');
     lbl.className = 'lbl'; lbl.textContent = 'Look';
     const looks = row(lbl, ...Object.entries(HERO_LOOKS).map(([k, n]) => {
-      const b = button(n, () => { setHeroLook(pickSel, k); for (const x of looks.querySelectorAll('button')) x.classList.toggle('on', x === b); });
+      const b = button(n, () => { setHeroLook(pickSel, k); for (const x of looks.querySelectorAll('button')) x.classList.toggle('on', x === b); titleRefresh(); });
       b.classList.toggle('on', k === lk); b.title = 'Draw ' + e.name + ' as the ' + n.toLowerCase(); return b; }));
     looks.classList.add('looks');
     row(button('Erase hero', () => openHeroCfg('erase'), 'danger'), button('Close', close)).style.justifyContent = 'space-between';
   } else {
     h3.textContent = 'Erase ' + e.name + '?';
     const w = document.createElement('p'); w.className = 'warn';
-    w.textContent = `${e.name} (level ${e.lvl}, depth ${e.depth}) and everything they carry will be erased for good. This cannot be undone.`;
+    w.textContent = `${e.name} (level ${e.lvl}, depth ${e.depth}) and everything they carry will be erased for good${isServerId(e.id) ? ' from the server' : ' from this device'}. This cannot be undone.`;
     box.appendChild(w);
-    row(button('Erase for good', () => { const s2 = readSave(); delete s2.heroes[pickSel]; if (s2.last === pickSel) s2.last = null;
-      writeSave(s2); pickSel = null; close(); renderHeroPick(); }, 'danger'), button('Cancel', () => openHeroCfg('main'))).style.justifyContent = 'space-between';
+    row(button('Erase for good', () => { delEntry(pickSel); pickSel = null; close(); titleRefresh(); }, 'danger'), button('Cancel', () => openHeroCfg('main'))).style.justifyContent = 'space-between';
   }
 }
 $('cfgBtn').addEventListener('click', () => openHeroCfg());
@@ -6187,7 +6357,7 @@ $('cfgBtn').addEventListener('click', () => openHeroCfg());
 // (migrateHero), so old item formats keep working.
 const HERO_FILE = 'crypt-of-endless-night-hero', HERO_FILE_VERSION = 1;
 function exportHero(id) {
-  const e = readSave().heroes[id]; if (!e) return;
+  const e = getEntry(id); if (!e) return;
   const doc = { format: HERO_FILE, formatVersion: HERO_FILE_VERSION, gameVersion: VERSION, exported: new Date().toISOString(),
     hero: { name: e.name, depth: e.depth, lvl: e.lvl, saved: e.saved, data: e.hero } };
   const text = JSON.stringify(doc, null, 1), safe = e.name.replace(/[^A-Za-z0-9 _-]+/g, '').trim().replace(/\s+/g, '-') || 'hero';
@@ -6225,7 +6395,7 @@ function importHero(text) {
   const sv = readSave();
   sv.heroes[id] = { id, name, depth: h.depth, lvl: d.lvl, saved: Date.now(), hero: Object.assign({}, d, { name }) };   // a new id: never overwrites a hero
   if (!writeSave(sv)) return heroNote('Import failed', 'The hero could not be saved (browser storage unavailable or full).', true);
-  pickSel = id; naming = false; renderHeroPick();
+  $('heroList').classList.add('hidden'); choose(id);
   heroNote('Hero imported', `${name} (level ${d.lvl}, depth ${h.depth}) has joined your heroes.`);
 }
 $('importFile').addEventListener('change', e => {
@@ -6237,7 +6407,7 @@ $('heroCfg').addEventListener('click', e => { if (e.target.id === 'heroCfg') $('
 function showDeath() {
   const h = G.hero; G.running = false;
   pickSel = h.saveId;
-  const e = readSave().heroes[h.saveId], back = e ? e.depth : G.depth;
+  const e = getEntry(h.saveId), back = e ? e.depth : G.depth;
   $('screen').classList.remove('hidden');
   $('screenText').textContent = `${h.name} was slain ${G.rift ? 'in the Rift of ' + G.rift.name : `at depth ${G.depth} (${depthName(G.depth)})`}, at level ${h.lvl}. ` +
     `What was gained on this level is lost; ${h.name} rises again at the start of depth ${back}.`;
@@ -6247,11 +6417,11 @@ function showDeath() {
 function startGame() {
   if ($('startBtn').disabled) return;
   audio();
-  const e = readSave().heroes[pickSel];
-  if (!e) { renderHeroPick(); return; }
+  const e = getEntry(pickSel);
+  if (!e) { titleRefresh(); return; }
   newGame(e);
   G.running = true; G.camSnap = true; G.deathShown = false; naming = false;
-  $('heroCfg').classList.add('hidden'); $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); hideTip();
+  $('heroCfg').classList.add('hidden'); $('heroList').classList.add('hidden'); $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); hideTip();
 }
 $('startBtn').addEventListener('click', startGame);
 let last = performance.now();
@@ -6306,7 +6476,8 @@ loadAll().then(() => {
   dirtPat = ctx.createPattern(IMG.dirt, 'repeat'); dirtPat.setTransform(new DOMMatrix().scale(1.5 / 512));
   buildUI(); fitUI();
   newGame(null); G.running = false; G.camSnap = true;   // render a first level behind the title screen
-  const b = $('startBtn'); b.disabled = false; renderHeroPick();
+  const b = $('startBtn'); b.disabled = false; titleRefresh();
+  accInit();   // sign-in state and server heroes (account.js), in the background
   requestAnimationFrame(frame);
 }).catch(err => { console.error('Start-up failed:', err); $('startBtn').textContent = (typeof err === 'string' ? 'Failed to load ' : 'Start-up failed: ') + err; });
 </script>

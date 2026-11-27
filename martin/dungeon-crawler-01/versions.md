@@ -9,9 +9,19 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v162 — a new title screen; accounts and heroes on the server (2026-11-27)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 162`)*
+
+- The title screen shows just your current hero (a turning portrait, name, level, depth, where it is kept), with
+  Enter the World, Switch hero, New hero and the cogwheel.
+- Switch hero opens a list with two tabs, on this device and on the server; any hero can be copied to the other side.
+- Sign in with an email code (no password) to keep heroes on the server and play them on any device; they are saved
+  there as you play.
+
 ## v161 — straight through the portal (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 161`)*
+Commit: f1fdf09
 
 - No more question at the Rift's portal: walking into the arch (or clicking the portal) goes straight in, or out.
 - While the game connects to the realm, the surface goes on, your hero has stepped into the portal, the HUD fades out

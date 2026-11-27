@@ -47,6 +47,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `assets/surface.webp` | The surface's sprites: four bushes, four ground details (flowers, rocks, mushrooms, a grass tuft) and the crypt. Coordinates in `META.surface`. It still holds the four retired small trees (`tree1`–`tree4`: oak, fir, dead tree, birch), no longer used. |
 | `assets/bigtrees.webp` | The surface's trees: five kinds (oak, Scots pine, silver birch, autumn maple, dead tree) in three variants each, each tree as three cropped layers (roots with its cast shadow, trunk, crown), one tree per row. Coordinates in `META.bigtrees`. See [The surface](#the-surface-depth-0), Trees. |
 | `net.js` | The Rift's network: Supabase Realtime presence and the WebRTC handshake, the mesh of data channels, other players' heroes; loaded by `index.html` before its main script. See [The Rift](#the-rift), Playing together. |
+| `account.js` | Signing in with an email code and the heroes kept on the server (Supabase Auth and the `mdc1_heroes` table); loaded by `index.html` before its main script. See [Saving](#saving): Accounts and server heroes. |
 | `realm.js` | The Rift: its portal and dial on the surface, realm ids and names, going through the portal, entering and leaving; loaded by `index.html` before its main script. See [The Rift](#the-rift). |
 | `assets/portal.webp` | The Rift portal's three layers: the arch, its platform and the dial. Coordinates in `META.portal`. |
 | `tools/add_portal.py`, `tools/raw/portal.png`, `tools/raw/dial.png` | Cuts the portal picture into the arch and its platform, squashes the dial to the iso ground, finds the vortex, and writes `assets/portal.webp` and `META.portal`. The other candidates are in `assets/unused/portal/`. |
@@ -435,26 +436,49 @@ and the picker shows no saved heroes.
   where on the surface a hero resumed from this save stands (before the portal after entering the Rift, else before
   the crypt's door). The hero is also saved on entering the Rift (on the surface, before going) and on leaving it;
   never inside it.
-- **Hero picker** (the title screen): one box per saved hero, most recently saved first, showing name, level
-  and depth, then a **New Hero** box. The hero played last (or the newest) is selected at start; the selected
-  box is lit (gold border and glow, brighter background, a filled gold diamond), the others are dimmed with an
-  empty diamond. Clicking a box only selects it; only the **Enter the Crypt** button starts the game.
-  - **New Hero** turns into a name field with a **Create** button in the same box (Enter also works; Escape
-    goes back when there are other heroes). Names are up to 20 characters, spaces collapsed; an empty name is
-    refused with a red border. Creating saves the new hero (level 1, depth 1, starting kit) and selects it, and
-    a fresh **New Hero** box appears below. With no saved heroes, the name field is shown straight away.
-  - **The cogwheel** next to Enter the Crypt opens a box for the selected hero: rename it (**Rename** or
-    Enter), export it, pick its **Look** (Knight, Stocky knight, Huntress, Woodsman, Scout, Mannequin, two per row; the lit one is current; a click saves
-    it at once, see [Hero looks](#hero-looks)), or **Erase hero**, which asks for confirmation ("… will be erased for good. This cannot be
-    undone.") before deleting the save.
-  - **Long lists:** the title screen scrolls, and the Enter the Crypt / cogwheel row sticks to the bottom edge,
-    so it can always be reached, on wide and tall screens alike. On narrow screens a hero's details go under
-    its name; on short screens the title and the controls text get smaller.
+- **The title screen** (since v162) shows only the **current hero**, in a card (`titleRefresh`): its portrait (its
+  look's sprite, turning slowly through the eight directions), name, level, depth (or *The surface*) and where it
+  is kept (*Kept on this device* / *Kept on the server*). Under it **Switch hero** and **New hero**, then **Enter the
+  World** and the cogwheel (that row sticks to the bottom edge when the screen scrolls). The current hero is the one
+  last chosen on this device (`crypt-of-endless-night.pick`, either kind), else the newest here, else the newest on
+  the server. With no hero at all, the card is a name field (*Create your hero*, `#heroName`) with **Create**.
+  - **Switch hero** opens an overlay (`#heroList`, `renderHeroList`) with two tabs, **On this device** and **On the
+    server**, each listing its heroes, most recently saved first (name, level, depth; the current one lit). A click
+    on a hero makes it the current one and closes the overlay. Beside each hero a button puts a **copy** on the
+    other side (`copyHero`: a new id, the same data; the original stays): *Copy to server* (signed in only) and
+    *Copy to device*. The server tab asks to sign in when signed out. At its foot: **New hero**, **Import…** (onto
+    this device) and **Close**.
+  - **New hero** asks for a name (up to 20 characters, spaces collapsed; an empty one is refused with a red
+    border) and, signed in, where to keep it (*On this device* / *On the server*). Creating saves the new hero
+    (level 1, on the surface, the starting kit) and makes it the current one.
+  - **The cogwheel** opens a box for the current hero: rename it (**Rename** or Enter), export it, pick its
+    **Look** (Knight, Stocky knight, Huntress, Woodsman, Scout, Mannequin, two per row; the lit one is current; a
+    click saves it at once, see [Hero looks](#hero-looks)), or **Erase hero**, which asks for confirmation ("… will
+    be erased for good from this device / from the server. This cannot be undone.") before deleting it.
+  - On narrow screens the screen leaves room at the top for **Sign in** and **Full screen**, and **Scenarios** goes
+    under the buttons.
+- **Accounts and server heroes** (since v162, `account.js`):
+  - **Signing in:** **Sign in** at the top left asks for an email and sends a sign-in **code** (Supabase Auth,
+    `signInWithOtp`; no password, an account is made on first use); typing the code signs in (`verifyOtp`, type
+    `email`; 6–10 digits). The email's link signs in too (it comes back to the game's page). Signed in, the top
+    left shows the email and **Sign out**. The session is kept by supabase-js in the browser, so the player stays
+    signed in. Without a connection (or opened from a file) there is no Sign in button and only this device's
+    heroes are shown. *Setup (Supabase dashboard, not code):* the email template (Authentication → Email Templates →
+    Magic Link) must include `{{ .Token }}` for the code to appear in the email, and the game's address must be in
+    the allowed redirect URLs for the link.
+  - **Server heroes** live in the table **`mdc1_heroes`** of the repo's shared Supabase project
+    (`supabase/migrations/20261127200000_create_mdc1_heroes.sql`): `id` (uuid), `user_id` (the player, by default
+    `auth.uid()`), `name`, `lvl`, `depth`, `hero` (jsonb: the same hero data as a local save), `saved_at`.
+    **Row-level security** lets each signed-in player read, add, change and delete only their own rows; signed-out
+    visitors (`anon`) get nothing. In the game a server hero's id is `s:` + its row id (`isServerId`).
+  - **Saving a server hero** works like a local one (`saveHero` → `putEntry` → `accPut`, an upsert), at the same
+    moments, sent in the background; if it fails the log says "Progress could not be saved to the server." The list
+    is loaded when the player signs in (`accLoad`) and kept in memory (`ACC.heroes`); signing out forgets it.
   - **Resuming** generates a *new* layout for the saved depth and restores the saved hero with the life it had
     when saved (capped at max life; saves made before life was saved start at full life). Item
     ids continue after the highest saved one, so new drops never clash with owned items.
 - **Export / import** (`exportHero`, `importHero`):
-  - **Export hero** in the cogwheel box saves the selected hero to a text file,
+  - **Export hero** in the cogwheel box saves the current hero to a text file,
     `<name>-level<L>-depth<D>.crypt-hero.json`, as last saved (on arrival at its depth). It is a download; on
     iPhone / iPad (where downloads from a home-screen app are unreliable) it goes through the share sheet
     (*Save to Files*, AirDrop, mail, …) when the browser can share files.
@@ -464,7 +488,7 @@ and the picker shows no saved heroes.
     (`HERO_FILE_VERSION`) is the version of this layout: a layout change bumps it and adds a step to
     `upgradeHeroFile`, which brings older files up to date. `gameVersion` is only for information. The hero data
     itself goes through `migrateHero` on load like any save, so items in an old format keep working.
-  - **Import Hero…** (a dashed box under **New Hero**) opens a file picker. The file is checked: valid JSON, the
+  - **Import…** (in the Switch hero overlay) opens a file picker. The file is checked: valid JSON, the
     right `format`, a `formatVersion` this game knows (a newer one asks to update the game first), and the
     needed fields (name, depth, level, attributes, equipment, pack). An imported hero always gets a new id, so it
     never overwrites a hero (importing the same file twice gives two copies). It is selected, and a box says
