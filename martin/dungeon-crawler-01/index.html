@@ -438,7 +438,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 157;
+const VERSION = 158;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -863,8 +863,9 @@ const BASES = {
   beardedaxe:   { name: 'Bearded Axe', slot: 'weapon', kind: 'axe', min: 9, max: 17, cd: 0.8, lvl: 4 },
   battleaxe:    { name: 'Battle Axe', slot: 'weapon', kind: 'axe', min: 16, max: 27, cd: 0.9, lvl: 7 },
   execaxe:      { name: "Executioner's Axe", slot: 'weapon', kind: 'axe', min: 24, max: 42, cd: 1.05, lvl: 9 },
-  // crowd weapons (v154): every monster they reach takes the full blow. Flails spin all round and knock back
-  // (knock: tiles), weaker to make up for it; polearms sweep half round at a long reach. Ladders of two, the
+  // crowd weapons (v154): flails spin all round, every monster they reach taking the full blow, and knock back
+  // (knock: tiles), weaker to make up for it; polearms strike far (KIND_INFO reach) in a narrow arc, the others
+  // in it taking 35 % (KIND_CLEAVE). Ladders of two, the
   // unlock depths in between the others' so new weapons keep coming evenly.
   flail:        { name: 'Flail', slot: 'weapon', kind: 'flail', min: 7, max: 13, cd: 1.0, lvl: 3, knock: 0.6 },
   glaive:       { name: 'Glaive', slot: 'weapon', kind: 'polearm', min: 16, max: 26, cd: 0.95, lvl: 6 },
@@ -2685,8 +2686,9 @@ function chargeOnShot(m) {
 // CLEAVE (25 %). The main target is the clicked monster, or, for a swing at the ground (or if the clicked
 // monster isn't hit), the hit monster closest to the aim direction.
 const CLEAVE = 0.25, DRAGON_HEAD = 1.5;   // a hit on the dragon's head deals ×1.5
-// the share of the blow the other monsters in the arc take, by weapon kind (crowd weapons: all of it)
-const KIND_CLEAVE = { sword: CLEAVE, fist: CLEAVE, axe: 0.4, flail: 1, polearm: 1 };
+// the share of the blow the other monsters in the arc take, by weapon kind (a flail: all of it; a polearm a glancing
+// blow, its strength being the reach)
+const KIND_CLEAVE = { sword: CLEAVE, fist: CLEAVE, axe: 0.4, flail: 1, polearm: 0.35 };
 function resolveSwing(h) {
   const s = h.swing, hits = [];
   for (const m of G.monsters) {

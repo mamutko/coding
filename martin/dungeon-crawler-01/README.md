@@ -1440,8 +1440,8 @@ Every hit deals at least 1 damage.
 button keeps attacking. Right-clicking empty ground swings at once toward the cursor. A swing hits *every*
 monster within reach and inside the arc, 0.08 s into a 0.24 s animation (a flail's spin 0.32 s). Monsters right next to the hero are
 hit regardless of angle. Only the **main target** takes full damage; every other monster hit takes a share by
-weapon type (`KIND_CLEAVE`: 25 % for swords and bare hands, `CLEAVE`; 40 % for axes; all of it for the crowd
-weapons, flails and polearms). The main target is the clicked monster; for a swing at the ground (or if the clicked monster isn't
+weapon type (`KIND_CLEAVE`: 25 % for swords and bare hands, `CLEAVE`; 40 % for axes; 35 % for polearms; all of it
+for flails). The main target is the clicked monster; for a swing at the ground (or if the clicked monster isn't
 in the swing), it is the hit monster closest to the aim direction (nearer one on a near-tie). Each monster
 gets its own damage and crit roll, then its own armor reduction.
 
@@ -1450,7 +1450,7 @@ gets its own damage and crit roll, then its own armor reduction.
 | Sword | 1.55 | 0.9 rad |
 | Axe | 1.45 | 1.25 rad (wide cleave, 40 %) |
 | Flail | 1.5 | π (all around; every monster full; knocks back) |
-| Polearm | 2.5 | 0.8 rad (a little narrower than a sword: its strength is the reach; every monster full) |
+| Polearm | 2.5 | 0.8 rad (a little narrower than a sword: its strength is the reach; the others 35 %) |
 | Bare hands | 1.25 | 0.8 rad |
 
 **Crowd weapons** (since v154) are for when many monsters close in. A **flail** spins all the way round: every
@@ -1459,7 +1459,8 @@ for a Morning Star; a boss half as far, the dragon not at all; `knockMonster`, `
 monster does nothing, so a windup in progress waits and often ends out of reach). To make up for it a flail hits
 weaker and slower than a sword of its depth (about 55–60 % of a sword's damage per second on one monster). A
 **polearm** strikes far (2.5 tiles: the front rank and the one behind it) in an arc a little narrower than a
-sword's (since v157; it was a 180° sweep at 2.3 tiles), every monster in it taking the full blow, at about 85 % of a sword's damage per second on one. Knockback is meant to become a
+sword's (since v157; it was a 180° sweep at 2.3 tiles), its target taking the full blow and the others in the arc
+a glancing 35 % (since v158; it was all of it, which made it the strongest weapon against any group of two or more), at about 85 % of a sword's damage per second on one. Knockback is meant to become a
 possible magic affix later (the item's `knock`). In the Rift another player's monster is thrown by its owner's game
 (`kn`). Their swings sound heavier (a whirl for the flail), and the swing's slash is drawn as a full circle for a
 flail and wider for a polearm. Flails and polearms share one drop group (`ITEM_GROUP`: `crowd`), so together they

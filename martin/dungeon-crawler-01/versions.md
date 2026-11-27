@@ -9,12 +9,13 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v157 — polearms: reach, not sweep; the catalog lists every weapon kind (2026-11-27)
+## v157–v158 — polearms: reach, not sweep; the catalog lists every weapon kind (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 157`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 158`)*
 
 - Glaive and Halberd: a longer reach (2.5 tiles, was 2.3) and a narrow arc, a little narrower than a sword's (was a
   half circle). Their strength is striking from further away.
+- v158: the other monsters in a polearm's arc take 35 % of the blow (was all of it); only its target takes it in full.
 - The catalog (catalog.html) now has flails and polearms, and shows each weapon kind's arc, the share of the blow
   the other monsters in it take, and a flail's knockback.
 
