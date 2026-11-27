@@ -317,7 +317,8 @@ burns with its fire. (Until v148 a companion's fire did not hurt your hero; now 
 - **Leaving** (through the portal, death, or closing the tab: a `leave` event if possible, else lost for 30 s, or 10 s once out of the presence list):
   - Monsters the leaver owned that are **fighting** someone pass to the hero they are fighting (its player becomes
     the owner and takes over the AI from the last state).
-  - Its other monsters fade out ("The Rift reclaims its own.").
+  - Its other monsters are spread over the players left, each to whoever runs the fewest (v149: monsters never fade;
+    until v148 they faded out, "The Rift reclaims its own.").
   - Its ground items and chests pass to the **elder**.
   - Its fires and projectiles end.
 - **Hidden tabs:** a hidden tab gets no `requestAnimationFrame`, so it cannot simulate. When a player's tab becomes
@@ -326,6 +327,9 @@ burns with its fire. (Until v148 a companion's fire did not hurt your hero; now 
   60 s, it takes over nothing (objects stay where they went) and plays on; after 60 s it is treated as having left
   (its own screen, when shown again, says "The Rift let you go." and puts the hero on the surface; it is saved
   there, with what it had when it went away).
+- **A split and meeting again** (v149): players who dropped each other in a long network split find each other again
+  through presence (same map id only) and merge: a monster both ended up running stays with the older player, the
+  younger drops it seamlessly; monsters killed on either side stay dead.
 - **The elder leaves:** the next oldest becomes the elder (everyone computes the same answer from presence).
 - **The last player leaves:** the realm is gone. The next player to dial that realm id founds a new one.
 

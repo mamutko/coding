@@ -123,7 +123,7 @@ async function enterRift() {
   leaveLevel(); sfx('stairs');
   G.rift = { id: r.id, name: r.name, d, pvp: r.pvp };
   G.depth = d;
-  if (res && res.role === 'joiner') { buildRiftFromSnap(res.snap); riftJoinSpawn(d); } else { buildLevel(G.depth); riftAdd(riftRestock(d)); netOwnAll(); }
+  if (res && res.role === 'joiner') { buildRiftFromSnap(res.snap); netMapId(res.snap.mid); riftJoinSpawn(d); } else { buildLevel(G.depth); riftAdd(riftRestock(d)); netOwnAll(); netMapId(); }
   RA.away = false;   // arrived standing near the portal's gate: no question until the hero has stepped off it
   log('You step through the portal into the Rift of ' + r.name + '.', '#b49ae6');
   if (!res) log('The Rift is silent: no one else can reach you here.', '#a99c86');
@@ -188,7 +188,7 @@ function riftSnapshot() {
     if (LOOT_OBJ.has(o.type)) c.owner = o.owner || NET.me;   // whose it is, seen from the joiner
     objects.push(c);
   }
-  return { v: VERSION, w: m.w, h: m.h, t: rle(m.t), b: rle(b), rooms: m.rooms.map(r => ({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.cx, cy: r.cy, big: r.big || false })), objects,
+  return { v: VERSION, mid: NET.mid, w: m.w, h: m.h, t: rle(m.t), b: rle(b), rooms: m.rooms.map(r => ({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.cx, cy: r.cy, big: r.big || false })), objects,
     claims: [...(m.claims || [])], mons: G.monsters.filter(q => !q.dead && q.nid && !q.parts).map(monDesc),
     items: G.items.filter(fi => fi.nid).map(fi => ({ i: fi.nid, o: fi.owner || NET.me, it: itemOut(fi.item), x: fi.x, y: fi.y })) };   // every live monster, with its owner (net.js)
 }

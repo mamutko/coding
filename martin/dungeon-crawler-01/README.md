@@ -971,6 +971,15 @@ shared project, its public key; no table) and then talk directly over **WebRTC**
   after 30 s lost (`lostMax`), or 10 s once it has left the realm's presence list (`gone`: closed its tab). The
   realm's channel shows our presence again whenever it reconnects (`NET.tracked`), so a break there doesn't hide us.
   (Before v141 3 s of silence counted as leaving, and the two games went on apart for good.)
+- **Meeting again after a split** (v149): a network split longer than 30 s leaves each side thinking the other left,
+  each running the other's monsters. While in the Rift, every 3 s each game looks at the realm's presence list for a
+  player on the same map (`NET.mid`: an id the founder makes, handed on in the snapshot and shown in presence, so two
+  who founded the realm at the same moment never merge) that it has no connection with; the younger dials it (each at
+  most every 10 s). Once connected, both send `sync` (their live monsters and loot). A monster both run stays with the
+  **older** player (in the Rift first, `olderOf`); the younger silently drops it (`toCopy`: a copy now, eased from
+  where it stood). One thought to be a third player's goes to the older claimant. A monster either side knows died
+  (`NET.gone`: deaths seen here) is told back (`gone`) and removed, so nothing killed comes back. The debug overlay
+  counts the monsters whose double control was resolved.
 
 #### Monsters
 
@@ -1112,12 +1121,14 @@ different realm from the same dial without it.
 #### Leaving and hidden tabs
 
 - **Handover** (`netHandover`, `netApplyHandover`): when a player leaves (`bye`, or lost too long: 30 s, or 10 s out of the presence list), its monsters stand
-  still (`orphan`) while the player in the Rift longest (`netElder`, after the leaver is gone) decides for everyone:
-  a monster chasing a hero still in the Rift passes to that hero's player, who runs it from where it stands ("A
-  monster that was after you is yours to fight now."); the rest fade away ("The Rift reclaims its own: N monsters
-  fade away."). The decision (`handover`) goes to everyone. An orphan with no decision after 4 s fades.
+  still (`orphan`) while the player in the Rift longest (`netElder`, after the leaver is gone) decides for everyone
+  who runs them (`netShare`). **Monsters never fade** (since v149): a monster chasing a hero still in the Rift passes
+  to that hero's player, who runs it from where it stands ("A monster that was after you is yours to fight now."); the
+  rest go one by one to whichever player runs the fewest live monsters then, so the load is spread evenly. The
+  decision (`handover`) goes to everyone. Orphans with no decision after 4 s (the decider left too) are decided again
+  by whoever is eldest then. A boss passed on keeps its chest sealed.
 - **A hidden tab** (`visibilitychange`, `netHide`) gets no frames, so it cannot run its monsters: it hands them all
-  over at once (one chasing another player's hero to that player, the rest to the eldest of the others). Its hero is
+  over at once (`netShare` among the others: one chasing another player's hero to that player, the rest spread evenly). Its hero is
   **away**: its states say so (still sent from the timer, about once a second in a background tab), the others draw
   it faded (40 %), their monsters leave it alone (`pickTarget`) and their blows on it are ignored. Back within 60 s
   (`NET_CFG.away`), it plays on (the monsters stay where they went). Hidden longer: "The Rift let you go." and it

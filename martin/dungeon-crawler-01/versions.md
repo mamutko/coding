@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v149 — monsters never fade; split realms merge again (2026-11-27)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 149`)*
+
+- When a player leaves the Rift, their monsters stay: the ones fighting someone go to that hero's player, the rest are
+  spread evenly over the players still there. Bosses stay too, so their chests stay sealed.
+- Players separated by a long network break find each other again and merge: a monster both ended up running stays
+  with the player who was in the Rift first, and nothing killed meanwhile comes back.
+
 ## v147–v148 — player against player: a sword on the dial draws blades (2026-11-26)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 148`)*
+Commit: fa8ec0d
 
 - A sword (any) on the portal's dial makes the realm one where heroes can hurt each other: with swings, arrows and
   fire bombs (v148: fire bombs everywhere). The portal warns before you enter, and the log on arriving.
