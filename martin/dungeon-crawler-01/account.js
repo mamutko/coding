@@ -1,6 +1,6 @@
 // =====================================================================================
-//  Accounts and server heroes (README, Heroes and saving: Accounts). A player can sign in with an email code
-//  (Supabase Auth, signInWithOtp + verifyOtp; the email's link signs in too) and then keep heroes on the server as
+//  Accounts and server heroes (README, Saving: Accounts). A player signs in with a link sent by email (Supabase
+//  Auth, signInWithOtp; the link brings them back to the game's page, where supabase-js picks up the session) and then keep heroes on the server as
 //  well as in this browser: the table mdc1_heroes of the repo's shared Supabase project, one row per hero, each
 //  player seeing only their own (row-level security on auth.uid(); supabase/migrations/…_create_mdc1_heroes.sql).
 //  A server hero's id is 's:' + its row id; a local hero's id is 'h…' (index.html, readSave). Everything here is
@@ -12,8 +12,8 @@ const ACC_TABLE = 'mdc1_heroes';
 const isServerId = id => typeof id === 'string' && id.startsWith('s:');
 const accName = () => ACC.user ? ACC.user.email || 'signed in' : '';
 
-// Load supabase-js and follow the sign-in state: a stored session comes back on load (INITIAL_SESSION), a code or
-// the email's link signs in (SIGNED_IN), signing out clears the server heroes. Their list is (re)loaded only when
+// Load supabase-js and follow the sign-in state: a stored session comes back on load (INITIAL_SESSION), coming back
+// from the email's link signs in (SIGNED_IN), signing out clears the server heroes. Their list is (re)loaded only when
 // the user actually changes (a token refresh fires this too).
 async function accInit() {
   const sb = await netLib(); ACC.ready = true;
@@ -28,17 +28,13 @@ async function accInit() {
 }
 function accChanged() { if (typeof titleRefresh === 'function') titleRefresh(); }
 
-// Send the code (and link) to an email address; then check the code typed in.
-async function accSendCode(email) {
+// Send a sign-in link to an email address; it returns to this page (the address must be among the project's allowed
+// redirect URLs: Supabase dashboard, Authentication, URL Configuration)
+async function accSendLink(email) {
   if (!ACC.sb) return 'No connection to the server.';
   const { error } = await ACC.sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: location.origin + location.pathname } });
-  if (error) return error.message || 'The code could not be sent.';
+  if (error) return error.message || 'The link could not be sent.';
   ACC.email = email; return '';
-}
-async function accVerify(email, code) {
-  if (!ACC.sb) return 'No connection to the server.';
-  const { error } = await ACC.sb.auth.verifyOtp({ email, token: code.trim(), type: 'email' });
-  return error ? (error.message || 'That code did not work.') : '';
 }
 async function accSignOut() { if (ACC.sb) try { await ACC.sb.auth.signOut(); } catch (e) {} }
 

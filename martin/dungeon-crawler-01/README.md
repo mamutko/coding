@@ -458,14 +458,15 @@ and the picker shows no saved heroes.
   - On narrow screens the screen leaves room at the top for **Sign in** and **Full screen**, and **Scenarios** goes
     under the buttons.
 - **Accounts and server heroes** (since v162, `account.js`):
-  - **Signing in:** **Sign in** at the top left asks for an email and sends a sign-in **code** (Supabase Auth,
-    `signInWithOtp`; no password, an account is made on first use); typing the code signs in (`verifyOtp`, type
-    `email`; 6–10 digits). The email's link signs in too (it comes back to the game's page). Signed in, the top
-    left shows the email and **Sign out**. The session is kept by supabase-js in the browser, so the player stays
-    signed in. Without a connection (or opened from a file) there is no Sign in button and only this device's
-    heroes are shown. *Setup (Supabase dashboard, not code):* the email template (Authentication → Email Templates →
-    Magic Link) must include `{{ .Token }}` for the code to appear in the email, and the game's address must be in
-    the allowed redirect URLs for the link.
+  - **Signing in:** **Sign in** at the top left asks for an email and sends a sign-in **link** (Supabase Auth,
+    `signInWithOtp`, `accSendLink`; no password, an account is made on first use). Opening the link brings the player
+    back to the game's page (`emailRedirectTo`: the page's address without its query), signed in; opened in another
+    browser, it signs in there. (A typed code would need a custom email template, which needs a custom SMTP sender.)
+    Signed in, the top left shows the email and **Sign out**. The session is kept by supabase-js in the browser, so
+    the player stays signed in. Without a connection (or opened from a file) there is no Sign in button and only this
+    device's heroes are shown. *Setup (Supabase dashboard, not code):* the game's address must be among the allowed
+    **Redirect URLs** (Authentication → URL Configuration), else the link lands on the project's Site URL instead.
+    Supabase's built-in mailer sends only a few emails an hour.
   - **Server heroes** live in the table **`mdc1_heroes`** of the repo's shared Supabase project
     (`supabase/migrations/20261127200000_create_mdc1_heroes.sql`): `id` (uuid), `user_id` (the player, by default
     `auth.uid()`), `name`, `lvl`, `depth`, `hero` (jsonb: the same hero data as a local save), `saved_at`.

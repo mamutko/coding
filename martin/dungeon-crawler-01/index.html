@@ -478,7 +478,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 162;
+const VERSION = 163;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -6281,33 +6281,30 @@ function openNewHero(server = false) {
   row(button('Cancel', close)).style.justifyContent = 'flex-end';
 }
 $('newBtn').addEventListener('click', () => openNewHero(false));
-// ---- Signing in: an email, then the code it receives (the email's link signs in too)
+// ---- Signing in: an email, and a sign-in link sent to it; opening the link brings the player back here signed in
+// (account.js follows the sign-in state and loads the server heroes)
 function openLogin(step = 'email') {
   const { box, close, row, button } = cfgBox(); const h3 = document.createElement('h3'); box.appendChild(h3);
   const msg = document.createElement('p'); msg.className = 'warn'; msg.style.display = 'none';
   const say = (t, bad = true) => { msg.textContent = t; msg.className = bad ? 'warn' : ''; msg.style.display = t ? '' : 'none'; };
-  const input = (ph, type, v = '') => { const i = document.createElement('input'); i.placeholder = ph; i.type = type; i.value = v; i.autocomplete = type === 'email' ? 'email' : 'one-time-code'; setTimeout(() => i.focus(), 0); return i; };
   if (step === 'email') {
     h3.textContent = 'Sign in';
-    const p = document.createElement('p'); p.style.margin = '0'; p.textContent = 'Sign in to keep heroes on the server and play them from any device. We email you a code; no password.'; box.appendChild(p);
-    const em = input('Your email', 'email', ACC.email);
-    const go = button('Send code', async () => { const v = em.value.trim(); if (!/^\S+@\S+\.\S+$/.test(v)) { em.classList.add('bad'); return; }
-      go.disabled = true; go.textContent = 'Sending…'; const err = await accSendCode(v); go.disabled = false; go.textContent = 'Send code';
-      if (err) say(err); else openLogin('code'); });
+    const p = document.createElement('p'); p.style.margin = '0'; p.textContent = 'Sign in to keep heroes on the server and play them from any device. We email you a sign-in link; no password.'; box.appendChild(p);
+    const em = document.createElement('input'); em.type = 'email'; em.placeholder = 'Your email'; em.value = ACC.email; em.autocomplete = 'email'; setTimeout(() => em.focus(), 0);
+    const go = button('Send link', async () => { const v = em.value.trim(); if (!/^\S+@\S+\.\S+$/.test(v)) { em.classList.add('bad'); return; }
+      go.disabled = true; go.textContent = 'Sending…'; const err = await accSendLink(v); go.disabled = false; go.textContent = 'Send link';
+      if (err) say(err); else openLogin('sent'); });
     em.addEventListener('keydown', e => { if (e.key === 'Enter') go.click(); });
+    em.addEventListener('input', () => em.classList.remove('bad'));
     row(em, go); box.appendChild(msg);
+    row(button('Cancel', close)).style.justifyContent = 'flex-end';
   } else {
-    h3.textContent = 'Enter the code';
-    const p = document.createElement('p'); p.style.margin = '0'; p.textContent = `We sent a sign-in code to ${ACC.email}. Type it here (or open the link in the email).`; box.appendChild(p);
-    const cd = input('Code', 'text'); cd.inputMode = 'numeric'; cd.maxLength = 10;
-    const go = button('Sign in', async () => { const v = cd.value.replace(/\s+/g, ''); if (!/^\d{6,10}$/.test(v)) { cd.classList.add('bad'); return; }
-      go.disabled = true; go.textContent = 'Checking…'; const err = await accVerify(ACC.email, v); go.disabled = false; go.textContent = 'Sign in';
-      if (err) say(err); else close(); });
-    cd.addEventListener('keydown', e => { if (e.key === 'Enter') go.click(); });
-    row(cd, go); box.appendChild(msg);
-    row(button('Use another email', () => openLogin('email')), button('Send again', async () => { const err = await accSendCode(ACC.email); say(err || 'A new code is on its way.', !!err); }));
+    h3.textContent = 'Check your email';
+    const p = document.createElement('p'); p.style.margin = '0';
+    p.textContent = `We sent a sign-in link to ${ACC.email}. Open it in this browser: it brings you back to the game, signed in. (Opened in another browser, it signs in there.)`;
+    box.appendChild(p); box.appendChild(msg);
+    row(button('Use another email', () => openLogin('email')), button('Send again', async () => { const err = await accSendLink(ACC.email); say(err || 'Another link is on its way.', !!err); }), button('Close', close)).style.justifyContent = 'space-between';
   }
-  row(button('Cancel', close)).style.justifyContent = 'flex-end';
 }
 $('acctBtn').addEventListener('click', () => { if (ACC.user) accSignOut(); else openLogin(); });
 // a dialog box in #heroCfg: { box, close, row, button }
