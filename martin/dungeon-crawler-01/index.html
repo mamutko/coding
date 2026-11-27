@@ -438,7 +438,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 155;
+const VERSION = 156;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -1725,7 +1725,7 @@ function newGame(entry) {
 // entry = { id, name, depth, lvl, saved: <ms timestamp>, hero: { ...the SAVED_FIELDS of the hero } }.
 // A hero is saved when created and on arrival at each new depth; the level layout is never saved.
 const SAVE_KEY = 'crypt-of-endless-night.save';
-const SAVED_FIELDS = ['name', 'lvl', 'xp', 'base', 'equip', 'inv', 'gold', 'hotkeys', 'kills', 'hp', 'look', 'story', 'lastWeapon', 'maxDepth', 'dial', 'surfAt', 'satchel'];   // satchel: the surface's satchel opened   // story: see Dialogue; lastWeapon: see compareTarget; maxDepth: the deepest depth reached
+const SAVED_FIELDS = ['name', 'lvl', 'xp', 'base', 'equip', 'inv', 'gold', 'hotkeys', 'kills', 'hp', 'look', 'story', 'lastWeapon', 'maxDepth', 'dial', 'surfAt'];   // story: see Dialogue; lastWeapon: see compareTarget; maxDepth: the deepest depth reached
 // Older saves kept health potions as a counter (hero.potions) with a { type: 'potion' } quick key: turn them
 // into a stack in the pack (first free cell; dropped at the start if the pack is full) and a 'use' key.
 function migrateHero(h) {
@@ -1869,7 +1869,7 @@ function chunkThings(cx, cy) {
     for (let i = out.length - 1; i >= 0; i--) if (Math.abs(out[i].wx - bx) <= 2 && Math.abs(out[i].wy - by) <= 2) out.splice(i, 1);
     out.push({ type: 'bigtree', look: look || 'oak', scale: 1, flip: false, block: true, wx: bx, wy: by, fx: 0, fy: 0 });
   }
-  if (Math.floor(SURF.satchel[0] / C) === cx && Math.floor(SURF.satchel[1] / C) === cy)   // the satchel: opened once per hero (hero.satchel)
+  if (Math.floor(SURF.satchel[0] / C) === cx && Math.floor(SURF.satchel[1] / C) === cy)   // the satchel: full again on every visit to the surface (G.surf.satchel)
     out.push({ type: 'satchel', wx: SURF.satchel[0], wy: SURF.satchel[1], block: true });
   if (Math.floor(RIFT.at[0] / C) === cx && Math.floor(RIFT.at[1] / C) === cy)   // the Rift's portal and its dial (realm.js)
     out.push({ type: 'portal', wx: RIFT.at[0], wy: RIFT.at[1], block: false }, { type: 'dial', wx: RIFT.dial[0], wy: RIFT.dial[1], block: false });
@@ -1892,7 +1892,7 @@ function buildSurfaceWindow() {
   for (let j = 0; j < n; j++) for (let i = 0; i < n; i++) for (const o of chunkThings(sv.cx - 1 + i, sv.cy - 1 + j)) {
     o.x = o.wx - sv.ox; o.y = o.wy - sv.oy; o.used = false;
     if (o.type === 'npc') { o.fx = o.x + 0.5; o.fy = o.y + 0.5; loadCast(o.sheet); }   // a character: drawn and talked to like one
-    else if (o.type === 'satchel') o.used = !!G.hero.satchel;   // a prop like a chest (drawProp), not a surface thing
+    else if (o.type === 'satchel') o.used = !!sv.satchel;   // a prop like a chest (drawProp), not a surface thing; open for this visit only
     else { o.surf = true; if (o.type !== 'cryptdoor' && o.type !== 'portal') o.decor = true; }
     if (o.type === 'portal') { o.fx = o.x + 0.7; o.fy = o.y + 0.7;   // (where a click walks the hero: just in front of the gate)
       for (const [px, py, role] of portalTiles(o.x, o.y)) if (role === 'pillar' && px >= 0 && py >= 0 && px < w && py < h) map.block[py * w + px] = 1; }
@@ -3500,7 +3500,7 @@ function act0(ref, other = false) {
       break;
     case 'satchel': {   // the satchel on the surface, west of the portal: an old adventurer's gear, once per hero
       if (o.used) return;
-      o.used = true; G.hero.satchel = true; sfx('pick', { x: o.x, y: o.y });
+      o.used = true; if (G.surf) G.surf.satchel = true; sfx('pick', { x: o.x, y: o.y });
       const sword = genItem(1, 0, 'shortsword', 'common', 1); sword.name = 'Rusty Short Sword';
       dropItem(sword, o.x + 0.5, o.y + 0.5); dropItem(genItem(1, 0, 'leathergloves', 'common', 1), o.x + 0.5, o.y + 0.5);
       log('You open the satchel. Someone left their gear behind: a rusty short sword and a pair of leather gloves.', '#c9a45c');

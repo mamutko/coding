@@ -215,6 +215,17 @@ The picker (*Crypt Sandbox*) groups the scenarios:
 - **The Rift:**
   - **The portal and the dial** (`sbRift`; open it in two windows, set the same dial and enter in both to meet): the test hero (level 12, `maxDepth` 7) on the surface before the portal
     (`surfAt: 'portal'`), with two common longswords and a rare ruby ring (depth 9) in the pack besides the usual kit.
+- **Weapons:**
+  - **The armoury** (`sbArmoury`, `armouryMap`): a level of its own, made by the sandbox (not `buildLevel`), 200 ×
+    200 tiles at depth 9. A hall of 22 × 22 tiles with a brazier in each corner; on its floor, in rows by group (swords,
+    axes, flails, polearms, bows, helms, body armor, gloves, boots), one common item of every weapon and armor type,
+    each rolled at its own unlock depth, and a last row of two stacks of 10 fire bombs and two of 5 scrolls of frost.
+    The test hero stands in the free strip along the hall's east side with 10 health potions. North (up on screen,
+    smaller x and y): a chain of five 12 × 12 **pack rooms**, each joined to the one before by a 2-wide L corridor,
+    with packs at depths 3, 6, 9, 12 and 15 of 5, 6, 8, 10 and 12 monsters (half skeletons, the rest any type
+    unlocked at that depth; one champion in each of the last two). South: a chain of five 8 × 8 rooms with one or two
+    monsters each at the same depths (no wraiths; a champion in the last two). The rooms are far enough apart that
+    nothing notices the hero in the hall. Two braziers light each room.
 - **Crossbows:**
   - **Crossbows** (`sbXbow`, depth 18): the kiting scenario's big room (the same `bigRoom` set-up: grown 1.5×, the
     hero in the middle, only its sleepers) with two skeletons, two ghouls and two Pit Demons asleep. The test hero is
@@ -746,8 +757,10 @@ the lawn by the crypt's door (a story NPC: see [Dialogue](#dialogue)); no monste
 north of the crypt stands the **portal to the Rift** with its dial (see [The Rift](#the-rift)). 40 tiles west of the
 portal (due west on screen: `SURF.satchel`, 28 tiles less x and 28 more y) a **satchel** lies in a small clearing,
 an old adventurer's leather bag. Click it to open it, like a chest: it holds a *Rusty Short Sword* and a pair of
-*Leather Gloves*, dropped beside it (no experience). It opens once per hero (`hero.satchel`, saved) and lies open
-afterwards. The level name is *The Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going up is todo #11.)
+*Leather Gloves*, dropped beside it (no experience), and lies open for the rest of the visit (`G.surf.satchel`).
+Like the surface's dropped items it isn't saved: back on the surface later, it is full again. (The only thing kept
+of the surface between visits is what lies on the portal's dial, `hero.dial`, besides where the hero stands when
+saved, `surfAt`.) The level name is *The Surface*, depth 0. (A hero saved at depth 1 or deeper never comes back up: going up is todo #11.)
 
 - **Super tiles** (`SURF`): the land is made of squares of `SURF.chunk` (32) tiles, generated from their world
   position and a fixed seed (`SURF.seed`; `srand` is a seeded mulberry32 over a hash of the keys, `vnoise` a smooth

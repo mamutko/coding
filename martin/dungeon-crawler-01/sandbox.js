@@ -67,6 +67,8 @@
     <button class="sc" id="sbRift"><b>The portal and the dial</b>The surface before the Rift's portal (50 tiles north of the crypt), a level 12 hero who has reached depth 7, with two ordinary longswords, health potions and a rare ring in the pack. Drop items on the dial in front of the portal and hover the portal: its label names the realm they choose (the same ordinary items always give the same realm; the rare ring makes it a private one). Walk into the arch and Enter: the Rift, 110 tiles across, its monsters of depth 7 in the rooms farthest from the portal; walk back into the portal there to come out (the sandbox never saves).</button>
     <h2>Crossbows</h2>
     <button class="sc" id="sbXbow"><b>Crossbows</b>Depth 18, in the middle of the level's big room, with the three best ranged weapons: the Gilded Arbalest equipped (key 5: 62–104 a bolt, a long 1.4 s reload), the Heavy Crossbow (key 4) and the War Bow (key 2) to compare. Two skeletons, two ghouls and two Pit Demons sleep around you; a hit wakes one. The bar shows each weapon's damage, reload and draw, the last shot and a tally per weapon. Key 1 is your longsword.</button>
+    <h2>Weapons</h2>
+    <button class="sc" id="sbArmoury"><b>The armoury</b>A hand-made level: you stand in a big hall with one ordinary (common) piece of every weapon and armor type laid out on the floor in rows, from the Short Sword to the Gilded Arbalest, flails and polearms included, plus fire bombs and scrolls of frost, and 10 health potions in your pack. Up the corridor to the north (up on screen): five rooms of monster packs, ever stronger (depths 3, 6, 9, 12, 15; 5 to 12 monsters, champions in the last two). Down to the south: five small rooms of one or two monsters each, ever stronger (the same depths). Pick a weapon and try it on a crowd or on a single foe.</button>
     <h2>Characters</h2>
     <button class="sc" id="sbLooks2"><b>Character viewer</b>Walk around an empty big room as any character that has a sprite sheet: the hero, the monsters and the Keepers of the Crypt. Pick the look in the bar; click to walk, and watch every direction.</button>
     <h2>Lakes</h2>
@@ -312,6 +314,57 @@
   releaseArrow = h => { const n = G.proj.length; realRelease(h); const a = G.proj[n];
     if (mode === 'xbow' && a) { const w = weaponOf(h), r = XB[w.name] = XB[w.name] || { n: 0, sum: 0 };
       r.n++; r.sum += a.dmg; r.last = a.dmg; r.crit = a.crit; XB.lastName = w.name; } };
+  // The armoury: a level of its own (made here, not by buildLevel). A hall (22 x 22) in the middle; a chain of five
+  // pack rooms to the north (up on screen: smaller x and y) and five small rooms to the south, each joined to the
+  // one before by a 2-wide corridor. Every weapon and armor type lies on the hall's floor as a common item, in rows.
+  function armouryMap() {
+    const W = 200, H = 200, t = new Uint8Array(W * H).fill(T_VOID), rooms = [];
+    const at = (x, y) => (x < 0 || y < 0 || x >= W || y >= H) ? T_VOID : t[y * W + x];
+    const floor = (x0, y0, w, h) => { for (let y = y0; y < y0 + h; y++) for (let x = x0; x < x0 + w; x++) t[y * W + x] = T_FLOOR; };
+    const room = (x, y, w, h, kind) => { floor(x, y, w, h); const r = { x, y, w, h, cx: x + (w >> 1), cy: y + (h >> 1), kind }; rooms.push(r); return r; };
+    const corr = (a, b) => {   // an L: along x at a's centre row, then along y at b's centre column, 2 wide
+      const [x0, x1] = [Math.min(a.cx, b.cx), Math.max(a.cx, b.cx)], [y0, y1] = [Math.min(a.cy, b.cy), Math.max(a.cy, b.cy)];
+      floor(x0, a.cy, x1 - x0 + 2, 2); floor(b.cx, y0, 2, y1 - y0 + 2); };
+    const hall = room(89, 89, 22, 22, 'hall');
+    let prev = hall; const north = [], south = [];
+    for (let k = 1; k <= 5; k++) { const r = room(hall.x - 20 - 18 * (k - 1) + (k % 2 ? 3 : -3), hall.y - 20 - 18 * (k - 1), 12, 12, 'pack'); corr(prev, r); north.push(r); prev = r; }
+    prev = hall;
+    for (let k = 1; k <= 5; k++) { const r = room(hall.x + hall.w + 10 + 15 * (k - 1) + (k % 2 ? 3 : -3), hall.y + hall.h + 10 + 15 * (k - 1), 8, 8, 'duel'); corr(prev, r); south.push(r); prev = r; }
+    for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) if (t[y * W + x] === T_VOID)   // walls round the floor
+      for (let dy = -1; dy <= 1 && t[y * W + x] === T_VOID; dy++) for (let dx = -1; dx <= 1; dx++) if (t[(y + dy) * W + x + dx] === T_FLOOR) { t[y * W + x] = T_WALL; break; }
+    const map = { w: W, h: H, t, at, seen: new Uint8Array(W * H), block: new Uint8Array(W * H), rooms, lake: null, lakeRoom: null, bossRoom: null, claims: new Set() };
+    return { map, hall, north, south };
+  }
+  $('sbArmoury').onclick = () => {
+    testHero(9);
+    const { map, hall, north, south } = armouryMap(), h = G.hero;
+    G.map = map; G.lakeFx = null; G.objects = []; G.monsters = []; G.items = []; G.proj = []; G.fx = []; G.texts = []; stopFireSounds(); G.fires = [];
+    map.boss = null;
+    const brazier = (x, y) => { G.objects.push({ type: 'brazier', x, y, block: true }); map.block[y * map.w + x] = 1; };
+    for (const r of [hall, ...north, ...south]) { brazier(r.x, r.y); brazier(r.x + r.w - 1, r.y + r.h - 1); if (r === hall) { brazier(r.x + r.w - 1, r.y); brazier(r.x, r.y + r.h - 1); } }
+    // the floor: every weapon type (by kind, then depth), then every armor type, then bombs and scrolls, in rows
+    const keys = Object.keys(BASES).filter(k => BASES[k].slot !== 'ring' && BASES[k].slot !== 'amulet');
+    const order = ['sword', 'axe', 'flail', 'polearm', 'bow', 'head', 'chest', 'hands', 'feet'], grp = k => BASES[k].kind || BASES[k].slot;
+    keys.sort((a, b) => order.indexOf(grp(a)) - order.indexOf(grp(b)) || BASES[a].lvl - BASES[b].lvl);
+    const rows = []; for (const k of keys) { const g = grp(k); if (!rows.length || rows[rows.length - 1].g !== g) rows.push({ g, ks: [] }); rows[rows.length - 1].ks.push(k); }
+    rows.push({ g: 'use', its: [makeBombs(10), makeBombs(10), makePotion('frost', 5), makePotion('frost', 5)] });
+    rows.forEach((row, j) => { const its = row.its || row.ks.map(k => genItem(BASES[k].lvl, 0, k, 'common', BASES[k].lvl));
+      its.forEach((it, i) => G.items.push({ item: it, x: hall.x + 3.5 + i * 2, y: hall.y + 2.5 + j * 2, t: Math.random() * 6 })); });
+    // the monsters: packs to the north, one or two to the south, at depths 3, 6, 9, 12, 15
+    const types = d => Object.keys(MON).filter(k => MON[k].minD <= d);
+    const put = (r, d, list, champs) => { const spots = []; for (let y = r.y + 1; y < r.y + r.h - 1; y++) for (let x = r.x + 1; x < r.x + r.w - 1; x++) if (!map.block[y * map.w + x]) spots.push([x, y]);
+      list.forEach((ty, i) => { const [x, y] = spots.splice(Math.floor(Math.random() * spots.length), 1)[0];
+        G.monsters.push(makeMonster(ty, x + 0.5, y + 0.5, d, false, i < champs, i >= champs)); }); };
+    north.forEach((r, k) => { const d = 3 * (k + 1), ts = types(d), n = [5, 6, 8, 10, 12][k];
+      put(r, d, Array.from({ length: n }, (_, i) => i < n / 2 ? 'skeleton' : ts[Math.floor(Math.random() * ts.length)]), k >= 3 ? 1 : 0); });
+    south.forEach((r, k) => { const d = 3 * (k + 1), ts = types(d).filter(t => t !== 'wraith');
+      put(r, d, Array.from({ length: k % 2 ? 2 : 1 }, () => ts[Math.floor(Math.random() * ts.length)]), k >= 3 ? 1 : 0); });
+    // the hero in the free strip along the hall's east side (the rows end before it), facing them; 10 health potions
+    h.x = hall.x + hall.w - 2.5; h.y = hall.cy + 0.5; h.dir = 6; h.path = []; h.intent = null;
+    const st = h.inv.find(it => it && it.pot === 'health'); if (st) st.count = 10; else h.inv[h.inv.indexOf(null)] = makePotion('health', 10);
+    recalc(); h.hp = h.st.maxHp; refreshUI(); updateMinimap(true);
+    start('armoury'); log('Test: the armoury. Every weapon and armor type lies on the floor; packs to the north, single foes to the south.', '#c9a45c');
+  };
   $('sbXbow').onclick = () => {
     bigRoom(18, ['skeleton', 'skeleton', 'ghoul', 'ghoul', 'demon', 'demon']);
     const h = G.hero; h.lvl = 20; h.base.dex += 20; h.base.vit += 40;
@@ -481,7 +534,7 @@
       + ` · pursuing ${n}` + (MUSIC.combatT > 0 && n === 0 ? ` · hold ${MUSIC.combatT.toFixed(1)} s` : '') + (demonLevel() ? ' · Pit Demon level' : '');
   }, 200);
   // the scenario buttons work once the game's own start-up (art loaded, first level built) is done
-  const SC = ['sbTrees', 'sbDragon', 'sbChest', 'sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbEscape', 'sbReturn', 'sbRift', 'sbXbow', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
+  const SC = ['sbArmoury', 'sbTrees', 'sbDragon', 'sbChest', 'sbLooks2', 'sbDialogue', 'sbSurface', 'sbFirePack', 'sbFireLast', 'sbFireYard', 'sbMarket', 'sbKite', 'sbEscape', 'sbReturn', 'sbRift', 'sbXbow', 'sbLake', 'sbFrost', 'sbPack', 'sbDemon'];
   for (const id of SC) $(id).disabled = true;
   // until then the picker says how far loading got, or why start-up failed (the title screen's start button shows
   // the same, but the picker covers it); errors thrown later are listed there too

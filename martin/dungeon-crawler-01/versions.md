@@ -9,14 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v155 — the Rift's horde topped up to two players' worth; a satchel on the surface (2026-11-27)
+## v155–v156 — the Rift's horde topped up to two players' worth; a satchel on the surface; the armoury (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 155`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 156`)*
 
 - The Rift's big room and lake are filled up to two players' worth of monsters whenever someone comes in, counting
   what's still there: a real horde from the start, but no longer growing past that with every player who joins.
 - On the surface, 40 tiles west of the portal, lies a satchel. Open it like a chest: a rusty short sword and a pair
-  of leather gloves. Once per hero.
+  of leather gloves. (v156: it is full again on every visit, like everything on the surface but the dial.)
+- v156: a sandbox scenario, *The armoury*: every weapon and armor type on the floor of a hall, packs of monsters to
+  the north and single foes to the south, ever stronger.
 
 ## v154 — flails and polearms, for fighting crowds; axes and bows rebalanced (2026-11-27)
 
