@@ -438,7 +438,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 159;
+const VERSION = 160;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -894,8 +894,8 @@ const BASES = {
   platedgloves: { name: 'Plated Gauntlets', slot: 'hands', armor: 10, lvl: 9 },
   heavygloves:  { name: 'Heavy Gauntlets', slot: 'hands', armor: 13, lvl: 14 },
   leatherboots: { name: 'Leather Boots', slot: 'feet', armor: 2, implicit: { speed: 5 }, lvl: 1 },
-  ironboots:    { name: 'Plated Boots', slot: 'feet', armor: 6, lvl: 4 },
-  greaves:      { name: 'Iron Greaves', slot: 'feet', armor: 10, lvl: 9 },
+  ironboots:    { name: 'Iron Boots', slot: 'feet', armor: 6, lvl: 4 },   // (iron, then plated: as the gauntlets)
+  greaves:      { name: 'Plated Greaves', slot: 'feet', armor: 10, lvl: 9 },
   heavygreaves: { name: 'Heavy Greaves', slot: 'feet', armor: 13, lvl: 14 },
   silverring:   { name: 'Silver Ring', slot: 'ring', lvl: 1 },
   rubyring:     { name: 'Ruby Ring', slot: 'ring', lvl: 1 },

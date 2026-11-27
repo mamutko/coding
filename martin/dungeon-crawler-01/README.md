@@ -1648,8 +1648,8 @@ Items already found keep the numbers they dropped with.)
 | Plated Gauntlets | gloves | armor 10 | 9 |
 | Heavy Gauntlets | gloves | armor 13 | 14 |
 | Leather Boots | boots | armor 2, +5 % move speed | 1 |
-| Plated Boots | boots | armor 6 | 4 |
-| Iron Greaves | boots | armor 10 | 9 |
+| Iron Boots | boots | armor 6 | 4 |
+| Plated Greaves | boots | armor 10 | 9 |
 | Heavy Greaves | boots | armor 13 | 14 |
 | Silver Ring, Ruby Ring, Grave Ring | ring | none | 1 |
 | Sapphire Amulet, Blood Amulet, Bone Talisman | amulet | none | 1 |

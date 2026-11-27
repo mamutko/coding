@@ -9,14 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
-## v159 — a magic chest at depths 2 and 3; the catalog to depth 20 (2026-11-27)
+## v159–v160 — a magic chest at depths 2 and 3; the catalog to depth 20 (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 159`)*
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 160`)*
 
 - Depths 2 and 3 each have one chest with a single magic item of the lowest tier, a first taste of magic before
   magic drops begin at depth 4.
 - The catalog's depth-by-depth table and monster stats now go to depth 20 (they stopped at 12), and list the lakes,
   the dragon, the keepers, fire bombs and the new chests.
+- v160: boots follow the gauntlets' order, iron then plated: Iron Boots (depth 4, were Plated Boots) and Plated
+  Greaves (depth 9, were Iron Greaves). The catalog shows the scrolls with their own icons.
 
 ## v157–v158 — polearms: reach, not sweep; the catalog lists every weapon kind (2026-11-27)
 
