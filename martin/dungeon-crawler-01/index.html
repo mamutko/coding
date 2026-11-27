@@ -244,7 +244,9 @@
     letter-spacing: 1px; color: var(--ink-dim); opacity: 0.7; cursor: pointer; user-select: none; -webkit-user-select: none;
     -webkit-touch-callout: none; touch-action: manipulation; }
   #version:hover { opacity: 1; }
-  #screen #scenBtn { position: absolute; left: 12px; bottom: 10px; font-size: 13px; padding: 6px 12px; }
+  #testBtns { position: absolute; left: 12px; bottom: 10px; display: flex; gap: 8px; }
+  #screen #scenBtn, #screen #catBtn { font-size: 13px; padding: 6px 12px; }
+  #screen #catBtn[hidden] { display: none; }
   #heroRow { display: flex; width: min(600px, 100%); margin: 6px 0 4px; }
   #screen #switchBtn, #screen #newBtn { font-size: 14px; padding: 8px 16px; }
   @media (max-width: 520px) { #startRow { flex-wrap: wrap; justify-content: center; } #screen #startBtn { flex-basis: 100%; } }
@@ -281,7 +283,7 @@
   #acct { position: absolute; left: 12px; top: 12px; display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--ink-dim); max-width: calc(100% - 180px); }
   #acct #acctText { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   #screen #acct button { font-size: 13px; padding: 6px 12px; }
-  @media (max-width: 640px) { #screen { padding-top: 64px; } #screen #scenBtn { position: static; order: 99; margin-top: 10px; } }   /* (room for Sign in and Full screen above the title; Scenarios below the buttons) */
+  @media (max-width: 640px) { #screen { padding-top: 64px; } #testBtns { position: static; order: 99; margin-top: 10px; } }   /* (room for Sign in and Full screen above the title; Scenarios below the buttons) */
   #heroList { position: fixed; inset: 0; z-index: 44; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); }
   #heroList .box { width: min(460px, calc(100% - 32px)); max-height: calc(100% - 40px); display: flex; flex-direction: column; gap: 10px;
     background: linear-gradient(#1d1411, #0e0908); border: 1px solid var(--gold); padding: 16px; box-shadow: 0 0 40px #000; }
@@ -470,7 +472,7 @@
   <input type="file" id="importFile" accept=".json,application/json,text/plain" hidden>
   <div id="topBtns"><button id="helpBtn" title="Controls and signing in">Help</button>
   <button id="fsBtn" class="hidden" title="Full screen (F5)"><svg viewBox="0 0 24 24"><path d="M3 9V3h6v2H5v4zm12-6h6v6h-2V5h-4zM3 15h2v4h4v2H3zm16 0h2v6h-6v-2h4z"/></svg><span>Full screen</span></button></div>
-  <button id="scenBtn" title="Test scenarios (the sandbox)" hidden>Scenarios</button>
+  <div id="testBtns"><button id="scenBtn" title="Test scenarios (the sandbox)" hidden>Scenarios</button><button id="catBtn" title="The monster and item catalog (opens in a new tab)" hidden>Catalog</button></div>
   <div id="version" title="Double-click or long-press: debug overlay"></div>
 </div>
 <div id="debug" class="hidden"><h4>Debug (Ctrl+D) <span id="dbgVer"></span></h4>
@@ -503,7 +505,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 170;
+const VERSION = 171;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -6234,7 +6236,8 @@ function titleRefresh() {
     const lk = HERO_LOOKS[e.hero.look] ? e.hero.look : 'hero'; loadCast(lk); TITLE.look = lk;
   }
   const st = $('startBtn'); st.textContent = 'Enter the World'; st.disabled = !e;
-  $('scenBtn').hidden = !tester() && !new URLSearchParams(location.search).has('sandbox');   // the scenarios: testers (an MI PIN), and in the sandbox
+  $('scenBtn').hidden = !tester() && !new URLSearchParams(location.search).has('sandbox');   // the scenarios: testers, and in the sandbox
+  $('catBtn').hidden = !tester();
   $('switchBtn').disabled = false;
   const a = $('acctText'), ab = $('acctBtn');
   a.innerHTML = ''; if (ACC.user && ACC.user.pin) { const i = document.createElement('span'); i.className = 'initials'; i.textContent = ACC.user.pin.slice(0, 2); i.title = 'Signed in with a PIN (for testing)'; a.append(i); }
@@ -6439,8 +6442,10 @@ async function copyLink(text, what) {
   const w = document.createElement('p'); w.className = 'warn'; w.textContent = 'The link holds your PIN: anyone who has it can play and change these heroes. Share it only with people you trust.'; box.appendChild(w);
   row(button('Close', close)).style.justifyContent = 'flex-end'; setTimeout(() => inp.select(), 0);
 }
-// Testers: signed in with a PIN starting MI. Only they see the Scenarios button, Import and Export.
-const tester = () => !!(ACC.user && ACC.user.pin && ACC.user.pin.startsWith('MI'));
+// Testers: signed in with a PIN starting MI that has a server hero named Brunn (any capitals). Only they see the
+// Scenarios and Catalog buttons, Import, Export and the PIN link.
+const tester = () => !!(ACC.user && ACC.user.pin && ACC.user.pin.startsWith('MI') && Object.values(ACC.heroes).some(e => e.name.toLowerCase() === 'brunn'));
+$('catBtn').addEventListener('click', () => window.open('catalog.html', '_blank', 'noopener'));
 // ---- Help: the controls and the ways to sign in
 $('helpBtn').addEventListener('click', () => {
   const { box, close, row, button } = cfgBox(); const h3 = document.createElement('h3'); h3.textContent = 'Help'; box.appendChild(h3);

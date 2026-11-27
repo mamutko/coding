@@ -450,9 +450,10 @@ and the picker shows no saved heroes.
   - **Help** explains the controls (left click, right click / Shift + click, I / Tab, 1–9 and 0, Q, M, N, the mouse
     wheel or pinch, F5), heroes (this device and the server, copying, the card's settings) and the two ways to sign in
     (PIN and email link, with the PIN's warnings).
-  - **Testers** (`tester()`: signed in with a PIN starting **MI**) also see **Scenarios** (bottom left; also always in
-    the sandbox, `?sandbox`), **Import…** in the Switch hero overlay and **Export hero** in the hero's settings; nobody
-    else does.
+  - **Testers** (`tester()`: signed in with a PIN starting **MI** that has a server hero named **Brunn**, any
+    capitals; since v171) also see **Scenarios** and **Catalog** at the bottom left (Scenarios also always in the
+    sandbox, `?sandbox`; Catalog opens `catalog.html` in a new tab), **Import…** in the Switch hero overlay, **Export
+    hero** in the hero's settings and **PIN link** in the overlay's server tab; nobody else does.
   - **Switch hero** opens an overlay (`#heroList`, `renderHeroList`) with two tabs, **On this device** and **On the
     server**, each listing its heroes, most recently saved first (name, level, depth; the current one lit). A click
     on a hero makes it the current one and closes the overlay. Beside each hero a **⧉** button (two joined squares,
@@ -496,7 +497,7 @@ and the picker shows no saved heroes.
     `…&hero=<id>` also makes that server hero the current one (its row id; a hero's name works too). The PIN rides
     after the `#`, so it is never sent to the web server, and it is taken out of the address bar once read
     (`pinLinkArrived`, on load and when such an address is pasted into an open tab). Signed in with a PIN, a server hero's
-    settings have **Copy link to this hero**, and for testers (an MI PIN) the Switch hero overlay's server tab has
+    settings have **Copy link to this hero**, and for testers (see Testers) the Switch hero overlay's server tab has
     **PIN link** (the PIN alone); each copies the link to the clipboard and shows it, warning that whoever has the link can play and change
     those heroes. A link whose hero is not among the PIN's heroes signs in and says so.
   - **PIN heroes** live in their own table, **`mdc1_pin_heroes`** (`…_create_mdc1_pin_heroes.sql`), which holds a

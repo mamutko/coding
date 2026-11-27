@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v171 — a Catalog button for testers; testers need a hero named Brunn (2026-11-27)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 171`)*
+
+- Testers get a **Catalog** button beside Scenarios (it opens the monster and item catalog in a new tab).
+- Being a tester now takes both an MI PIN and a server hero named Brunn under it; only then do Scenarios, Catalog,
+  Import, Export and the PIN link appear.
+
 ## v168–v170 — the hero card shows gear and gold; erasing moves to the hero list (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 170`)*
+Commit: ae294ef
 
 - The hero card on the title screen shows the hero's gold and a small grid of what it wears and wields, each item
   edged in its rarity's colour.
