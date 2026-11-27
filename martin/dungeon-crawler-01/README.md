@@ -488,6 +488,13 @@ and the picker shows no saved heroes.
     updated on entering the world, on each save and once a minute while playing) until **Sign out**, or until the
     game is opened more than **48 hours** after the last play (`PIN_IDLE`): then it is forgotten without a word and
     the player is signed out. Signing in by email ends a PIN sign-in, and the other way round.
+  - **PIN links** (since v166): `<the game's address>#pin=JS4821` signs in with that PIN when opened, and
+    `…&hero=<id>` also makes that server hero the current one (its row id; a hero's name works too). The PIN rides
+    after the `#`, so it is never sent to the web server, and it is taken out of the address bar once read
+    (`pinLinkArrived`, on load and when such an address is pasted into an open tab). Signed in with a PIN, the Switch
+    hero overlay's server tab has **PIN link** (the PIN alone) and a server hero's settings have **Copy link to this
+    hero**; each copies the link to the clipboard and shows it, warning that whoever has the link can play and change
+    those heroes. A link whose hero is not among the PIN's heroes signs in and says so.
   - **PIN heroes** live in their own table, **`mdc1_pin_heroes`** (`…_create_mdc1_pin_heroes.sql`), which holds a
     salted SHA-256 of the PIN, never the PIN. Nobody can read or write the table directly (no privileges, row-level
     security on with no policies); the game uses three database functions (`security definer`), `mdc1_pin_list(pin)`,

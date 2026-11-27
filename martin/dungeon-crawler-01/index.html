@@ -296,6 +296,7 @@
   #heroCfg .tabs button { flex: 1; font-size: 13px; padding: 6px 8px; opacity: 0.6; }
   #heroCfg .tabs button.on { opacity: 1; border-color: var(--gold); color: #fff; }
   #heroCfg .small { font-size: 13px; color: var(--ink-dim); }
+  #heroCfg input[readonly] { font: 13px ui-monospace, Consolas, monospace; letter-spacing: 0; }   /* a link: as it is (the title font has only capitals) */
   #acct .initials { font-family: Cinzel, serif; font-size: 18px; color: var(--gold); letter-spacing: 2px; }
   #heroPick { display: flex; flex-direction: column; gap: 6px; width: min(420px, 100%); margin: 0 0 16px; }
   #heroPick .heroBtn { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 15px;
@@ -490,7 +491,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 165;
+const VERSION = 166;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -6269,7 +6270,10 @@ function renderHeroList() {
   const nb = document.createElement('button'); nb.textContent = 'New hero'; nb.addEventListener('click', () => { close(); openNewHero(listTab === 'server' && ACC.user); });
   const ib = document.createElement('button'); ib.textContent = 'Import…'; ib.title = 'Load a hero from an exported file (onto this device)'; ib.addEventListener('click', () => $('importFile').click());
   const cl = document.createElement('button'); cl.textContent = 'Close'; cl.addEventListener('click', close);
-  r.append(nb); if (tester()) r.append(ib); r.append(cl); box.appendChild(r);   // (Import: testers only)
+  r.append(nb); if (tester()) r.append(ib);
+  if (listTab === 'server' && ACC.user && ACC.user.pin) { const lb = document.createElement('button'); lb.textContent = 'PIN link'; lb.title = 'A link that signs in with this PIN on any device';
+    lb.addEventListener('click', () => copyLink(pinLink(), 'Opening it signs in with your PIN.')); r.append(lb); }
+  r.append(cl); box.appendChild(r);   // (Import: testers only)
 }
 // a copy on the other side, with a new id; the original stays where it is
 async function copyHero(id, toServer) {
@@ -6364,6 +6368,8 @@ function openHeroCfg(step = 'main') {
       const x = getEntry(pickSel); if (!x) return close();
       x.name = n; x.hero.name = n; x.saved = x.saved || Date.now(); putEntry(x); close(); titleRefresh(); }, 'Rename');
     row(inp, ok);
+    if (isServerId(e.id) && ACC.user && ACC.user.pin) { const lk = button('Copy link to this hero', () => copyLink(pinLink(e.id), `Opening it signs in with your PIN and picks ${e.name}.`));
+      lk.title = 'A link that signs in with your PIN and picks this hero'; row(lk).firstChild.style.flex = '1'; }
     if (tester()) { const ex = button('Export hero', () => exportHero(pickSel)); ex.title = 'Save this hero to a file (as last saved: on arrival at its depth)';
       row(ex).firstChild.style.flex = '1'; }   // (testers only)
     const lk = HERO_LOOKS[e.hero.look] ? e.hero.look : 'hero', lbl = document.createElement('span');
@@ -6382,6 +6388,29 @@ function openHeroCfg(step = 'main') {
   }
 }
 $('heroCard').addEventListener('click', e => { if (!e.target.closest('input, button') && getEntry(pickSel)) openHeroCfg(); });   // the card opens the hero's settings
+// ---- PIN links: <page>#pin=JS4821 signs in with that PIN; &hero=<id> also makes that server hero the current one.
+// After the hash (never sent to the web server), and taken out of the address bar once read. Made in the Switch hero
+// overlay (the PIN alone) and in a server hero's settings (the PIN and that hero), copied to the clipboard.
+const pinLink = heroId => location.origin + location.pathname + '#pin=' + ACC.user.pin + (heroId ? '&hero=' + heroId.slice(2) : '');
+async function pinLinkArrived() {
+  const h = new URLSearchParams(location.hash.slice(1)), pin = (h.get('pin') || '').toUpperCase(), hero = h.get('hero');
+  if (!pin) return;
+  history.replaceState(null, '', location.pathname + location.search);   // (the PIN out of the address bar)
+  const err = await accUsePin(pin);
+  if (err) return heroNote('Sign-in link', err, true);
+  const want = hero && Object.values(ACC.heroes).find(e => e.id === 's:' + hero || e.name.toLowerCase() === hero.toLowerCase());
+  if (want) choose(want.id); else titleRefresh();
+  if (hero && !want) heroNote('Sign-in link', `Signed in with PIN ${pin.slice(0, 2)}…, but the hero in the link is not among its heroes.`, true);
+}
+addEventListener('hashchange', () => { if (ACC.ready && !$('screen').classList.contains('hidden')) pinLinkArrived(); });   // (pasted into an open tab)
+async function copyLink(text, what) {
+  let ok = false; try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {}
+  const { box, close, row, button } = cfgBox(); const h3 = document.createElement('h3'); h3.textContent = ok ? 'Link copied' : 'Your link'; box.appendChild(h3);
+  const p = document.createElement('p'); p.style.margin = '0'; p.textContent = (ok ? 'The link is on your clipboard. ' : 'Copy this link: ') + what; box.appendChild(p);
+  const inp = document.createElement('input'); inp.type = 'text'; inp.readOnly = true; inp.value = text; inp.addEventListener('focus', () => inp.select()); row(inp);
+  const w = document.createElement('p'); w.className = 'warn'; w.textContent = 'The link holds your PIN: anyone who has it can play and change these heroes. Share it only with people you trust.'; box.appendChild(w);
+  row(button('Close', close)).style.justifyContent = 'flex-end'; setTimeout(() => inp.select(), 0);
+}
 // Testers: signed in with a PIN starting MI. Only they see the Scenarios button, Import and Export.
 const tester = () => !!(ACC.user && ACC.user.pin && ACC.user.pin.startsWith('MI'));
 // ---- Help: the controls and the ways to sign in
@@ -6536,7 +6565,7 @@ loadAll().then(() => {
   buildUI(); fitUI();
   newGame(null); G.running = false; G.camSnap = true;   // render a first level behind the title screen
   const b = $('startBtn'); b.disabled = false; titleRefresh();
-  accInit();   // sign-in state and server heroes (account.js), in the background
+  accInit().then(pinLinkArrived);   // sign-in state and server heroes (account.js), in the background; then a PIN link
   requestAnimationFrame(frame);
 }).catch(err => { console.error('Start-up failed:', err); $('startBtn').textContent = (typeof err === 'string' ? 'Failed to load ' : 'Start-up failed: ') + err; });
 </script>
