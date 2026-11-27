@@ -203,12 +203,11 @@
   /* ---------- Market (a Keeper of the Crypt) ---------- */
   #market { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -52%); width: min(1060px, 97vw); z-index: 20;
     background: var(--panel); border: 1px solid var(--panel-edge); box-shadow: 0 0 0 1px #000, 0 0 40px rgba(0,0,0,0.8); padding: 14px 18px 14px; }
-  #riftAsk { position: fixed; left: 50%; top: 42%; transform: translate(-50%, -50%); width: min(440px, calc(100vw - 32px)); z-index: 22;
-    background: var(--panel); border: 1px solid var(--panel-edge); box-shadow: 0 0 0 1px #000, 0 0 40px rgba(0,0,0,0.8); padding: 14px 18px;
-    color: var(--ink); font-size: 15px; line-height: 1.4; }
-  #riftAsk h2 { font-family: Cinzel, serif; margin: 0 0 6px; color: #c9b0f0; font-size: 18px; letter-spacing: 1px; }
-  #riftAsk .ty { color: var(--ink-dim); font-size: 12px; margin-top: 6px; }
-  #riftAsk .btns { display: flex; gap: 10px; justify-content: flex-end; margin-top: 12px; }
+  #portalBlock { display: none; position: fixed; inset: 0; z-index: 41; }
+  body.portalWait #portalBlock { display: block; cursor: progress; }
+  #hud, #fsBtn { transition: opacity 0.45s ease; }   /* (fades out while going through a portal, back in after) */
+  body.portalWait #hud, body.portalWait #fsBtn { opacity: 0; pointer-events: none; }
+  body.portalWait #equip { display: none; }
   #market h2, #market h3 { font-family: Cinzel, serif; margin: 0; color: var(--gold); font-weight: 700; letter-spacing: 2px; }
   #market h2 { font-size: 19px; } #market h3 { font-size: 13px; margin-bottom: 6px; }
   .mkWho { display: flex; gap: 12px; align-items: center; }
@@ -380,7 +379,7 @@
       Hover a weapon or potion and press 1–9 or 0 to bind it to that key. Right-click (or Shift + click) a pack item to drop it, or a key to clear it.</div>
   </div>
 </div>
-<div id="riftAsk" class="hidden"></div>
+<div id="portalBlock"></div>
 <div id="market" class="hidden">
   <div class="eqHead"><div class="mkWho"><canvas id="mkPortrait" width="128" height="128"></canvas><div><h2 id="mkName"></h2><div class="hint" id="mkGreet"></div></div></div>
     <div class="right"><span id="mkGold"></span><button id="mkClose" title="Close">✕</button></div></div>
@@ -438,7 +437,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 160;
+const VERSION = 161;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -3560,7 +3559,7 @@ function act0(ref, other = false) {
     case 'keeper': if (!dlgTalk(o)) openMarket(o); break;   // a keeper with something to say talks first
     case 'npc': dlgTalk(o); break;
     case 'cryptdoor': descend(); break;
-    case 'portal': riftAsk(o); break;
+    case 'portal': riftGo(); break;   // straight through (realm.js)
   }
 }
 // A scroll's spell when its reading ends (h.using u, already cleared). True if the hero left the level (or died),
@@ -5381,7 +5380,7 @@ function render() {
   }
   for (const mo of G.monsters) if (mo.parts) { if (Math.abs(mo.x - h.x) < 30 && Math.abs(mo.y - h.y) < 30) dragonDrawables(mo, dl); }
     else if (mo.x >= x0 && mo.x <= x1 + 1 && mo.y >= y0 && mo.y <= y1 + 1) dl.push({ k: mo.x + mo.y, t: 2, e: mo });
-  dl.push({ k: h.x + h.y, t: 3, e: h });
+  if (!RA.busy) dl.push({ k: h.x + h.y, t: 3, e: h });   // (stepping into the portal, connecting: not drawn)
   for (const e of G.heroes) if (e.remote && e.x >= x0 && e.x <= x1 + 1 && e.y >= y0 && e.y <= y1 + 1) dl.push({ k: e.x + e.y, t: 3, e });   // the other players' heroes (net.js)
   for (const p of G.proj) dl.push({ k: p.x + p.y, t: 4, p });
   for (const fi of G.items) if (fi.x >= x0 && fi.x <= x1 + 1 && fi.y >= y0 && fi.y <= y1 + 1) dl.push({ k: fi.x + fi.y, t: 8, fi });   // an item's icon stands up
@@ -5519,7 +5518,7 @@ function render() {
   if (G.hover && G.hover.kind === 'obj') {
     const o = G.hover.r, [cx, cy] = objCenter(o), [sx, sy] = iso(cx, cy);
     // (only the keeper's own look picks a keeper name: doors have a look too)
-    const label = { portal: o.type === 'portal' ? (G.rift ? 'Portal — back to the surface' : 'Rift Portal — The Rift of ' + currentRealm().name) : '', cryptdoor: 'Crypt Entrance — Depth 1', keeper: o.type === 'keeper' && KEEPERS[o.look] ? KEEPERS[o.look].name + ', Keeper of the Crypt' : '', chest: o.boss ? "Guardian's Chest" : 'Chest', satchel: 'Satchel', door: 'Door', urn: 'Funeral Urn', bones: 'Bones', gold: o.amount + ' Gold', stairs: 'Stairs Down — Depth ' + (G.depth + 1), npc: o.type === 'npc' ? npcName(o, o.char) : '' }[o.type];
+    const label = { portal: o.type === 'portal' ? (G.rift ? 'Portal — back to the surface' : 'Rift Portal — The Rift of ' + currentRealm().name + (currentRealm().pvp ? ' (blades drawn)' : '')) : '', cryptdoor: 'Crypt Entrance — Depth 1', keeper: o.type === 'keeper' && KEEPERS[o.look] ? KEEPERS[o.look].name + ', Keeper of the Crypt' : '', chest: o.boss ? "Guardian's Chest" : 'Chest', satchel: 'Satchel', door: 'Door', urn: 'Funeral Urn', bones: 'Bones', gold: o.amount + ' Gold', stairs: 'Stairs Down — Depth ' + (G.depth + 1), npc: o.type === 'npc' ? npcName(o, o.char) : '' }[o.type];
     ctx.font = '14px Cinzel, serif'; const tw = ctx.measureText(label).width + 12;
     ctx.fillStyle = 'rgba(0,0,0,0.7)'; ctx.fillRect(sx - tw / 2, G.hover.y - 22, tw, 19); ctx.fillStyle = '#e8dcc4'; ctx.fillText(label, sx, G.hover.y - 8);
   }

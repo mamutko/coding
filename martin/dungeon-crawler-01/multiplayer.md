@@ -80,8 +80,9 @@ made on entering (`surfAt`).
   Because every point of a W–E arch has the same depth key x + y, it sorts as one sprite: the hero can walk in
   front of and behind it without slicing it into strips. It is 4 tiles wide.
 - **Entering:** walking into the arch's opening (the strip of 2 tiles in the middle of its face) with the dial set
-  as wanted. The game first asks Supabase how many players are in that realm and shows: *"Step into the Rift of
-  Ashen Hollow? 2 adventurers are inside."* (or *"The Rift lies empty. You will be the first."*), Enter / Stay.
+  as wanted, or clicking the portal, goes straight through (v161; until then a question showed who was inside, Enter /
+  Stay). While the game connects, the surface keeps being drawn without the hero, the HUD fades out and input is
+  ignored; who is inside is logged on arriving.
 
 ### Art
 

@@ -47,7 +47,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `assets/surface.webp` | The surface's sprites: four bushes, four ground details (flowers, rocks, mushrooms, a grass tuft) and the crypt. Coordinates in `META.surface`. It still holds the four retired small trees (`tree1`–`tree4`: oak, fir, dead tree, birch), no longer used. |
 | `assets/bigtrees.webp` | The surface's trees: five kinds (oak, Scots pine, silver birch, autumn maple, dead tree) in three variants each, each tree as three cropped layers (roots with its cast shadow, trunk, crown), one tree per row. Coordinates in `META.bigtrees`. See [The surface](#the-surface-depth-0), Trees. |
 | `net.js` | The Rift's network: Supabase Realtime presence and the WebRTC handshake, the mesh of data channels, other players' heroes; loaded by `index.html` before its main script. See [The Rift](#the-rift), Playing together. |
-| `realm.js` | The Rift: its portal and dial on the surface, realm ids and names, the question at the portal, entering and leaving; loaded by `index.html` before its main script. See [The Rift](#the-rift). |
+| `realm.js` | The Rift: its portal and dial on the surface, realm ids and names, going through the portal, entering and leaving; loaded by `index.html` before its main script. See [The Rift](#the-rift). |
 | `assets/portal.webp` | The Rift portal's three layers: the arch, its platform and the dial. Coordinates in `META.portal`. |
 | `tools/add_portal.py`, `tools/raw/portal.png`, `tools/raw/dial.png` | Cuts the portal picture into the arch and its platform, squashes the dial to the iso ground, finds the vortex, and writes `assets/portal.webp` and `META.portal`. The other candidates are in `assets/unused/portal/`. |
 | `tools/add_bigtree.py`, `tools/raw/bigtree_*.png` | Cuts each big tree into its three layers, sinks its roots into the ground, adds its cast shadow, and writes `assets/bigtrees.webp` and `META.bigtrees` (into `assets/meta.json` and the inline `META`). `bigtree_*_alt.png` are the other candidates, not used. |
@@ -876,18 +876,22 @@ relay for networks that cannot connect directly (on hold). The code is in `realm
   - **Realm id** (`realmOf`): `v<VERSION>-<hash>`, the hash 10 base-32 characters of a 53-bit cyrb53 hash of the
     key (`realmHash`). An empty dial is the **open Rift**.
   - **Realm name:** two words picked by the hash from 32 adjectives and 32 nouns (`RIFT_A`, `RIFT_B`), e.g. *Shadowed
-    Maw*, shown in the hover label, the question and the HUD.
+    Maw*, shown in the portal's hover label ("Rift Portal — The Rift of <name>", with "(blades drawn)" when a sword
+    lies on the dial) and the HUD.
   - **Saved:** the dial's items are the hero's (`hero.dial`, saved: [Saving](#saving)) but not in the pack. They are
     taken from the dial whenever the hero is saved on the surface and when it leaves the surface (`syncDial`:
     descending, a scroll of return, the Rift), and laid on the dial again, spread in a ring, whenever the surface
     is built (`restoreDial`).
-- **The question:** stepping into the gate (`onGate`: between the pillars, across within 1.6 of the middle, and on
-  the base line or up to 1.5 past it; `riftCheck`, every frame) opens a panel (`riftAsk`) once, until the hero
-  steps out again:
-  - outside: "The Rift of <name>", whether the dial is empty (the open Rift) or its items chose the realm, "The Rift
-    lies empty. You will be the first." (no other players yet), the realm id, and that the hero is saved before
-    going and nothing is saved inside. **Enter** / **Stay**.
-  - inside: "Step back through the portal to the surface?" **Leave** / **Stay**.
+- **Going through** (since v161 without a question): stepping into the gate (`onGate`: between the pillars, across
+  within 1.6 of the middle, and on the base line or up to 1.5 past it; `riftCheck`, every frame), or clicking the
+  portal, goes straight through (`riftGo`): into the Rift from the surface, out of it from inside; once, until the
+  hero steps off the gate again.
+- **While connecting** (`riftWait`, the moment `netJoin` takes to find the realm and its players): the surface goes
+  on being drawn and running, but the hero, having stepped into the portal, is not drawn; the HUD fades out (0.45 s;
+  `body.portalWait`: the orbs, quick keys, minimap, log and the rest; the equipment overlay closes) and comes back
+  the same way in the Rift; all input is ignored (`RA.busy`: a transparent blocker over the page takes the pointer,
+  a key handler in the capture phase the keys). Who is inside is logged on arriving ("Alda (level 12) walks this
+  Rift. …"); a full realm leaves the hero on the surface with "The Rift of <name> is full. …"
 - **Entering** (`enterRift`): the dial is read, the hero is saved on the surface (with `surfAt: 'portal'`, so a
   hero resumed from that save, after closing the tab inside the Rift or dying there, stands before the portal), the
   level is left as by a scroll (conversation, market and fires closed), and the Rift is built: `G.rift = { id, name,
@@ -934,7 +938,7 @@ relay for networks that cannot connect directly (on hold). The code is in `realm
   nothing). Scrolls of surface escape and return do nothing ("The Rift does not let go so easily. Find the
   portal."). **Death** is the usual death ("You have fallen in the Rift of <name>."): the hero resumes from the save
   made on entering, before the portal, and loses what it won inside.
-- **Leaving** (`leaveRift`): through the portal, after the question: the surface is built with the hero before the
+- **Leaving** (`leaveRift`): through the portal, at once: the surface is built with the hero before the
   portal (`buildSurface('portal')`), its dial items back on the dial, and the hero is saved.
 - **Monsters' target** (`monTarget`): alone, our hero; with others in the Rift, see Playing together, Monsters.
 
@@ -950,11 +954,10 @@ shared project, its public key; no table) and then talk directly over **WebRTC**
   since }`, `peer` a random id per page, `since` when it joined) and **broadcast** messages `sig` for the WebRTC
   handshake (`{ to, from, k: 'offer' | 'answer' | 'ice', d }`; everyone ignores those not addressed to it). The
   realm exists while its presence is not empty.
-- **At the portal** (`netPeek`): the question subscribes to the channel without showing itself and waits up to
-  1.5 s for the presence list (the first sync can come before the list): "1 adventurer is inside: Alda (level 12).",
-  "The Rift lies empty. You will be the first.", "The Rift is full" (Enter disabled) or "The Rift is silent: …".
-  **Stay** closes the channel.
-- **Entering** (`netJoin`, "Entering the Rift of <name>…" meanwhile): the hero shows itself in the presence, waits
+- **Looking in** (`netPeek`, the first step of `netJoin`): subscribes to the channel without showing itself and
+  waits up to 1.5 s for the presence list (the first sync can come before the list). (Until v161 the question at the
+  portal showed it: who was inside, or "The Rift lies empty", "The Rift is full", "The Rift is silent".)
+- **Entering** (`netJoin`, the hero and HUD hidden meanwhile: see The Rift, While connecting): the hero shows itself in the presence, waits
   0.7 s (`raceWait`), and looks for **older** players (smaller `since`, ties by `peer`):
   - none: it **founds** the realm (builds the Rift as alone; see above). Two players walking in at the same moment
     both look; the younger one finds the older and joins it instead.

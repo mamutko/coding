@@ -71,41 +71,20 @@ function restoreDial(sv) {
     sv.items.push({ item, wx: RIFT.dial[0] + Math.cos(a) * r, wy: RIFT.dial[1] + Math.sin(a) * r, t: rnd() * 6 }); });
 }
 
-// ---- Going through: a question first
-const RA = { o: null, away: true };   // the portal asked about; away: the hero has stepped off its gate since
-function riftCheck() {   // every frame: the hero on a gate tile of a portal asks once, until it steps off again
-  const h = G.hero; if (G.dead || !G.running) return;
+// ---- Going through: no question. Stepping into a portal's gate (or clicking the portal) goes through at once:
+// into the Rift from the surface, out of it from inside. Again only once the hero has stepped off the gate.
+const RA = { o: null, away: true };   // away: the hero has stepped off the gate since; busy: connecting (riftWait)
+function riftCheck() {   // every frame: the hero on a gate tile of a portal goes through, once, until it steps off again
+  const h = G.hero; if (G.dead || !G.running || RA.busy) return;
   const o = G.objects.find(p => p.type === 'portal' && Math.abs(p.x - h.x) < 4 && Math.abs(p.y - h.y) < 4);
   const on = o && onGate(o, h);
   if (!on) { RA.away = true; return; }
-  if (!RA.away || RA.o) return;
-  RA.away = false; riftAsk(o);
+  if (!RA.away) return;
+  RA.away = false; riftGo();
 }
-function riftAsk(o) {
-  RA.o = o; const el = $('riftAsk'), inside = !!G.rift;
-  let html;
-  if (inside) html = `<h2>The Rift of ${G.rift.name}</h2><div>Step back through the portal to the surface?</div><div class="ty">You will be saved there.</div>`;
-  else { const r = currentRealm();
-    html = `<h2>The Rift of ${r.name}</h2><div>${r.open ? 'The dial is empty: this is the open Rift, where strangers meet.' : 'The items on the dial have chosen this realm.'}</div>` +
-      (r.pvp ? `<div style="color:#ff6a5a">A sword lies on the dial: blades are drawn in this realm. Heroes can hurt each other here.</div>` : '') +
-      `<div id="raWho">Listening at the portal…</div><div class="ty">Realm ${r.id}. You are saved before you go. Nothing is saved inside: leave through this portal to keep what you win; die in there and you lose it.</div>`;
-    // who is inside (net.js): the realm's presence, read without showing ourselves
-    const ask = RA.o;
-    netPeek(r.id).then(list => { if (RA.o !== ask || !$('raWho')) return;
-      const who = $('raWho'), go = $('raGo');
-      if (list == null) who.textContent = 'The Rift is silent: no one else can be reached from here. You can still go in alone.';
-      else if (!list.length) who.textContent = 'The Rift lies empty. You will be the first.';
-      else if (list.length >= NET_CFG.max) { who.textContent = 'The Rift is full (' + list.length + ' adventurers).'; if (go) go.disabled = true; }
-      else who.textContent = (list.length === 1 ? '1 adventurer is' : list.length + ' adventurers are') + ' inside: ' + list.map(p => p.name + ' (level ' + p.lvl + ')').join(', ') + '.'; }); }
-  el.innerHTML = html + `<div class="btns"><button id="raGo">${inside ? 'Leave' : 'Enter'}</button><button id="raStay">Stay</button></div>`;
-  el.classList.remove('hidden');
-  $('raGo').onclick = () => { riftClose(true); inside ? leaveRift() : enterRift(); };
-  $('raStay').onclick = () => riftClose();
-}
-function riftClose(going) {   // (staying outside: let go of the realm's channel the question opened)
-  if (RA.o && !going && !G.rift && !RA.busy) netClose();
-  RA.o = null; const el = $('riftAsk'); el.classList.add('hidden'); el.innerHTML = ''; }
-const riftAskOpen = () => !!RA.o;
+function riftGo() { if (RA.busy) return; if (G.rift) leaveRift(); else enterRift(); }
+function riftClose() { RA.o = null; }   // (leaving a level: nothing to close any more)
+const riftAskOpen = () => false;
 
 // ---- Entering and leaving
 async function enterRift() {
@@ -116,11 +95,12 @@ async function enterRift() {
   h.surfAt = null;
   const r = currentRealm(), d = Math.max(1, h.maxDepth || 1);
   // join the realm (net.js): found it, join the players already in it, or (no connection) go in alone
-  RA.busy = true; riftWait('Entering the Rift of ' + r.name + '…');
+  riftWait(true);   // connecting: the surface goes on, without the hero, the HUD or any input
   const res = await netJoin(r.id, { name: h.name, lvl: h.lvl, look: h.look || 'hero', depth: d });
-  RA.busy = false; riftWait(null);
+  riftWait(false);
   if (G !== g || G.dead || G.rift || G.depth !== 0) { netLeave(); return; }   // gone meanwhile (died, another game)
   if (res && res.role === 'full') { log('The Rift of ' + r.name + ' is full. Try again later, or set the dial for another realm.', '#e06a5a'); return; }
+  const others = res && res.role === 'joiner' ? presenceList().filter(q => q.peer !== NET.me) : [];
   leaveLevel(); sfx('stairs');
   G.rift = { id: r.id, name: r.name, d, pvp: r.pvp };
   G.depth = d;
@@ -129,7 +109,7 @@ async function enterRift() {
   log('You step through the portal into the Rift of ' + r.name + '.', '#b49ae6');
   if (!res) log('The Rift is silent: no one else can reach you here.', '#a99c86');
   else if (res.role === 'unreachable') log('You could not reach ' + (res.name || 'the others') + ' in this Rift: you are alone in it.', '#e06a5a');
-  else if (res.role === 'joiner') log('Others walk this Rift. Your coming woke more of its monsters: in rooms no one had claimed, over the lake, in the great hall, and a new guardian in the boss chamber.', '#a99c86');
+  else if (res.role === 'joiner') log((others.length ? others.map(q => q.name + ' (level ' + q.lvl + ')').join(', ') + (others.length === 1 ? ' walks' : ' walk') + ' this Rift.' : 'Others walk this Rift.') + ' Your coming woke more of its monsters: in rooms no one had claimed, over the lake, in the great hall, and a new guardian in the boss chamber.', '#a99c86');
   if (r.pvp) log('Blades are drawn in this realm: other heroes can hurt you, and you them.', '#ff6a5a');
   log('Monsters here match the deepest depth you have reached (' + G.depth + '). Nothing is saved until you leave through the portal.', '#a99c86');
   refreshUI();
@@ -172,8 +152,14 @@ function pickPortal(o) {   // the hover / click box: the arch's opening
 }
 
 // "Entering the Rift…" while the realm is being joined
-function riftWait(text) { const el = $('riftAsk'); if (!text) { el.classList.add('hidden'); el.innerHTML = ''; return; }
-  el.innerHTML = `<h2>${text}</h2><div class="ty">Looking for the others in this realm.</div>`; el.classList.remove('hidden'); }
+// While connecting to the realm (netJoin, a moment): the surface keeps being drawn and running, but the hero is not
+// drawn (it has stepped into the portal), the HUD is hidden (body.portalWait) and all input is ignored (RA.busy:
+// a blocker over the page takes the pointer, a key handler in the capture phase the keys).
+function riftWait(on) {
+  RA.busy = on; document.body.classList.toggle('portalWait', on);
+  if (on) { const h = G.hero; h.path = []; h.intent = null; h.attackTarget = null; h.attackPending = false; h.pendingAt = null; h.queue = []; hideTip(); }
+}
+addEventListener('keydown', e => { if (RA.busy) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
 
 // ---- The snapshot: what a player joining the realm gets from its elder (net.js): the map (tiles and blocked tiles,
 // run-length encoded), its rooms and its lasting furnishings (doors, the portal, braziers, banners, pillars, …).

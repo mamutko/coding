@@ -9,9 +9,18 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v161 — straight through the portal (2026-11-27)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 161`)*
+
+- No more question at the Rift's portal: walking into the arch (or clicking the portal) goes straight in, or out.
+- While the game connects to the realm, the surface goes on, your hero has stepped into the portal, the HUD fades out
+  and nothing can be clicked; it all comes back in the Rift. Who is there is told in the log on arrival.
+- The portal's label says "(blades drawn)" when a sword on the dial makes it a realm where heroes can hurt each other.
+
 ## v159–v160 — a magic chest at depths 2 and 3; the catalog to depth 20 (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 160`)*
+Commit: 5ddafac
 
 - Depths 2 and 3 each have one chest with a single magic item of the lowest tier, a first taste of magic before
   magic drops begin at depth 4.
