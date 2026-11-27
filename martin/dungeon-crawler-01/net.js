@@ -318,7 +318,8 @@ function netMsg(p, data) {
     case 'hx': { const mo = NET.mons.get(m.i); if (mo && !mo.dead) { netSeeHit(mo, m.v, m.c, m.f); netDot(mo); } break; }   // someone else struck it: seen only
     case 'wk': if (G.map) netWoken(m.a); break;   // another player's monster woke ours near it
     case 'ma': { const mo = NET.mons.get(m.i); if (mo && mo.owner && !mo.dead) { mo.lunge = 1; netDot(mo); } break; }   // its owner says it struck
-    case 'sw': { const e = p.hero; if (e) { e.swing = { t: 0, dur: 0.24, ang: m.a, arc: m.r }; e.lunge = 1; sfx('swing', { kind: m.k, x: e.x, y: e.y }); } break; }
+    case 'kn': { const mo = NET.mons.get(m.i); if (mo && !mo.owner && !mo.dead && !mo.parts) mo.kb = { vx: m.vx, vy: m.vy, t: KNOCK_T }; break; }
+    case 'sw': { const e = p.hero; if (e) { e.swing = { t: 0, dur: m.du || 0.24, ang: m.a, arc: m.r, reach: m.rc }; e.lunge = 1; sfx('swing', { kind: m.k, x: e.x, y: e.y }); } break; }
     case 'arw': if (G.map) { G.proj.push({ type: 'arrow', x: m.x, y: m.y, vx: m.vx, vy: m.vy, life: m.l, dmg: 0, friendly: true, ghost: true }); if (p.hero) sfx('bow', { x: m.x, y: m.y }); } break;   // seen only
     case 'hd': { const e = p.hero; if (e) { e.hitT = 0.15; floatText(e.x, e.y, '-' + m.v, m.f ? '#ff9a40' : '#ff5a4a', 0.9, 16); } break; }   // their hero was hurt
     case 'died': { NET.gone.add(m.i); const mo = NET.mons.get(m.i); if (mo) { netDot(mo); netRemoteDied(mo, m.xp && m.xp[NET.me] || 0); } break; }
@@ -532,7 +533,8 @@ function netSeeHit(m, v, crit, fire) {   // another player's hero struck a monst
     sfx('hit', { mat: HIT_MAT[m.type], x: m.x, y: m.y }); }
 }
 // What our hero does, seen by the others (drawn on its copy there): a swing, an arrow, being hurt
-function netSwing(h) { netFx({ t: 'sw', a: +h.swing.ang.toFixed(3), r: h.swing.arc, k: weaponOf(h).kind }, h.x, h.y); }
+function netSwing(h) { netFx({ t: 'sw', a: +h.swing.ang.toFixed(3), r: +h.swing.arc.toFixed(3), rc: h.swing.reach, du: h.swing.dur, k: weaponOf(h).kind }, h.x, h.y); }
+function netKnock(m, vx, vy) { const p = NET.peers.get(m.owner); if (p) netSend(p, { t: 'kn', i: m.nid, vx: +vx.toFixed(2), vy: +vy.toFixed(2) }); }   // our flail threw another player's monster: its owner throws it
 function netArrow(a) { netFx({ t: 'arw', x: +a.x.toFixed(2), y: +a.y.toFixed(2), vx: +a.vx.toFixed(2), vy: +a.vy.toFixed(2), l: +a.life.toFixed(2) }, a.x, a.y, a.x + a.vx * a.life, a.y + a.vy * a.life); }
 function netHurt(v, fire) { netFx({ t: 'hd', v, f: fire ? 1 : 0 }, G.hero.x, G.hero.y); }
 // One of ours woke (sighting or a hit) next to other players' monsters: the wake rules (WAKES) run here, but those

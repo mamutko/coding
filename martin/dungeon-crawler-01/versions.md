@@ -9,9 +9,20 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v154 — flails and polearms, for fighting crowds; axes and bows rebalanced (2026-11-27)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 154`)*
+
+- Flails spin all the way round, hitting every monster in reach with the full blow and knocking them back; they hit
+  weaker and slower to make up for it. Flail from depth 3, Morning Star from depth 10.
+- Polearms sweep a half circle at a long reach (the front rank and the one behind), every monster with the full blow.
+  Glaive from depth 6, Halberd from depth 13.
+- Axes do a little less damage (about 8 %) but cleave harder: 40 % to the other monsters in the arc (was 25 %).
+- Bows and crossbows do about 10 % less damage. (Items already found keep their numbers.)
+
 ## v153 — the bigger side wins a merge; the monster load kept even (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 153`)*
+Commit: 341f1c3
 
 - When players who were split apart meet again, conflicts (monsters both sides ran, loot, doors) go to the side with
   more players; equal sides to whoever entered the Rift first.

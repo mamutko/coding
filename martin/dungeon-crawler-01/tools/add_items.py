@@ -21,6 +21,9 @@ Raw sheets (tools/raw):
               reference, 3 x 2 cells on magenta: six crossbow designs; cell 0 (dark oak, blackened steel
               prod, a crank) is the Heavy Crossbow (crossbow), cell 2 (brass fittings, a carved stock) the
               Gilded Arbalest (arbalest); the other four are unused.
+  crowd.png   Google gemini-3.1-flash-image edit with six weapon icons from the atlas as the style reference,
+              3 x 2 cells on magenta: three flails and three polearms; cell 0 (a light flail) is the Flail, cell 1
+              (a spiked ball) the Morning Star, cell 3 the Glaive, cell 5 (blackened steel, brass) the Halberd.
 Then it rewrites assets/meta.json and the inline `const META = ...` line in index.html.
 """
 import ast, json, pathlib, re, sys
@@ -53,6 +56,7 @@ SHEETS = [
                              (4, "firebomb5"), (5, "firebomb6")]),
     ("scrolls.png", 3, 2, [(0, "frostscroll")]),
     ("crossbows.png", 3, 2, [(0, "crossbow"), (2, "arbalest")]),
+    ("crowd.png", 3, 2, [(0, "flail"), (1, "morningstar"), (3, "glaive"), (5, "halberd")]),
 ]
 
 

@@ -40,7 +40,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `tools/dragon/cut_body.py` | Cuts the painted legs off the dragon's body: `python tools/dragon/cut_body.py body16` (or `body32`) keeps `paint/body16.png` inside the knobbed body's outline of `guide/body16.png` grown 5 px and softened 2 px, plus everything above that outline's lower edge in each column (the painted back and spikes stand higher than the guide's) and the upper half of each view whole (the painting is a little wider); writes `paint/body16.cut.png`; skips an empty cell. |
 | `tools/raw/cast_design1.png`, `cast_design2.png` | The cast's front-view design sheets (4 × 1 each, on magenta). |
 | `assets/spider.webp`, `wraith.webp`, `demon.webp` | 8-direction × 4-frame monster sprite sheets (transparent). |
-| `assets/items.webp` | 6 × 8 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–8 from `add_items.py`). |
+| `assets/items.webp` | 6 × 10 atlas of 96 px item icons (`ATLAS_W` × `ATLAS_H`; rows 1–4 from `process_art.py`, rows 5–10 from `add_items.py`). |
 | `assets/props.webp` | Props: row 1 has the chest, open chest, door, stairs, brazier, bones, urn and gold, and the boss-room furnishings (throne, altar, candelabrum, skull pile, banner, pillar, sarcophagus), from `process_art.py`; row 2 has the searched bones (`bonesused`) and the door leaves (`doorA`, `doorB`), from `add_props.py`; rows 3 on have the four Keepers of the Crypt (`keeper1`–`keeper4`) and their stall's furnishings (`mtable`, `mrack`, `mchest`, `mshelf`, `mcrates`, `mbarrel`, `mlantern`, `mrug`), from `add_market.py`. |
 | `assets/floor.jpg`, `assets/wall.jpg` | 512 px seamless floor and wall textures. |
 | `assets/grass_a.jpg`, `assets/grass_b.jpg` | 512 px seamless grass textures of the surface (lush dark green; patchy olive meadow). See [The surface](#the-surface-depth-0). |
@@ -58,7 +58,7 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `tools/process_art.py` | Turns the raw AI images for the 4-frame monsters, items, props and textures into the files above (chroma-key, slicing, packing). Imports `walk_cycle.py`. |
 | `tools/stride_check.py` | Checks an AI walk-cycle image against its pose guide, frame by frame (foot spread in the side views, which foot is lower in the front and back views), and marks frames that copy the other half of the stride. See [Walk cycles](#walk-cycles-hero-skeleton-ghoul). |
 | `tools/walk_cycle.py` | Walk-cycle pipeline (hero, skeleton, ghoul): renders the 3D stick-figure pose guides and placeholders, and builds the 8-frame sheets. |
-| `tools/add_items.py`, `tools/raw/items2.png`, `items3.png`, `firebombs.png`, `scrolls.png`, `scrolls2.png` | Appends the icons of the newer item types (and a quiver), the six fire bomb designs and the scroll of frost (`frostscroll`, cell 1 of `scrolls.png`), to `assets/items.webp` from the three raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
+| `tools/add_items.py`, `tools/raw/items2.png`, `items3.png`, `firebombs.png`, `scrolls.png`, `scrolls2.png`, `crossbows.png`, `crowd.png` | Appends the icons of the newer item types (and a quiver), the six fire bomb designs and the scroll of frost (`frostscroll`, cell 1 of `scrolls.png`), to `assets/items.webp` from the three raw sheets, and updates `assets/meta.json` and the inline `META`. See [Assets](#assets). |
 | `tools/add_market.py`, `tools/raw/keepers.png`, `keeper_decor.png` | Adds the Keepers of the Crypt and their furnishings to `assets/props.webp` (the rows after row 2) and updates `assets/meta.json` and the inline `META`. See [Keepers of the Crypt](#keepers-of-the-crypt-the-market). |
 | `tools/add_props.py`, `tools/raw/bones_searched.png`, `doors.png`, `dirt_b.png` | Adds row 2 of `assets/props.webp` (searched bones, door leaves) and makes `assets/dirt.jpg` seamless; updates `assets/meta.json` and the inline `META`. |
 | `tools/cut_sfx.py`, `tools/raw/sfx/` | Cuts the AI-voiced ghoul takes into the clips in `assets/sfx/`. |
@@ -1415,19 +1415,34 @@ for a fixed amount (see [Fire bombs](#fire-bombs)).
 
 Every hit deals at least 1 damage.
 
-**Melee (swords, axes, bare hands).** Right-click a monster to walk into range and strike it; holding the
+**Melee (swords, axes, flails, polearms, bare hands).** Right-click a monster to walk into range and strike it; holding the
 button keeps attacking. Right-clicking empty ground swings at once toward the cursor. A swing hits *every*
-monster within reach and inside the arc, 0.08 s into a 0.24 s animation. Monsters right next to the hero are
-hit regardless of angle. Only the **main target** takes full damage; every other monster hit takes 25 %
-(`CLEAVE`). The main target is the clicked monster; for a swing at the ground (or if the clicked monster isn't
+monster within reach and inside the arc, 0.08 s into a 0.24 s animation (a flail's spin 0.32 s). Monsters right next to the hero are
+hit regardless of angle. Only the **main target** takes full damage; every other monster hit takes a share by
+weapon type (`KIND_CLEAVE`: 25 % for swords and bare hands, `CLEAVE`; 40 % for axes; all of it for the crowd
+weapons, flails and polearms). The main target is the clicked monster; for a swing at the ground (or if the clicked monster isn't
 in the swing), it is the hit monster closest to the aim direction (nearer one on a near-tie). Each monster
 gets its own damage and crit roll, then its own armor reduction.
 
 | Weapon type | Reach (tiles) | Half-arc |
 |---|---|---|
 | Sword | 1.55 | 0.9 rad |
-| Axe | 1.45 | 1.25 rad (wide cleave) |
+| Axe | 1.45 | 1.25 rad (wide cleave, 40 %) |
+| Flail | 1.5 | π (all around; every monster full; knocks back) |
+| Polearm | 2.3 | π/2 (a half circle in front; every monster full) |
 | Bare hands | 1.25 | 0.8 rad |
+
+**Crowd weapons** (since v154) are for when many monsters close in. A **flail** spins all the way round: every
+monster within reach takes the full blow and is **knocked back** (`knock` on the item: 0.6 tiles for a Flail, 0.7
+for a Morning Star; a boss half as far, the dragon not at all; `knockMonster`, `KNOCK_T` 0.15 s, during which the
+monster does nothing, so a windup in progress waits and often ends out of reach). To make up for it a flail hits
+weaker and slower than a sword of its depth (about 55–60 % of a sword's damage per second on one monster). A
+**polearm** sweeps a half circle at a long reach (2.3 tiles: the front rank and the one behind it), every monster
+in it taking the full blow, at about 85 % of a sword's damage per second on one. Knockback is meant to become a
+possible magic affix later (the item's `knock`). In the Rift another player's monster is thrown by its owner's game
+(`kn`). Their swings sound heavier (a whirl for the flail), and the swing's slash is drawn as a full circle for a
+flail and wider for a polearm. Flails and polearms share one drop group (`ITEM_GROUP`: `crowd`), so together they
+drop about as often as swords, axes or bows.
 
 **Ranged (bows).** A right click fires an arrow at the hovered monster, or toward the cursor. The hero first
 **draws the bow**, standing still, for `BOW_DRAW.base + BOW_DRAW.perCd × (cooldown − 0.6)` s (0.15 s for a Short
@@ -1575,19 +1590,26 @@ sources (`LOOT_PLUS`, below). Every type has its own icon.
 | Blackened Greatsword | sword | 20–34, 0.85 s | 8 |
 | Bastard Sword | sword | 24–40, 0.8 s | 11 |
 | Knight's Greatsword | sword | 32–52, 0.85 s | 15 |
-| Hand Axe | axe | 5–10, 0.7 s | 1 |
-| Bearded Axe | axe | 10–18, 0.8 s | 4 |
-| Battle Axe | axe | 17–29, 0.9 s | 7 |
-| Executioner's Axe | axe | 26–46, 1.05 s | 9 |
-| Great Axe | axe | 34–58, 1.05 s | 14 |
-| Short Bow | bow | 3–7, 0.6 s | 1 |
-| Hunting Bow | bow | 5–10, 0.65 s | 2 |
-| Yew Longbow | bow | 9–16, 0.75 s | 5 |
-| Bone Bow | bow | 14–25, 0.9 s | 8 |
-| Composite Bow | bow | 18–31, 0.85 s | 11 |
-| War Bow | bow | 25–42, 0.9 s | 15 |
-| Heavy Crossbow | bow | 34–56, 1.2 s | 15 |
-| Gilded Arbalest | bow | 62–104, 1.4 s | 18 |
+| Hand Axe | axe | 5–9, 0.7 s | 1 |
+| Bearded Axe | axe | 9–17, 0.8 s | 4 |
+| Battle Axe | axe | 16–27, 0.9 s | 7 |
+| Executioner's Axe | axe | 24–42, 1.05 s | 9 |
+| Great Axe | axe | 31–53, 1.05 s | 14 |
+| Flail | flail | 7–13, 1.0 s, knock 0.6 | 3 |
+| Glaive | polearm | 16–26, 0.95 s | 6 |
+| Morning Star | flail | 16–28, 1.1 s, knock 0.7 | 10 |
+| Halberd | polearm | 30–46, 1.0 s | 13 |
+| Short Bow | bow | 3–6, 0.6 s | 1 |
+| Hunting Bow | bow | 5–9, 0.65 s | 2 |
+| Yew Longbow | bow | 8–14, 0.75 s | 5 |
+| Bone Bow | bow | 13–22, 0.9 s | 8 |
+| Composite Bow | bow | 16–28, 0.85 s | 11 |
+| War Bow | bow | 22–38, 0.9 s | 15 |
+| Heavy Crossbow | bow | 31–50, 1.2 s | 15 |
+| Gilded Arbalest | bow | 56–94, 1.4 s | 18 |
+
+(v154: axes lost about 8 % of their damage but cleave 40 % instead of 25 %; bows and crossbows lost about 10 %.
+Items already found keep the numbers they dropped with.)
 | Leather Cap | helm | armor 3 | 1 |
 | Iron Helm | helm | armor 7 | 4 |
 | Horned Great Helm | helm | armor 13 | 8 |
@@ -2757,6 +2779,10 @@ walk cycles, plus small tests; since then $1.58 for the four keepers' walk cycle
     oak stock, blackened steel prod, a crank) is the Heavy Crossbow (`crossbow`, row 9), cell 2 (brass fittings, a
     carved stock) the Gilded Arbalest (`arbalest`); the other four are unused.
     (OpenAI's safety system refused the same request.)
+  - `tools/raw/crowd.png`: Google `gemini-3.1-flash-image` `edit` (1K, 3:2, ~$0.07) with six weapon icons from the
+    atlas on magenta as the style reference: three flails and three polearms. Cell 0 (a light flail, wooden
+    handle) is the Flail (`flail`), cell 1 (a spiked ball) the Morning Star (`morningstar`), cell 3 the Glaive
+    (`glaive`), cell 5 (blackened steel and brass) the Halberd (`halberd`); rows 9–10 of `items.webp`.
   - The **quiver** icon (`quiver`) isn't used yet; it is meant for limited ammo (todo #15).
 - **Dirt and searched bones** (built by `tools/add_props.py`, ~$0.14 for the two used images, ~$0.26 with the
   rejected dirt and the replaced arch-door sheet):
