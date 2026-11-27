@@ -440,7 +440,8 @@ and the picker shows no saved heroes.
   in a card (`titleRefresh`): its portrait (its look's sprite standing, facing south), name, level, depth (or *The
   surface*), its gold, where it is kept (*Kept on this device* / *Kept on the server*), and since v168 a small grid of
   what it wears and wields (weapon, helm, armor, gloves, boots, amulet, two rings; each icon edged in its rarity's
-  colour, its name on hover; empty slots dimmed; under the rest on narrow screens). **Clicking the card** opens the hero's
+  colour, its name on hover; empty slots dimmed). On phones (520 px wide or less) the portrait (smaller) and the details
+  stay side by side and the gear goes under them in one row of eight (a little smaller on the narrowest phones). **Clicking the card** opens the hero's
   settings. Below it, in one row, **Switch hero**, **New hero** and **Enter the World** (the row sticks to the bottom
   edge when the screen scrolls; on narrow screens Enter the World goes on a line of its own under the other two). At the top right **Help** and **Full screen**, at the
   top left **Sign in**. The current hero is the one last chosen on this device (`crypt-of-endless-night.pick`, either

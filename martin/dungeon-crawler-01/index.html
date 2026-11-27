@@ -263,7 +263,14 @@
     background-repeat: no-repeat; background-origin: content-box; padding: 1px; }
   #heroCard .hcGear .g.empty { opacity: 0.35; }
   #heroCard { flex-wrap: wrap; }
-  @media (max-width: 520px) { #heroCard .hcGear { margin: 4px auto 0; } }
+  @media (max-width: 520px) {   /* phones: portrait and details side by side, the gear in one row of eight under them */
+    #heroCard { gap: 10px 12px; padding: 10px 12px; justify-content: center; }
+    #heroCard canvas { width: 96px; height: 96px; }
+    #heroCard .hcInfo { flex: 1; }
+    #heroCard .hcName { font-size: 20px; }
+    #heroCard .hcGear { grid-template-columns: repeat(8, 36px); gap: 3px; flex-basis: 100%; justify-content: center; margin: 0; }
+    #heroCard .hcGear .g { width: 36px; height: 36px; } }
+  @media (max-width: 370px) { #heroCard .hcGear { zoom: 0.82; } #heroCard canvas { width: 84px; height: 84px; } }   /* (the smallest phones: the row of eight still fits) */
   #heroList .herase { font-size: 18px; }
   #heroCard .hcFirst { font-family: Cinzel, serif; font-size: 18px; color: var(--gold); }
   #heroCard:has(.hcFirst) { flex-direction: column; align-items: stretch; }
@@ -496,7 +503,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 169;
+const VERSION = 170;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
