@@ -282,6 +282,10 @@
   #heroList .row button { font-size: 14px; padding: 6px 12px; }
   #heroCfg .looks button.on, #heroCfg .row button.on { border-color: var(--gold); color: #fff; }
   #heroCfg input[type=email], #heroCfg input[type=text] { flex: 1; min-width: 0; }
+  #heroCfg .tabs button { flex: 1; font-size: 13px; padding: 6px 8px; opacity: 0.6; }
+  #heroCfg .tabs button.on { opacity: 1; border-color: var(--gold); color: #fff; }
+  #heroCfg .small { font-size: 13px; color: var(--ink-dim); }
+  #acct .initials { font-family: Cinzel, serif; font-size: 18px; color: var(--gold); letter-spacing: 2px; }
   #heroPick { display: flex; flex-direction: column; gap: 6px; width: min(420px, 100%); margin: 0 0 16px; }
   #heroPick .heroBtn { display: flex; justify-content: space-between; align-items: center; gap: 12px; font-size: 15px;
     padding: 8px 14px 8px 30px; text-align: left; position: relative; min-height: 40px; opacity: 0.78; }
@@ -478,7 +482,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 163;
+const VERSION = 164;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -6194,14 +6198,15 @@ function titleRefresh() {
     const info = document.createElement('div'); info.className = 'hcInfo';
     const nm = document.createElement('div'); nm.className = 'hcName'; nm.textContent = e.name;
     const sub = document.createElement('div'); sub.className = 'hcSub'; sub.textContent = `Level ${e.lvl} · ${e.depth ? 'Depth ' + e.depth + ' — ' + depthName(e.depth) : 'The surface'}`;
-    const wh = document.createElement('div'); wh.className = 'hcWhere'; wh.textContent = isServerId(e.id) ? 'Kept on the server' : 'Kept on this device';
+    const wh = document.createElement('div'); wh.className = 'hcWhere'; wh.textContent = isServerId(e.id) ? 'Kept on the server' + (ACC.user && ACC.user.pin ? ' (PIN ' + ACC.user.pin.slice(0, 2) + ')' : '') : 'Kept on this device';
     info.append(nm, sub, wh); card.append(cv, info);
     const lk = HERO_LOOKS[e.hero.look] ? e.hero.look : 'hero'; loadCast(lk); TITLE.look = lk;
   }
   const st = $('startBtn'); st.textContent = 'Enter the World'; st.disabled = !e; $('cfgBtn').disabled = !e;
   $('switchBtn').disabled = false;
   const a = $('acctText'), ab = $('acctBtn');
-  a.textContent = ACC.user ? accName() : !ACC.ready ? '' : ACC.sb ? '' : 'Offline: heroes on this device only';
+  a.innerHTML = ''; if (ACC.user && ACC.user.pin) { const i = document.createElement('span'); i.className = 'initials'; i.textContent = ACC.user.pin.slice(0, 2); i.title = 'Signed in with a PIN (for testing)'; a.append(i, ' PIN'); }
+  else a.textContent = ACC.user ? accName() : !ACC.ready ? '' : ACC.sb ? '' : 'Offline: heroes on this device only';
   ab.textContent = ACC.user ? 'Sign out' : 'Sign in'; ab.hidden = !ACC.sb;
   if (!$('heroList').classList.contains('hidden')) renderHeroList();
 }
@@ -6287,6 +6292,31 @@ function openLogin(step = 'email') {
   const { box, close, row, button } = cfgBox(); const h3 = document.createElement('h3'); box.appendChild(h3);
   const msg = document.createElement('p'); msg.className = 'warn'; msg.style.display = 'none';
   const say = (t, bad = true) => { msg.textContent = t; msg.className = bad ? 'warn' : ''; msg.style.display = t ? '' : 'none'; };
+  if (step === 'email' || step === 'pin') {   // two ways: an email link, or a PIN (for testing)
+    const tabs = row(button('Email link', () => openLogin('email')), button('PIN (testing)', () => openLogin('pin'))); tabs.classList.add('tabs');
+    tabs.children[step === 'email' ? 0 : 1].classList.add('on');
+  }
+  if (step === 'pin') {
+    h3.textContent = 'Sign in with a PIN';
+    const p = document.createElement('p'); p.style.margin = '0';
+    p.textContent = 'Choose a PIN: two capital letters and four digits. Your initials make good letters, e.g. MI4821. There is no account to make: a new PIN simply starts with no heroes on the server, and the same PIN brings them back on any device.';
+    const w = document.createElement('p'); w.className = 'warn';
+    w.textContent = 'A PIN is not a password. Anyone who picks the same PIN sees and can change the same heroes, and PINs can be guessed. This is mainly for testing: keep nothing precious behind a PIN, and expect this option to be retired in the future.';
+    box.append(p, w);
+    const pi = document.createElement('input'); pi.type = 'text'; pi.placeholder = 'AB1234'; pi.maxLength = 6; pi.autocomplete = 'off'; pi.spellcheck = false;
+    pi.style.textTransform = 'uppercase'; pi.style.letterSpacing = '3px'; setTimeout(() => pi.focus(), 0);
+    pi.addEventListener('input', () => { pi.value = pi.value.toUpperCase().replace(/[^A-Z0-9]/g, ''); pi.classList.remove('bad'); });
+    const go = button('Use this PIN', async () => { if (!PIN_RE.test(pi.value)) { pi.classList.add('bad'); say('A PIN is two letters and four digits, like MI4821.'); return; }
+      go.disabled = true; go.textContent = 'Signing in…'; const err = await accUsePin(pi.value); go.disabled = false; go.textContent = 'Use this PIN';
+      if (err) say(err); else close(); });
+    pi.addEventListener('keydown', e => { if (e.key === 'Enter') go.click(); });
+    row(pi, go); box.appendChild(msg);
+    const n = document.createElement('p'); n.className = 'small'; n.style.margin = '0';
+    n.textContent = 'This device remembers the PIN until you sign out, or until you come back more than 48 hours after last playing.';
+    box.appendChild(n);
+    row(button('Cancel', close)).style.justifyContent = 'flex-end';
+    return;
+  }
   if (step === 'email') {
     h3.textContent = 'Sign in';
     const p = document.createElement('p'); p.style.margin = '0'; p.textContent = 'Sign in to keep heroes on the server and play them from any device. We email you a sign-in link; no password.'; box.appendChild(p);
@@ -6416,6 +6446,7 @@ function startGame() {
   audio();
   const e = getEntry(pickSel);
   if (!e) { titleRefresh(); return; }
+  accTouch();   // (a PIN: the time of the last play, account.js)
   newGame(e);
   G.running = true; G.camSnap = true; G.deathShown = false; naming = false;
   $('heroCfg').classList.add('hidden'); $('heroList').classList.add('hidden'); $('screen').classList.add('hidden'); $('equip').classList.add('hidden'); hideTip();

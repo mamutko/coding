@@ -9,9 +9,19 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v164 — sign in with a PIN, for testing (2026-11-27)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 164`)*
+
+- The sign-in box has a second way in: a PIN of two capital letters (your initials, say) and four digits. No
+  account, no email; the same PIN brings your server heroes back on any device. The box warns that anyone with the
+  same PIN shares those heroes and that PINs can be guessed: it is for testing, and may be retired.
+- Signed in with a PIN, your initials show on the title screen. The PIN is remembered until you sign out, or until
+  you come back more than 48 hours after last playing.
+
 ## v162–v163 — a new title screen; accounts and heroes on the server (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 163`)*
+Commit: 1278004
 
 - The title screen shows just your current hero (a turning portrait, name, level, depth, where it is kept), with
   Enter the World, Switch hero, New hero and the cogwheel.

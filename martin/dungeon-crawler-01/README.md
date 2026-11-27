@@ -467,6 +467,22 @@ and the picker shows no saved heroes.
     device's heroes are shown. *Setup (Supabase dashboard, not code):* the game's address must be among the allowed
     **Redirect URLs** (Authentication → URL Configuration), else the link lands on the project's Site URL instead.
     Supabase's built-in mailer sends only a few emails an hour.
+  - **Signing in with a PIN** (since v164; for testing): the sign-in box's second tab, **PIN (testing)**. A PIN is two
+    capital letters and four digits (`PIN_RE`, e.g. initials + digits, *MI4821*; typed letters become capitals). There
+    is no account: a new PIN simply has no heroes on the server yet, and the same PIN brings them back on any device
+    (`accUsePin`). The box warns that a PIN is not a password (anyone picking the same PIN sees and can change the same
+    heroes; PINs can be guessed), that it is mainly for testing, and that the option may be retired. Signed in with a
+    PIN, the title screen shows its two letters at the top left (*MI PIN*), and a server hero's card says *Kept on the
+    server (PIN MI)*. The browser keeps the PIN (`crypt-of-endless-night.pin`: the PIN and the time of the last play,
+    updated on entering the world, on each save and once a minute while playing) until **Sign out**, or until the
+    game is opened more than **48 hours** after the last play (`PIN_IDLE`): then it is forgotten without a word and
+    the player is signed out. Signing in by email ends a PIN sign-in, and the other way round.
+  - **PIN heroes** live in their own table, **`mdc1_pin_heroes`** (`…_create_mdc1_pin_heroes.sql`), which holds a
+    salted SHA-256 of the PIN, never the PIN. Nobody can read or write the table directly (no privileges, row-level
+    security on with no policies); the game uses three database functions (`security definer`), `mdc1_pin_list(pin)`,
+    `mdc1_pin_save(pin, id, …)` and `mdc1_pin_delete(pin, id)`, which check the PIN's form and only ever touch the rows
+    of the PIN they are given, so rows cannot be listed and PINs cannot be read; saving a hero id that belongs to
+    another PIN is refused.
   - **Server heroes** live in the table **`mdc1_heroes`** of the repo's shared Supabase project
     (`supabase/migrations/20261127200000_create_mdc1_heroes.sql`): `id` (uuid), `user_id` (the player, by default
     `auth.uid()`), `name`, `lvl`, `depth`, `hero` (jsonb: the same hero data as a local save), `saved_at`.
