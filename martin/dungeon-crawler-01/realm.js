@@ -185,7 +185,7 @@ function riftSnapshot() {
   for (const o of G.objects) {
     if (SNAP_SKIP.has(o.type)) { if (o.block && o.type !== 'door') b[o.y * m.w + o.x] = 0; continue; }   // its tile is free for the joiner
     const c = {}; for (const k in o) if (k !== 'room' && k !== 'asked' && typeof o[k] !== 'function') c[k] = o[k];
-    if (LOOT_OBJ.has(o.type)) c.owner = o.owner || NET.me;   // whose it is, seen from the joiner
+    if (LOOT_OBJ.has(o.type) || o.type === 'door') c.owner = o.owner || NET.me;   // whose it is, seen from the joiner
     objects.push(c);
   }
   return { v: VERSION, mid: NET.mid, w: m.w, h: m.h, t: rle(m.t), b: rle(b), rooms: m.rooms.map(r => ({ x: r.x, y: r.y, w: r.w, h: r.h, cx: r.cx, cy: r.cy, big: r.big || false })), objects,

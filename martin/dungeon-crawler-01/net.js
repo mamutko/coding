@@ -304,7 +304,8 @@ function netMsg(p, data) {
     case 'took': netDot(NET.loot.get(m.i)); netTook(m); break;
     case 'use': netDot(NET.loot.get(m.i)); netUseReq(m, p); break;
     case 'used': netDot(NET.loot.get(m.i)); netUsed(m); break;
-    case 'door': { const o = G.objects.find(q => q.type === 'door' && q.x === m.x && q.y === m.y); if (o && !o.open) { o.open = true; G.map.t[o.y * G.map.w + o.x] = T_OPEN; sfx('door', { x: o.x, y: o.y }); } break; }
+    case 'door': if (G.rift) { const o = NET.loot.get(m.i); if (o && o.type === 'door') { netDot(o); netDoorSet(o, !!m.o, m.v, true); } } break;   // its owner's word
+    case 'dq': if (G.rift) { const o = NET.loot.get(m.i); if (o && o.type === 'door' && !o.owner) netDoorReq(o, !!m.o, p); } break;   // a player asks to open or close one of our doors
     case 'bolt': if (G.map) { G.proj.push({ type: 'bolt', x: m.x, y: m.y, vx: m.vx, vy: m.vy, life: m.l, dmg: 0, friendly: false, ghost: true }); sfx('bolt', { x: m.x, y: m.y }); netDot({ x: m.x, y: m.y }); } break;   // seen only: its owner decides what it hits
   }
 }
@@ -411,7 +412,7 @@ function netOwnAll() {   // our monsters, floor items and loot objects (chests, 
   for (const m of G.monsters) if (!m.nid) { m.nid = NET.me + '.' + (++NET.monN); NET.mons.set(m.nid, m); }
   for (const o of G.objects) if (o.gm && !o.guard) o.guard = o.gm.nid;   // a guardian's chest: its boss, by id (realm.js)
   for (const fi of G.items) if (!fi.nid) { fi.nid = NET.me + '.' + (++NET.monN); NET.loot.set(fi.nid, fi); }
-  for (const o of G.objects) if (LOOT_OBJ.has(o.type) && !o.nid) { o.nid = NET.me + '.' + (++NET.monN); NET.loot.set(o.nid, o); }
+  for (const o of G.objects) if ((LOOT_OBJ.has(o.type) || o.type === 'door') && !o.nid) { o.nid = NET.me + '.' + (++NET.monN); o.v = o.v || 0; NET.loot.set(o.nid, o); }   // (doors too: everything with a state has an owner)
 }
 const monDesc = m => ({ i: m.nid, o: m.owner || NET.me, ty: m.type, x: +m.x.toFixed(2), y: +m.y.toFixed(2), d: m.lvl, c: m.champ ? 1 : 0, b: m.boss ? 1 : 0,
   n: m.name, mh: m.maxHp, hp: Math.round(m.hp), st: m.state });
@@ -614,6 +615,8 @@ function netAct(ref) {
     if (!x.asked || G.time - x.asked > 2) { x.asked = G.time; x.equip = !!ref.equip; netSendOwner(x, { t: 'take', i: x.nid }); }
     return true;
   }
+  if (x.type === 'door') {   // another player's door: open or close it here at once, and ask its owner, whose word is final
+    act0(ref); netSendOwner(x, { t: 'dq', i: x.nid, o: x.open ? 1 : 0 }); return true; }
   if (x.type === 'gold') { if (!x.asked || G.time - x.asked > 2) { x.asked = G.time; netSendOwner(x, { t: 'take', i: x.nid }); } return true; }
   if (LOOT_OBJ.has(x.type)) {
     if (x.used) return true;
@@ -626,11 +629,11 @@ function netAct(ref) {
 function netSendOwner(x, msg) { const p = NET.peers.get(x.owner); if (p) netSend(p, msg); }
 // After act0 on something of ours (or nobody's): tell the others what changed
 function netActed(ref, was) {
-  if (!netOn()) return;
   const x = ref.r; if (!x) return;
+  if (x.type === 'door' && x.nid && G.rift) { if (!!was.open !== !!x.open) netDoorSay(x); return; }   // (its version goes up even alone, for whoever joins later)
+  if (!netOn()) return;
   if (ref.kind === 'item') { if (was && !G.items.includes(x) && x.nid) { netEach({ t: 'took', i: x.nid, to: NET.me }); NET.loot.delete(x.nid); NET.taken.add(x.nid); } return; }
   if (x.type === 'gold') { if (was.here && !G.objects.includes(x) && x.nid) { netEach({ t: 'took', i: x.nid, to: NET.me }); NET.loot.delete(x.nid); NET.taken.add(x.nid); } return; }
-  if (x.type === 'door') { if (!was.open && x.open) netEach({ t: 'door', x: x.x, y: x.y }); return; }
   if (LOOT_OBJ.has(x.type) && !was.used && x.used && x.nid) netEach({ t: 'used', i: x.nid, by: NET.me });
 }
 function netTakeReq(m, p) {   // another player asks for something of ours lying on the floor: the first to ask gets it
@@ -718,24 +721,39 @@ setInterval(() => {   // messages and bytes a second, each player, over the last
 }, 1000);
 setInterval(() => { const el = document.getElementById('dbgNet'); if (!el || !netDbgOn()) return; const t = netDbgText(); if (el.innerHTML !== t) el.innerHTML = t; el.style.display = t ? '' : 'none'; }, 250);
 
+// ---- Doors (owned like loot). Its owner decides its state, numbered by a version (o.v) only the owner raises; any
+// state with a higher version wins wherever it comes from (so a third player can pass it on).
+function netDoorSay(o) { o.v = (o.v || 0) + 1; if (netOn()) netEach({ t: 'door', i: o.nid, o: o.open ? 1 : 0, v: o.v }); }
+function netDoorSet(o, open, v, sound) {   // a state for it, numbered v: taken if newer than ours (or the same number from its owner, which settles a guess of ours)
+  if (v < (o.v || 0)) return false;
+  o.v = v; if (o.open === open) return false;
+  setDoor(o, open); if (sound) sfx('door', { x: o.x, y: o.y });
+  return true;
+}
+function netDoorReq(o, want, p) {   // another player opened or closed one of our doors on its screen: we decide
+  if (o.open !== want && !(o.open && doorBusy(o))) { setDoor(o, want); sfx('door', { x: o.x, y: o.y }); netDoorSay(o); }
+  else netSend(p, { t: 'door', i: o.nid, o: o.open ? 1 : 0, v: o.v || 0 });   // no change (already so, or someone in the way): it gets ours back
+}
+
 // =====================================================================================
-//  World state kept in step (README, Playing together: Keeping the world in step). Doors only open, chests, urns and
-//  bones only get used, loot only gets taken: so a merge is a union where "open", "used" and "taken" always win,
-//  and floor loot comes from its owner. Exchanged in full (`is`) on every (re)connection, and whenever the
-//  fingerprint every 10 s (`ih`, ITEM_SYNC) differs; so any two connected games agree within about 10 s, whatever
-//  messages were lost.
+//  World state kept in step (README, Playing together: Keeping the world in step). Everything with a state has an
+//  owner. Chests, urns and bones only get used and loot only gets taken, so "used" and "taken" always win; a door
+//  goes back and forth, so its newest version (raised only by its owner) wins. Each game passes on everything it
+//  knows, whoever owns it (floor loot with its owner), so a third player can carry an owner's word. Exchanged in full
+//  (`is`) on every (re)connection, and whenever the fingerprint every 10 s (`ih`, ITEM_SYNC) differs; any two
+//  connected games agree within about 10 s, whatever messages were lost.
 // =====================================================================================
 const ITEM_SYNC = 10000;
-const netDoorKey = o => o.x + ',' + o.y;
 function worldState() {
   const d = [], u = [], f = [], all = [];
-  for (const o of G.objects) { if (o.type === 'door' && o.open) d.push(netDoorKey(o)); else if (o.nid && LOOT_OBJ.has(o.type) && o.used) u.push(o.nid); }
-  for (const x of NET.loot.values()) if (lootHere(x) && (x.type === 'gold' || !x.type)) { all.push(x.nid);
-    if (!x.owner) f.push(x.type === 'gold' ? { i: x.nid, gold: x.amount, x: +(x.fx ?? x.x + 0.5).toFixed(2), y: +(x.fy ?? x.y + 0.5).toFixed(2) } : { i: x.nid, it: itemOut(x.item), x: +x.x.toFixed(2), y: +x.y.toFixed(2) }); }
+  for (const o of G.objects) { if (o.type === 'door' && o.nid) d.push([o.nid, o.open ? 1 : 0, o.v || 0]); else if (o.nid && LOOT_OBJ.has(o.type) && o.used) u.push(o.nid); }
+  for (const x of NET.loot.values()) if ((x.type === 'gold' || !x.type) && lootHere(x)) { all.push(x.nid);
+    const o = x.owner || NET.me;
+    f.push(x.type === 'gold' ? { i: x.nid, o, gold: x.amount, x: +(x.fx ?? x.x + 0.5).toFixed(2), y: +(x.fy ?? x.y + 0.5).toFixed(2) } : { i: x.nid, o, it: itemOut(x.item), x: +x.x.toFixed(2), y: +x.y.toFixed(2) }); }
   return { d, u, f, all, g: [...NET.taken] };
 }
 function worldHash() {   // a fingerprint of what both sides should agree on
-  const w = worldState(), s = [w.d.sort().join(';'), w.u.sort().join(';'), w.all.sort().join(';'), w.g.sort().join(';')].join('|');
+  const w = worldState(), s = [w.d.map(e => e.join(':')).sort().join(';'), w.u.sort().join(';'), w.all.sort().join(';'), w.g.sort().join(';')].join('|');
   let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return (h >>> 0).toString(36) + '.' + s.length;
 }
@@ -743,11 +761,11 @@ function netWorldSend(p, ask) { if (!G.rift) return; const w = worldState(); net
 function netWorldMerge(p, m) {
   if (!G.rift || !G.map) return;
   let n = 0;
-  const doors = new Set(m.d);
-  for (const o of G.objects) if (o.type === 'door' && !o.open && doors.has(netDoorKey(o))) { o.open = true; G.map.t[o.y * G.map.w + o.x] = T_OPEN; n++; }
+  for (const [i, open, v] of m.d || []) { const o = NET.loot.get(i);
+    if (o && o.type === 'door' && (v > (o.v || 0) || v === (o.v || 0) && p.id === o.owner && !!open !== o.open) && netDoorSet(o, !!open, v, false)) n++; }
   for (const i of m.u) { const o = NET.loot.get(i); if (o && !o.used) { o.used = true; o.asked = 0; if (o.type === 'urn') G.map.block[o.y * G.map.w + o.x] = 0; n++; } }
   for (const i of m.g) { if (NET.taken.has(i)) continue; NET.taken.add(i); const x = NET.loot.get(i); if (x && lootHere(x)) { lootGone(x); n++; } else NET.loot.delete(i); }
-  for (const d of m.f) if (!NET.loot.has(d.i) && !NET.taken.has(d.i)) { netGotDrop(d, p.id); n++; }
+  for (const d of m.f) if (!NET.loot.has(d.i) && !NET.taken.has(d.i) && d.o !== NET.me) { netGotDrop(d, d.o || p.id); n++; }
   if (n) NET.fixed = (NET.fixed || 0) + n;
   if (m.ask) netWorldSend(p, false);
 }

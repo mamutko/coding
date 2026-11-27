@@ -438,7 +438,7 @@ const DIR_ROW = [0, 7, 6, 5, 4, 3, 2, 1];      // screen sector (S,SE,E,NE,N,NW,
 const $ = id => document.getElementById(id);
 // Game version, shown muted at the bottom right of the title screen. Increment it before every push, so a player
 // can tell whether the page is up to date (and regenerate catalog.html, see README).
-const VERSION = 150;
+const VERSION = 151;
 const rnd = Math.random;
 const ri = (a, b) => a + Math.floor(rnd() * (b - a + 1));
 const pick = a => a[Math.floor(rnd() * a.length)];
@@ -3418,7 +3418,7 @@ function dlgPortrait(c, hero) {
   pc.drawImage(img, f + cx - s / 2, b[1] - s * 0.04, s, s, 4, 6, 104, 104);
 }
 function interactable(o) {
-  if (o.type === 'door') return !o.open;
+  if (o.type === 'door') return true;   // open or closed: a click opens or closes it
   if (o.type === 'brazier' || o.decor) return false;
   if (o.type === 'keeper' || o.type === 'npc' || o.type === 'cryptdoor' || o.type === 'portal') return true;
   if (o.type === 'stairs') return true;
@@ -3463,8 +3463,11 @@ function act0(ref, other = false) {
   }
   const o = ref.r;
   switch (o.type) {
-    case 'door':
-      if (o.open) return; o.open = true; G.map.t[o.y * G.map.w + o.x] = T_OPEN; sfx('door'); gainXp(d); break;
+    case 'door':   // opens a closed door, closes an open one (not while anyone stands in its doorway)
+      if (o.open && doorBusy(o)) { log('Something is in the way.', '#a99c86'); return; }
+      setDoor(o, !o.open); sfx('door', { x: o.x, y: o.y });
+      if (o.open && !o.opened) { o.opened = true; gainXp(d); }   // the experience only the first time
+      break;
     case 'chest': {
       if (o.used) return;
       if (chestSealed(o)) { log('The chest is sealed while its guardian lives.', '#7fe08a'); sfx('locked'); return; }
@@ -5563,6 +5566,15 @@ function quadImg(img, P0, P1, P3, shade = 0) {
   ctx.save(); ctx.transform((P1[0] - P0[0]) / img.width, (P1[1] - P0[1]) / img.width, (P3[0] - P0[0]) / img.height, (P3[1] - P0[1]) / img.height, P0[0], P0[1]);
   ctx.drawImage(img, 0, 0); if (shade) { ctx.fillStyle = `rgba(0,0,0,${shade})`; ctx.fillRect(0, 0, img.width, img.height); } ctx.restore();
 }
+// A door's state and its tile: T_DOOR (closed: blocks walking and sight) or T_OPEN. An open door can be closed
+// unless a hero or a monster stands in its doorway (doorBusy); a door closed on our hero (another player's
+// decision) puts it on the nearest open floor.
+const doorBusy = o => [...(G.heroes || [G.hero]), ...G.monsters.filter(m => !m.dead)].some(e => Math.abs(e.x - o.x - 0.5) < 0.5 + (e.r || 0.28) && Math.abs(e.y - o.y - 0.5) < 0.5 + (e.r || 0.28));
+function setDoor(o, open) {
+  o.open = open; G.map.t[o.y * G.map.w + o.x] = open ? T_OPEN : T_DOOR;
+  const h = G.hero; if (open || Math.floor(h.x) !== o.x || Math.floor(h.y) !== o.y) return;
+  for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (!blocked(o.x + dx, o.y + dy)) { h.x = o.x + dx + 0.5; h.y = o.y + dy + 0.5; h.path = []; return; }
+}
 function drawDoor(o) {
   const { x, y } = o, [sx, sy, sw, sh] = META.props[o.look || 'doorA'], t = DOOR_T, up = (P) => [P[0], P[1] - WALLH];
   const W = (a, b) => iso(a, b), leaf = (A, B, shade) => face(IMG.props, sx, sy, sw, sh, A, B, shade);
@@ -5575,6 +5587,10 @@ function drawDoor(o) {
     const P = o.axis === 'x' ? [W(x, y + 1), W(x + 1, y)] : [W(x, y + 1), W(x + 1, y)];
     G.pick.push({ kind: 'obj', r: o, x: Math.min(P[0][0], P[1][0]), y: Math.min(P[0][1], P[1][1]) - WALLH, w: Math.abs(P[1][0] - P[0][0]), h: WALLH + TH });
     return;
+  }
+  {   // an open door's leaf can be clicked to close it: a narrow box round the leaf
+    const L = o.axis === 'x' ? [W(x + t, y), W(x + t, y + 1)] : [W(x, y + t), W(x + 1, y + t)], x0 = Math.min(L[0][0], L[1][0]), x1 = Math.max(L[0][0], L[1][0]);
+    G.pick.push({ kind: 'obj', r: o, x: x0 - 6, y: Math.min(L[0][1], L[1][1]) - WALLH, w: x1 - x0 + 12, h: WALLH + Math.abs(L[1][1] - L[0][1]) * 0.5 });
   }
   if (o.axis === 'x') {   // lies along x = x, from the hinge at the room side into the corridor
     const h0 = o.front ? y + 1 : y, h1 = o.front ? y : y + 1;

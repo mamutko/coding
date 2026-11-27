@@ -1058,7 +1058,7 @@ Floor items, gold, chests, urns and bones in the Rift belong to whoever brought 
   is, or the gold's amount, and where it lies).
 - **Doing something** (`act`, which asks `netAct` first and then does the deed, `act0`): to one's own things, as
   always, and the others are told (`netActed`): a pickup (`took`), an opened chest, broken urn or searched bones
-  (`used`), a door opened (`door`: every door opens for everyone).
+  (`used`), a door opened or closed (see Keeping the world in step: doors).
 - **Another player's things:**
   - **Picking up** an item or gold sends `take` to its owner (an item only if it fits: a free pack cell or a stack
     to join; else "Your pack is full."). The owner grants the **first** request (`netTakeReq`): it is gone from the
@@ -1097,20 +1097,26 @@ Floor items, gold, chests, urns and bones in the Rift belong to whoever brought 
 
 #### Keeping the world in step
 
-Doors only open, chests, urns and bones only get used, and loot only gets taken, so the games can merge their
-views safely: in any disagreement "open", "used" and "taken" win (`netWorldMerge` in `net.js`). Any two connected
-games agree within about 10 s, whatever messages were lost (since v150).
+Everything with a state has an owner (since v151): loot (chests, urns, bones, gold, floor items) and doors, each with
+an id (`netOwnAll`; a joiner gets them in the snapshot). Chests, urns and bones only get used and loot only gets taken,
+so in any disagreement "used" and "taken" win; a door goes back and forth, so its newest **version** wins
+(`netWorldMerge` in `net.js`). Any two connected games agree within about 10 s, whatever messages were lost (since
+v150), even when the word has to come through a third player.
 
-- **Owned or not:** loot (chests, urns, bones, gold, floor items) has an owner, who grants taking or opening it; doors
-  have none (anyone opens one and tells the others).
-- **What is exchanged** (`is`, `worldState`): the doors open, the objects used, every loot id known taken
-  (`NET.taken`: taken here, or heard of; never brought back), and the floor loot we own with its item or gold and
-  position (only the owner says what of its loot lies on the floor).
+- **Doors** (`netDoorSay`, `netDoorReq`, `netDoorSet`): a door's owner decides its state and numbers each change (`o.v`,
+  raised only by the owner, even when playing alone, for whoever joins later) and tells everyone (`door`: id, open,
+  version). Clicking another player's door opens or closes it on our screen at once and asks its owner (`dq`); the
+  owner does it unless it is already so or someone stands in the doorway, and tells everyone, or sends its own state
+  back to the asker, which settles our guess. A state is taken when its version is higher than ours, or the same from
+  the door's owner.
+- **What is exchanged** (`is`, `worldState`): every door with its state and version, the objects used, every loot id
+  known taken (`NET.taken`: taken here, or heard of; never brought back), and all the floor loot we know of with its
+  owner, item or gold and position, whoever owns it, so a third player passes an owner's word on.
 - **When:** in full on every connection and reconnection (with the monsters' `sync`), and when the fingerprints
   differ: every 10 s (`ITEM_SYNC`) each game sends each other player a hash of its doors, used objects, floor loot and
   taken loot (`ih`, `worldHash`); a different one gets the full state back with a request for theirs.
-- **Merging:** a door open on either side opens (no sound); an object used on either side is used (an urn's tile
-  frees); loot taken on either side goes; floor loot its owner has and we never saw appears.
+- **Merging:** a door takes a newer version's state (no sound); an object used on either side is used (an urn's tile
+  frees); loot taken on either side goes; floor loot we never saw (and never knew taken) appears, with its owner.
 - **A request for something already used** is answered (`used`), so the asker catches up at once instead of
   waiting.
 - The debug overlay counts what has been repaired this way.
@@ -1174,6 +1180,11 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
 - **Doors.** A corridor tile in a room's surrounding ring, with void on both sides along the ring, is a door
   candidate. On a boss or big room's ring it always becomes a closed door; elsewhere with 55 % probability
   (`DOOR_ODDS`), so rooms with champions may or may not have doors.
+- **Opening and closing** (since v151): a click on a closed door opens it; a click on an open one (its leaf, swung
+  against the side of the doorway) closes it again (`act0`, `setDoor`: the tile goes back to `T_DOOR`, blocking
+  walking and sight). Not while a hero or a monster stands in the doorway (`doorBusy`: "Something is in the way.").
+  Monsters never open doors, so a closed door holds them back. The experience for a door comes only the first time
+  it is opened (`o.opened`).
 - **Stairs down** are placed in the centre of the room farthest from the start room (by BFS walking distance),
   never the boss room or the big room.
   The hero starts in the centre of the first room, which never has monsters or chests.
@@ -1325,7 +1336,7 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
   | Opening a chest | 6·d (guardian's chest: 15·d) |
   | Breaking an urn | 2·d |
   | Searching bones | d |
-  | Opening a door | d |
+  | Opening a door (the first time) | d |
   | Picking up an item | 2·d |
   | Picking up a potion | 1 + d |
   | Descending stairs | 10 × the new depth |

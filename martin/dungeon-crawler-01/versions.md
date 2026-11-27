@@ -9,9 +9,19 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v151 — doors close; doors have owners; the world kept in step through other players (2026-11-27)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 151`)*
+
+- Click an open door to close it again (not while anyone stands in the doorway). Monsters can't open doors, so a
+  closed door holds them back. Experience only for the first opening.
+- In the Rift every door has an owner, like chests and loot, who has the last word on whether it is open.
+- The repair of lost messages now passes on everything a player knows, so the word gets through even when the
+  owner can't reach you directly.
+
 ## v150 — doors, chests and loot kept in step (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 150`)*
+Commit: e6d41ea
 
 - If messages are lost (a break, a reconnection), the games now repair their view of the world: open doors, opened
   chests, urns and bones, items and gold dropped or picked up. Any two connected players agree within about 10 s.
