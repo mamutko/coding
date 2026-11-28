@@ -121,3 +121,37 @@ in `README.md` and remove it from this list (keep the numbers of the remaining i
       45° jumps, so the body is now a still sprite in 32 directions (v103; 16 in v102) with its lower legs cut off (painted standing on
       whole legs, which reads as a dragon, then cut: `tools/dragon/cut_body.py`), on four IK legs of painted bones and
       feet whose feet stay planted; the neck and tail join the torso at the snapped direction, so no stumps show.
+
+18. **Special affixes and forging** (suggested 2026-11-28; builds on #5).
+    - **Special affixes** — change how a fight goes rather than adding a number. At most one per item, only on
+      magic and rare items, from about depth 6, rarer than stat affixes:
+
+      | Affix | Effect | Rolls on |
+      |---|---|---|
+      | *of Thunder* | knockback 0.3–0.6 tiles (flails have it built in: the item's `knock`) | melee weapons |
+      | *Vampiric* | heals 3–8 % of the damage dealt (healing is scarce since regeneration went) | weapons, rings |
+      | *Searing* | 15–30 % chance to set the target burning (the fire bombs' burning) | weapons |
+      | *Frostbitten* | 10–25 % chance to freeze the target briefly (the scroll of frost's freeze) | weapons, amulets |
+      | *Piercing* | arrows pass through 1–2 monsters | bows |
+      | *Thorned* | melee attackers take 10–30 % of their blow back | body armor, helms |
+      | *of the Lantern* | a larger light radius | helms, amulets |
+      | *Swift* | 5–12 % faster attacks | gloves, weapons |
+      | *of Fortune* | more gold and better odds of magic items | rings, amulets |
+
+    - **Resources** — two counters on the hero, like gold (saved; shown in the equipment screen and on the
+      title screen's hero card):
+      - *Arcane dust* — from **salvaging** unwanted items: a little from a magic item, more from a rare, more from
+        deeper items. The everyday forging currency, and a use for junk loot.
+      - *Soul shards* — from **champions and bosses** (several from the dragon); needed only for special affixes,
+        so the best forging is tied to the hardest fights.
+    - **The forge** (costs scale with the item's depth):
+      - *Imbue* — a common item becomes magic with one random affix of the depth's tier (dust).
+      - *Enhance* — a magic item gains an affix and becomes rare, up to 4 (dust).
+      - *Reforge* — re-roll the values of one chosen affix (dust).
+      - *Engrave* — add a special affix, chosen from **three offered at random** (dust + soul shards).
+    - **The smith** — the cast's unused *smithess* sprite at an anvil, on the surface near the crypt's door (a
+      reason to come back up, with the scrolls of escape and return), or in the keepers' rooms.
+    - **Order:** 1. special affixes as drops (start with knockback, life steal, burning, freezing, piercing; test
+      in the armoury scenario); 2. salvage, arcane dust, soul shards; 3. the smith and the forge.
+    - **Open questions:** which special affixes to start with; where the smith stands (surface or keepers' rooms);
+      salvage only at the smith, or anywhere from the pack.
