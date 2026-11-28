@@ -13,13 +13,16 @@ learnings.md    what works and what doesn't (evidence, dated)
 datasets.md     motion-capture sources and their licences (Quaternius, CC0)
 datasets/quaternius-ual1/   UAL1_Standard.glb (in place, use this), UAL1_Standard_RM.glb (root motion), License.txt
 guides/         pre-rendered guides, see guides/README.md: walk, formal-walk, jog (8f / 12f, all 8 directions,
-                shaded clay, adult 1.82 m, EU 43 feet) and stick-walk (algorithmic stick figure)
+                shaded clay, adult 1.82 m, EU 43 feet), stick-walk (algorithmic stick figure, a colour per limb) and
+                stick-shaded (the same gait as one shaded grey figure, 12 frames, all 8 directions)
 tools/
   render_guide.py    mocap mannequin guide: --clip, --frames, --shaded, --shoe, --preset stocky / child-8 / child-12,
                      --girth (body thickness), ...
   walk_cycle.py      the algorithmic stick-figure guide (per-character gaits in CHARS) and the projection
+  stick_guide.py     a walk_cycle.py gait drawn as one shaded grey figure (no limb colours) in the mocap guides'
+                     layout and sidecar (fig_px, cycle_px, feet), so it paints with --stick and builds with build_sheet
   default_guides.py  regenerates guides/
-  guide_prompt.py    the painting prompt: --plain (shaded guide), --character, --ref, --match, --cloth, --she (a woman)
+  guide_prompt.py    the painting prompt: --plain (shaded guide), --stick (shaded stick figure), --character, --ref, --match, --cloth, --she (a woman)
   grid_check.py      checks a painting against its guide: stride, faded limbs, colour drift (--ref)
   board.py + board_template.html   the character board (review page, published as an Artifact);
                      a direction can show several variants (e.g. one per reference candidate) side by side
@@ -89,6 +92,12 @@ dents, worn edges or stains), never with fine noise, speckles or scratch texture
 
 - **Default:** `guides/walk/<8|12>f/<DIR>.png`: adult 1.82 m, EU 43 feet, normal walk. Also committed:
   `formal-walk` (upright, measured: nobles, guards), `jog`, and `stick-walk` (algorithmic, 8 frames, 5 directions).
+- **`stick-shaded`** (`guides/stick-shaded/12f`): the original knight's algorithmic gait as a shaded grey stick
+  figure. Use it when the mocap mannequin's look carries into the painting (too slim, bent knees, head down: the
+  user's verdict on the mocap heroes): paint with `guide_prompt.py --stick` (it says the figure is only the pose
+  and asks for a sturdy build, a straight standing leg and a level head), `"guide": "stick-shaded"` in
+  character.json. Render another gait or size with `tools/stick_guide.py <DIR|all> <out_dir> --char <CHARS key>
+  [--frames 8 --cols 4]`. See learnings.md, "Shaded stick guide".
 - **Custom** (render it into `<char>/guide/`, show it on the board, wait for approval before painting):
   - another clip: `--clip Jog_Fwd_Loop | Sprint_Loop | Walk_Formal_Loop | ...` (all 43 in datasets.md);
   - other body: `--preset stocky | child-12 | child-8`, `--shoe <EU size>`. Fine-tune any preset by hand:

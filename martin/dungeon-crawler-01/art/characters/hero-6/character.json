@@ -1,0 +1,84 @@
+{
+  "name": "Hero 6 (woodsman, stick guide)",
+  "description": "a lean, broad-shouldered man about 35, a woodsman and ranger: short dark-brown hair and a neatly trimmed short beard, a weathered face; a dark-brown wool hooded half-cloak (ONE simple layer, no fur) over both shoulders, reaching the elbows at the sides and in a point to the waist at the back, the hood DOWN, fastened at the throat with a large iron ring clasp; an olive-green padded jerkin to mid-thigh with two bold leather straps crossing the chest, over a cream shirt whose sleeves show at the upper arms; long dark-brown leather bracers; a wide brown belt with a square iron buckle, a leather pouch at his right hip and a sheathed hunting knife at his left hip; tan trousers; knee-high dark-brown boots with turned-down cuffs. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried.",
+  "frames": 12,
+  "mirror": false,
+  "guide": "stick-shaded",
+  "body": "shaded stick figure of the original hero's algorithmic gait (stick_guide.py, walk_cycle.py 'hero'): straight stance leg, upright, head level",
+  "decisions": [
+    "The Woodsman (hero-4) repainted over the shaded stick-figure guide instead of the mocap mannequin: Martin found the mannequin-guided heroes too slim, walking on bent legs and looking down in some directions.",
+    "12 frames, all 8 directions painted (the knife and pouch are on different hips)."
+  ],
+  "references": [
+    {
+      "file": "reference/reference.png",
+      "status": "approved",
+      "note": "the Woodsman's approved reference (hero-4, round 1 candidate 1)"
+    }
+  ],
+  "reference": "reference/reference.png",
+  "directions": {
+    "NW": {
+      "file": "paint/NW.png",
+      "status": "approved",
+      "note": "first direction; stick-shaded guide, reference, --stick --cloth 'dark-brown hooded half-cloak'. Stride 12/12, no faded limbs, colour 0.91."
+    },
+    "S": {
+      "file": "paint/S.png",
+      "status": "approved",
+      "note": "--match NW. Stride 12/12, colour 0.91."
+    },
+    "SW": {
+      "file": "paint/SW.png",
+      "status": "approved",
+      "note": "--match NW. Stride 12/12, colour 0.94."
+    },
+    "W": {
+      "file": "paint/W.png",
+      "status": "approved",
+      "note": "--match NW. Stride 11/12 (pose checked by eye), colour 0.90."
+    },
+    "N": {
+      "file": "paint/N.png",
+      "status": "approved",
+      "note": "--match NW. Stride 12/12, colour 0.88."
+    },
+    "NE": {
+      "file": "paint/NE.png",
+      "status": "approved",
+      "note": "--match NW. Stride 12/12, colour 0.89; 5 mild faded-limb flags (240-416 px against the 300 threshold): the far boot is a shade darker but drawn with its outline, kept."
+    },
+    "E": {
+      "file": "paint/E.png",
+      "status": "approved",
+      "note": "--match NW. Stride 11/12 (pose checked by eye), colour 0.89."
+    },
+    "SE": {
+      "file": "paint/SE.png",
+      "status": "approved",
+      "note": "--match NW. Stride 11/12 (pose checked by eye), colour 0.89."
+    }
+  },
+  "spend": [
+    {
+      "what": "NW walk (OpenAI, 12 frames, stick-shaded guide)",
+      "usd": 0.03
+    },
+    {
+      "what": "S, SW, W, N, NE, E, SE walks",
+      "usd": 0.21
+    }
+  ],
+  "next": "Done: in the game as the look \"Woodsman (stick guide)\" (hero6), beside the mocap-guided Woodsman (hero4) shown here as 'in game'.",
+  "sheet": {
+    "file": "../../../assets/hero6.webp",
+    "key": "hero6"
+  },
+  "original": {
+    "sheet": "../../../assets/hero4.webp",
+    "frames": 12,
+    "fw": 144,
+    "fh": 152
+  },
+  "artifact": "https://claude.ai/artifact/UMG3eVqkUzjPBboZNw8FqX"
+}

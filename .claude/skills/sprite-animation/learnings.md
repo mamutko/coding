@@ -203,3 +203,23 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
 - **Hair in "a few large, smooth locks, never fine strands or curls"** and "no fur, ONE simple layer" in the
   reference prompt gave references that walk without shimmer. Cost per hero: ~$0.27 (references shared, trial NW
   + 7 directions).
+
+## Shaded stick guide (2026-11-28, dungeon-crawler hero-6, the woodsman again)
+
+- **Why:** Martin found the mocap-guided heroes (hero-2 to hero-5) "unnaturally slim, walk funny with bent legs, and
+  have their head looking down too much in some directions": the model copies the mannequin's shapes and posture,
+  not only its pose. The colour-per-limb stick guide had the opposite problem: its colours seeped into the painting.
+- **The guide:** `stick_guide.py`, the original knight's `walk_cycle.py` gait (straight stance leg, upright, head
+  level) drawn as one shaded grey figure: thick swept-sphere limbs, a rounded torso slab, a ball head with a nose
+  bump; normals from the depth surface (sphere normals alone made visible ribs), far side darker, ink where parts
+  cross. No colours at all.
+- **The prompt (`--stick`):** "they show ONLY THE POSE ... do NOT copy the stick figure's thin tubes ... a sturdy,
+  well-built adult ... the leg carrying his weight is STRAIGHT ... the HEAD held LEVEL, looking straight ahead".
+- **Result:** with the woodsman's approved reference, NW then the other 7 with `--match NW` and `--cloth`: all 8 on
+  the first try, stride 11-12 of 12 (the misses fine by eye), colour 0.88-0.94. The figure came out broader and more
+  upright, head level in every view. NE drew 5 mild faded-limb flags (240-416 against 300; the far boot a shade
+  darker but outlined): kept. $0.24 for 8 directions.
+- **The gait's stride:** the algorithmic swing foot dips as low as the planted one mid-swing, so "the lowest foot"
+  can't find the stance; `stick_guide.py` takes the foot moving backward (`cycle_px` = its mean backward speed,
+  1.58 m per loop; `feet` marks it planted). In the game that is 1.74 tiles per loop, `fpt` 6.89 for 12 frames.
+  The feet check stayed within a few game px.

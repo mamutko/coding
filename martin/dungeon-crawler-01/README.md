@@ -31,6 +31,8 @@ synthesised with Web Audio, so all of that works either way. Any other local ser
 | `art/characters/mannequin/` | `character.json` for the **mannequin** look (`assets/mannequin.webp`): `"from_guide": true`, so the build uses the skill's standard 12-frame walk guide itself as the frames. |
 | `art/characters/hero-3/` | Source art of the **huntress** look (`assets/hero3.webp`), made with the `sprite-animation` skill and laid out like `hero-2/`: `character.json`, `description.txt` (the painting text), `reference/` (`reference.png` = approved candidate 1; `round-1/` = all three candidates with prompts and `designs.json`), `paint/<DIR>.png` + `<DIR>.prompt.txt` (12-frame walks over the standard walk guide), `paint/attempts/` (candidate 2's trial NW walk, rejected). |
 | `art/characters/hero-4/` | Source art of the **woodsman** look (`assets/hero4.webp`), laid out like `hero-3/`: `character.json`, `description.txt`, `reference/` (`reference.png` = candidate 1; `round-1/` = all three candidates with prompts and `designs.json`, also the scout's origin), `paint/<DIR>.png` + `<DIR>.prompt.txt`. |
+| `assets/hero6.webp` | The **woodsman (stick guide)** look: the woodsman repainted over the shaded stick-figure guide (the original knight's algorithmic gait) instead of the mocap mannequin; 8 directions × 12 frames, 144 × 152, fpt 6.89, idle 4; loaded only when a hero uses it. |
+| `art/characters/hero-6/` | Source art of `assets/hero6.webp`: `character.json` (the woodsman's description and reference), `reference/reference.png` (copied from `hero-4/`), `paint/<DIR>.png` + `<DIR>.prompt.txt`. The guide is the skill's `guides/stick-shaded/12f`. |
 | `art/characters/hero-5/` | Source art of the **scout** look (`assets/hero5.webp`): candidate 2 of `hero-4/`'s reference round, made its own character. `character.json`, `description.txt`, `reference/reference.png`, `paint/<DIR>.png` + `<DIR>.prompt.txt`. |
 | `art/characters/hero/3d/` | The hero as a 3D model instead of AI-painted frames: `build_knight.py` generates a skinned knight on the `sprite-animation` skill's Quaternius UAL1 mannequin skeleton (plate fitted to the mannequin by ray casts; procedural helm, pauldrons, belt, tassets, mail skirt and cape; EU 43 feet like the guides) and writes `knight.glb` (skeleton, all 43 mocap clips, three extra `cape_*` bones; `render_guide.py`'s `Rig` loads it too) plus `knight.txt` (the same, gzip + base64, for the viewer; not committed). `index.html` is the viewer, published as an [Artifact](https://claude.ai/artifact/626EuKeoCVR5LeKRMRfbuR): orbit, clip picker, the 8 game camera angles (orthographic, 30°), an in-game-size preview and a cape that swings clear of the legs and arms. Test shots: `index.html?dir=NW&t=0.25&clip=Walk_Loop`. |
 | `art/characters/dragon/` | Source art of the dragon boss (`todo.md` #17; nothing here is loaded by the game): `reference/game-style-refs.png` (the style reference: frames of the demon, spider, ghoul, hero and skeleton), `reference/concept-1..3.png` (three candidate designs painted from it; 2, the crypt dragon, was chosen), `reference/round-2/candidate-1..2.png` (it redrawn in the game camera; 2 approved, copied to `reference/reference.png`), `guide/` (painting guides from `tools/dragon/render_guides.js`), `paint/<part>.png` + `<part>.prompt.txt` (the painted parts: `body16.png`, the body standing on whole legs in 9 directions (S, SSW, SW, WSW, W, WNW, NW, NNW, N, i.e. directions 0, 2 … 16 of 32; 3 × 3 cells), and `body32.png`, the 8 halfway between them (1, 3 … 15; painted with `body16.png` as the reference, so they match it), and `body16.cut.png`, `body32.cut.png`, the same with the lower legs cut off; `limbs.png`, the four leg bones upright; `feet.png`, a clawed foot in 8 directions; `head.png` and `headopen.png`, 8 directions, mouth closed and open; `wing.png`, the right wing flat over `guide/wing.png`; `bits.png`, a bone spike and the tail club) and `paint/attempts/` (rejected or superseded tries, among them `walk/`, the earlier body walking on painted legs, 8 frames for S, SW, W, NW, N, whose legs hardly strode, `body16-1.png`, the body painted without legs: a grub, and `scales.png`, a flat scale texture for the neck and tail, which looked too clean and flat on them), `prototype-atlas.webp` (the earlier atlas with that walk, which `dragon-prototype.html` still uses), `character.json` (prompts, model, decisions, spend, status). |
@@ -1456,7 +1458,7 @@ Each depth `d` from 1 gets a freshly generated level (depth 0 is the surface, ab
 
 ### Hero looks
 
-Each hero is drawn with one of six walk sheets (`HERO_LOOKS`), its **look**, saved with the hero as `hero.look`:
+Each hero is drawn with one of seven walk sheets (`HERO_LOOKS`), its **look**, saved with the hero as `hero.look`:
 
 | Look | Key | Sheet | Frames | `fpt` | Drawn at |
 |---|---|---|---|---|---|
@@ -1464,6 +1466,7 @@ Each hero is drawn with one of six walk sheets (`HERO_LOOKS`), its **look**, sav
 | Stocky knight | `hero2` | `assets/hero2.webp` | 12 | 8.54 | 0.96 |
 | Huntress | `hero3` | `assets/hero3.webp` | 12 | 8.02 | 1 |
 | Woodsman | `hero4` | `assets/hero4.webp` | 12 | 8.02 | 1 |
+| Woodsman (stick guide) | `hero6` | `assets/hero6.webp` | 12 | 6.89 | 1 |
 | Scout | `hero5` | `assets/hero5.webp` | 12 | 8.02 | 1 |
 | Mannequin | `mannequin` | `assets/mannequin.webp` | 12 | 8.02 | 1 |
 
@@ -1472,7 +1475,7 @@ Each hero is drawn with one of six walk sheets (`HERO_LOOKS`), its **look**, sav
   save entry (nothing else is saved) and, for the hero being played, changes it at once.
 - **Voice:** each look has a voice for incantations (`HERO_VOICE`): male for the Knight, Stocky knight, Woodsman,
   Scout and Mannequin, female for the Huntress (see [Sound](#sound), the scroll of frost).
-- **Loading:** only `hero.webp` loads at start-up; the other two load on first use (`LOOK_SRC`, `loadCast`, also on
+- **Loading:** only `hero.webp` loads at start-up; the others load on first use (`LOOK_SRC`, `loadCast`, also on
   entering the game with a hero that has one). Until a sheet has loaded the hero is drawn as the knight.
 - **Drawing:** `heroLook(h)` picks the sheet in `drawChar` and in the equipment screen's turning portrait; every sheet
   is 118 px tall at scale 1 and uses the knight's shadow. The stocky knight is drawn at 0.96 (`CAST_SCALE.hero2`):
@@ -1489,6 +1492,12 @@ Each hero is drawn with one of six walk sheets (`HERO_LOOKS`), its **look**, sav
   skill's standard (not stocky) guide built as a sheet. The huntress was painted the same way over the standard
   walk guide (same stride as the mannequin, `fpt` 8.02), after trial NW walks for two reference candidates; so were
   the woodsman and the scout (`hero-4/`, `hero-5/`: two candidates of one reference round, both kept).
+  The **woodsman (stick guide)** (`hero-6/`, v173) is the woodsman painted again over a different guide: the mocap
+  mannequin made the painted heroes look too slim, walk on bent knees and look down in some views, so this one
+  follows the original knight's algorithmic stick-figure gait (`walk_cycle.py`, 'hero'), drawn as one shaded grey
+  figure (`stick_guide.py`: no colour per limb), with a prompt that asks for a sturdy build, a straight standing
+  leg and a level head (`guide_prompt.py --stick`). Its stride is longer than the mocap's (1.74 tiles per loop,
+  `fpt` 6.89).
 
 ## Combat
 

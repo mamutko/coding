@@ -5,6 +5,8 @@ OpenAI wording (transparent background). Generalises nwprompt.py.
   python guide_prompt.py <DIR|DIR,DIR,...|all> [--frames N] [--cols C] [--plain] [--character FILE]
                          [--ref] [--match DIR] [--cloth "wide crimson cape"] [--she]
   --plain       for the shaded grey mannequin (render_guide.py --shaded, the default guides): no limb-colour key
+  --stick       for the shaded grey stick figure (stick_guide.py): like --plain, and says the figure is only a pose
+                skeleton (thin limbs, ball head): paint a sturdy natural body, legs straight under the body, head level
   --character   the character's description: a .txt file, or a .json with a "description" key (character.json)
   --ref         the 2nd input image is the approved character reference (turnaround): paint exactly that character
   --match DIR   the 3rd input image is this character already painted (and approved) walking DIR: match its look
@@ -50,7 +52,7 @@ CHARACTER = ("a lean young ranger/hunter, adult man about 25. Deep forest-green 
              "knee-high scuffed brown leather boots. Hands EMPTY: NO bow, NO quiver, NO weapon held.")
 
 
-def prompt(dirs, frames=8, cols=4, character=CHARACTER, plain=False, ref=False, match=None, cloth=None):
+def prompt(dirs, frames=8, cols=4, character=CHARACTER, plain=False, ref=False, match=None, cloth=None, stick=False):
     multi = len(dirs) > 1
     rows = len(dirs) if multi else -(-frames // cols)
     n = len(dirs) * frames if multi else frames
@@ -69,16 +71,26 @@ def prompt(dirs, frames=8, cols=4, character=CHARACTER, plain=False, ref=False, 
         where = "Counting the figures in reading order:"
         view = (f"DIRECTION: every figure {VIEW[dirs[0]]}, exactly as the mannequins are turned. "
                 "The body NEVER turns around between figures.")
-    if plain:
+    if plain or stick:
         key = ("The mannequins are smooth light-grey shaded figures; the darker side of the body is the side turned "
                "away from the viewer, and dark lines mark where a limb passes in front of the body.")
+        if stick:
+            key = ("The mannequins are simple light-grey shaded STICK FIGURES: rounded tubes for the limbs, a slab for "
+                   "the torso and a ball for the head, with a small bump for the nose showing where the head faces. "
+                   "They show ONLY THE POSE: where each foot, knee, hand and the head are. The darker side of each "
+                   "part is turned away from the viewer, and dark lines mark where a limb passes in front of the "
+                   "body.\n\nBODY: do NOT copy the stick figure's thin tubes. Paint a real, sturdy, well-built adult "
+                   "man with natural human proportions and full muscular limbs, exactly as broad and solid as in the "
+                   "reference. He walks UPRIGHT with a confident, relaxed stride: the leg carrying his weight is "
+                   "STRAIGHT, the torso is upright, the HEAD is held LEVEL and looks straight ahead in the walking "
+                   "direction (never tilted down toward the ground).")
         legs = f"""FOLLOW THE LEGS EXACTLY, they alternate. {where}
 figure 1: one leg reaches forward, the other is stretched far back.
 figure {h + 1}: the OPPOSITE: the leg that was back in figure 1 now reaches forward. It is NOT a copy of figure 1.
 All other figures are in-between poses (a leg passing under the body, the other bent with its foot lifted): copy them exactly from the guide.
 Arms swing opposite to the legs, following the mannequin's arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY."""
-        colours = ("The grey mannequin is ONLY a pose guide: paint the character's own clothing, skin and hair colours "
-                   "over it, with no grey mannequin showing.")
+        colours = ("The grey " + ("stick figure" if stick else "mannequin") + " is ONLY a pose guide: paint the character's own clothing, skin and hair colours "
+                   "over it, with no grey " + ("stick figure" if stick else "mannequin") + " showing.")
     else:
         key = ("Each limb of the mannequin has its own colour so you can follow it from figure to figure: BLUE = his "
                "LEFT leg, ORANGE = his RIGHT leg, TEAL = his LEFT arm, YELLOW = his RIGHT arm, grey = torso, light "
@@ -148,7 +160,7 @@ if __name__ == "__main__":
     match = sys.argv[sys.argv.index("--match") + 1] if "--match" in sys.argv else None
     cloth = sys.argv[sys.argv.index("--cloth") + 1] if "--cloth" in sys.argv else None
     out = prompt(dirs, f, c, character, plain="--plain" in sys.argv, ref="--ref" in sys.argv or bool(match),
-                 match=match, cloth=cloth)
+                 match=match, cloth=cloth, stick="--stick" in sys.argv)
     if "--she" in sys.argv:
         import re
         out = re.sub(r"\b(himself|him|his|His|he|He)\b",
