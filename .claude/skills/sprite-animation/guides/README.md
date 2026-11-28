@@ -28,3 +28,5 @@ which `build_sheet.py` and `board.py` read.
   of another. All 8 directions, cells 384 × 512 on flat magenta, with the mocap guides' sidecar (`fig_px`,
   `cycle_px` from the gait's stance, `feet` with the planted foot from the phase). Paint it with
   `guide_prompt.py --stick`; review with `tools/review.py`.
+- **`stick/stand.png`**: the stick figure standing at rest, all 8 directions in a 4 × 2 grid (S SW W NW / N NE E SE),
+  `stick_guide.py --stand`, for the standing frame (SKILL.md, step 6).

@@ -3,6 +3,8 @@ drawn as a true stick figure, in the layout of the mocap guides, so it paints wi
 with build_sheet.py.
 
   python stick_guide.py <DIR|all> <out_dir> [--char hero] [--frames 12] [--cols 6] [--cell 384x512]
+  python stick_guide.py --stand <out.png>               # standing still, all 8 directions in a 4 x 2 grid
+                         # (S SW W NW / N NE E SE), for the stand frame (stand_prompt, add_stand.py)
   python stick_guide.py <DIR|all> <out_dir> --halves     # also <DIR>-h1.png / <DIR>-h2.png: each half of the
                          # cycle (one step, frames/2 figures in a 3 x 2 grid) to paint on its own (join_halves.py)
 
@@ -178,6 +180,30 @@ def cycle_m(n=2400):
     return sum(moving) / (len(moving) / n)
 
 
+def stand_joints():
+    """A relaxed standing pose (local metres, ground y = 0): legs straight under the hips, feet a little apart and
+    turned out, weight even, arms hanging with a slight bend at the elbow, the head level. Same skeleton as the gait
+    (and the same hip T: the legs hang from the bar's ends and taper in to the feet)."""
+    J = {}
+    ank_y, hip_y = 0.075, 0.95
+    for s_, sg_ in (("L", -1), ("R", 1)):
+        J["hip" + s_] = np.array([HIP_T * sg_, hip_y, 0.0])
+        J["ank" + s_] = np.array([0.12 * sg_, ank_y, 0.0])
+        J["knee" + s_] = (J["hip" + s_] + J["ank" + s_]) / 2 + [0, 0, 0.012]
+        out = math.radians(9) * sg_                                   # toes turned out a little
+        J["toe" + s_] = J["ank" + s_] + 0.17 * np.array([math.sin(out), -0.42, math.cos(out)])
+        J["sh" + s_] = np.array([0.21 * sg_, 1.45, 0.0])
+        J["el" + s_] = J["sh" + s_] + [0.03 * sg_, -0.29, -0.02]
+        J["fist" + s_] = J["el" + s_] + [0.01 * sg_, -0.30, 0.05]
+        J["wr" + s_] = J["fist" + s_] - [0, -0.05, 0.01]
+    J["neck"] = np.array([0, 1.50, 0.02]); J["pelvis"] = (J["hipL"] + J["hipR"]) / 2
+    J["head"] = np.array([0, 1.67, 0.03])
+    m = min(J["toeL"][1], J["toeR"][1], J["ankL"][1] - 0.05)
+    for k in J:
+        J[k] = J[k] - [0, m - 0.03, 0]
+    return J
+
+
 NEAR = {"SW": "L", "W": "L", "NW": "L", "NE": "R", "E": "R", "SE": "R"}   # the side we see (S, N: none)
 
 
@@ -195,9 +221,24 @@ def leading(n, d=None, gap=0.12):
 
 
 def main():
-    a = sys.argv[1]; out = pathlib.Path(sys.argv[2]); out.mkdir(parents=True, exist_ok=True)
     opt = lambda k, d: sys.argv[sys.argv.index(k) + 1] if k in sys.argv else d
     wc.use(opt("--char", "hero"))
+    if sys.argv[1] == "--stand":
+        cw, ch = map(int, opt("--cell", "384x512").split("x")); gy = round(ch * 0.84, 2)
+        stand = joints(0.25)
+        ys = [wc.project(c, 0)[1] - r * math.cos(wc.ELEV) for c, r, _ in spheres(stand)]
+        ye = [wc.project(c, 0)[1] + r for c, r, _ in spheres(stand)]
+        scale = 0.818 * ch / (max(ye) - min(ys))
+        sheet = np.zeros((2 * ch * SS, 4 * cw * SS, 3)); cov = np.zeros(sheet.shape[:2], bool)
+        for j, d in enumerate(ROWS):
+            img, fg = render(stand_joints(), (8 - ROWS.index(d)) % 8, scale, cw, ch, gy)
+            r, c = divmod(j, 4)
+            sheet[r * ch * SS:(r + 1) * ch * SS, c * cw * SS:(c + 1) * cw * SS] = img
+            cov[r * ch * SS:(r + 1) * ch * SS, c * cw * SS:(c + 1) * cw * SS] = fg
+        sheet[~cov] = [255, 0, 255]
+        Image.fromarray(np.clip(sheet, 0, 255).astype(np.uint8)).resize((4 * cw, 2 * ch), Image.LANCZOS).save(sys.argv[2])
+        print("stand ->", sys.argv[2]); return
+    a = sys.argv[1]; out = pathlib.Path(sys.argv[2]); out.mkdir(parents=True, exist_ok=True)
     n, cols = int(opt("--frames", 12)), int(opt("--cols", 6)); rows = -(-n // cols)
     cw, ch = map(int, opt("--cell", "384x512").split("x"))
     gy = round(ch * 0.84, 2)                                          # ground line in the cell

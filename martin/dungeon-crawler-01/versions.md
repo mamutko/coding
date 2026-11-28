@@ -9,9 +9,17 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v175 — heroes stand still properly (2026-11-28)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 175`)*
+
+- Every hero look (knight, stocky knight, huntress, woodsman, scout, woodsman with the stick guide) has a
+  **standing frame** in all 8 directions: when the hero stops, it stands at rest on both feet, arms relaxed, instead
+  of freezing in a walk frame with a knee bent and a foot lifted. The title screen's hero card shows it too.
+
 ## v174 — the stick-guide woodsman's legs alternate in every view (2026-11-28)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 174`)*
+Commit: 5fbe57c
 
 - **Woodsman (stick guide)**: in the side and diagonal views one foot always dragged behind (the near leg was painted
   trailing in every frame); those six directions are painted again, and each leg now steps out in front in turn.

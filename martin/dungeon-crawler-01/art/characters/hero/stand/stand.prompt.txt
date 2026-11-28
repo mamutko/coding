@@ -1,0 +1,26 @@
+This image is a POSE GUIDE: 8 simple light-grey STICK FIGURES in a 4 x 2 grid, all STANDING STILL, each turned a different way (the 8 directions of an isometric game, read left to right and top to bottom). Paint over EVERY stick figure, keeping each one's EXACT position, size, facing and pose. Do not move, add or remove any figure.
+
+THE OTHER INPUT IMAGES: the FIRST image is the pose guide (keep its layout). The SECOND image is the CHARACTER REFERENCE: paint exactly this character in every figure: the same face, hair, body build, clothes, colours, materials and accessories. Copy only the design from it, never its pose or view.
+
+The stick figures (a ball head with a nose bump showing where the face points, T bars at the shoulders and hips, thin sticks for the limbs) show ONLY THE POSE AND THE FACING. None of their shapes carry into the painting: no sticks, no bars, no grey.
+
+FACING, figure by figure:
+Figure 1: stands facing straight TOWARD the viewer (toward the bottom of the image): we see his FACE and FRONT.
+Figure 2: stands facing diagonally toward the LOWER LEFT, turned about 45 degrees to the left: we see his face in three-quarter view and his LEFT side.
+Figure 3: strict side profile facing to the LEFT: we see only his LEFT side, NOT turned toward the viewer.
+Figure 4: stands facing diagonally AWAY toward the UPPER LEFT: we see his BACK and his LEFT side; the face is hidden.
+Figure 5: stands facing straight AWAY from the viewer (toward the top of the image): the STRAIGHT BACK view, like the reference's back view: both shoulders equally wide, the spine down the middle, NOT turned to the left or right; we see only his BACK, never his side; the face is hidden.
+Figure 6: stands facing diagonally AWAY toward the UPPER RIGHT: we see his BACK and his RIGHT side; the face is hidden.
+Figure 7: strict side profile facing to the RIGHT: we see only his RIGHT side, NOT turned toward the viewer.
+Figure 8: stands facing diagonally toward the LOWER RIGHT, turned about 45 degrees to the right: we see his face in three-quarter view and his RIGHT side.
+
+POSE (the same in every figure): standing still at rest, relaxed and upright, weight on BOTH feet, both legs STRAIGHT, the feet a little apart (about hip width) and flat on the ground, toes turned out slightly; arms hanging relaxed at his sides with a slight bend at the elbow, hands open and EMPTY; head level, looking straight ahead in the direction the figure faces. NOT walking: no leg forward, no foot lifted, no arm swinging.
+
+THE SECOND IMAGE is this exact knight, taken from the game, walking in the same 8 directions in the same order (S, SW, W, NW, N, NE, E, SE): paint EXACTLY this knight standing still: the same blackened dark steel armour with the same plates and edges, the same ragged, torn dark crimson cape wrapped around his shoulders and hanging in tattered strips, the same proportions, colours, shading and level of detail. Only the pose changes.
+
+CHARACTER (identical in all 8 figures): a broad-shouldered armoured knight of average adult height in full plate armour of nearly black dark steel with a reddish-brown sheen and bright steel highlights on the edges; a rounded dome great helm with a single narrow horizontal visor slit and a raised central ridge, no face visible; layered pauldrons, a breastplate with a shallow X-shaped ridge, articulated plate gauntlets, plate greaves and sabatons; red-brown leather straps and a wide red-brown leather belt with a dark buckle; a short tattered red-brown leather tasset skirt over a chainmail skirt reaching mid-thigh; a dark crimson cloth cape draped over both shoulders like a mantle, hanging to the back of the knees with a ragged, torn hem; both hands empty, no weapon, no shield Give him natural human proportions: a real, sturdy, well-built adult, exactly as broad and solid as in the reference. His dark crimson cloth cape hangs straight and still, as in the reference, at its full length and width, fully opaque.
+
+STEADY: paint him as if he were ONE 3D model rendered 8 times from 8 angles: the SAME light from the upper left, the SAME colours, markings and details in the same places. Show shine, wear and texture with a few BOLD shapes, never with fine noise or speckles.
+
+STYLE: hand-drawn 2D game sprite art for an isometric RPG, clean dark ink outlines, painterly watercolour-and-gouache shading, light from the upper left. NOT pixel art, NOT 3D. Every part fully OPAQUE.
+Transparent background (remove the magenta). No text, numbers or grid lines.

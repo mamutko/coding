@@ -1470,6 +1470,14 @@ Each hero is drawn with one of seven walk sheets (`HERO_LOOKS`), its **look**, s
 | Scout | `hero5` | `assets/hero5.webp` | 12 | 8.02 | 1 |
 | Mannequin | `mannequin` | `assets/mannequin.webp` | 12 | 8.02 | 1 |
 
+- **Standing still:** every look's sheet has one more column after the walk, its **standing frame** (`stand` in
+  META: the column index, 8 for the knight, 12 for the others): the hero at rest on both feet, arms relaxed, in each
+  direction. A hero, NPC or monster that is not moving is drawn with `stillFrame(md)`: `stand` when its sheet has one,
+  else `idle` (the walk frame with the feet closest). Also the title screen's hero card and the equipment portrait.
+  Made with the sprite skill: the 8 directions standing painted in one image over the stick figure's standing pose
+  (`stick_guide.py --stand`, `guide_prompt.py --stand`; `art/characters/<hero>/stand/`), added to the built sheet
+  by `add_stand.py` (scaled to the tallest walk frame, soles on the idle frame's ground). The knight's was painted
+  with his own walk frames as the reference (his reference picture is cleaner than the older sheet).
 - **Picking it:** in the hero's settings on the title screen (a click on its card), or with **Look** in the debug overlay (the selected
   hero's on the title screen, the played hero's in the game). `setHeroLook` writes the look straight into the hero's
   save entry (nothing else is saved) and, for the hero being played, changes it at once.

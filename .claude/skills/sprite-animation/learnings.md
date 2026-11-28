@@ -266,3 +266,16 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
   `--match` and with "the STRAIGHT BACK view ... NOT turned" (now in guide_prompt.py), it was right.
 - **Reviewing by eye works when the crops are big enough:** the legs sheet must reach above the hips (the crossing
   near the hips decides which leg is in front); review.py's legs sheet now shows the lower 64 % of each cell, 1.3x.
+
+## Standing frame (2026-11-28, dungeon-crawler heroes)
+
+- **Why:** Martin: "when the character stops ... in one of the mid-step positions, it looks unnatural". The game drew
+  the walk frame with the feet closest (in the 12-frame walks a passing pose: one knee bent, a foot lifted).
+- **One image for all 8 directions** (a 4 x 2 grid over the stick figure standing) worked first time for five of
+  six looks: right facing in every figure, both legs straight, the same look as the walk (reference + the painted S
+  walk as the third image). $0.034 each.
+- **An old sheet needs its own frames as the reference:** the knight's reference.png is a cleaner redraw than his
+  older in-game sheet; the stand painted from it looked like another knight. Painted again with a strip of his
+  sheet's idle frames (upscaled 2x) as the only character image: it matched.
+- **Placing it:** as tall as the tallest walk frame of the row (a standing body has straight legs), soles on the
+  idle frame's lowest pixel, head and shoulders over the walk frames' (add_stand.py).

@@ -6,7 +6,8 @@
    "frames": 8,
    "idle": 3,
    "footY": 128,
-   "fpt": 5
+   "fpt": 5,
+   "stand": 8
   },
   "skeleton": {
    "fw": 176,
@@ -147,7 +148,8 @@
    "frames": 12,
    "idle": 10,
    "footY": 128,
-   "fpt": 8.54
+   "fpt": 8.54,
+   "stand": 12
   },
   "mannequin": {
    "fw": 144,
@@ -163,7 +165,8 @@
    "frames": 12,
    "idle": 10,
    "footY": 128,
-   "fpt": 8.02
+   "fpt": 8.02,
+   "stand": 12
   },
   "hero4": {
    "fw": 144,
@@ -171,7 +174,8 @@
    "frames": 12,
    "idle": 10,
    "footY": 128,
-   "fpt": 8.02
+   "fpt": 8.02,
+   "stand": 12
   },
   "hero5": {
    "fw": 144,
@@ -179,7 +183,8 @@
    "frames": 12,
    "idle": 10,
    "footY": 128,
-   "fpt": 8.02
+   "fpt": 8.02,
+   "stand": 12
   },
   "hero6": {
    "fw": 144,
@@ -187,7 +192,8 @@
    "frames": 12,
    "idle": 4,
    "footY": 128,
-   "fpt": 6.89
+   "fpt": 6.89,
+   "stand": 12
   }
  },
  "items": {

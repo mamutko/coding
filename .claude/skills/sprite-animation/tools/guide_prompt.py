@@ -17,6 +17,8 @@ OpenAI wording (transparent background). Generalises nwprompt.py.
                 faint or missing in some directions)
   --half 1|2    (with --stick) one step of the cycle on its own sheet (stick_guide.py --halves): --frames is the
                 figures in the half (6 of 12), --cols 3; say which leg leads in this step
+  --stand       the standing-still frame, all 8 directions in one image (stick_guide.py --stand): with --character,
+                [--match] (a painted walk of the character as the third image), [--cloth], [--she]
   --she         a woman: the prompt says she / her instead of he / his / him
 Input images go to the edit call in this order: guide, reference, matched direction.
 Every prompt includes the STEADY FROM FRAME TO FRAME paragraph (same highlights, markings, cloth folds and hem
@@ -197,7 +199,45 @@ STYLE: hand-drawn 2D game sprite art for an isometric RPG, clean dark ink outlin
 Transparent background (remove the magenta). No text, numbers or grid lines."""
 
 
+def stand_prompt(character, ref=True, match=None, cloth=None, she=False):
+    """The standing-still frame of all 8 directions in one image (stick_guide.py --stand: a 4 x 2 grid, S SW W NW
+    on top, N NE E SE below). Inputs: the stand guide, the reference, optionally a painted walk of the character
+    (its look to match)."""
+    views = "\n".join(f"Figure {i + 1}: {VIEW[d].replace('walks', 'stands facing', 1).replace('walking', 'facing')}."
+                       for i, d in enumerate(ROWS))
+    inputs = ("\n\nTHE OTHER INPUT IMAGES: the FIRST image is the pose guide (keep its layout). The SECOND image is the "
+              "CHARACTER REFERENCE: paint exactly this character in every figure: the same face, hair, body build, "
+              "clothes, colours, materials and accessories. Copy only the design from it, never its pose or view.") if ref else ""
+    if match:
+        inputs += (" The THIRD image is this same character already painted walking: match its look exactly (colours, "
+                   "shading, line weight, level of detail, size), but not its pose.")
+    cl = (f" His {cloth} hangs straight and still, as in the reference, at its full length and width, fully opaque." if cloth else "")
+    return f"""This image is a POSE GUIDE: 8 simple light-grey STICK FIGURES in a 4 x 2 grid, all STANDING STILL, each turned a different way (the 8 directions of an isometric game, read left to right and top to bottom). Paint over EVERY stick figure, keeping each one's EXACT position, size, facing and pose. Do not move, add or remove any figure.{inputs}
+
+The stick figures (a ball head with a nose bump showing where the face points, T bars at the shoulders and hips, thin sticks for the limbs) show ONLY THE POSE AND THE FACING. None of their shapes carry into the painting: no sticks, no bars, no grey.
+
+FACING, figure by figure:
+{views}
+
+POSE (the same in every figure): standing still at rest, relaxed and upright, weight on BOTH feet, both legs STRAIGHT, the feet a little apart (about hip width) and flat on the ground, toes turned out slightly; arms hanging relaxed at his sides with a slight bend at the elbow, hands open and EMPTY; head level, looking straight ahead in the direction the figure faces. NOT walking: no leg forward, no foot lifted, no arm swinging.
+
+CHARACTER (identical in all 8 figures): {character} Give him natural human proportions: a real, sturdy, well-built adult, exactly as broad and solid as in the reference.{cl}
+
+STEADY: paint him as if he were ONE 3D model rendered 8 times from 8 angles: the SAME light from the upper left, the SAME colours, markings and details in the same places. Show shine, wear and texture with a few BOLD shapes, never with fine noise or speckles.
+
+STYLE: hand-drawn 2D game sprite art for an isometric RPG, clean dark ink outlines, painterly watercolour-and-gouache shading, light from the upper left. NOT pixel art, NOT 3D. Every part fully OPAQUE.
+Transparent background (remove the magenta). No text, numbers or grid lines."""
+
+
 if __name__ == "__main__":
+    if "--stand" in sys.argv:   # python guide_prompt.py --stand --character c.json [--match] [--cloth T] [--she]
+        cf = pathlib.Path(sys.argv[sys.argv.index("--character") + 1])
+        ch_ = json.loads(cf.read_text(encoding="utf-8"))["description"] if cf.suffix == ".json" else cf.read_text(encoding="utf-8").strip()
+        out = stand_prompt(ch_, match="--match" in sys.argv, cloth=sys.argv[sys.argv.index("--cloth") + 1] if "--cloth" in sys.argv else None)
+        if "--she" in sys.argv:
+            import re
+            out = re.sub(r"\b(himself|him|his|His|he|He)\b", lambda m: {"he": "she", "He": "She", "his": "her", "His": "Her", "him": "her", "himself": "herself"}[m.group(1)], out)
+        print(out); sys.exit()
     a = sys.argv[1]
     dirs = ROWS if a == "all" else a.split(",")
     f = int(sys.argv[sys.argv.index("--frames") + 1]) if "--frames" in sys.argv else 8

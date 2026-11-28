@@ -28,6 +28,7 @@ tools/
                      labelled with the leg that must be in front) + the leg shade check (a darker back / far leg)
   board.py + board_template.html   the character board (review page, published as an Artifact);
                      a direction can show several variants (e.g. one per reference candidate) side by side
+  add_stand.py       adds the standing frame (8 directions painted in one image) to a built sheet as one more column
   join_halves.py     two half-cycle paintings (stick_guide.py --halves, guide_prompt.py --half) -> one full sheet
   build_sheet.py     painted directions -> game sprite sheet + meta.json entry (aligned on the guide, fpt from
                      the stride, --plant-check feet image; "from_guide": a mannequin sheet)
@@ -203,6 +204,28 @@ python tools/build_sheet.py <char>/character.json <project>/assets/<id>.webp --m
   painting): a placeholder look, or a test of a game's animation.
 - **Folders:** everything in `<char>/` is source (`reference/` with its rounds, `guide/`, `paint/` with prompts and
   `attempts/`, the board) and is never loaded by the game; only `<project>/assets/<id>.webp` and its meta entry ship.
+
+### 6. Standing frame
+
+A game should not show a walk frame when the character stops (even the feet-closest one is mid-step: a knee bent, a
+foot lifted). Paint the character standing at rest, all 8 directions in ONE image (~$0.034), and add it as one more
+column of the sheet:
+
+```
+python tools/stick_guide.py --stand guides/stick/stand.png          # committed; re-render only to change the pose
+python tools/guide_prompt.py --stand --character <char>/character.json --match [--cloth "..."] [--she] \
+    > <char>/stand/stand.prompt.txt
+python <notes>/.../openai_media.py edit "$(cat <char>/stand/stand.prompt.txt)" -i guides/stick/stand.png \
+    <char>/reference/reference.png <char>/paint/S.png --size 1536x1024 --quality medium --background transparent \
+    -o <char>/stand/stand.png
+python tools/add_stand.py <project>/assets/<id>.webp <char>/stand/stand.png <project>/assets/<id>.webp \
+    --frames 12 --meta <project>/assets/meta.json --key <id>
+```
+
+Check every figure faces its direction (order S SW W NW / N NE E SE), stands on both straight legs, and matches the
+walk's look. If the reference differs from the sheet in the game (an older sheet), give the sheet's own frames as
+the reference instead (a strip of the idle frame of every row, upscaled): the knight's first try followed his
+cleaner reference and did not match his walk. The game draws column `stand` (META) when the character is still.
 
 Then copy the meta entry wherever the game inlines it, run the game, and watch the character walk in every
 direction at its real speed (feet on the ground, no sliding, legs alternating).
