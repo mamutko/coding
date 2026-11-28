@@ -8,11 +8,15 @@ BODY: do NOT copy the stick figure's thin tubes. Paint a real, sturdy, well-buil
 
 DIRECTION: every figure walks diagonally toward the LOWER LEFT, turned about 45 degrees to the left: we see his face in three-quarter view and his LEFT side, exactly as the mannequins are turned. The body NEVER turns around between figures.
 
-FOLLOW THE LEGS EXACTLY, they alternate. Counting the figures in reading order:
-figure 1: one leg reaches forward, the other is stretched far back.
-figure 7: the OPPOSITE: the leg that was back in figure 1 now reaches forward. It is NOT a copy of figure 1.
-All other figures are in-between poses (a leg passing under the body, the other bent with its foot lifted): copy them exactly from the guide.
-Arms swing opposite to the legs, following the mannequin's arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY.
+FOLLOW THE LEGS EXACTLY, they alternate. In this view we see his LEFT side: his LEFT leg and arm are the NEAR ones, drawn LIGHT grey; his RIGHT leg and arm are on the FAR side of the body, drawn DARK grey. Counting the figures in reading order:
+figure 1: his NEAR (light grey) leg reaches forward, his FAR (dark grey) leg is stretched far back.
+figure 7: the OPPOSITE: his FAR (dark grey) leg reaches forward and his NEAR (light grey) leg is stretched far back. It is NOT a copy of figure 1: the legs have swapped places.
+In figures 2-6 the FAR (dark grey) leg swings forward past the other; in figures 8-12 the NEAR (light grey) leg swings forward past the other. Each leg in turn steps out in front: neither leg always trails behind.
+Figure by figure, the leg that is IN FRONT (toward the walking direction): 1 NEAR (light), 2 NEAR (light), 3 NEAR (light), 4 neither (legs passing), 5 FAR (dark), 6 FAR (dark), 7 FAR (dark), 8 FAR (dark), 9 FAR (dark), 10 neither (legs passing), 11 NEAR (light), 12 NEAR (light).
+Where the NEAR leg is in front, it is the near leg that reaches forward, seen over the far leg, while the far (dark) leg trails behind it, partly hidden: paint exactly that, even though it is less usual than the near leg trailing.
+All other figures are in-between poses: copy them exactly from the guide, always checking which of the two legs (light or dark) is in front.
+Arms swing opposite to the legs, following the stick figure's light and dark arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY.
+The far leg and arm are darker in the guide only to tell them apart: paint them in the same clothing colours as the near ones, just a little more in shadow, fully opaque.
 
 CHARACTER (identical in all 12 figures): a lean, broad-shouldered man about 35, a woodsman and ranger: short dark-brown hair and a neatly trimmed short beard, a weathered face; a dark-brown wool hooded half-cloak (ONE simple layer, no fur) over both shoulders, reaching the elbows at the sides and in a point to the waist at the back, the hood DOWN, fastened at the throat with a large iron ring clasp; an olive-green padded jerkin to mid-thigh with two bold leather straps crossing the chest, over a cream shirt whose sleeves show at the upper arms; long dark-brown leather bracers; a wide brown belt with a square iron buckle, a leather pouch at his right hip and a sheathed hunting knife at his left hip; tan trousers; knee-high dark-brown boots with turned-down cuffs. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried. Copy only the pose from the mannequins, not their shapes: give him natural human proportions and clothing. Clothing that hangs beyond the body (cloak, cape, skirt, long coat, sleeves) is painted at its FULL length and width, even where the mannequin has no shape there; it moves with the stride.
 

@@ -1496,7 +1496,9 @@ Each hero is drawn with one of seven walk sheets (`HERO_LOOKS`), its **look**, s
   mannequin made the painted heroes look too slim, walk on bent knees and look down in some views, so this one
   follows the original knight's algorithmic stick-figure gait (`walk_cycle.py`, 'hero'), drawn as one shaded grey
   figure (`stick_guide.py`: no colour per limb), with a prompt that asks for a sturdy build, a straight standing
-  leg and a level head (`guide_prompt.py --stick`). Its stride is longer than the mocap's (1.74 tiles per loop,
+  leg and a level head (`guide_prompt.py --stick`). In v174 the side and diagonal views were painted again: the
+  first try had the near leg trailing in every frame (one foot seemed to drag); the guide now draws the far leg and arm
+  dark and the prompt names the leg in front figure by figure. Its stride is longer than the mocap's (1.74 tiles per loop,
   `fpt` 6.89).
 
 ## Combat

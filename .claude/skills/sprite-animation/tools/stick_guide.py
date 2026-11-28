@@ -26,6 +26,7 @@ SS = 2                                   # supersampling
 LIGHT = np.array([-0.55, -0.65, 0.52]); LIGHT /= np.linalg.norm(LIGHT)   # screen: x right, y down, z toward us
 BASE = np.array([206.0, 206.0, 210.0])   # the clay grey
 INK = np.array([62.0, 60.0, 66.0])
+FAR_DARK = 0.75                          # the far leg and arm: this much darker in a side view (less on the diagonals)
 
 
 def joints(t):
@@ -119,6 +120,13 @@ def render(J, k, scale, cw, ch, gy):
     zf = zb[fg]; zmid, zr = np.median(zf), 0.35 * s                  # depth: the far side of the body darker
     depth = np.zeros((H, W)); depth[fg] = np.clip((zb[fg] - zmid) / zr, -1, 1)
     shade = (0.30 + 0.75 * lam) * (0.84 + 0.16 * depth)
+    # the FAR leg and arm a clearly darker grey (FAR_DARK): in a side view the two legs otherwise have the same
+    # outline in figure 1 and in figure 7, and the model painted the same leg in front in both halves of the stride
+    # (hero-6 E and W, first try). How far a side is from us: the depth of the character's right vector.
+    rd = wc.project(np.array([1.0, 0, 0]), k)[2] - wc.project(np.zeros(3), k)[2]
+    far = (1, 3) if rd > 0 else (2, 4)                               # parts: 1 / 3 left leg / arm, 2 / 4 right
+    if abs(rd) > 0.2:
+        shade = np.where(np.isin(part, far), shade * (1 - FAR_DARK * abs(rd)), shade)
     img = BASE[None, None, :] * shade[..., None]
     # ink: the silhouette, and where one part passes in front of another (a depth step, or a part change)
     ink = np.zeros((H, W), bool)

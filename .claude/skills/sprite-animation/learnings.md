@@ -223,3 +223,22 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
   can't find the stance; `stick_guide.py` takes the foot moving backward (`cycle_px` = its mean backward speed,
   1.58 m per loop; `feet` marks it planted). In the game that is 1.74 tiles per loop, `fpt` 6.89 for 12 frames.
   The feet check stayed within a few game px.
+
+## Near leg always trailing (2026-11-28, hero-6, the shaded stick guide)
+
+- **The failure:** in the first hero-6 paintings Martin saw E "one foot always dragging behind, always the same
+  side". In side and diagonal views the two legs of an all-grey guide have the same outline in figure 1 and in
+  figure 7 (only which one is in front differs), and the model drew the NEAR leg trailing in every frame. Its pull
+  toward that pose is strong: a far leg only 50 % darker and "figure 1: the NEAR leg forward" still left NW frame 1
+  wrong.
+- **The fix:** the far leg and arm drawn dark (`stick_guide.py` FAR_DARK 0.75, scaled by how side-on the view is;
+  S and N unchanged, their legs are told apart left / right) and the prompt (`--stick`, side and diagonal views)
+  naming the near and far leg, which one leads in figures 1 and 7, and figure by figure which leg is in front, and
+  that the near leg in front "is less usual ... paint exactly that". E then passed 9/9, NW 8/9 (third try), and
+  W, SW, NE, SE (with `--match NW`) mostly first time.
+- **Checking it:** `tools/leg_check.py <DIR> <painting>`: per frame, the guide's light (near) foot against the
+  painting's brighter boot (the near one; the prompt asks for the far leg a little in shadow). The dragging E scored
+  5/9 with the same side brighter in every frame; the repaint 9/9. Rough where the feet overlap or a planted boot
+  catches the light (SE 1/4, right by eye): look at the frames it flags, zoomed (frames 1 and 7 tell most).
+- **Lesson:** look at the near / far legs, not only the stride width: grid_check's stride compares the feet spread,
+  which is the same whichever leg leads.

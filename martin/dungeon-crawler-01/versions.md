@@ -9,9 +9,16 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v174 — the stick-guide woodsman's legs alternate in every view (2026-11-28)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 174`)*
+
+- **Woodsman (stick guide)**: in the side and diagonal views one foot always dragged behind (the near leg was painted
+  trailing in every frame); those six directions are painted again, and each leg now steps out in front in turn.
+
 ## v173 — the woodsman repainted over a stick-figure guide (2026-11-28)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 173`)*
+Commit: a82d59b
 
 - A new hero look, **Woodsman (stick guide)**: the woodsman painted again, all 8 directions × 12 frames, over a
   shaded stick figure walking the original knight's gait instead of the motion-capture mannequin: a sturdier build,

@@ -89,6 +89,24 @@ figure 1: one leg reaches forward, the other is stretched far back.
 figure {h + 1}: the OPPOSITE: the leg that was back in figure 1 now reaches forward. It is NOT a copy of figure 1.
 All other figures are in-between poses (a leg passing under the body, the other bent with its foot lifted): copy them exactly from the guide.
 Arms swing opposite to the legs, following the mannequin's arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY."""
+        near = {"SW": "LEFT", "W": "LEFT", "NW": "LEFT", "NE": "RIGHT", "E": "RIGHT", "SE": "RIGHT"}.get(dirs[0])
+        if stick and near and not multi:
+            # the stick guide draws the far leg and arm darker (stick_guide.py FAR_DARK); its gait starts with the
+            # LEFT leg forward. Without naming which leg leads, the model painted the near leg in front in both halves
+            # of the stride in side views (hero-6 E and W, first try): one foot seemed to drag behind.
+            far = "RIGHT" if near == "LEFT" else "LEFT"
+            a, b = ("NEAR (light grey)", "FAR (dark grey)") if near == "LEFT" else ("FAR (dark grey)", "NEAR (light grey)")
+            import math as _m   # the stick gait: the left hip angle goes as cos(2 pi t); t = 0 is figure 1
+            per = ", ".join(f"{i + 1} {('NEAR (light)' if (_m.cos(2 * _m.pi * i / frames) > 0) == (near == 'LEFT') else 'FAR (dark)') if abs(_m.cos(2 * _m.pi * i / frames)) > 0.3 else 'neither (legs passing)'}" for i in range(frames))
+            legs = f"""FOLLOW THE LEGS EXACTLY, they alternate. In this view we see his {near} side: his {near} leg and arm are the NEAR ones, drawn LIGHT grey; his {far} leg and arm are on the FAR side of the body, drawn DARK grey. {where}
+figure 1: his {a} leg reaches forward, his {b} leg is stretched far back.
+figure {h + 1}: the OPPOSITE: his {b} leg reaches forward and his {a} leg is stretched far back. It is NOT a copy of figure 1: the legs have swapped places.
+In figures 2-{h} the {b} leg swings forward past the other; in figures {h + 2}-{frames} the {a} leg swings forward past the other. Each leg in turn steps out in front: neither leg always trails behind.
+Figure by figure, the leg that is IN FRONT (toward the walking direction): {per}.
+Where the NEAR leg is in front, it is the near leg that reaches forward, seen over the far leg, while the far (dark) leg trails behind it, partly hidden: paint exactly that, even though it is less usual than the near leg trailing.
+All other figures are in-between poses: copy them exactly from the guide, always checking which of the two legs (light or dark) is in front.
+Arms swing opposite to the legs, following the stick figure's light and dark arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY.
+The far leg and arm are darker in the guide only to tell them apart: paint them in the same clothing colours as the near ones, just a little more in shadow, fully opaque."""
         colours = ("The grey " + ("stick figure" if stick else "mannequin") + " is ONLY a pose guide: paint the character's own clothing, skin and hair colours "
                    "over it, with no grey " + ("stick figure" if stick else "mannequin") + " showing.")
     else:

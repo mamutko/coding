@@ -22,7 +22,8 @@ which `build_sheet.py` and `board.py` read.
   `walk_cycle.py guide <CHAR> <DIR> out.png --magenta --limbs`. Paint them with `guide_prompt.py` (no `--plain`).
   If the right leg comes out lighter, that is the bright orange showing through (see learnings.md).
 - **Shaded stick guide** (`stick-shaded`): the algorithmic `hero` gait as one light-grey figure of round, lit
-  volumes (swept spheres, Lambert light from the upper left, the far side darker, ink lines where parts cross and
+  volumes (swept spheres, Lambert light from the upper left, the far leg and arm dark (FAR_DARK) in side and
+  diagonal views, ink lines where parts cross and
   round the silhouette), a nose bump for the facing, all 8 directions, cells 384 × 512 on flat magenta, with the
   mocap guides' sidecar (`fig_px`, `cycle_px` from the gait's stance, `feet` with the planted foot from the phase).
   Paint it with `guide_prompt.py --stick`.

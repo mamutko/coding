@@ -24,6 +24,7 @@ tools/
   default_guides.py  regenerates guides/
   guide_prompt.py    the painting prompt: --plain (shaded guide), --stick (shaded stick figure), --character, --ref, --match, --cloth, --she (a woman)
   grid_check.py      checks a painting against its guide: stride, faded limbs, colour drift (--ref)
+  leg_check.py       near / far legs of a painting over the stick-shaded guide (the near leg must lead in turn)
   board.py + board_template.html   the character board (review page, published as an Artifact);
                      a direction can show several variants (e.g. one per reference candidate) side by side
   build_sheet.py     painted directions -> game sprite sheet + meta.json entry (aligned on the guide, fpt from
@@ -97,7 +98,9 @@ dents, worn edges or stains), never with fine noise, speckles or scratch texture
   user's verdict on the mocap heroes): paint with `guide_prompt.py --stick` (it says the figure is only the pose
   and asks for a sturdy build, a straight standing leg and a level head), `"guide": "stick-shaded"` in
   character.json. Render another gait or size with `tools/stick_guide.py <DIR|all> <out_dir> --char <CHARS key>
-  [--frames 8 --cols 4]`. See learnings.md, "Shaded stick guide".
+  [--frames 8 --cols 4]`. It draws the far leg and arm dark, and `--stick` names the leg in front figure by
+  figure: check side and diagonal views with `tools/leg_check.py` (the model likes to paint the near leg trailing
+  in every frame). See learnings.md, "Shaded stick guide" and "Near leg always trailing".
 - **Custom** (render it into `<char>/guide/`, show it on the board, wait for approval before painting):
   - another clip: `--clip Jog_Fwd_Loop | Sprint_Loop | Walk_Formal_Loop | ...` (all 43 in datasets.md);
   - other body: `--preset stocky | child-12 | child-8`, `--shoe <EU size>`. Fine-tune any preset by hand:
