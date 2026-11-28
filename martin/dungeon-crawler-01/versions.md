@@ -9,9 +9,15 @@ Small changes that build on the one before are merged into one entry (e.g. *v38�
 list. The **Commit** line names the commit of the entry's last version; the newest entry gets its commit when
 the next version is recorded.
 
+## v172 — leaving the Rift saves the hero before the portal (2026-11-28)
+
+Commit: *(the next version records it; until then, the latest commit that set `VERSION = 172`)*
+
+- A hero saved on stepping out of the Rift now resumes before the portal (it resumed before the crypt's door).
+
 ## v171 — a Catalog button for testers; testers need a hero named Brunn (2026-11-27)
 
-Commit: *(the next version records it; until then, the latest commit that set `VERSION = 171`)*
+Commit: 326f02d
 
 - Testers get a **Catalog** button beside Scenarios (it opens the monster and item catalog in a new tab).
 - Being a tester now takes both an MI PIN and a server hero named Brunn under it; only then do Scenarios, Catalog,

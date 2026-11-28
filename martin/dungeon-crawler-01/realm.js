@@ -90,9 +90,7 @@ const riftAskOpen = () => false;
 async function enterRift() {
   if (G.rift || G.depth !== 0 || RA.busy) return;
   const h = G.hero, g = G; syncDial();
-  h.surfAt = 'portal';   // saved: resumed from this save, the hero stands before the portal
-  if (saveHero()) log('Progress saved.', '#a99c86');
-  h.surfAt = null;
+  saveAtPortal();
   const r = currentRealm(), d = Math.max(1, h.maxDepth || 1);
   // join the realm (net.js): found it, join the players already in it, or (no connection) go in alone
   riftWait(true);   // connecting: the surface goes on, without the hero, the HUD or any input
@@ -121,8 +119,14 @@ function leaveRift() {
   const name = G.rift.name; G.rift = null; G.depth = 0; buildSurface('portal');
   RA.away = false;
   log('You step out of the Rift of ' + name + ' onto the grass before the portal.', '#b49ae6');
-  if (saveHero()) log('Progress saved.', '#a99c86');
+  saveAtPortal();
   refreshUI();
+}
+// saved before the portal: resumed from this save, the hero stands there (as after entering the Rift)
+function saveAtPortal() {
+  const h = G.hero; h.surfAt = 'portal';
+  if (saveHero()) log('Progress saved.', '#a99c86');
+  h.surfAt = null;
 }
 
 // ---- Drawing: the platform and the dial lie on the ground (drawn first), the arch is depth-sorted on its base line

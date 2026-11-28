@@ -433,8 +433,8 @@ and the picker shows no saved heroes.
 - **`maxDepth`** (saved): the deepest depth the hero has reached (set on descending and on a scroll of return; a
   save without it takes the depth it resumes at). The Rift's monsters are of this depth (see [The Rift](#the-rift)).
 - **`dial`** (saved): the items the hero left on the Rift portal's dial; **`surfAt`** (saved, `'portal'` or none):
-  where on the surface a hero resumed from this save stands (before the portal after entering the Rift, else before
-  the crypt's door). The hero is also saved on entering the Rift (on the surface, before going) and on leaving it;
+  where on the surface a hero resumed from this save stands (before the portal when saved on entering or leaving
+  the Rift, else before the crypt's door). The hero is also saved on entering the Rift (on the surface, before going) and on leaving it;
   never inside it.
 - **The title screen** (since v162; laid out anew in v165) has the title, one line of story, and the **current hero**
   in a card (`titleRefresh`): its portrait (its look's sprite standing, facing south), name, level, depth (or *The

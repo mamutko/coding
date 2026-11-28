@@ -67,7 +67,7 @@ A use item (an entry in `POTIONS`, like the Scroll of Frost), stacking in the pa
 describes it as built. Where it differs from this design: the realm hash is a 53-bit cyrb53 (synchronous) rather
 than SHA-256; the portal stands at (−29, −29), about 60 tiles north of the crypt (moved 10 tiles north in v134), and the dial at (−23, −23), about 8.5 tiles in front of the arch; the arch is 4.2 tiles wide; monsters
 do not come back yet (the respawn below is for later); the hero stands before the portal when resumed from the save
-made on entering (`surfAt`).
+made on entering or leaving the Rift (`surfAt`).
 
 ### Placement
 
