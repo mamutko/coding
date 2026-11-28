@@ -3,12 +3,13 @@
   "description": "a lean, broad-shouldered man about 35, a woodsman and ranger: short dark-brown hair and a neatly trimmed short beard, a weathered face; a dark-brown wool hooded half-cloak (ONE simple layer, no fur) over both shoulders, reaching the elbows at the sides and in a point to the waist at the back, the hood DOWN, fastened at the throat with a large iron ring clasp; an olive-green padded jerkin to mid-thigh with two bold leather straps crossing the chest, over a cream shirt whose sleeves show at the upper arms; long dark-brown leather bracers; a wide brown belt with a square iron buckle, a leather pouch at his right hip and a sheathed hunting knife at his left hip; tan trousers; knee-high dark-brown boots with turned-down cuffs. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried.",
   "frames": 12,
   "mirror": false,
-  "guide": "stick-shaded",
+  "guide": "stick",
   "body": "shaded stick figure of the original hero's algorithmic gait (stick_guide.py, walk_cycle.py 'hero'): straight stance leg, upright, head level",
   "decisions": [
     "The Woodsman (hero-4) repainted over the shaded stick-figure guide instead of the mocap mannequin: Martin found the mannequin-guided heroes too slim, walking on bent legs and looking down in some directions.",
     "12 frames, all 8 directions painted (the knife and pouch are on different hips).",
-    "v174: the far leg and arm drawn dark in the guide and named figure by figure in the prompt; NW, SW, W, NE, E, SE repainted (Martin: in E one foot always dragged behind)."
+    "v174: the far leg and arm drawn dark in the guide and named figure by figure in the prompt; NW, SW, W, NE, E, SE repainted (Martin: in E one foot always dragged behind).",
+    "Round 3 (Martin): no shade difference between legs in the guide; a true stick figure with hip and shoulder T bars; a proper per-direction review (review.py)."
   ],
   "references": [
     {
@@ -22,42 +23,42 @@
     "NW": {
       "file": "paint/NW.png",
       "status": "approved",
-      "note": "REPAINTED twice (attempts NW-1, NW-2: frame 1 had the near leg trailing). Far leg dark guide + per-figure prompt. Stride 12/12, legs 8/9."
+      "note": "stick guide (T bars, one grey). Legs reviewed frame by frame: right; leg shade ok (far-near +2). Stride 10/12, colour 0.90."
     },
     "S": {
       "file": "paint/S.png",
       "status": "approved",
-      "note": "--match NW. Stride 12/12, colour 0.91. Legs alternate (left / right on screen), kept."
+      "note": "stick guide, --match NW. Legs alternate L/R as in the guide; shade -10 back (ok). Colour 0.93."
     },
     "SW": {
       "file": "paint/SW.png",
-      "status": "approved",
-      "note": "REPAINTED (attempt SW-1), --match NW. Stride 11/12, colour 0.94, legs 4/5."
+      "status": "redo",
+      "note": "halves. Back leg painted darker (review.py -15)."
     },
     "W": {
       "file": "paint/W.png",
-      "status": "approved",
-      "note": "REPAINTED (attempt W-1: near leg trailing in most frames), --match NW. Stride 10/12 (by eye fine), colour 0.94, legs 8/9."
+      "status": "redo",
+      "note": "halves. Same strict-side-view problem as E (full-sheet try: frames 7-9 copied 1-3)."
     },
     "N": {
       "file": "paint/N.png",
       "status": "approved",
-      "note": "--match NW. Stride 12/12, colour 0.88. Legs alternate (left / right on screen), kept."
+      "note": "repainted without --match (the first try copied NW's three-quarter view) and with a straight-back-view line. Back view right; legs mostly alternate (frame 2 doubtful)."
     },
     "NE": {
       "file": "paint/NE.png",
-      "status": "approved",
-      "note": "REPAINTED (attempt NE-1), --match NW. Stride 12/12, colour 0.88, legs 7/9."
+      "status": "review",
+      "note": "halves. Leg shade ok; leg order not confirmed."
     },
     "E": {
       "file": "paint/E.png",
-      "status": "approved",
-      "note": "REPAINTED (attempt 1 in paint/attempts/E-1: the near leg trailed in every frame, one foot seemed to drag). Guide with the far leg dark (FAR_DARK 0.75), prompt naming the leg in front figure by figure. Stride 11/12, colour 0.94, legs 9/9 (leg_check.py)."
+      "status": "redo",
+      "note": "halves (stick_guide --halves). FAILS review: the near leg leads in both halves (frames 1 and 7 the same); the first full-sheet try had it trailing in both. Strict side view: unsolved without a cue."
     },
     "SE": {
       "file": "paint/SE.png",
-      "status": "approved",
-      "note": "REPAINTED (attempt SE-1), --match NW. Stride 12/12, colour 0.87; leg_check 1/4 (feet overlap in most frames; frames 1 and 7 checked by eye: right)."
+      "status": "review",
+      "note": "halves. Leg shade -10 (ok); leg order not confirmed."
     }
   },
   "spend": [
@@ -72,9 +73,13 @@
     {
       "what": "repaints: NW x2, E, SW, W, NE, SE",
       "usd": 0.2
+    },
+    {
+      "what": "round 3: NW, S, SW, W, N, NE, E, SE full sheets; E test half; 10 halves (SW, W, NE, E, SE); N repaint",
+      "usd": 0.71
     }
   ],
-  "next": "Done: in the game as the look \"Woodsman (stick guide)\" (hero6), beside the mocap-guided Woodsman (hero4) shown here as 'in game'.",
+  "next": "The game's hero6 sheet is still the v174 build (paint/attempts/*-v174.png, far leg drawn dark in the guide). Third round over the true stick figure (guides/stick): S, NW, N pass review; E, W fail (strict side view: same leg in front in both halves); SW back leg darker; SE, NE unconfirmed. Waiting for Martin's choice for the side views.",
   "sheet": {
     "file": "../../../assets/hero6.webp",
     "key": "hero6"

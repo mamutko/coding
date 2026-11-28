@@ -14,19 +14,21 @@ datasets.md     motion-capture sources and their licences (Quaternius, CC0)
 datasets/quaternius-ual1/   UAL1_Standard.glb (in place, use this), UAL1_Standard_RM.glb (root motion), License.txt
 guides/         pre-rendered guides, see guides/README.md: walk, formal-walk, jog (8f / 12f, all 8 directions,
                 shaded clay, adult 1.82 m, EU 43 feet), stick-walk (algorithmic stick figure, a colour per limb) and
-                stick-shaded (the same gait as one shaded grey figure, 12 frames, all 8 directions)
+                stick (the same gait as a true one-grey stick figure with hip and shoulder T bars, 12 frames, 8 dirs)
 tools/
   render_guide.py    mocap mannequin guide: --clip, --frames, --shaded, --shoe, --preset stocky / child-8 / child-12,
                      --girth (body thickness), ...
   walk_cycle.py      the algorithmic stick-figure guide (per-character gaits in CHARS) and the projection
-  stick_guide.py     a walk_cycle.py gait drawn as one shaded grey figure (no limb colours) in the mocap guides'
-                     layout and sidecar (fig_px, cycle_px, feet), so it paints with --stick and builds with build_sheet
+  stick_guide.py     a walk_cycle.py gait drawn as a true stick figure (T bars at hips and shoulders, one grey) in the
+                     mocap guides' layout and sidecar (fig_px, cycle_px, feet): paints with --stick, builds with build_sheet
   default_guides.py  regenerates guides/
-  guide_prompt.py    the painting prompt: --plain (shaded guide), --stick (shaded stick figure), --character, --ref, --match, --cloth, --she (a woman)
+  guide_prompt.py    the painting prompt: --plain (shaded guide), --stick (stick figure), --character, --ref, --match, --cloth, --she (a woman)
   grid_check.py      checks a painting against its guide: stride, faded limbs, colour drift (--ref)
-  leg_check.py       near / far legs of a painting over the stick-shaded guide (the near leg must lead in turn)
+  review.py          review sheets of one painted direction (every frame and the legs zoomed, guide over painting,
+                     labelled with the leg that must be in front) + the leg shade check (a darker back / far leg)
   board.py + board_template.html   the character board (review page, published as an Artifact);
                      a direction can show several variants (e.g. one per reference candidate) side by side
+  join_halves.py     two half-cycle paintings (stick_guide.py --halves, guide_prompt.py --half) -> one full sheet
   build_sheet.py     painted directions -> game sprite sheet + meta.json entry (aligned on the guide, fpt from
                      the stride, --plant-check feet image; "from_guide": a mannequin sheet)
 tests/          a known guide + painting pair for grid_check (a real faded boot), see Verifying the tools
@@ -93,14 +95,16 @@ dents, worn edges or stains), never with fine noise, speckles or scratch texture
 
 - **Default:** `guides/walk/<8|12>f/<DIR>.png`: adult 1.82 m, EU 43 feet, normal walk. Also committed:
   `formal-walk` (upright, measured: nobles, guards), `jog`, and `stick-walk` (algorithmic, 8 frames, 5 directions).
-- **`stick-shaded`** (`guides/stick-shaded/12f`): the original knight's algorithmic gait as a shaded grey stick
-  figure. Use it when the mocap mannequin's look carries into the painting (too slim, bent knees, head down: the
-  user's verdict on the mocap heroes): paint with `guide_prompt.py --stick` (it says the figure is only the pose
-  and asks for a sturdy build, a straight standing leg and a level head), `"guide": "stick-shaded"` in
+- **`stick`** (`guides/stick/12f`): the original knight's algorithmic gait as a true stick figure: thin sticks all
+  of one grey, a T bar at the hips (wider than real hips, the legs hanging from its ends) and one at the shoulders
+  (the arms from its ends), a stick spine between them, a ball head with a nose bump. Use it when the mocap
+  mannequin's look carries into the painting (too slim, bent knees, head down: the user's verdict on the mocap
+  heroes). Paint with `guide_prompt.py --stick` (it describes the T bars, says the sticks are only the pose, asks
+  for a sturdy build, a straight standing leg, a level head and both legs painted alike, and in side and diagonal
+  views names the near / far leg and which one is in front figure by figure), `"guide": "stick"` in
   character.json. Render another gait or size with `tools/stick_guide.py <DIR|all> <out_dir> --char <CHARS key>
-  [--frames 8 --cols 4]`. It draws the far leg and arm dark, and `--stick` names the leg in front figure by
-  figure: check side and diagonal views with `tools/leg_check.py` (the model likes to paint the near leg trailing
-  in every frame). See learnings.md, "Shaded stick guide" and "Near leg always trailing".
+  [--frames 8 --cols 4]`. Never shade one leg darker in a guide: it comes out as a darker painted leg. See
+  learnings.md, "Shaded stick guide", "Near leg always trailing" and "True stick figure".
 - **Custom** (render it into `<char>/guide/`, show it on the board, wait for approval before painting):
   - another clip: `--clip Jog_Fwd_Loop | Sprint_Loop | Walk_Formal_Loop | ...` (all 43 in datasets.md);
   - other body: `--preset stocky | child-12 | child-8`, `--shoe <EU size>`. Fine-tune any preset by hand:
@@ -148,10 +152,32 @@ python tools/grid_check.py <guide>.png <char>/paint/<DIR>.png 6 2 --dir <DIR> --
     in some views;
   - one failed direction: repaint it once with a line naming what went missing (hero-2 SE: "the same rich deep
     crimson, fully opaque ... the chainmail skirt shows"); keep the failed try in `paint/attempts/` with its prompt.
-- **Check every image** (Read it, and look at it on the board's dark floor): every stride frame matches, no faded
-  limbs, colour ≥ 0.70, right view, no leftover grey mannequin, items in the right hands, and no shimmer: play it
-  on the board at the character's pace and watch the shading and any cloth hem. On a failed check, paint that
-  direction once more (prompt fixes in learnings.md); after a second failure, ask.
+- **Review every direction** before accepting it (and before showing it to the user). The automatic numbers
+  (grid_check: stride, faded limbs, colour) catch only some failures: the stride check compares how far apart the
+  feet are, which is the same whichever leg leads, so a walk with one leg ALWAYS trailing passes it (hero-6 E: the
+  user saw "one foot always dragging behind, always the same side"; grid_check said 11/12). So:
+  1. `python tools/review.py <char>/character.json <DIR>` writes `paint/review-<DIR>-frames.png` and
+     `review-<DIR>-legs.png` and prints, figure by figure, which leg must be IN FRONT, and the leg shade check.
+  2. **Read `review-<DIR>-legs.png` at full size and, for EVERY frame, decide which painted leg is in front and
+     whether it is the near or the far one** (the near leg is drawn over the other where they cross; from the hip
+     down its outline is unbroken; in a side view its foot sits a little lower on screen). Write the answer down
+     frame by frame (e.g. "1 far ok, 2 far ok, ... 7 near WRONG") and compare with the printed labels. Pay most
+     attention to frames 1 and N/2 + 1 (the widest stances): they must have DIFFERENT legs in front. In S and N
+     the legs are told apart left / right on screen: the left foot forward in the guide must be the left one
+     painted. One wrong contact frame, or the same leg in front in both halves, fails the direction.
+  3. **Leg shade:** both legs painted alike. review.py flags a back leg (all views) or far leg (side and diagonal
+     views) darker by more than about 10-12 luminance; also look at the legs sheet: one trouser leg or boot clearly
+     darker than the other in most frames fails (the user noticed it at once).
+  4. **The rest, on `review-<DIR>-frames.png`:** the right view (facing, which side shows), the head level and
+     facing the walking direction (not looking down), natural sturdy proportions (no thin guide limbs, no grey,
+     no bars), the standing leg straight, items in the right hands and on the right hips, the cloth the same in
+     every frame, no faded limbs, no shimmer (also play it on the board at the character's pace).
+  Known weak spot (learnings.md, "True stick figure"): the strict side views E and W, where the model tends to paint
+  the same leg in front in both halves whatever the guide and prompt say: review them with extra care. In N and S,
+  don't pass `--match` with a three-quarter view (it pulled N into a three-quarter view).
+  5. Record the result in character.json (the direction's "note": e.g. "legs 12/12 by eye, shade ok, stride 12/12,
+     colour 0.91"). On a failure, paint that direction once more with a line naming what went wrong (prompt
+     fixes in learnings.md; keep the failed try in `paint/attempts/`); after a second failure, ask.
 - **After the first direction: stop for approval.** After that, continue direction by direction, updating the board
   after each; approvals for the rest are optional unless the user wants them.
 

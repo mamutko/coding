@@ -1,0 +1,154 @@
+{
+ "cols": 6,
+ "rows": 2,
+ "frames": 12,
+ "dirs": [
+  "NW"
+ ],
+ "cell": [
+  384,
+  512
+ ],
+ "clip": "walk_cycle.py gait 'hero' (algorithmic stick figure, shaded)",
+ "ground_y": 430.08,
+ "fig_px": 418.82,
+ "fit": 1.0,
+ "shaded": true,
+ "stick": true,
+ "cycle_px": 419.76,
+ "feet": [
+  [
+   [
+    -105.8,
+    -49.5
+   ],
+   [
+    93.5,
+    18.6
+   ],
+   10.0
+  ],
+  [
+   [
+    -98.4,
+    -34.0
+   ],
+   [
+    113.1,
+    19.6
+   ],
+   -4.8
+  ],
+  [
+   [
+    -73.8,
+    -16.3
+   ],
+   [
+    106.6,
+    6.5
+   ],
+   -10.0
+  ],
+  [
+   [
+    -37.2,
+    4.2
+   ],
+   [
+    73.1,
+    1.8
+   ],
+   -10.0
+  ],
+  [
+   [
+    1.0,
+    15.3
+   ],
+   [
+    14.6,
+    -16.8
+   ],
+   -10.0
+  ],
+  [
+   [
+    29.3,
+    31.6
+   ],
+   [
+    -45.6,
+    -50.2
+   ],
+   -10.0
+  ],
+  [
+   [
+    52.4,
+    39.1
+   ],
+   [
+    -64.7,
+    -70.1
+   ],
+   -10.0
+  ],
+  [
+   [
+    75.2,
+    38.5
+   ],
+   [
+    -54.0,
+    -56.2
+   ],
+   4.8
+  ],
+  [
+   [
+    71.0,
+    24.3
+   ],
+   [
+    -26.8,
+    -39.8
+   ],
+   10.0
+  ],
+  [
+   [
+    38.4,
+    19.2
+   ],
+   [
+    10.8,
+    -19.8
+   ],
+   10.0
+  ],
+  [
+   [
+    -21.0,
+    1.0
+   ],
+   [
+    48.0,
+    -8.2
+   ],
+   10.0
+  ],
+  [
+   [
+    -83.5,
+    -31.3
+   ],
+   [
+    73.8,
+    9.4
+   ],
+   10.0
+  ]
+ ],
+ "note": "ground_y: ground line, px from the cell top; fig_px: a standing figure's height in px; cycle_px: ground covered in one loop, in px of a screen-horizontal ground line; feet: per frame [left ball, right ball] in px from the cell centre and the ground line, then < 0 when the left foot is planted, > 0 the right"
+}

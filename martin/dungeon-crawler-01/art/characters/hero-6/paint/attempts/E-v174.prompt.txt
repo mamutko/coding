@@ -1,0 +1,34 @@
+This image is a POSE GUIDE: 12 mannequins in a 6 x 2 grid showing one complete walk cycle, read left to right and top to bottom (figures 1-6 in the top row). Paint over EVERY mannequin, keeping each one's EXACT position, size and pose of legs, arms, torso and head. Do not move, add or remove any figure, and do not change any pose.
+
+THE OTHER INPUT IMAGES: the FIRST image is the pose guide described above, the one to paint over (keep its layout). The SECOND image is the CHARACTER REFERENCE: paint exactly this character in every figure: the same face, hair, body build, clothes, colours, materials and accessories, and the same length of cloak and other loose clothing. Copy only the design from it, never its pose or view.
+
+The mannequins are simple light-grey shaded STICK FIGURES: rounded tubes for the limbs, a slab for the torso and a ball for the head, with a small bump for the nose showing where the head faces. They show ONLY THE POSE: where each foot, knee, hand and the head are. The darker side of each part is turned away from the viewer, and dark lines mark where a limb passes in front of the body.
+
+BODY: do NOT copy the stick figure's thin tubes. Paint a real, sturdy, well-built adult man with natural human proportions and full muscular limbs, exactly as broad and solid as in the reference. He walks UPRIGHT with a confident, relaxed stride: the leg carrying his weight is STRAIGHT, the torso is upright, the HEAD is held LEVEL and looks straight ahead in the walking direction (never tilted down toward the ground).
+
+DIRECTION: every figure strict side profile walking to the RIGHT: we see only his RIGHT side, NOT turned toward the viewer, exactly as the mannequins are turned. The body NEVER turns around between figures.
+
+FOLLOW THE LEGS EXACTLY, they alternate. In this view we see his RIGHT side: his RIGHT leg and arm are the NEAR ones, drawn LIGHT grey; his LEFT leg and arm are on the FAR side of the body, drawn DARK grey. Counting the figures in reading order:
+figure 1: his FAR (dark grey) leg reaches forward, his NEAR (light grey) leg is stretched far back.
+figure 7: the OPPOSITE: his NEAR (light grey) leg reaches forward and his FAR (dark grey) leg is stretched far back. It is NOT a copy of figure 1: the legs have swapped places.
+In figures 2-6 the NEAR (light grey) leg swings forward past the other; in figures 8-12 the FAR (dark grey) leg swings forward past the other. Each leg in turn steps out in front: neither leg always trails behind.
+Figure by figure, the leg that is IN FRONT (toward the walking direction): 1 FAR (dark), 2 FAR (dark), 3 FAR (dark), 4 neither (legs passing), 5 NEAR (light), 6 NEAR (light), 7 NEAR (light), 8 NEAR (light), 9 NEAR (light), 10 neither (legs passing), 11 FAR (dark), 12 FAR (dark).
+Where the NEAR leg is in front, it is the near leg that reaches forward, seen over the far leg, while the far (dark) leg trails behind it, partly hidden: paint exactly that, even though it is less usual than the near leg trailing.
+All other figures are in-between poses: copy them exactly from the guide, always checking which of the two legs (light or dark) is in front.
+Arms swing opposite to the legs, following the stick figure's light and dark arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY.
+The far leg and arm are darker in the guide only to tell them apart: paint them in the same clothing colours as the near ones, just a little more in shadow, fully opaque.
+
+CHARACTER (identical in all 12 figures): a lean, broad-shouldered man about 35, a woodsman and ranger: short dark-brown hair and a neatly trimmed short beard, a weathered face; a dark-brown wool hooded half-cloak (ONE simple layer, no fur) over both shoulders, reaching the elbows at the sides and in a point to the waist at the back, the hood DOWN, fastened at the throat with a large iron ring clasp; an olive-green padded jerkin to mid-thigh with two bold leather straps crossing the chest, over a cream shirt whose sleeves show at the upper arms; long dark-brown leather bracers; a wide brown belt with a square iron buckle, a leather pouch at his right hip and a sheathed hunting knife at his left hip; tan trousers; knee-high dark-brown boots with turned-down cuffs. Both hands EMPTY: NO bow, NO quiver, NO arrows, NO weapon held or carried. Copy only the pose from the mannequins, not their shapes: give him natural human proportions and clothing. Clothing that hangs beyond the body (cloak, cape, skirt, long coat, sleeves) is painted at its FULL length and width, even where the mannequin has no shape there; it moves with the stride.
+
+THE DARK-BROWN HOODED HALF-CLOAK is exactly as in the reference: fastened at BOTH shoulders and draped over both shoulders, wider than the torso, at its full length. In this side view (facing right) it hangs down his BACK, on the LEFT side of the figure, from the shoulder down, close to the body. It keeps the SAME width, the SAME rich colour and is fully OPAQUE in every figure: never thin, faded, see-through or missing.
+
+STEADY FROM FRAME TO FRAME (critical: these 12 figures play one after another as an animation, and anything that is redrawn differently in each figure will flicker):
+- Paint the character as if it were ONE 3D model rendered 12 times: the SAME light from the upper left, the SAME highlight and shadow shapes in the SAME places on each surface, the SAME markings (dents, scuffs, stains, patches, patterns, trim) in the SAME spots, the SAME colours.
+- Loose cloth (cloak, cape, skirt, coat tails) keeps the SAME width, the SAME outline and the SAME few broad folds in ALL 12 figures. It is heavy and hangs close to the body from the same points; only its bottom edge moves a little with the stride (swinging slightly opposite to the forward leg). It never flares, billows, puffs out or swings wide to one side, and folds never appear, vanish or rearrange between figures.
+- Hems and edges keep the SAME outline in every figure (the same frayed or torn edge, the same stains), simply moving with the cloth. Never redraw new tears, new jagged points or new stain blotches in each figure.
+- Show shine, wear and texture with a few BOLD shapes, never with fine noise, speckles or scratch texture.
+
+STYLE: hand-drawn 2D game sprite art for an isometric RPG, clean dark ink outlines, painterly watercolour-and-gouache shading, light from the upper left. NOT pixel art, NOT 3D.
+
+The grey stick figure is ONLY a pose guide: paint the character's own clothing, skin and hair colours over it, with no grey stick figure showing. Every part of the character is fully OPAQUE: no faded, ghostly or see-through limbs, even a leg or arm partly behind the body.
+Transparent background (remove the magenta). No text, numbers or grid lines.

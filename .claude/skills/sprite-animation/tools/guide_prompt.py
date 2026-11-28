@@ -5,8 +5,9 @@ OpenAI wording (transparent background). Generalises nwprompt.py.
   python guide_prompt.py <DIR|DIR,DIR,...|all> [--frames N] [--cols C] [--plain] [--character FILE]
                          [--ref] [--match DIR] [--cloth "wide crimson cape"] [--she]
   --plain       for the shaded grey mannequin (render_guide.py --shaded, the default guides): no limb-colour key
-  --stick       for the shaded grey stick figure (stick_guide.py): like --plain, and says the figure is only a pose
-                skeleton (thin limbs, ball head): paint a sturdy natural body, legs straight under the body, head level
+  --stick       for the stick figure (stick_guide.py): describes its T bars, says it is only the pose (paint a sturdy
+                natural body, straight standing leg, head level, both legs alike), and in side and diagonal views
+                names the near / far leg and which one is in front, figure by figure
   --character   the character's description: a .txt file, or a .json with a "description" key (character.json)
   --ref         the 2nd input image is the approved character reference (turnaround): paint exactly that character
   --match DIR   the 3rd input image is this character already painted (and approved) walking DIR: match its look
@@ -14,6 +15,8 @@ OpenAI wording (transparent background). Generalises nwprompt.py.
                 shows and how wide, and that it keeps the same width, colour and opacity in every figure and as in
                 the matched direction (learnings.md, "Stable directions": without it the cape came out narrow,
                 faint or missing in some directions)
+  --half 1|2    (with --stick) one step of the cycle on its own sheet (stick_guide.py --halves): --frames is the
+                figures in the half (6 of 12), --cols 3; say which leg leads in this step
   --she         a woman: the prompt says she / her instead of he / his / him
 Input images go to the edit call in this order: guide, reference, matched direction.
 Every prompt includes the STEADY FROM FRAME TO FRAME paragraph (same highlights, markings, cloth folds and hem
@@ -27,7 +30,7 @@ VIEW = {
     "SW": "walks diagonally toward the LOWER LEFT, turned about 45 degrees to the left: we see his face in three-quarter view and his LEFT side",
     "W":  "strict side profile walking to the LEFT: we see only his LEFT side, NOT turned toward the viewer",
     "NW": "walks diagonally AWAY toward the UPPER LEFT: we see his BACK and his LEFT side; the face is hidden",
-    "N":  "walks straight AWAY from the viewer (toward the top of the image): we see only his BACK; the face is hidden",
+    "N":  "walks straight AWAY from the viewer (toward the top of the image): the STRAIGHT BACK view, like the reference's back view: both shoulders equally wide, the spine down the middle, NOT turned to the left or right; we see only his BACK, never his side; the face is hidden",
     "NE": "walks diagonally AWAY toward the UPPER RIGHT: we see his BACK and his RIGHT side; the face is hidden",
     "E":  "strict side profile walking to the RIGHT: we see only his RIGHT side, NOT turned toward the viewer",
     "SE": "walks diagonally toward the LOWER RIGHT, turned about 45 degrees to the right: we see his face in three-quarter view and his RIGHT side",
@@ -52,7 +55,7 @@ CHARACTER = ("a lean young ranger/hunter, adult man about 25. Deep forest-green 
              "knee-high scuffed brown leather boots. Hands EMPTY: NO bow, NO quiver, NO weapon held.")
 
 
-def prompt(dirs, frames=8, cols=4, character=CHARACTER, plain=False, ref=False, match=None, cloth=None, stick=False):
+def prompt(dirs, frames=8, cols=4, character=CHARACTER, plain=False, ref=False, match=None, cloth=None, stick=False, half=None):
     multi = len(dirs) > 1
     rows = len(dirs) if multi else -(-frames // cols)
     n = len(dirs) * frames if multi else frames
@@ -68,6 +71,9 @@ def prompt(dirs, frames=8, cols=4, character=CHARACTER, plain=False, ref=False, 
     else:
         layout = (f"{n} mannequins in a {cols} x {rows} grid showing one complete walk cycle, read left to right and "
                   f"top to bottom (figures 1-{cols} in the top row).")
+        if half:
+            layout = (f"{n} mannequins in a {cols} x {rows} grid showing ONE STEP (half of a walk cycle), read left to "
+                      f"right and top to bottom (figures 1-{cols} in the top row).")
         where = "Counting the figures in reading order:"
         view = (f"DIRECTION: every figure {VIEW[dirs[0]]}, exactly as the mannequins are turned. "
                 "The body NEVER turns around between figures.")
@@ -75,15 +81,20 @@ def prompt(dirs, frames=8, cols=4, character=CHARACTER, plain=False, ref=False, 
         key = ("The mannequins are smooth light-grey shaded figures; the darker side of the body is the side turned "
                "away from the viewer, and dark lines mark where a limb passes in front of the body.")
         if stick:
-            key = ("The mannequins are simple light-grey shaded STICK FIGURES: rounded tubes for the limbs, a slab for "
-                   "the torso and a ball for the head, with a small bump for the nose showing where the head faces. "
-                   "They show ONLY THE POSE: where each foot, knee, hand and the head are. The darker side of each "
-                   "part is turned away from the viewer, and dark lines mark where a limb passes in front of the "
-                   "body.\n\nBODY: do NOT copy the stick figure's thin tubes. Paint a real, sturdy, well-built adult "
-                   "man with natural human proportions and full muscular limbs, exactly as broad and solid as in the "
-                   "reference. He walks UPRIGHT with a confident, relaxed stride: the leg carrying his weight is "
-                   "STRAIGHT, the torso is upright, the HEAD is held LEVEL and looks straight ahead in the walking "
-                   "direction (never tilted down toward the ground).")
+            key = ("The mannequins are simple STICK FIGURES (stick_guide.py), all one light grey: a ball for the head "
+                   "with a small bump for the nose showing where the head faces; a stick for the neck and one for the "
+                   "spine; a SHOULDER BAR across the top of the spine (a T) with the arms hanging from its two ends; a "
+                   "HIP BAR across the bottom of the spine (a T, drawn wider than real hips) with the legs hanging "
+                   "from its two ends; small balls at the joints and hands, and a short stick for each foot. Dark ink "
+                   "lines outline the sticks and mark where one stick passes IN FRONT of another. The sticks show ONLY "
+                   "THE POSE: where each foot, knee, hand and the head are, and which leg is the near one.\n\n"
+                   "BODY: none of the stick figure's shapes carry into the painting: no thin sticks, no bars, no balls, "
+                   "no grey. Paint a real, sturdy, well-built adult man with natural human proportions and full "
+                   "muscular limbs, exactly as broad and solid as in the reference, with natural hips (narrower than "
+                   "the guide's hip bar). He walks UPRIGHT with a confident, relaxed stride: the leg carrying his "
+                   "weight is STRAIGHT, the torso is upright, the HEAD is held LEVEL and looks straight ahead in the "
+                   "walking direction (never tilted down toward the ground). BOTH legs are painted in the SAME colours "
+                   "and the SAME light: the leg further back is NOT darker than the other.")
         legs = f"""FOLLOW THE LEGS EXACTLY, they alternate. {where}
 figure 1: one leg reaches forward, the other is stretched far back.
 figure {h + 1}: the OPPOSITE: the leg that was back in figure 1 now reaches forward. It is NOT a copy of figure 1.
@@ -91,22 +102,42 @@ All other figures are in-between poses (a leg passing under the body, the other 
 Arms swing opposite to the legs, following the mannequin's arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY."""
         near = {"SW": "LEFT", "W": "LEFT", "NW": "LEFT", "NE": "RIGHT", "E": "RIGHT", "SE": "RIGHT"}.get(dirs[0])
         if stick and near and not multi:
-            # the stick guide draws the far leg and arm darker (stick_guide.py FAR_DARK); its gait starts with the
-            # LEFT leg forward. Without naming which leg leads, the model painted the near leg in front in both halves
-            # of the stride in side views (hero-6 E and W, first try): one foot seemed to drag behind.
+            # The model's habit in side and diagonal views: the NEAR leg trailing in every frame, so one foot seems to
+            # drag behind (hero-6 E, W, NW: learnings.md, "Near leg always trailing"). Name the near and far leg, which
+            # leads in figures 1 and h + 1, and figure by figure which leg is in front (stick_guide.leading).
+            import stick_guide as _sg
+            _sg.wc.use("hero")
             far = "RIGHT" if near == "LEFT" else "LEFT"
-            a, b = ("NEAR (light grey)", "FAR (dark grey)") if near == "LEFT" else ("FAR (dark grey)", "NEAR (light grey)")
-            import math as _m   # the stick gait: the left hip angle goes as cos(2 pi t); t = 0 is figure 1
-            per = ", ".join(f"{i + 1} {('NEAR (light)' if (_m.cos(2 * _m.pi * i / frames) > 0) == (near == 'LEFT') else 'FAR (dark)') if abs(_m.cos(2 * _m.pi * i / frames)) > 0.3 else 'neither (legs passing)'}" for i in range(frames))
-            legs = f"""FOLLOW THE LEGS EXACTLY, they alternate. In this view we see his {near} side: his {near} leg and arm are the NEAR ones, drawn LIGHT grey; his {far} leg and arm are on the FAR side of the body, drawn DARK grey. {where}
+            lead = _sg.leading(frames * 2 if half else frames, dirs[0])
+            if half:
+                lead = lead[(half - 1) * frames: half * frames]
+            a = "NEAR" if lead[0] == "near" else "FAR"; b = "FAR" if a == "NEAR" else "NEAR"
+            per = ", ".join(f"{i + 1} {x.upper() if x != '-' else 'neither (legs passing)'}" for i, x in enumerate(lead))
+            if half:
+                # one step on its own sheet (stick_guide.py --halves): nothing to copy from the other half; say which
+                # leg leads in this step and, when it is the near one, that this is the pose most often painted wrong
+                ld = next((x for x in lead if x != "-"), "near").upper()
+                tr = "FAR" if ld == "NEAR" else "NEAR"
+                nl = sum(1 for x in lead if x == lead[0])
+                sideleg = near if ld == "NEAR" else far
+                legs = f"""FOLLOW THE LEGS EXACTLY. In this view we see his {near} side: his {near} leg and arm are the NEAR ones (in the guide they hang from the end of the hip / shoulder bar nearer to us and are drawn OVER the far ones where they cross); his {far} leg and arm are on the FAR side of the body.
+These {frames} figures are ONE STEP of his {ld} ({sideleg}) leg. {where}
+figure 1: his {ld} {sideleg} leg reaches far forward (heel down at the front), his {tr} leg stretched far back (toes on the ground behind).
+Figure by figure, the leg that is IN FRONT (toward the walking direction): """ + ", ".join(f"{i + 1} {x.upper() if x != '-' else 'neither (legs passing)'}" for i, x in enumerate(lead)) + """.
+""" + ("""This step is the one most often painted wrong: do NOT paint the near leg trailing behind. Where the NEAR leg is in front, it is seen in full, drawn over the far leg, which trails behind it, partly hidden. The hip that carries the forward leg is the hip nearest to us.
+""" if ld == "NEAR" else """Here the FAR leg is in front: it reaches forward partly hidden behind the near leg, which trails behind, seen in full.
+""") + """Arms swing opposite to the legs, following the stick figure's arms exactly; hands open and EMPTY.
+The near and far legs are painted alike: the same clothing colours and the same light, fully opaque; the far one is NOT darker."""
+            else:
+             legs = f"""FOLLOW THE LEGS EXACTLY, they alternate. In this view we see his {near} side: his {near} leg and arm are the NEAR ones (in the guide they hang from the end of the bar nearer to us and are drawn over the far ones where they cross); his {far} leg and arm are on the FAR side of the body. {where}
 figure 1: his {a} leg reaches forward, his {b} leg is stretched far back.
 figure {h + 1}: the OPPOSITE: his {b} leg reaches forward and his {a} leg is stretched far back. It is NOT a copy of figure 1: the legs have swapped places.
-In figures 2-{h} the {b} leg swings forward past the other; in figures {h + 2}-{frames} the {a} leg swings forward past the other. Each leg in turn steps out in front: neither leg always trails behind.
+Each leg in turn steps out in front: neither leg always trails behind.
 Figure by figure, the leg that is IN FRONT (toward the walking direction): {per}.
-Where the NEAR leg is in front, it is the near leg that reaches forward, seen over the far leg, while the far (dark) leg trails behind it, partly hidden: paint exactly that, even though it is less usual than the near leg trailing.
-All other figures are in-between poses: copy them exactly from the guide, always checking which of the two legs (light or dark) is in front.
-Arms swing opposite to the legs, following the stick figure's light and dark arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY.
-The far leg and arm are darker in the guide only to tell them apart: paint them in the same clothing colours as the near ones, just a little more in shadow, fully opaque."""
+Where the NEAR leg is in front, the near leg reaches forward, seen over the far leg, while the far leg trails behind it, partly hidden: paint exactly that, even though it is less usual than the near leg trailing.
+All other figures are in-between poses: copy them exactly from the guide, always checking which of the two legs (near or far) is in front.
+Arms swing opposite to the legs, following the stick figure's arms exactly; the hands are at clearly different positions from figure to figure, open and EMPTY.
+The near and far legs are painted alike: the same clothing colours and the same light, fully opaque; the far one is NOT darker."""
         colours = ("The grey " + ("stick figure" if stick else "mannequin") + " is ONLY a pose guide: paint the character's own clothing, skin and hair colours "
                    "over it, with no grey " + ("stick figure" if stick else "mannequin") + " showing.")
     else:
@@ -178,7 +209,8 @@ if __name__ == "__main__":
     match = sys.argv[sys.argv.index("--match") + 1] if "--match" in sys.argv else None
     cloth = sys.argv[sys.argv.index("--cloth") + 1] if "--cloth" in sys.argv else None
     out = prompt(dirs, f, c, character, plain="--plain" in sys.argv, ref="--ref" in sys.argv or bool(match),
-                 match=match, cloth=cloth, stick="--stick" in sys.argv)
+                 match=match, cloth=cloth, stick="--stick" in sys.argv,
+                 half=int(sys.argv[sys.argv.index("--half") + 1]) if "--half" in sys.argv else None)
     if "--she" in sys.argv:
         import re
         out = re.sub(r"\b(himself|him|his|His|he|He)\b",

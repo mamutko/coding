@@ -242,3 +242,27 @@ of `martin/dungeon-crawler-01/tools/ranger_test` for the raw images and comparis
   catches the light (SE 1/4, right by eye): look at the frames it flags, zoomed (frames 1 and 7 tell most).
 - **Lesson:** look at the near / far legs, not only the stride width: grid_check's stride compares the feet spread,
   which is the same whichever leg leads.
+
+## True stick figure (2026-11-28, hero-6 third round)
+
+- **What Martin asked:** no shade difference between the legs in the guide (the far leg drawn dark came out as a
+  darker painted leg: review.py measured far minus near -12 in the v174 E and W), and a true stick figure: a T bar at
+  the hips (wider than real hips, the legs hang from its ends), one at the shoulders, a stick spine, so the legs are
+  easier to follow and less of the guide carries into the paint. `stick_guide.py` draws exactly that (`guides/stick`).
+- **What it did:** nothing of the stick figure carried into the paint (sturdy body, natural hips, both legs the same
+  shade: far minus near within +-4 in every view). NW and S came out right (leg order checked frame by frame).
+- **What it did not fix: the strict side views (E, W).** Seen side-on, the hip T is end-on and the two legs differ
+  only in which one is drawn over the other; the model paints one stock walking pose in both halves of the cycle,
+  whatever the prompt says: the first try had the near leg trailing in all frames, a try with each half painted
+  on its own (`stick_guide.py --halves`, `guide_prompt.py --half`, `join_halves.py`) had it leading in all frames
+  (E frame 1 should have the far leg in front). Only the dark far leg (v174) got E right (9/9), at the price of
+  the darker painted leg. Not solved yet; options: a mild far-leg tone with "NOT darker" in the prompt, or turning
+  the side views a little toward the camera so the hip T shows.
+- **Painting each half on its own** removes the "second half copies the first" failure, but costs more ($0.04 per
+  1152 x 1024 half against $0.03 for the whole 2304 x 1024 sheet) and did not by itself make the model follow which
+  leg is in front. Keep it for cases where the halves come out as copies.
+- **`--match` can pull the view:** N painted with the NW painting as the third image came out as a three-quarter
+  back view walking left (the stick figure's back view has no nose bump to show the facing). Repainted without
+  `--match` and with "the STRAIGHT BACK view ... NOT turned" (now in guide_prompt.py), it was right.
+- **Reviewing by eye works when the crops are big enough:** the legs sheet must reach above the hips (the crossing
+  near the hips decides which leg is in front); review.py's legs sheet now shows the lower 64 % of each cell, 1.3x.

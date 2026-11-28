@@ -1,14 +1,19 @@
-"""Shaded stick-figure pose guide: the algorithmic walk of walk_cycle.py (the original hero's gait, or any CHARS
-gait) drawn as ONE light-grey figure with round, lit volumes, in the layout of the mocap guides, so it paints
-with guide_prompt.py --stick and builds with build_sheet.py.
+"""Stick-figure pose guide: the algorithmic walk of walk_cycle.py (the original hero's gait, or any CHARS gait)
+drawn as a true stick figure, in the layout of the mocap guides, so it paints with guide_prompt.py --stick and builds
+with build_sheet.py.
 
   python stick_guide.py <DIR|all> <out_dir> [--char hero] [--frames 12] [--cols 6] [--cell 384x512]
+  python stick_guide.py <DIR|all> <out_dir> --halves     # also <DIR>-h1.png / <DIR>-h2.png: each half of the
+                         # cycle (one step, frames/2 figures in a 3 x 2 grid) to paint on its own (join_halves.py)
 
-Why (learnings.md, "Shaded stick guide"): the mocap mannequin's slim shapes, bent knees and lowered head carried
-into the paintings; the colour-per-limb stick guide's colours bled into them. Here every part is the same grey,
-and only lighting tells the parts apart: spheres swept along each bone (thick enough for a sturdy adult), Lambert
-light from the upper left, the far side of the body darker, and dark ink lines where one part passes in front of
-another and round the silhouette. The head is upright, with a nose bump showing which way it faces.
+The figure (learnings.md, "True stick figure"): thin round sticks, every part the SAME light grey (only lit from
+the upper left, never darker for the far side: a darker far leg came out as a darker painted leg), a T at the hips
+(a bar wider than real hips, HIP_T, with the legs hanging from its ends, so the two legs start well apart and their
+order is easy to follow), a T at the shoulders with the arms hanging from its ends, one stick for the spine between
+the two bars, a neck stick, a ball head with a nose bump showing where it faces, small balls at the joints and
+hands, and a stick for each foot. Dark ink lines outline the figure and mark where one stick passes in front of
+another (which leg is the near one). A stick figure reads as a pose guide only: less of it carries into the paint
+than the shaded clay body of the first version (thin limbs and dark far legs did).
 
 Writes <DIR>.png (cols x rows cells on flat magenta, frame 1 = left heel strike) and <DIR>.json, the sidecar
 build_sheet.py and board.py read: grid, ground line, standing figure height (fig_px), ground covered per loop
@@ -26,7 +31,7 @@ SS = 2                                   # supersampling
 LIGHT = np.array([-0.55, -0.65, 0.52]); LIGHT /= np.linalg.norm(LIGHT)   # screen: x right, y down, z toward us
 BASE = np.array([206.0, 206.0, 210.0])   # the clay grey
 INK = np.array([62.0, 60.0, 66.0])
-FAR_DARK = 0.75                          # the far leg and arm: this much darker in a side view (less on the diagonals)
+HIP_T = 0.17                             # half the hip bar (m): the legs hang from its ends (real hips: ~0.11)
 
 
 def joints(t):
@@ -37,44 +42,46 @@ def joints(t):
              toeR=P(5, 1), shL=P(6, 0), elL=P(6, 1), wrL=P(7, 1), fistL=P(8, 1), shR=P(9, 0), elR=P(9, 1),
              wrR=P(10, 1), fistR=P(11, 1), neck=P(13, 1))
     J["pelvis"] = (J["hipL"] + J["hipR"]) / 2
+    # the hip T: the bar's ends HIP_T out from the pelvis; each leg starts at an end and the knee moves out half as
+    # far, the foot stays where the gait puts it (the legs taper in a little, the feet keep a natural track)
+    lat = J["hipL"] - J["hipR"]; lat[1] = 0; lat /= np.linalg.norm(lat)
+    for s_, sg in (("L", 1), ("R", -1)):
+        out = J["pelvis"] + lat * sg * HIP_T - J["hip" + s_]; out[1] = 0
+        J["hip" + s_] = J["hip" + s_] + out
+        J["knee" + s_] = J["knee" + s_] + out * 0.5
     h = head - [0, ground, 0]
     J["head"] = np.array([h[0], J["neck"][1] + 0.17, J["neck"][2] + 0.02])   # upright: straight above the neck
     return J
 
 
 def spheres(J):
-    """The body as spheres (centre, radius, part id): part ids tell where an ink line goes between parts."""
+    """The stick figure as spheres (centre, radius, part id): sticks are rows of spheres; part ids tell where an ink
+    line goes (0 the T bars and spine, 1 / 2 the left / right leg, 3 / 4 the left / right arm, 5 the head)."""
     out = []
 
-    def bone(a, b, ra, rb, part, step=0.08):
-        L = np.linalg.norm(b - a); n = max(2, int(L / (min(ra, rb) * step)) + 1)
+    def stick(a, b, r, part, step=0.25):
+        L = np.linalg.norm(b - a); n = max(2, int(L / (r * step)) + 1)
         for u in np.linspace(0, 1, n):
-            out.append((a + (b - a) * u, ra + (rb - ra) * u, part))
+            out.append((a + (b - a) * u, r, part))
+    R, J_ = 0.034, 0.046                                            # stick radius, joint ball radius
     for s, p in (("L", 1), ("R", 2)):
-        bone(J["hip" + s], J["knee" + s], 0.095, 0.068, p)          # thigh
-        bone(J["knee" + s], J["ank" + s], 0.066, 0.048, p)          # shin
+        stick(J["hip" + s], J["knee" + s], R, p); stick(J["knee" + s], J["ank" + s], R, p)
         f = J["toe" + s] - J["ank" + s]; f /= np.linalg.norm(f)
-        heel = J["ank" + s] - f * 0.045 + [0, -0.02, 0]
-        bone(heel, J["toe" + s] - f * 0.02, 0.05, 0.042, p)        # foot, heel to toe
+        stick(J["ank" + s] - f * 0.05, J["toe" + s], R, p)         # the foot, heel to toe
+        for j in ("hip", "knee", "ank"):
+            out.append((J[j + s], J_, p))
         q = 3 if s == "L" else 4
-        bone(J["sh" + s], J["el" + s], 0.06, 0.05, q)             # upper arm
-        bone(J["el" + s], J["wr" + s], 0.05, 0.04, q)             # forearm
-        out.append((J["fist" + s], 0.055, q))                       # hand
-    # torso: a rounded slab spanning hips and shoulders (chest a little deeper), then the neck and head
-    inset = lambda p: J["neck"] + (p - J["neck"]) * [0.62, 1, 1]
-    hl, hr, sl, sr = J["hipL"] * [0.8, 1, 1], J["hipR"] * [0.8, 1, 1], inset(J["shL"]), inset(J["shR"])
-    sl, sr = sl - [0, 0.04, 0], sr - [0, 0.04, 0]
-    for v in np.linspace(0, 1, 40):
-        a, b = hl + (sl - hl) * v, hr + (sr - hr) * v
-        r = 0.088 + 0.034 * math.sin(math.pi / 2 * min(1, v / 0.8)) ** 2   # waist to chest
-        for u in np.linspace(0, 1, 12):
-            out.append((a + (b - a) * u, r, 0))
-    bone(J["shL"], J["shR"], 0.065, 0.065, 0)                       # shoulders
-    bone(J["neck"] - [0, 0.04, 0], J["head"] - [0, 0.07, 0], 0.052, 0.052, 5)
+        stick(J["sh" + s], J["el" + s], R * 0.9, q); stick(J["el" + s], J["fist" + s], R * 0.9, q)
+        out.append((J["sh" + s], J_, q)); out.append((J["el" + s], J_ * 0.9, q))
+        out.append((J["fist" + s], 0.048, q))                       # the hand
+    stick(J["hipL"], J["hipR"], R, 0)                               # the hip T bar
+    stick(J["shL"], J["shR"], R, 0)                                 # the shoulder T bar
+    sh_mid = (J["shL"] + J["shR"]) / 2
+    stick(J["pelvis"], sh_mid, R * 1.1, 0)                          # the spine
     hd = J["head"]
-    out.append((hd, 0.115, 5))
-    out.append((hd + [0, -0.05, 0.03], 0.09, 5))                    # jaw
-    out.append((hd + [0, 0.012, 0.105], 0.026, 5))                   # nose: shows where the head faces
+    stick(sh_mid, hd - [0, 0.09, 0], R * 0.9, 5)                    # the neck
+    out.append((hd, 0.11, 5))
+    out.append((hd + [0, 0.012, 0.105], 0.03, 5))                   # nose: shows where the head faces
     return out
 
 
@@ -117,16 +124,7 @@ def render(J, k, scale, cw, ch, gy):
     inner &= gn < 4
     nx = np.where(inner, -gxz / gn, nx); ny = np.where(inner, -gyz / gn, ny); nz = np.where(inner, 1 / gn, nz)
     lam = np.clip(nx * LIGHT[0] + ny * LIGHT[1] + nz * LIGHT[2], 0, 1)
-    zf = zb[fg]; zmid, zr = np.median(zf), 0.35 * s                  # depth: the far side of the body darker
-    depth = np.zeros((H, W)); depth[fg] = np.clip((zb[fg] - zmid) / zr, -1, 1)
-    shade = (0.30 + 0.75 * lam) * (0.84 + 0.16 * depth)
-    # the FAR leg and arm a clearly darker grey (FAR_DARK): in a side view the two legs otherwise have the same
-    # outline in figure 1 and in figure 7, and the model painted the same leg in front in both halves of the stride
-    # (hero-6 E and W, first try). How far a side is from us: the depth of the character's right vector.
-    rd = wc.project(np.array([1.0, 0, 0]), k)[2] - wc.project(np.zeros(3), k)[2]
-    far = (1, 3) if rd > 0 else (2, 4)                               # parts: 1 / 3 left leg / arm, 2 / 4 right
-    if abs(rd) > 0.2:
-        shade = np.where(np.isin(part, far), shade * (1 - FAR_DARK * abs(rd)), shade)
+    shade = 0.40 + 0.70 * lam                                       # one grey everywhere: near and far alike
     img = BASE[None, None, :] * shade[..., None]
     # ink: the silhouette, and where one part passes in front of another (a depth step, or a part change)
     ink = np.zeros((H, W), bool)
@@ -180,6 +178,22 @@ def cycle_m(n=2400):
     return sum(moving) / (len(moving) / n)
 
 
+NEAR = {"SW": "L", "W": "L", "NW": "L", "NE": "R", "E": "R", "SE": "R"}   # the side we see (S, N: none)
+
+
+def leading(n, d=None, gap=0.12):
+    """Per frame, the leg in front (its foot further forward by more than gap metres): 'L' / 'R', or '-' (passing);
+    with a direction d of NEAR, 'near' / 'far' / '-'. guide_prompt.py --stick and review.py use it."""
+    out = []
+    for i in range(n):
+        J = joints(i / n); dz = ball(J, "L")[2] - ball(J, "R")[2]
+        s = "-" if abs(dz) < gap else ("L" if dz > 0 else "R")
+        if d in NEAR and s != "-":
+            s = "near" if s == NEAR[d] else "far"
+        out.append(s)
+    return out
+
+
 def main():
     a = sys.argv[1]; out = pathlib.Path(sys.argv[2]); out.mkdir(parents=True, exist_ok=True)
     opt = lambda k, d: sys.argv[sys.argv.index(k) + 1] if k in sys.argv else d
@@ -217,6 +231,16 @@ def main():
                         "ground covered in one loop, in px of a screen-horizontal ground line; feet: per frame [left ball, "
                         "right ball] in px from the cell centre and the ground line, then < 0 when the left foot is planted, > 0 the right"}
         (out / f"{d}.json").write_text(json.dumps(side, indent=1))
+        if "--halves" in sys.argv:                                   # each step on its own sheet, 3 x 2
+            hn = n // 2; hc = -(-hn // 2)
+            for h in (1, 2):
+                hs = np.zeros((2 * ch * SS, hc * cw * SS, 3)); hv = np.zeros((2 * ch * SS, hc * cw * SS), bool)
+                for j in range(hn):
+                    i = (h - 1) * hn + j; r, c = divmod(i, cols); rr, cc = divmod(j, hc)
+                    hs[rr * ch * SS:(rr + 1) * ch * SS, cc * cw * SS:(cc + 1) * cw * SS] = sheet[r * ch * SS:(r + 1) * ch * SS, c * cw * SS:(c + 1) * cw * SS]
+                    hv[rr * ch * SS:(rr + 1) * ch * SS, cc * cw * SS:(cc + 1) * cw * SS] = True
+                hs[~hv] = [255, 0, 255]
+                Image.fromarray(np.clip(hs, 0, 255).astype(np.uint8)).resize((hc * cw, 2 * ch), Image.LANCZOS).save(out / f"{d}-h{h}.png")
         print(d, "->", out / f"{d}.png", "cycle %.3f m (%.1f px), fig %.0f px" % (cyc, cyc * scale, fig_px))
 
 
